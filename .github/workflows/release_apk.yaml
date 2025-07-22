@@ -3,8 +3,8 @@ name: Flutter Release APK
 on:
   push:
     tags:
-      - 'v*.*.*' # Triggera il workflow quando viene pushata una tag che inizia con 'v' (es. v1.0.0, v1.2.3)
-# ... (parte iniziale del workflow) ...
+      - 'v*.*.*' 
+
 
 jobs:
   build_apk:
@@ -38,12 +38,10 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          # Scrive il file key.properties nella root della directory 'android'
-          # Gradle lo cercherà qui grazie a rootProject.file("key.properties")
-          echo "storeFile=upload-keystore.jks" > android/key.properties
-          echo "storePassword=$KEY_STORE_PASSWORD" >> android/key.properties
-          echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-          echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+          echo "storeFile=upload-keystore.jks" > key.properties
+          echo "storePassword=$KEY_STORE_PASSWORD" >> key.properties
+          echo "keyAlias=$KEY_ALIAS" >> key.properties
+          echo "keyPassword=$KEY_PASSWORD" >> key.properties
         working-directory: android # Questo è importante per il percorso del key.properties
 
       - name: Build Android APK (Signed) # Compila l'APK di release firmato
