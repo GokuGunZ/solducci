@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.solducci"
+    namespace = "com.gokugunz.solducci"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.solducci"
+        applicationId = "com.gokugunz.solducci"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -30,13 +30,43 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+    val keystoreProperties = Properties()
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+    }
+
+    signingConfigs {
+        create("release") {
+            // Verifica che le proprietà esistano prima di usarle
+            if (keystoreProperties.containsKey("storeFile") &&
+                keystoreProperties.containsKey("storePassword") &&
+                keystoreProperties.containsKey("keyAlias") &&
+                keystoreProperties.containsKey("keyPassword")) {
+
+                storeFile = file(keystoreProperties["storeFile"].toString())
+                storePassword = keystoreProperties["storePassword"].toString()
+                keyAlias = keystoreProperties["keyAlias"].toString()
+                keyPassword = keystoreProperties["keyPassword"].toString()
+            } else {
+                println("AVVISO: Le proprietà di firma per 'release' non sono state trovate in key.properties. La build di release potrebbe non essere firmata correttamente.")
+            }
         }
     }
+
+    buildTypes {
+        release {
+            // Imposta la configurazione di firma per il tipo di build 'release'
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true // Generalmente true per le build di release
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
 }
 
 flutter {

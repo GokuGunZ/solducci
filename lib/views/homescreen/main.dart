@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:solducci/models/expense.dart';
+
 
 class Homepage extends StatelessWidget{
   @override
@@ -44,23 +46,17 @@ class _MainhomeScaffoldState extends State<MainhomeScaffold> {
       ),
       body: _pages.elementAt(_selectedIndex),
       floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.camera_alt_outlined),
         onPressed: () {
-          showDialog(
-            context: context, 
-            builder:(context) {
-              return DecoratedBox(
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.rectangle, 
-                      borderRadius: BorderRadius.all(Radius.circular(5.0)),
-                      color:Colors.purpleAccent
+          ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ciao Carlucci'),
+                      backgroundColor: Color.fromRGBO(216, 60, 110, 0.67),
+                      behavior: SnackBarBehavior.floating,
+                      width: 180,
+                      duration: Duration(milliseconds: 1300),
                     ),
-                    child: SizedBox(
-                      height: 35,
-                      width: 150,
-                      child: Center(child: Text("Price"),)
-                    ));
-            }
-          );
+                  );
         },
       )
     );
@@ -122,45 +118,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int price = 0;
   @override
   Widget build(BuildContext context) {
-    return Form(child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              DecoratedBox(
-                decoration: const BoxDecoration(
-                  shape: BoxShape.rectangle, 
-                  borderRadius: BorderRadius.all(Radius.circular(5.0)),
-                  color:Color.fromARGB(255, 236, 160, 250)
-                ),
-                child: SizedBox(
-                  height: 35,
-                  width: 70,
-                  child: Center(child: Text("Price"),)
-                )
-              ),
-              SizedBox(
-                width: 100,
-                child: TextFormField(
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (value) {
-                    price =  int.parse(value);
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Must enter a number";
-                    }
-                    return null;
-                  },
-                  keyboardType: TextInputType.number,
-                        
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      );
+    return SingleChildScrollView(
+      child: Expense().getExpenseView()
+    );
   }
 }
 
