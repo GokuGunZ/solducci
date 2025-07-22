@@ -33,7 +33,7 @@ android {
     val keystoreProperties = Properties()
     val keystorePropertiesFile = rootProject.file("key.properties")
     if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile)) // Removed 'java.io.'
     }
 
     signingConfigs {
@@ -61,10 +61,6 @@ android {
             isMinifyEnabled = true // Generalmente true per le build di release
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
-    }
-
-    kotlinOptions {
-        jvmTarget = "1.8"
     }
 
 }
