@@ -47,6 +47,11 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> key.properties
         working-directory: android # Questo è importante per il percorso del key.properties
 
+      - name: Write .env file from secret
+        run: |
+          mkdir -p dev
+          echo "GCP_CREDENTIALS_B64=${{ secrets.GCP_CREDENTIALS_B64 }}" > dev/.env
+
       - name: Build Android APK (Signed) # Compila l'APK di release firmato
         run: flutter build apk --release
 
