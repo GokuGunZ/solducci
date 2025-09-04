@@ -1,0 +1,79 @@
+name: Release Solducci APK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build_apk:
+    name: Build Flutter APK
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.5'
+          channel: 'stable'
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            build
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Decode Keystore
+        env:
+          SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
+        run: |
+          echo "$SIGNING_KEY_BASE64" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Setup .env
+        run: echo "GSHEET_CREDENTIALS=${{ secrets.GSHEET_CREDENTIALS }}" > assets/dev/.env
+        
+      - name: Create Key Properties
+        env:
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "storeFile=upload-keystore.jks" > key.properties
+          echo "storePassword=$KEY_STORE_PASSWORD" >> key.properties
+          echo "keyAlias=$KEY_ALIAS" >> key.properties
+          echo "keyPassword=$KEY_PASSWORD" >> key.properties
+        working-directory: android
+
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
+
+      - name: Build Android APK (Signed)
+        run: flutter build apk --release
+
+      - name: Clean up sensitive files
+        run: rm -f android/app/upload-keystore.jks android/key.properties android/app/google-services.json assets/dev/.env 
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
