@@ -1,4 +1,4 @@
-package com.example.solducci
+package com.gokugunz.solducci
 
 import io.flutter.embedding.android.FlutterActivity
 
