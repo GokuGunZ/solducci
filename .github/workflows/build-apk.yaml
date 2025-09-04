@@ -43,7 +43,9 @@ jobs:
           echo "$SIGNING_KEY_BASE64" | base64 --decode > android/app/upload-keystore.jks
 
       - name: Setup .env
-        run: echo "GSHEET_CREDENTIALS=${{ secrets.GSHEET_CREDENTIALS }}" > assets/dev/.env
+        run: |
+         mkdir -p assets/dev
+         echo "GSHEET_CREDENTIALS=${{ secrets.GSHEET_CREDENTIALS }}" > assets/dev/.env
         
       - name: Create Key Properties
         env:
