@@ -13,9 +13,9 @@ class SheetApi {
       final gsheetCreds = dotenv.maybeGet('GSHEET_CREDENTIALS') ??
       const String.fromEnvironment('GSHEET_CREDENTIALS');
 
-  if (gsheetCreds.isEmpty) {
-    throw Exception("❌ Nessuna credenziale GSHEET trovata!");
-  }
+    if (gsheetCreds.isEmpty) {
+      throw Exception("❌ Nessuna credenziale GSHEET trovata!");
+    }
     String? gcpCredJson = utf8.decode(base64Decode(gsheetCreds));
     _sheets = GSheets(gcpCredJson);
   }

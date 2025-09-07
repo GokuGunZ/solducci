@@ -66,7 +66,7 @@ jobs:
           echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
 
       - name: Build Android APK (Signed)
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=GSHEET_CREDENTIALS=${{ secrets.GSHEET_CREDENTIALS }}
 
       - name: Clean up sensitive files
         run: rm -f android/app/upload-keystore.jks android/key.properties android/app/google-services.json assets/dev/.env 
@@ -75,8 +75,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          asset_name: solducci_${{ github.ref_name }}.apk
+          name: solducci_${{ github.ref_name }}
           draft: false
           prerelease: false
           files: |
