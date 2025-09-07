@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:gsheets/gsheets.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
@@ -10,10 +11,24 @@ class SheetApi {
   static Worksheet? _allExpenses;
 
   static Future<void> initGSheets() async {
-      final gsheetCreds = dotenv.maybeGet('GSHEET_CREDENTIALS') ??
-      const String.fromEnvironment('GSHEET_CREDENTIALS');
+    bool envLoaded = false;
+    try {
+      await dotenv.load(fileName: "assets/dev/.env");
+      envLoaded = true;
+      debugPrint("✅ .env caricato");
+    } catch (_) {
+      debugPrint("⚠️ Nessun file .env trovato, userò --dart-define");
+    }
+    String? gsheetCreds;
 
-    if (gsheetCreds.isEmpty) {
+    // ⚠️ usa dotenv SOLO se è stato caricato
+    if (envLoaded) {
+      gsheetCreds = dotenv.maybeGet('GSHEET_CREDENTIALS');
+    }
+
+    gsheetCreds ??= const String.fromEnvironment('GSHEET_CREDENTIALS');
+
+    if (gsheetCreds == null || gsheetCreds.isEmpty) {
       throw Exception("❌ Nessuna credenziale GSHEET trovata!");
     }
     String? gcpCredJson = utf8.decode(base64Decode(gsheetCreds));
