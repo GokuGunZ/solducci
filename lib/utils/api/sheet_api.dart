@@ -58,7 +58,7 @@ class SheetApi {
     // se la prima riga (header) è vuota, inseriscila; altrimenti non duplicare
     try {
       final header = await _allExpenses!.values.row(1);
-      if (header == null || header.isEmpty) {
+      if (header.isEmpty) {
         await _allExpenses!.values.insertRow(1, firstRow);
         debugPrint("✅ Header inserito nella sheet");
       } else {
