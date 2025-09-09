@@ -66,7 +66,9 @@ jobs:
           echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
 
       - name: Build Android APK (Signed)
-        run: flutter build apk --release --dart-define=GSHEET_CREDENTIALS=${{ secrets.GSHEET_CREDENTIALS }}
+        env:
+          GSHEET_CREDENTIALS: ${{ secrets.GSHEET_CREDENTIALS }}
+        run: flutter build apk --release --dart-define=GSHEET_CREDENTIALS="$GSHEET_CREDENTIALS"
 
       - name: Clean up sensitive files
         run: rm -f android/app/upload-keystore.jks android/key.properties android/app/google-services.json assets/dev/.env 
