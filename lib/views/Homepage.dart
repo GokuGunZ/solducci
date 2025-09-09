@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/expense_form.dart';
 
 
 class Homepage extends StatelessWidget{
@@ -119,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Expense().getExpenseView()
+      child: ExpenseForm().getExpenseView()
     );
   }
 }

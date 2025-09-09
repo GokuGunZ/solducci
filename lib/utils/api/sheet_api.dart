@@ -1,7 +1,7 @@
 // lib/utils/api/sheet_api.dart
 import 'package:flutter/material.dart';
 import 'package:gsheets/gsheets.dart';
-import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/expense_form.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 
@@ -14,23 +14,23 @@ class SheetApi {
   static Future<void> initGSheets() async {
     bool envLoaded = false;
     try {
-      await dotenv.load(fileName: "assets/dev/.env");
+      await dotenv.load(fileName: "dev/.env");
       envLoaded = true;
       debugPrint("✅ .env caricato");
     } catch (_) {
       debugPrint("⚠️ Nessun file .env trovato, userò --dart-define");
     }
 
-    final envCred = envLoaded ? dotenv.maybeGet('GSHEET_CREDENTIALS') : null;
-    final defineCred = const String.fromEnvironment('GSHEET_CREDENTIALS');
+    final envCred = envLoaded ? dotenv.maybeGet('GCP_CREDENTIALS_B64') : null;
+    final defineCred = const String.fromEnvironment('GCP_CREDENTIALS_B64');
     debugPrint(defineCred);
     String? gsheetCreds;
     if (envCred != null && envCred.isNotEmpty) {
       gsheetCreds = envCred;
-      debugPrint('✅ GSHEET_CREDENTIALS trovata in .env (lunghezza: ${envCred.length})');
+      debugPrint('✅ GCP_CREDENTIALS_B64 trovata in .env (lunghezza: ${envCred.length})');
     } else if (defineCred.isNotEmpty) {
       gsheetCreds = defineCred;
-      debugPrint('✅ GSHEET_CREDENTIALS trovata via --dart-define (lunghezza: ${defineCred.length})');
+      debugPrint('✅ GCP_CREDENTIALS_B64 trovata via --dart-define (lunghezza: ${defineCred.length})');
     }
 
     if (gsheetCreds == null || gsheetCreds.isEmpty) {
@@ -53,7 +53,7 @@ class SheetApi {
     final spreadsheet = await _sheets!.spreadsheet(_sheetId);
     _allExpenses = await _getWorkSheet(spreadsheet, title: 'all_expenses_app');
 
-    final firstRow = Expense().getFieldsNames();
+    final firstRow = ExpenseForm().getFieldsNames();
 
     // se la prima riga (header) è vuota, inseriscila; altrimenti non duplicare
     try {

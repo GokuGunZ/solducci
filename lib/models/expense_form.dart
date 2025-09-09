@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/utils/api/sheet_api.dart';
 
-class Expense {
+class ExpenseForm {
   final ExpenseField descriptionField = ExpenseField(fieldName: 'Description', type: String);
   final ExpenseField moneyField = ExpenseField(fieldName: "Money", type: double);
   final ExpenseField flowField = ExpenseField(fieldName: "Flow", type: MoneyFlow);
