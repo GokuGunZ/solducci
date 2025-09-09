@@ -23,7 +23,7 @@ class SheetApi {
 
     final envCred = envLoaded ? dotenv.maybeGet('GSHEET_CREDENTIALS') : null;
     final defineCred = const String.fromEnvironment('GSHEET_CREDENTIALS');
-
+    debugPrint(defineCred);
     String? gsheetCreds;
     if (envCred != null && envCred.isNotEmpty) {
       gsheetCreds = envCred;

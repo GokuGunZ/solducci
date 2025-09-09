@@ -45,7 +45,7 @@ jobs:
 #      - name: Setup .env
 #        run: |
 #         mkdir -p assets/dev
-#         echo "GSHEET_CREDENTIALS=${{ secrets.GSHEET_CREDENTIALS }}" > assets/dev/.env
+#         echo "GSHEET_CREDENTIALS=${{ secrets.GCP_CREDENTIALS_B64 }}" > assets/dev/.env
         
       - name: Create Key Properties
         env:
@@ -59,15 +59,15 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> key.properties
         working-directory: android
 
-      - name: Decode google-services.json
-        env:
-          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
-        run: |
-          echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
+#      - name: Decode google-services.json
+#        env:
+#          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+#        run: |
+#          echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
 
       - name: Build Android APK (Signed)
         env:
-          GSHEET_CREDENTIALS: ${{ secrets.GSHEET_CREDENTIALS }}
+          GSHEET_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_B64 }}
         run: flutter build apk --release --dart-define=GSHEET_CREDENTIALS="$GSHEET_CREDENTIALS"
 
       - name: Clean up sensitive files
