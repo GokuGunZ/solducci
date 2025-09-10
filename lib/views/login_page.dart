@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/service/auth_service.dart';
+import 'package:solducci/ui_elements/solducci_logo.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -38,30 +39,7 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             SizedBox(height: 20,),
             Center(
-              child: ShaderMask(
-                    blendMode: BlendMode.srcIn,
-                    shaderCallback: (bounds) => LinearGradient(colors: [
-                      Colors.red,
-                      Colors.pink,
-                      Colors.purple,
-                      Colors.deepPurple,
-                      Colors.deepPurple,
-                      Colors.indigo,
-                      Colors.blue,
-                      Colors.lightBlue,
-                      Colors.cyan,
-                      Colors.teal,
-                      Colors.green,
-                      Colors.lightGreen,
-                      Colors.lime,
-                      Colors.yellow,
-                      Colors.amber,
-                      Colors.orange,
-                      Colors.deepOrange,]).createShader(
-                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                    ),
-                    child: Text("Solducci", style: TextStyle(fontSize: 40),),
-                  ),
+              child: SolducciLogo(),
             ),
             SizedBox(height: 80,),
             TextFormField(

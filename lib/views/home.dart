@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/views/expense_list.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 
@@ -24,8 +25,8 @@ class _MainhomeScaffoldState extends State<MainhomeScaffold> {
   int _selectedIndex = 0;
   static const List<Widget> _pages = <Widget>[
     HomeScreen(),
+    ExpenseList(),
     SheetDataScreen(),
-    Icon(Icons.topic_rounded,size: 150)
   ];
 
   void _onItemTapped(int index){
@@ -161,7 +162,7 @@ class HomeBottomNavigator extends StatelessWidget {
       ),
       BottomNavigationBarItem(
         icon: Icon(Icons.find_in_page_sharp),
-        label: 'Sheet',
+        label: 'Expense List',
       ),
       BottomNavigationBarItem(
         icon: Icon(Icons.hourglass_empty),
