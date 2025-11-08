@@ -11,37 +11,81 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-   final _authService = AuthService();
+  final _authService = AuthService();
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
-  void signup() async {
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> signup() async {
+    if (_isLoading) return;
+
     final email = _emailController.text;
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (password!=confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Passwords don't match")));
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Le password non corrispondono"),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     if (!isPasswordSafe(password)) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Passwords is too weak. At least 8 char with 1 number and 1 lower and upper case.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Password troppo debole. Minimo 8 caratteri con 1 numero, 1 minuscola e 1 maiuscola."),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
+
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-       _authService.signUpWithPassword(email, password);
+      await _authService.signUpWithPassword(email, password);
+
+      // Check if signup was successful
+      if (mounted && Supabase.instance.client.auth.currentSession != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Registrazione completata!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Registrazione fallita. Email già in uso o non valida."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
-    if (Supabase.instance.client.auth.currentSession?.isExpired == null){
-      return;
-    }
-    Navigator.pop(context);
   }
 
   bool isPasswordSafe(String password) {
@@ -107,7 +151,16 @@ class _SignupPageState extends State<SignupPage> {
               controller: _confirmPasswordController,
             ),
             SizedBox(height: 50,),
-            ElevatedButton(onPressed: () {signup();}, child: Text("Signup")),
+            ElevatedButton(
+              onPressed: _isLoading ? null : signup,
+              child: _isLoading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text("Signup"),
+            ),
           ],
         ),
       ),

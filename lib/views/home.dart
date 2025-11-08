@@ -8,9 +8,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 
 class Homepage extends StatelessWidget{
+  const Homepage({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MainhomeScaffold();
+    return const MainhomeScaffold();
   }
 }
 
@@ -87,7 +89,7 @@ class _MainhomeScaffoldState extends State<MainhomeScaffold> {
 
 
 class SheetDataScreen extends StatelessWidget {
-  const SheetDataScreen({Key? key}) : super(key: key);
+  const SheetDataScreen({super.key});
 
   Future<List<dynamic>> getData() async {
     final url  = "https://script.google.com/macros/s/AKfycbwiWy-wT4A6UF3bEcNNLKlACqYydZLimCAzQPRjoECy2ooyDmwKKWnMMDLNZXE5ueSt/exec";
@@ -147,10 +149,10 @@ class HomeBottomNavigator extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onItemTapped;
   const HomeBottomNavigator({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onItemTapped,
-  }) : super(key:key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -14,17 +14,44 @@ class _LoginPageState extends State<LoginPage> {
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
 
-  void login() async {
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> login() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
     final email = _emailController.text;
     final password = _passwordController.text;
 
     try {
-       _authService.signInWithPassword(email, password);
-       Navigator.pop(context);
+      await _authService.signInWithPassword(email, password);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Login fallito. Verifica email e password."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -55,10 +82,16 @@ class _LoginPageState extends State<LoginPage> {
               controller: _passwordController,
             ),
             SizedBox(height: 50,),
-            ElevatedButton(onPressed: () {
-              login();
-              Navigator.pop(context);
-            }, child: Text("Login")),
+            ElevatedButton(
+              onPressed: _isLoading ? null : login,
+              child: _isLoading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text("Login"),
+            ),
 
             SizedBox(height: 50,),
             ElevatedButton(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,22 +6,72 @@ class ExpenseService {
   final database = Supabase.instance.client.from('expenses');
 
   // Create
-  Future createExpense(Expense newExpense) async {
-    await database.insert(newExpense.toMap());
+  Future<void> createExpense(Expense newExpense) async {
+    try {
+      await database.insert(newExpense.toMap());
+      if (kDebugMode) {
+        print('✅ Expense created successfully: ${newExpense.description}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ ERROR creating expense: $e');
+      }
+      rethrow;
+    }
   }
 
   // Read
-  final stream = Supabase.instance.client.from('expenses').stream(primaryKey: ['id'],)
-  .map((data) => data.map((expenseMap) => Expense.fromMap(expenseMap)).toList());
+  final Stream<List<Expense>> stream = Supabase.instance.client
+      .from('expenses')
+      .stream(primaryKey: ['id'])
+      .map(
+        (data) {
+          if (kDebugMode) {
+            print('📊 Received ${data.length} expenses from stream');
+          }
+          return data
+              .map<Expense>((Map<String, dynamic> row) {
+                try {
+                  return Expense.fromMap(row);
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('❌ ERROR parsing expense from row: $row');
+                    print('   Error: $e');
+                  }
+                  rethrow;
+                }
+              })
+              .toList();
+        },
+      );
 
   // Update
   Future updateExpense(Expense updatedExpense) async {
-    await database.update(updatedExpense.toMap()).eq('id', updatedExpense.id);
+    try {
+      await database.update(updatedExpense.toMap()).eq('id', updatedExpense.id);
+      if (kDebugMode) {
+        print('✅ Expense updated successfully: ${updatedExpense.description}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ ERROR updating expense: $e');
+      }
+      rethrow;
+    }
   }
 
   // Delete
   Future deleteExpense(Expense expense) async {
-    await database.delete().eq('id', expense.id);
+    try {
+      await database.delete().eq('id', expense.id);
+      if (kDebugMode) {
+        print('✅ Expense deleted successfully: ${expense.description}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ ERROR deleting expense: $e');
+      }
+      rethrow;
+    }
   }
-
 }
