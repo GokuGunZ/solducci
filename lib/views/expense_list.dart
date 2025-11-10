@@ -18,13 +18,22 @@ class _ExpenseListState extends State<ExpenseList> {
   ExpenseService expenseService = ExpenseService();
   final _authService = AuthService();
 
-  void addExpense() {
+  // Unified method to open expense form for add/edit/duplicate
+  void openExpenseForm({
+    Expense? expense,
+    required String title,
+    bool isEdit = false,
+  }) {
+    final ExpenseForm form = expense != null
+        ? ExpenseForm.fromExpense(expense, isEdit: isEdit)
+        : ExpenseForm.empty();
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
           appBar: AppBar(
-            title: const Text("Nuova Spesa"),
+            title: Text(title),
             leading: IconButton(
               icon: Icon(Icons.close),
               onPressed: () => Navigator.pop(context),
@@ -33,7 +42,7 @@ class _ExpenseListState extends State<ExpenseList> {
           body: SingleChildScrollView(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: ExpenseForm().getExpenseView(),
+              child: form.getExpenseView(context),
             ),
           ),
         ),
@@ -41,12 +50,16 @@ class _ExpenseListState extends State<ExpenseList> {
     );
   }
 
+  void addExpense() {
+    openExpenseForm(title: "Nuova Spesa");
+  }
+
   void _showExpenseDetails(BuildContext context, Expense expense) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
+        initialChildSize: 0.56,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
@@ -84,11 +97,29 @@ class _ExpenseListState extends State<ExpenseList> {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(context);
+                        _duplicateExpence(expense);
+                      },
+                      icon: Icon(Icons.copy),
+                      label: Text('Duplica'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.lightBlueAccent,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
                         _editExpense(context, expense);
                       },
                       icon: Icon(Icons.edit),
                       label: Text('Modifica'),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.lightGreen,
+                        foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
@@ -134,25 +165,14 @@ class _ExpenseListState extends State<ExpenseList> {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 16),
-            ),
-          ),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 16))),
         ],
       ),
     );
   }
 
   Future<void> _editExpense(BuildContext context, Expense expense) async {
-    // TODO: Implement edit functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Funzionalità modifica in arrivo'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    openExpenseForm(expense: expense, title: "Modifica Spesa", isEdit: true);
   }
 
   Future<void> _deleteExpense(BuildContext context, Expense expense) async {
@@ -312,6 +332,13 @@ class _ExpenseListState extends State<ExpenseList> {
               ),
             );
           }
+          expenses.sort((a, b) {
+            if (a.date.isAfter(b.date)) {
+              return -1;
+            } else {
+              return 1;
+            }
+          });
 
           return ListView.builder(
             itemCount: expenses.length,
@@ -320,14 +347,41 @@ class _ExpenseListState extends State<ExpenseList> {
 
               return Dismissible(
                 key: Key(expense.id.toString()),
-                direction: DismissDirection.endToStart,
-                background: Container(
+                direction: DismissDirection.horizontal,
+                secondaryBackground: Container(
                   color: Colors.red,
                   alignment: Alignment.centerRight,
                   padding: EdgeInsets.only(right: 20),
-                  child: Icon(Icons.delete, color: Colors.white, size: 32),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(Icons.delete, color: Colors.white, size: 32),
+                      Text("Delete"),
+                    ],
+                  ),
                 ),
-                confirmDismiss: (direction) => _confirmDelete(context, expense),
+                background: Container(
+                  color: Colors.lightBlueAccent,
+                  alignment: Alignment.centerLeft,
+                  padding: EdgeInsets.only(left: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Icon(Icons.copy, color: Colors.white, size: 32),
+                      Text("Duplicate"),
+                    ],
+                  ),
+                ),
+                confirmDismiss: (direction) {
+                  switch (direction) {
+                    case DismissDirection.endToStart:
+                      return _confirmDelete(context, expense);
+                    case DismissDirection.startToEnd:
+                      return _duplicateExpence(expense);
+                    default:
+                      throw UnimplementedError();
+                  }
+                },
                 onDismissed: (direction) => _onDismissed(context, expense),
                 child: Card(
                   margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -472,5 +526,11 @@ class _ExpenseListState extends State<ExpenseList> {
       case MoneyFlow.pit:
         return Colors.orange;
     }
+  }
+
+  Future<bool?> _duplicateExpence(Expense expense) async {
+    openExpenseForm(expense: expense, title: "Duplica Spesa", isEdit: false);
+    // Return false to prevent dismissing the list item
+    return false;
   }
 }

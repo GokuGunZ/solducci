@@ -6,8 +6,7 @@ import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/views/expense_list.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-
-class Homepage extends StatelessWidget{
+class Homepage extends StatelessWidget {
   const Homepage({super.key});
 
   @override
@@ -31,19 +30,19 @@ class _MainhomeScaffoldState extends State<MainhomeScaffold> {
     SheetDataScreen(),
   ];
 
-  void _onItemTapped(int index){
+  void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Solducci'),
         leading: StreamBuilder(
-          stream: Supabase.instance.client.auth.onAuthStateChange, 
+          stream: Supabase.instance.client.auth.onAuthStateChange,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return SizedBox(width: 10);
@@ -52,16 +51,24 @@ class _MainhomeScaffoldState extends State<MainhomeScaffold> {
             final session = snapshot.hasData ? snapshot.data!.session : null;
 
             if (session != null) {
-              return IconButton(onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("You are logged in!"),));
-              }, icon: Icon(Icons.person));
+              return IconButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("You are logged in!")));
+                },
+                icon: Icon(Icons.person),
+              );
             } else {
-              return IconButton(onPressed: () {
-                Navigator.pushNamed(context, "/loginpage");
-                }, icon: Icon(Icons.login));
+              return IconButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, "/loginpage");
+                },
+                icon: Icon(Icons.login),
+              );
             }
-          }),
+          },
+        ),
       ),
       bottomNavigationBar: HomeBottomNavigator(
         currentIndex: _selectedIndex,
@@ -72,27 +79,26 @@ class _MainhomeScaffoldState extends State<MainhomeScaffold> {
         child: Icon(Icons.camera_alt_outlined),
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Ciao Carlucci'),
-                      backgroundColor: Color.fromRGBO(216, 60, 110, 0.67),
-                      behavior: SnackBarBehavior.floating,
-                      width: 180,
-                      duration: Duration(milliseconds: 1300),
-                    ),
-                  );
+            SnackBar(
+              content: Text('Ciao Carlucci'),
+              backgroundColor: Color.fromRGBO(216, 60, 110, 0.67),
+              behavior: SnackBarBehavior.floating,
+              width: 180,
+              duration: Duration(milliseconds: 1300),
+            ),
+          );
         },
-      )
+      ),
     );
   }
-  
 }
-
 
 class SheetDataScreen extends StatelessWidget {
   const SheetDataScreen({super.key});
 
   Future<List<dynamic>> getData() async {
-    final url  = "https://script.google.com/macros/s/AKfycbwiWy-wT4A6UF3bEcNNLKlACqYydZLimCAzQPRjoECy2ooyDmwKKWnMMDLNZXE5ueSt/exec";
+    final url =
+        "https://script.google.com/macros/s/AKfycbwiWy-wT4A6UF3bEcNNLKlACqYydZLimCAzQPRjoECy2ooyDmwKKWnMMDLNZXE5ueSt/exec";
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
       List<dynamic> jsonData = json.decode(response.body);
@@ -105,29 +111,30 @@ class SheetDataScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<dynamic>>(
-        future: getData(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No data available'));
-          } else {
-            final data = snapshot.data!;
-            return ListView.builder(
-              itemCount: data.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(data[index].isEmpty ? "no name" : data[index] ),
-                );
-              },
-            );
-          }
-        },
-      );
+      future: getData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No data available'));
+        } else {
+          final data = snapshot.data!;
+          return ListView.builder(
+            itemCount: data.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(data[index].isEmpty ? "no name" : data[index]),
+              );
+            },
+          );
+        }
+      },
+    );
   }
 }
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -140,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: ExpenseForm().getExpenseView()
+      child: ExpenseForm.empty().getExpenseView(context),
     );
   }
 }
@@ -157,22 +164,19 @@ class HomeBottomNavigator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-    items: const <BottomNavigationBarItem>[
-      BottomNavigationBarItem(
-        icon: Icon(Icons.home),
-        label: 'Home',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.find_in_page_sharp),
-        label: 'Expense List',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.hourglass_empty),
-        label: 'TODO',
-      ),
-    ],
-    currentIndex: currentIndex,
-    onTap: onItemTapped,    
-  );
+      items: const <BottomNavigationBarItem>[
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.find_in_page_sharp),
+          label: 'Expense List',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.hourglass_empty),
+          label: 'TODO',
+        ),
+      ],
+      currentIndex: currentIndex,
+      onTap: onItemTapped,
+    );
   }
 }

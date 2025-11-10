@@ -8,28 +8,72 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExpenseForm {
   final ExpenseService _expenseService = ExpenseService();
+  final Expense? _initialExpense; // Store the original expense for updates
 
-  final ExpenseField descriptionField = ExpenseField(
-    fieldName: 'Description',
-    type: String,
-  );
-  final ExpenseField moneyField = ExpenseField(
-    fieldName: "Money",
-    type: double,
-  );
-  final ExpenseField flowField = ExpenseField(
-    fieldName: "Flow",
-    type: MoneyFlow,
-  );
-  final ExpenseField dateField = ExpenseField(
-    fieldName: "Date",
-    type: DateTime,
-    value: DateTime.now(),
-  );
-  final ExpenseField typeField = ExpenseField(
-    fieldName: "Tipologia",
-    type: Tipologia,
-  );
+  final ExpenseField descriptionField;
+  final ExpenseField moneyField;
+  final ExpenseField flowField;
+  final ExpenseField dateField;
+  final ExpenseField typeField;
+
+  // Private constructor
+  ExpenseForm._internal({
+    required this.descriptionField,
+    required this.moneyField,
+    required this.flowField,
+    required this.dateField,
+    required this.typeField,
+    Expense? initialExpense,
+  }) : _initialExpense = initialExpense;
+
+  // Factory for creating an empty form
+  factory ExpenseForm.empty() {
+    return ExpenseForm._internal(
+      descriptionField: ExpenseField(fieldName: 'Description', type: String),
+      moneyField: ExpenseField(fieldName: "Money", type: double),
+      flowField: ExpenseField(fieldName: "Flow", type: MoneyFlow),
+      dateField: ExpenseField(
+        fieldName: "Date",
+        type: DateTime,
+        value: DateTime.now(),
+      ),
+      typeField: ExpenseField(fieldName: "Tipologia", type: Tipologia),
+    );
+  }
+
+  // Factory for creating a form from an existing expense (for edit/duplicate)
+  factory ExpenseForm.fromExpense(Expense expense, {bool isEdit = false}) {
+    return ExpenseForm._internal(
+      descriptionField: ExpenseField(
+        fieldName: 'Description',
+        type: String,
+        value: expense.description,
+      ),
+      moneyField: ExpenseField(
+        fieldName: "Money",
+        type: double,
+        value: expense.amount,
+      ),
+      flowField: ExpenseField(
+        fieldName: "Flow",
+        type: MoneyFlow,
+        value: expense.moneyFlow,
+      ),
+      dateField: ExpenseField(
+        fieldName: "Date",
+        type: DateTime,
+        value: expense.date,
+      ),
+      typeField: ExpenseField(
+        fieldName: "Tipologia",
+        type: Tipologia,
+        value: expense.type,
+      ),
+      initialExpense: isEdit ? expense : null, // Only store for edit mode
+    );
+  }
+
+  bool get isEditMode => _initialExpense != null;
 
   List<dynamic> getFieldsNames() => [
     descriptionField.getFieldName(),
@@ -56,7 +100,7 @@ class ExpenseForm {
   };
   final _formKey = GlobalKey<FormState>();
 
-  Widget getExpenseView() {
+  Widget getExpenseView(BuildContext context) {
     return Form(
       key: _formKey,
       child: Column(
@@ -87,23 +131,36 @@ class ExpenseForm {
                 // Get current user ID from Supabase
                 final userId = Supabase.instance.client.auth.currentUser?.id;
 
-                // Create expense object from form data
-                final newExpense = Expense(
-                  id: 0, // Let Supabase auto-generate ID
-                  description: descriptionField.getFieldValue() as String,
-                  amount: moneyField.getFieldValue() as double,
-                  moneyFlow: flowField.getFieldValue() as MoneyFlow,
-                  date: dateField.getFieldValue() as DateTime,
-                  type: typeField.getFieldValue() as Tipologia,
-                  userId: userId, // Assign current user
-                );
-
-                // Save to Supabase
-                await _expenseService.createExpense(newExpense);
+                if (isEditMode && _initialExpense != null) {
+                  // Update existing expense
+                  final updatedExpense = Expense(
+                    id: _initialExpense.id,
+                    description: descriptionField.getFieldValue() as String,
+                    amount: moneyField.getFieldValue() as double,
+                    moneyFlow: flowField.getFieldValue() as MoneyFlow,
+                    date: dateField.getFieldValue() as DateTime,
+                    type: typeField.getFieldValue() as Tipologia,
+                    userId: _initialExpense.userId,
+                  );
+                  await _expenseService.updateExpense(updatedExpense);
+                } else {
+                  // Create new expense
+                  final newExpense = Expense(
+                    id: 0, // Let Supabase auto-generate ID
+                    description: descriptionField.getFieldValue() as String,
+                    amount: moneyField.getFieldValue() as double,
+                    moneyFlow: flowField.getFieldValue() as MoneyFlow,
+                    date: dateField.getFieldValue() as DateTime,
+                    type: typeField.getFieldValue() as Tipologia,
+                    userId: userId, // Assign current user
+                  );
+                  await _expenseService.createExpense(newExpense);
+                }
 
                 _formKey.currentState!.reset();
                 // Reset date field to current date
                 dateField.setValue(DateTime.now());
+                Navigator.pop(context);
               }
             },
             icon: const Icon(Icons.send),
@@ -146,6 +203,7 @@ class _FieldWidgetState extends State<FieldWidget> {
       return Container(
         margin: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
         child: TextFormField(
+          initialValue: widget.expenseField.getFieldValue()?.toString(),
           decoration: InputDecoration(
             hintText: widget.expenseField.getFieldName(),
             labelText: widget.expenseField.getFieldName(),
@@ -163,6 +221,7 @@ class _FieldWidgetState extends State<FieldWidget> {
     } else if (type == double) {
       CurrencyTextInputFormatter formatter =
           CurrencyTextInputFormatter.currency(locale: 'it', symbol: '€');
+      final initialAmount = widget.expenseField.getFieldValue() as double?;
       return Container(
         margin: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         child: TextFormField(
@@ -173,7 +232,7 @@ class _FieldWidgetState extends State<FieldWidget> {
             errorMaxLines: 2,
           ),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
-          initialValue: formatter.formatDouble(0),
+          initialValue: formatter.formatDouble(initialAmount ?? 0),
           onSaved: (newValue) {
             widget.expenseField.setValue(formatter.getDouble());
             formatter.formatDouble(0);
@@ -199,6 +258,7 @@ class _FieldWidgetState extends State<FieldWidget> {
           title: values[0]
               .getTypeTitle(), // Access getTypeTitle from EnumLabel extension
           options: values,
+          initialValue: widget.expenseField.getFieldValue() as Enum?,
           onChanged: (selected) {
             setState(() {
               widget.expenseField.setValue(selected);
