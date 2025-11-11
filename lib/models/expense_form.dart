@@ -104,67 +104,89 @@ class ExpenseForm {
     return Form(
       key: _formKey,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(
-                flex: 5,
-                child: FieldWidget(expenseField: descriptionField),
-              ),
-              Flexible(flex: 2, child: FieldWidget(expenseField: moneyField)),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              flowField,
-              dateField,
-              typeField,
-            ].map((el) => FieldWidget(expenseField: el)).toList(),
-          ),
-          IconButton(
-            onPressed: () async {
-              if (_formKey.currentState!.validate()) {
-                _formKey.currentState!.save();
+          // Description field - full width
+          FieldWidget(expenseField: descriptionField),
+          SizedBox(height: 16),
 
-                // Get current user ID from Supabase
-                final userId = Supabase.instance.client.auth.currentUser?.id;
+          // Amount field - full width
+          FieldWidget(expenseField: moneyField),
+          SizedBox(height: 24),
 
-                if (isEditMode && _initialExpense != null) {
-                  // Update existing expense
-                  final updatedExpense = Expense(
-                    id: _initialExpense.id,
-                    description: descriptionField.getFieldValue() as String,
-                    amount: moneyField.getFieldValue() as double,
-                    moneyFlow: flowField.getFieldValue() as MoneyFlow,
-                    date: dateField.getFieldValue() as DateTime,
-                    type: typeField.getFieldValue() as Tipologia,
-                    userId: _initialExpense.userId,
-                  );
-                  await _expenseService.updateExpense(updatedExpense);
-                } else {
-                  // Create new expense
-                  final newExpense = Expense(
-                    id: 0, // Let Supabase auto-generate ID
-                    description: descriptionField.getFieldValue() as String,
-                    amount: moneyField.getFieldValue() as double,
-                    moneyFlow: flowField.getFieldValue() as MoneyFlow,
-                    date: dateField.getFieldValue() as DateTime,
-                    type: typeField.getFieldValue() as Tipologia,
-                    userId: userId, // Assign current user
-                  );
-                  await _expenseService.createExpense(newExpense);
+          // Date picker - card style
+          FieldWidget(expenseField: dateField),
+          SizedBox(height: 16),
+
+          // Category selector
+          FieldWidget(expenseField: typeField),
+          SizedBox(height: 16),
+
+          // Money flow selector
+          FieldWidget(expenseField: flowField),
+          SizedBox(height: 32),
+
+          // Submit button - modern style
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                if (_formKey.currentState!.validate()) {
+                  _formKey.currentState!.save();
+
+                  // Get current user ID from Supabase
+                  final userId = Supabase.instance.client.auth.currentUser?.id;
+
+                  if (isEditMode && _initialExpense != null) {
+                    // Update existing expense
+                    final updatedExpense = Expense(
+                      id: _initialExpense.id,
+                      description: descriptionField.getFieldValue() as String,
+                      amount: moneyField.getFieldValue() as double,
+                      moneyFlow: flowField.getFieldValue() as MoneyFlow,
+                      date: dateField.getFieldValue() as DateTime,
+                      type: typeField.getFieldValue() as Tipologia,
+                      userId: _initialExpense.userId,
+                    );
+                    await _expenseService.updateExpense(updatedExpense);
+                  } else {
+                    // Create new expense
+                    final newExpense = Expense(
+                      id: -1, // Use -1 to signal new record (won't be sent to DB)
+                      description: descriptionField.getFieldValue() as String,
+                      amount: moneyField.getFieldValue() as double,
+                      moneyFlow: flowField.getFieldValue() as MoneyFlow,
+                      date: dateField.getFieldValue() as DateTime,
+                      type: typeField.getFieldValue() as Tipologia,
+                      userId: userId, // Assign current user
+                    );
+                    await _expenseService.createExpense(newExpense);
+                  }
+
+                  _formKey.currentState!.reset();
+                  // Reset date field to current date
+                  dateField.setValue(DateTime.now());
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
                 }
-
-                _formKey.currentState!.reset();
-                // Reset date field to current date
-                dateField.setValue(DateTime.now());
-                Navigator.pop(context);
-              }
-            },
-            icon: const Icon(Icons.send),
+              },
+              icon: Icon(Icons.check),
+              label: Text(
+                isEditMode ? 'Salva Modifiche' : 'Aggiungi Spesa',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
+          SizedBox(height: 16),
         ],
       ),
     );
@@ -200,19 +222,25 @@ class _FieldWidgetState extends State<FieldWidget> {
     final type = widget.expenseField.getFieldType();
 
     if (type == String) {
-      return Container(
-        margin: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
         child: TextFormField(
           initialValue: widget.expenseField.getFieldValue()?.toString(),
           decoration: InputDecoration(
-            hintText: widget.expenseField.getFieldName(),
             labelText: widget.expenseField.getFieldName(),
+            hintText: 'Es. Spesa supermercato',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: Colors.grey[50],
+            prefixIcon: Icon(Icons.description),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
           keyboardType: TextInputType.text,
+          style: TextStyle(fontSize: 16),
           onSaved: (newValue) => widget.expenseField.setValue(newValue),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return '${widget.expenseField.getFieldName()} cannot be empty';
+              return 'Inserisci una descrizione';
             }
             return null;
           },
@@ -222,87 +250,143 @@ class _FieldWidgetState extends State<FieldWidget> {
       CurrencyTextInputFormatter formatter =
           CurrencyTextInputFormatter.currency(locale: 'it', symbol: '€');
       final initialAmount = widget.expenseField.getFieldValue() as double?;
-      return Container(
-        margin: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
         child: TextFormField(
           inputFormatters: <TextInputFormatter>[formatter],
           decoration: InputDecoration(
-            hintText: widget.expenseField.getFieldName(),
             labelText: widget.expenseField.getFieldName(),
+            hintText: '0,00 €',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: Colors.grey[50],
+            prefixIcon: Icon(Icons.euro, color: Colors.green[700]),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             errorMaxLines: 2,
           ),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           initialValue: formatter.formatDouble(initialAmount ?? 0),
+          onChanged: (value) {
+            // Update the field value as the user types
+            widget.expenseField.setValue(formatter.getDouble());
+          },
           onSaved: (newValue) {
             widget.expenseField.setValue(formatter.getDouble());
-            formatter.formatDouble(0);
           },
           validator: (value) {
-            if (formatter.getDouble() == 0 || value == null || value.isEmpty) {
-              return '${widget.expenseField.getFieldName()} cannot be empty';
-            }
-            return null;
-          },
-        ),
-      );
-    } else if (enumTypeValues.containsKey(type)) {
-      final values = enumTypeValues[type]!;
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Color.fromRGBO(0, 185, 160, 0.2),
-        ),
-        margin: EdgeInsets.symmetric(vertical: 15, horizontal: 50),
-        child: EnumFormField<Enum>(
-          // Use Enum as the generic type or a more specific base if possible
-          title: values[0]
-              .getTypeTitle(), // Access getTypeTitle from EnumLabel extension
-          options: values,
-          initialValue: widget.expenseField.getFieldValue() as Enum?,
-          onChanged: (selected) {
-            setState(() {
-              widget.expenseField.setValue(selected);
-            });
-          },
-          onSaved: (newValue) {
-            widget.expenseField.setValue(newValue);
-          },
-          validator: (value) {
-            if (value == null) {
-              return 'Please select a ${widget.expenseField.getFieldName()}';
+            // Check the current value from the formatter
+            final currentAmount = formatter.getDouble();
+            if (currentAmount <= 0) {
+              return 'Inserisci un importo valido';
             }
             return null;
           },
         ),
       );
     } else if (type == DateTime) {
-      return Container(
-        margin: EdgeInsetsGeometry.symmetric(vertical: 15),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            const SizedBox(width: 16),
-            Text("${widget.expenseField.getFieldValue()}".split(' ')[0]),
-            const SizedBox(width: 16),
-            IconButton(
-              onPressed: () async {
-                final DateTime? picked = await showDatePicker(
-                  context: context,
-                  initialDate: widget.expenseField.getFieldValue(),
-                  firstDate: DateTime(1950),
-                  lastDate: DateTime(2050),
-                );
-                if (picked != null &&
-                    picked != widget.expenseField.getFieldValue()) {
-                  setState(() {
-                    widget.expenseField.setValue(picked);
-                  });
-                }
-              },
-              icon: Icon(Icons.today),
+      final dateValue = widget.expenseField.getFieldValue() as DateTime;
+      final formattedDate = DateFormat('dd/MM/yyyy').format(dateValue);
+
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            onTap: () async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: dateValue,
+                firstDate: DateTime(1950),
+                lastDate: DateTime(2050),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: ColorScheme.light(
+                        primary: Colors.blue[700]!,
+                        onPrimary: Colors.white,
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (picked != null && picked != dateValue) {
+                setState(() {
+                  widget.expenseField.setValue(picked);
+                });
+              }
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today, color: Colors.blue[700], size: 24),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Data',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          formattedDate,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: Colors.grey[400]),
+                ],
+              ),
             ),
-            const SizedBox(width: 16),
-          ],
+          ),
+        ),
+      );
+    } else if (enumTypeValues.containsKey(type)) {
+      final values = enumTypeValues[type]!;
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: EnumFormField<Enum>(
+              title: values[0].getTypeTitle(),
+              options: values,
+              initialValue: widget.expenseField.getFieldValue() as Enum?,
+              onChanged: (selected) {
+                setState(() {
+                  widget.expenseField.setValue(selected);
+                });
+              },
+              onSaved: (newValue) {
+                widget.expenseField.setValue(newValue);
+              },
+              validator: (value) {
+                if (value == null) {
+                  return 'Seleziona un\'opzione';
+                }
+                return null;
+              },
+            ),
+          ),
         ),
       );
     }
@@ -339,9 +423,9 @@ enum Tipologia {
 extension EnumLabel on Enum {
   String getLabel() {
     switch (runtimeType) {
-      case MoneyFlow _:
+      case MoneyFlow:
         return (this as MoneyFlow).label;
-      case Tipologia _:
+      case Tipologia:
         return (this as Tipologia).label;
       default:
         return toString().split('.').last;
@@ -350,9 +434,9 @@ extension EnumLabel on Enum {
 
   String getTypeTitle() {
     switch (runtimeType) {
-      case MoneyFlow _:
+      case MoneyFlow:
         return "Inserisci la direzione del flusso";
-      case Tipologia _:
+      case Tipologia:
         return "Inserisci la tipologia della spesa";
       default:
         return "title";
@@ -383,47 +467,62 @@ class EnumFormField<T extends Enum> extends FormField<T> {
   }) : super(
          builder: (FormFieldState<T> state) {
            return Column(
-             crossAxisAlignment: CrossAxisAlignment.start, // Align error text
+             crossAxisAlignment: CrossAxisAlignment.start,
              children: [
-               Padding(
-                 padding: const EdgeInsets.only(left: 10, top: 5),
-                 child: Text(
-                   title,
-                   style: TextStyle(
-                     fontSize: 16,
-                     fontWeight: FontWeight.bold,
-                     color: Colors.black54,
-                   ),
+               Text(
+                 title,
+                 style: TextStyle(
+                   fontSize: 16,
+                   fontWeight: FontWeight.bold,
+                   color: Colors.grey[800],
                  ),
                ),
-               GridView.builder(
-                 shrinkWrap: true,
-                 physics: const NeverScrollableScrollPhysics(),
-                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                   crossAxisCount: 2,
-                   childAspectRatio: 3.5,
-                   crossAxisSpacing: 1,
-                   mainAxisSpacing: 1,
-                 ),
-                 itemCount: options.length,
-                 itemBuilder: (context, index) {
-                   final val = options[index];
-                   return Center(
-                     child: RadioListTile<T>(
-                       title: Text((val as dynamic).label),
-                       value: val,
-                       groupValue: state.value,
-                       onChanged: (T? selected) {
-                         state.didChange(selected);
-                         onChanged?.call(selected);
-                       },
+               SizedBox(height: 12),
+               Wrap(
+                 spacing: 8,
+                 runSpacing: 8,
+                 children: options.map((val) {
+                   final isSelected = state.value == val;
+                   return InkWell(
+                     onTap: () {
+                       state.didChange(val);
+                       onChanged?.call(val);
+                     },
+                     borderRadius: BorderRadius.circular(12),
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 16,
+                         vertical: 12,
+                       ),
+                       decoration: BoxDecoration(
+                         color: isSelected
+                             ? Colors.blue[700]
+                             : Colors.grey[100],
+                         borderRadius: BorderRadius.circular(12),
+                         border: Border.all(
+                           color: isSelected
+                               ? Colors.blue[700]!
+                               : Colors.grey[300]!,
+                           width: 2,
+                         ),
+                       ),
+                       child: Text(
+                         (val as dynamic).label,
+                         style: TextStyle(
+                           fontSize: 14,
+                           fontWeight: isSelected
+                               ? FontWeight.bold
+                               : FontWeight.normal,
+                           color: isSelected ? Colors.white : Colors.grey[800],
+                         ),
+                       ),
                      ),
                    );
-                 },
+                 }).toList(),
                ),
-               if (state.hasError) // Display error message
+               if (state.hasError)
                  Padding(
-                   padding: const EdgeInsets.only(left: 12, top: 4, bottom: 10),
+                   padding: const EdgeInsets.only(top: 8),
                    child: Text(
                      state.errorText!,
                      style: TextStyle(

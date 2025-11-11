@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/views/expense_list.dart';
+import 'package:solducci/views/new_homepage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Homepage extends StatelessWidget {
@@ -25,7 +26,7 @@ class MainhomeScaffold extends StatefulWidget {
 class _MainhomeScaffoldState extends State<MainhomeScaffold> {
   int _selectedIndex = 0;
   static const List<Widget> _pages = <Widget>[
-    HomeScreen(),
+    NewHomepage(),
     ExpenseList(),
     SheetDataScreen(),
   ];

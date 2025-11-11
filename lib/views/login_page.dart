@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/ui_elements/solducci_logo.dart';
 
@@ -36,7 +37,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await _authService.signInWithPassword(email, password);
       if (mounted) {
-        Navigator.pop(context);
+        context.go('/home');
       }
     } catch (e) {
       if (mounted) {
@@ -95,9 +96,9 @@ class _LoginPageState extends State<LoginPage> {
 
             SizedBox(height: 50,),
             ElevatedButton(
-              onPressed: () async {
-                Navigator.pushNamed(context, "/signupage");
-                },
+              onPressed: () {
+                context.push("/signup");
+              },
               child: Text("Register Here")),
           ],
         ),

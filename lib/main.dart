@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:solducci/views/expense_list.dart';
-import 'package:solducci/views/login_page.dart';
-import 'package:solducci/views/signup_page.dart';
+import 'package:solducci/routes/app_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -32,10 +30,7 @@ void main() async {
       print('   URL: $supabaseUrl');
     }
 
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseKey,
-    );
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
 
     if (kDebugMode) {
       print('✅ Supabase initialized successfully');
@@ -48,14 +43,24 @@ void main() async {
     rethrow;
   }
 
-  runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-        home: ExpenseList(),  
-//      home: Homepage(),
-      routes: {
-        '/loginpage' : (context) => const LoginPage(),
-        '/signupage' : (context) => const SignupPage(),
-      },
-    ));
+  runApp(const SolducciApp());
 }
+
+/// Main app widget with GoRouter configuration
+class SolducciApp extends StatelessWidget {
+  const SolducciApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'Solducci',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.purple,
+        useMaterial3: true,
+      ),
+      routerConfig: AppRouter.router,
+    );
+  }
+}
+

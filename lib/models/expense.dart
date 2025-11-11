@@ -7,10 +7,16 @@ class Expense {
   int id;
   String description;
   double amount;
-  MoneyFlow moneyFlow;
+  MoneyFlow moneyFlow; // Legacy field - kept for backward compatibility
   DateTime date;
   Tipologia type;
-  String? userId; // User ID from Supabase auth
+  String? userId; // User ID for personal expenses
+
+  // NEW: Multi-user support
+  String? groupId; // Group ID for group expenses
+  String? paidBy; // UUID of user who paid
+  SplitType? splitType; // How expense is split
+  Map<String, double>? splitData; // Custom split amounts per user
 
   Expense({
     required this.id,
@@ -20,7 +26,17 @@ class Expense {
     required this.date,
     required this.type,
     this.userId,
+    this.groupId,
+    this.paidBy,
+    this.splitType,
+    this.splitData,
   });
+
+  /// Check if expense is personal (not in a group)
+  bool get isPersonal => groupId == null;
+
+  /// Check if expense is for a group
+  bool get isGroup => groupId != null;
 
   // map(entity) -> expense(model)
   factory Expense.fromMap(Map<String, dynamic> map) {
@@ -73,6 +89,15 @@ class Expense {
         },
       ),
       userId: map['user_id'] as String?,
+      // NEW: Multi-user fields
+      groupId: map['group_id'] as String?,
+      paidBy: map['paid_by'] as String?,
+      splitType: map['split_type'] != null
+          ? SplitType.fromString(map['split_type'] as String)
+          : null,
+      splitData: map['split_data'] != null
+          ? Map<String, double>.from(map['split_data'] as Map)
+          : null,
     );
   }
 
@@ -91,8 +116,22 @@ class Expense {
       map['user_id'] = userId!;
     }
 
+    // NEW: Multi-user fields
+    if (groupId != null) {
+      map['group_id'] = groupId!;
+    }
+    if (paidBy != null) {
+      map['paid_by'] = paidBy!;
+    }
+    if (splitType != null) {
+      map['split_type'] = splitType!.value;
+    }
+    if (splitData != null) {
+      map['split_data'] = splitData as Object;
+    }
+
     // Don't send ID for new records (let Supabase auto-generate)
-    // Only include it for updates
+    // Only include it for updates (positive IDs only)
     if (id > 0) {
       map['id'] = id;
     }
@@ -111,5 +150,47 @@ class Expense {
       trailing: Text(type.label),
       subtitle: Text("${date.toString()} -- ${moneyFlow.label}"),
     );
+  }
+}
+
+/// How an expense is split among group members
+enum SplitType {
+  equal('equal'), // Split equally among all members
+  custom('custom'), // Custom amounts per member (use splitData)
+  full('full'), // One person pays everything (no split)
+  none('none'); // No split (personal expense in group context)
+
+  final String value;
+  const SplitType(this.value);
+
+  static SplitType fromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'equal':
+        return SplitType.equal;
+      case 'custom':
+        return SplitType.custom;
+      case 'full':
+        return SplitType.full;
+      case 'none':
+        return SplitType.none;
+      default:
+        if (kDebugMode) {
+          print('⚠️ Unknown SplitType: $value, defaulting to equal');
+        }
+        return SplitType.equal;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case SplitType.equal:
+        return 'Diviso Equamente';
+      case SplitType.custom:
+        return 'Diviso Custom';
+      case SplitType.full:
+        return 'Pagato da Uno';
+      case SplitType.none:
+        return 'Personale';
+    }
   }
 }
