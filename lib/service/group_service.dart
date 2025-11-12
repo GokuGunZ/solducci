@@ -321,16 +321,26 @@ class GroupService {
         throw Exception('No authenticated user');
       }
 
-      // Check if user is already a member
-      final existingMember = await _supabase
-          .from('group_members')
+      // Check if user is already a member (by checking profiles with this email)
+      final profileResponse = await _supabase
+          .from('profiles')
           .select('id')
-          .eq('group_id', groupId)
-          .eq('user_id', inviteeEmail)
+          .eq('email', inviteeEmail.toLowerCase())
           .maybeSingle();
 
-      if (existingMember != null) {
-        throw Exception('User is already a member of this group');
+      if (profileResponse != null) {
+        // User exists, check if already a member
+        final inviteeUserId = profileResponse['id'] as String;
+        final existingMember = await _supabase
+            .from('group_members')
+            .select('id')
+            .eq('group_id', groupId)
+            .eq('user_id', inviteeUserId)
+            .maybeSingle();
+
+        if (existingMember != null) {
+          throw Exception('User is already a member of this group');
+        }
       }
 
       // Check if there's already a pending invite

@@ -3,6 +3,7 @@ import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/widgets/expense_list_item.dart';
+import 'package:solducci/widgets/context_switcher.dart';
 
 class ExpenseList extends StatefulWidget {
   const ExpenseList({super.key});
@@ -55,7 +56,7 @@ class _ExpenseListState extends State<ExpenseList> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Solducci - Spese"),
+        title: const ContextSwitcher(),
         elevation: 2,
       ),
       body: StreamBuilder<List<Expense>>(

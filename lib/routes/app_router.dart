@@ -12,6 +12,10 @@ import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
 import 'package:solducci/views/placeholders/notes_page.dart';
+import 'package:solducci/views/groups/create_group_page.dart';
+import 'package:solducci/views/groups/group_detail_page.dart';
+import 'package:solducci/views/groups/invite_member_page.dart';
+import 'package:solducci/views/groups/pending_invites_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Global router configuration for the app
@@ -95,6 +99,40 @@ class AppRouter {
       GoRoute(
         path: '/notes',
         builder: (context, state) => const NotesPage(),
+      ),
+
+      // Group Management Routes
+      GoRoute(
+        path: '/groups/create',
+        builder: (context, state) => const CreateGroupPage(),
+      ),
+
+      // Group detail
+      GoRoute(
+        path: '/groups/:id',
+        builder: (context, state) {
+          final groupId = state.pathParameters['id']!;
+          return GroupDetailPage(groupId: groupId);
+        },
+      ),
+
+      // Invite member to group
+      GoRoute(
+        path: '/groups/:id/invite',
+        builder: (context, state) {
+          final groupId = state.pathParameters['id']!;
+          final groupName = state.uri.queryParameters['name'] ?? 'Gruppo';
+          return InviteMemberPage(
+            groupId: groupId,
+            groupName: groupName,
+          );
+        },
+      ),
+
+      // Pending invites
+      GoRoute(
+        path: '/invites/pending',
+        builder: (context, state) => const PendingInvitesPage(),
       ),
     ],
   );

@@ -3,7 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/split_type.dart';
+import 'package:solducci/models/group.dart';
 import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/group_service.dart';
+import 'package:solducci/widgets/group_expense_fields.dart';
+import 'package:solducci/widgets/custom_split_editor.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExpenseForm {
@@ -101,83 +107,266 @@ class ExpenseForm {
   final _formKey = GlobalKey<FormState>();
 
   Widget getExpenseView(BuildContext context) {
+    // Check if we're in a group context
+    final currentContext = ContextManager().currentContext;
+    final isGroupContext = currentContext.isGroup;
+
+    return _ExpenseFormWidget(
+      formKey: _formKey,
+      expenseForm: this,
+      isGroupContext: isGroupContext,
+      groupId: currentContext.groupId,
+    );
+  }
+}
+
+/// Stateful wrapper for expense form to handle group fields
+class _ExpenseFormWidget extends StatefulWidget {
+  final GlobalKey<FormState> formKey;
+  final ExpenseForm expenseForm;
+  final bool isGroupContext;
+  final String? groupId;
+
+  const _ExpenseFormWidget({
+    required this.formKey,
+    required this.expenseForm,
+    required this.isGroupContext,
+    this.groupId,
+  });
+
+  @override
+  State<_ExpenseFormWidget> createState() => _ExpenseFormWidgetState();
+}
+
+class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
+  // Group expense fields state
+  String? _paidBy;
+  SplitType? _splitType = SplitType.equal;
+  Map<String, double>? _customSplits;
+  List<GroupMember> _groupMembers = [];
+  bool _loadingMembers = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isGroupContext && widget.groupId != null) {
+      _loadGroupMembers();
+    }
+  }
+
+  Future<void> _loadGroupMembers() async {
+    debugPrint('🔄 Loading group members for groupId: ${widget.groupId}');
+    setState(() => _loadingMembers = true);
+
+    try {
+      final members = await GroupService()
+          .getGroupMembers(widget.groupId!)
+          .timeout(const Duration(seconds: 10));
+
+      debugPrint('✅ Loaded ${members.length} members');
+
+      if (mounted) {
+        setState(() {
+          _groupMembers = members;
+          _loadingMembers = false;
+          // Auto-select current user as paidBy
+          _paidBy = Supabase.instance.client.auth.currentUser?.id;
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error loading group members: $e');
+      debugPrint('Stack trace: $stackTrace');
+
+      if (mounted) {
+        setState(() => _loadingMembers = false);
+
+        // Show error to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore caricamento membri: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Show loading indicator while loading members
+    if (widget.isGroupContext && _loadingMembers) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Caricamento membri gruppo...'),
+          ],
+        ),
+      );
+    }
+
+    // If in group context but no members loaded, show error
+    if (widget.isGroupContext && _groupMembers.isEmpty && !_loadingMembers) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text('Impossibile caricare i membri del gruppo'),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadGroupMembers,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Riprova'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Form(
-      key: _formKey,
+      key: widget.formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Description field - full width
-          FieldWidget(expenseField: descriptionField),
-          SizedBox(height: 16),
+          FieldWidget(expenseField: widget.expenseForm.descriptionField),
+          const SizedBox(height: 16),
 
           // Amount field - full width
-          FieldWidget(expenseField: moneyField),
-          SizedBox(height: 24),
+          FieldWidget(expenseField: widget.expenseForm.moneyField),
+          const SizedBox(height: 24),
 
           // Date picker - card style
-          FieldWidget(expenseField: dateField),
-          SizedBox(height: 16),
+          FieldWidget(expenseField: widget.expenseForm.dateField),
+          const SizedBox(height: 16),
 
           // Category selector
-          FieldWidget(expenseField: typeField),
-          SizedBox(height: 16),
+          FieldWidget(expenseField: widget.expenseForm.typeField),
+          const SizedBox(height: 16),
 
           // Money flow selector
-          FieldWidget(expenseField: flowField),
-          SizedBox(height: 32),
+          FieldWidget(expenseField: widget.expenseForm.flowField),
+          const SizedBox(height: 16),
+
+          // GROUP FIELDS - Show only in group context
+          if (widget.isGroupContext && _groupMembers.isNotEmpty) ...[
+            GroupExpenseFields(
+              members: _groupMembers,
+              initialPaidBy: _paidBy,
+              initialSplitType: _splitType,
+              onPaidByChanged: (value) {
+                setState(() => _paidBy = value);
+              },
+              onSplitTypeChanged: (value) {
+                setState(() => _splitType = value);
+              },
+            ),
+
+            // Custom split editor - Show only if custom split selected
+            if (_splitType == SplitType.custom) ...[
+              const SizedBox(height: 16),
+              CustomSplitEditor(
+                members: _groupMembers,
+                totalAmount: widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0,
+                initialSplits: _customSplits,
+                onSplitsChanged: (splits) {
+                  setState(() => _customSplits = splits);
+                },
+              ),
+            ],
+          ],
+
+          const SizedBox(height: 32),
 
           // Submit button - modern style
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton.icon(
               onPressed: () async {
-                if (_formKey.currentState!.validate()) {
-                  _formKey.currentState!.save();
+                // Validate custom splits if needed
+                if (widget.isGroupContext &&
+                    _splitType == SplitType.custom &&
+                    _customSplits != null) {
+                  final totalAmount = widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
+                  final splitsTotal = _customSplits!.values.fold(0.0, (sum, amount) => sum + amount);
+
+                  if ((splitsTotal - totalAmount).abs() > 0.01) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Gli importi custom devono sommare a ${totalAmount.toStringAsFixed(2)}€'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                }
+
+                if (widget.formKey.currentState!.validate()) {
+                  widget.formKey.currentState!.save();
 
                   // Get current user ID from Supabase
                   final userId = Supabase.instance.client.auth.currentUser?.id;
 
-                  if (isEditMode && _initialExpense != null) {
+                  if (widget.expenseForm.isEditMode && widget.expenseForm._initialExpense != null) {
                     // Update existing expense
                     final updatedExpense = Expense(
-                      id: _initialExpense.id,
-                      description: descriptionField.getFieldValue() as String,
-                      amount: moneyField.getFieldValue() as double,
-                      moneyFlow: flowField.getFieldValue() as MoneyFlow,
-                      date: dateField.getFieldValue() as DateTime,
-                      type: typeField.getFieldValue() as Tipologia,
-                      userId: _initialExpense.userId,
+                      id: widget.expenseForm._initialExpense!.id,
+                      description: widget.expenseForm.descriptionField.getFieldValue() as String,
+                      amount: widget.expenseForm.moneyField.getFieldValue() as double,
+                      moneyFlow: widget.expenseForm.flowField.getFieldValue() as MoneyFlow,
+                      date: widget.expenseForm.dateField.getFieldValue() as DateTime,
+                      type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
+                      userId: widget.expenseForm._initialExpense!.userId,
+                      // Keep existing group fields for updates
+                      groupId: widget.expenseForm._initialExpense!.groupId,
+                      paidBy: widget.expenseForm._initialExpense!.paidBy,
+                      splitType: widget.expenseForm._initialExpense!.splitType,
+                      splitData: widget.expenseForm._initialExpense!.splitData,
                     );
-                    await _expenseService.updateExpense(updatedExpense);
+                    await widget.expenseForm._expenseService.updateExpense(updatedExpense);
                   } else {
                     // Create new expense
                     final newExpense = Expense(
-                      id: -1, // Use -1 to signal new record (won't be sent to DB)
-                      description: descriptionField.getFieldValue() as String,
-                      amount: moneyField.getFieldValue() as double,
-                      moneyFlow: flowField.getFieldValue() as MoneyFlow,
-                      date: dateField.getFieldValue() as DateTime,
-                      type: typeField.getFieldValue() as Tipologia,
-                      userId: userId, // Assign current user
+                      id: -1,
+                      description: widget.expenseForm.descriptionField.getFieldValue() as String,
+                      amount: widget.expenseForm.moneyField.getFieldValue() as double,
+                      moneyFlow: widget.expenseForm.flowField.getFieldValue() as MoneyFlow,
+                      date: widget.expenseForm.dateField.getFieldValue() as DateTime,
+                      type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
+                      userId: userId,
+                      // NEW: Add group fields if in group context
+                      groupId: widget.isGroupContext ? widget.groupId : null,
+                      paidBy: widget.isGroupContext ? _paidBy : null,
+                      splitType: widget.isGroupContext ? _splitType : null,
+                      splitData: widget.isGroupContext && _splitType == SplitType.custom ? _customSplits : null,
                     );
-                    await _expenseService.createExpense(newExpense);
+                    await widget.expenseForm._expenseService.createExpense(newExpense);
                   }
 
-                  _formKey.currentState!.reset();
+                  widget.formKey.currentState!.reset();
                   // Reset date field to current date
-                  dateField.setValue(DateTime.now());
+                  widget.expenseForm.dateField.setValue(DateTime.now());
                   if (context.mounted) {
                     Navigator.pop(context);
                   }
                 }
               },
-              icon: Icon(Icons.check),
+              icon: const Icon(Icons.check),
               label: Text(
-                isEditMode ? 'Salva Modifiche' : 'Aggiungi Spesa',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                widget.expenseForm.isEditMode ? 'Salva Modifiche' : 'Aggiungi Spesa',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
@@ -186,7 +375,7 @@ class ExpenseForm {
               ),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
         ],
       ),
     );

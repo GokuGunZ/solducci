@@ -211,13 +211,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         subtitle: const Text(
                             'Crea un gruppo per condividere spese con altri'),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          // TODO: Navigate to create group page
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Funzionalità in arrivo presto!')),
-                          );
-                        },
+                        onTap: () => context.push('/groups/create'),
                       ),
                     )
                   else
@@ -235,12 +229,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                             onTap: () {
-                              // TODO: Navigate to group detail page
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content:
-                                        Text('Dettagli gruppo: ${group.name}')),
-                              );
+                              debugPrint('🔄 Navigating to group detail: ${group.id}');
+                              context.push('/groups/${group.id}');
                             },
                           ),
                         )),
@@ -255,13 +245,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       title: 'Inviti Pendenti',
                       subtitle: 'Hai $_pendingInviteCount inviti in attesa',
                       color: Colors.red,
-                      onTap: () {
-                        // TODO: Navigate to pending invites page
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Funzionalità in arrivo presto!')),
-                        );
-                      },
+                      onTap: () => context.push('/invites/pending'),
                       badge: '$_pendingInviteCount',
                     ),
 

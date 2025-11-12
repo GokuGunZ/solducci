@@ -6,6 +6,7 @@ import 'package:solducci/models/dashboard_data.dart';
 import 'package:solducci/service/expense_service.dart';
 import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/widgets/expense_list_item.dart';
+import 'package:solducci/widgets/context_switcher.dart';
 
 class NewHomepage extends StatelessWidget {
   const NewHomepage({super.key});
@@ -55,7 +56,7 @@ class NewHomepage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Solducci - Home"),
+        title: const ContextSwitcher(),
         elevation: 2,
         actions: [
           IconButton(

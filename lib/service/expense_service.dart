@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/expense_split.dart';
+import 'package:solducci/models/split_type.dart';
+import 'package:solducci/models/group.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/group_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExpenseService {
@@ -29,10 +33,47 @@ class ExpenseService {
         print('📤 Data being sent to Supabase: $dataToInsert');
       }
 
-      await _supabase.from('expenses').insert(dataToInsert);
+      // Insert expense and get the ID back
+      final result = await _supabase
+          .from('expenses')
+          .insert(dataToInsert)
+          .select()
+          .single();
+
+      final expenseId = result['id'] as int;
 
       if (kDebugMode) {
-        print('✅ Expense created successfully: ${newExpense.description}');
+        print('✅ Expense created successfully: ${newExpense.description} (ID: $expenseId)');
+      }
+
+      // If group expense with splits, create expense_splits
+      if (newExpense.groupId != null &&
+          newExpense.splitType != null &&
+          newExpense.splitType != SplitType.full &&
+          newExpense.splitType != SplitType.none) {
+
+        if (kDebugMode) {
+          print('💰 Creating splits for expense $expenseId (type: ${newExpense.splitType?.label})');
+        }
+
+        // Get group members to calculate splits
+        final members = await GroupService().getGroupMembers(newExpense.groupId!);
+
+        // Calculate splits based on type
+        final splits = _calculateSplits(
+          expenseId: expenseId,
+          expense: newExpense,
+          members: members,
+        );
+
+        // Insert splits
+        if (splits.isNotEmpty) {
+          await _supabase.from('expense_splits').insert(splits);
+
+          if (kDebugMode) {
+            print('✅ Created ${splits.length} expense splits');
+          }
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -168,6 +209,138 @@ class ExpenseService {
         print('❌ ERROR getting personal expenses: $e');
       }
       return [];
+    }
+  }
+
+  // ========================================
+  // EXPENSE SPLITS
+  // ========================================
+
+  /// Calculate splits based on expense split type
+  List<Map<String, dynamic>> _calculateSplits({
+    required int expenseId,
+    required Expense expense,
+    required List<GroupMember> members,
+  }) {
+    final splits = <Map<String, dynamic>>[];
+
+    switch (expense.splitType) {
+      case SplitType.equal:
+        // Split equally among all members
+        final amountPerPerson = expense.amount / members.length;
+        final roundedAmount = double.parse(amountPerPerson.toStringAsFixed(2));
+
+        for (final member in members) {
+          splits.add({
+            'expense_id': expenseId,
+            'user_id': member.userId,
+            'amount': roundedAmount,
+            'is_paid': member.userId == expense.paidBy,
+          });
+        }
+        break;
+
+      case SplitType.custom:
+        // Use custom amounts from splitData
+        if (expense.splitData != null) {
+          for (final entry in expense.splitData!.entries) {
+            final userId = entry.key;
+            final amount = entry.value;
+
+            // Only create split if amount > 0
+            if (amount > 0) {
+              splits.add({
+                'expense_id': expenseId,
+                'user_id': userId,
+                'amount': amount,
+                'is_paid': userId == expense.paidBy,
+              });
+            }
+          }
+        }
+        break;
+
+      case SplitType.full:
+      case SplitType.none:
+        // No splits needed
+        break;
+
+      default:
+        if (kDebugMode) {
+          print('⚠️ Unknown split type: ${expense.splitType}');
+        }
+        break;
+    }
+
+    return splits;
+  }
+
+  /// Get splits for a specific expense
+  Future<List<ExpenseSplit>> getExpenseSplits(int expenseId) async {
+    try {
+      final response = await _supabase
+          .from('expense_splits')
+          .select('''
+            *,
+            profiles:user_id (
+              nickname,
+              email,
+              avatar_url
+            )
+          ''')
+          .eq('expense_id', expenseId)
+          .order('amount', ascending: false);
+
+      return (response as List).map((map) {
+        // Flatten joined profile data
+        final profile = map['profiles'] as Map<String, dynamic>?;
+        return ExpenseSplit.fromMap({
+          ...map,
+          'user_name': profile?['nickname'],
+          'user_email': profile?['email'],
+          'user_avatar_url': profile?['avatar_url'],
+        });
+      }).toList();
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ ERROR getting expense splits: $e');
+      }
+      return [];
+    }
+  }
+
+  /// Calculate how much the current user owes or is owed for a group expense
+  /// Returns positive if user is owed money, negative if user owes money
+  Future<double> calculateUserBalance(Expense expense) async {
+    if (expense.groupId == null) return 0.0;
+
+    final currentUserId = _supabase.auth.currentUser?.id;
+    if (currentUserId == null) return 0.0;
+
+    // Get splits for this expense
+    final splits = await getExpenseSplits(expense.id);
+
+    // Find current user's split
+    final userSplit = splits.firstWhere(
+      (split) => split.userId == currentUserId,
+      orElse: () => ExpenseSplit(
+        id: '',
+        expenseId: expense.id.toString(),
+        userId: currentUserId,
+        amount: 0.0,
+        isPaid: false,
+        createdAt: DateTime.now(),
+      ),
+    );
+
+    // If current user paid, they are owed (positive)
+    // If someone else paid, current user owes (negative)
+    if (expense.paidBy == currentUserId) {
+      // User paid, so they're owed the total minus their share
+      return expense.amount - userSplit.amount;
+    } else {
+      // User didn't pay, so they owe their share
+      return -userSplit.amount;
     }
   }
 }

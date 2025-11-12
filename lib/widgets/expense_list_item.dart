@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Reusable expense list item widget with full functionality:
 /// - Swipe to delete (right)
@@ -36,9 +37,44 @@ class ExpenseListItem extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        title: Text(
-          expense.description,
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                expense.description,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (expense.isGroup)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '👥',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        'Gruppo',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[900],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,6 +84,7 @@ class ExpenseListItem extends StatelessWidget {
               DateFormat('dd/MM/yyyy').format(expense.date),
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
+            if (expense.isGroup) ..._buildGroupInfo(context),
           ],
         ),
         trailing: Text(
@@ -117,6 +154,90 @@ class ExpenseListItem extends StatelessWidget {
     );
   }
 
+  // Build group expense info widgets
+  List<Widget> _buildGroupInfo(BuildContext context) {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final List<Widget> widgets = [];
+
+    // Show who paid
+    if (expense.paidBy != null) {
+      final isPaidByCurrentUser = expense.paidBy == currentUserId;
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            isPaidByCurrentUser ? '💰 Hai pagato tu' : '💰 Pagato da altro membro',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isPaidByCurrentUser ? Colors.green[700] : Colors.blue[700],
+            ),
+          ),
+        ),
+      );
+
+      // Show debt indicator (async)
+      widgets.add(
+        FutureBuilder<double>(
+          future: ExpenseService().calculateUserBalance(expense),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Calcolo debito...',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              );
+            }
+
+            if (snapshot.hasError || !snapshot.hasData) {
+              return const SizedBox.shrink();
+            }
+
+            final balance = snapshot.data!;
+
+            // Don't show if balance is 0
+            if (balance.abs() < 0.01) {
+              return const SizedBox.shrink();
+            }
+
+            if (balance > 0) {
+              // User is owed money
+              return Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '↗️ +${balance.toStringAsFixed(2)}€ da recuperare',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.green[700],
+                  ),
+                ),
+              );
+            } else {
+              // User owes money
+              return Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '↙️ ${balance.toStringAsFixed(2)}€ devi',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.red[700],
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
   // Show expense details in bottom sheet
   void _showExpenseDetails(BuildContext context) {
     showModalBottomSheet(
@@ -154,6 +275,28 @@ class ExpenseListItem extends StatelessWidget {
                 'Data',
                 DateFormat('dd/MM/yyyy').format(expense.date),
               ),
+              if (expense.isGroup) ...[
+                const Divider(height: 30),
+                Text(
+                  'Info Gruppo',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[800],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildDetailRow(
+                  'Tipo',
+                  expense.splitType?.label ?? 'Non specificato',
+                ),
+                _buildDetailRow(
+                  'Pagato da',
+                  expense.paidBy == Supabase.instance.client.auth.currentUser?.id
+                      ? 'Tu'
+                      : 'Altro membro',
+                ),
+              ],
               SizedBox(height: 30),
               Row(
                 children: [

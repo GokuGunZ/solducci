@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:solducci/routes/app_router.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -36,6 +37,36 @@ void main() async {
       print('✅ Supabase initialized successfully');
       print('🚀 Starting Solducci app...');
     }
+
+    // Initialize ContextManager if user is already logged in
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      if (kDebugMode) {
+        print('🔧 User logged in, initializing ContextManager...');
+      }
+      await ContextManager().initialize();
+      if (kDebugMode) {
+        print('✅ ContextManager initialized');
+      }
+    }
+
+    // Listen to auth state changes
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+      final session = data.session;
+      if (session != null) {
+        // User logged in
+        if (kDebugMode) {
+          print('🔧 User logged in, initializing ContextManager...');
+        }
+        await ContextManager().initialize();
+      } else {
+        // User logged out
+        if (kDebugMode) {
+          print('🔧 User logged out, clearing ContextManager...');
+        }
+        ContextManager().clear();
+      }
+    });
   } catch (e) {
     if (kDebugMode) {
       print('❌ FATAL ERROR during initialization: $e');

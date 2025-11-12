@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/split_type.dart';
 
 class Expense {
   int id;
@@ -93,7 +94,7 @@ class Expense {
       groupId: map['group_id'] as String?,
       paidBy: map['paid_by'] as String?,
       splitType: map['split_type'] != null
-          ? SplitType.fromString(map['split_type'] as String)
+          ? SplitType.fromValue(map['split_type'] as String)
           : null,
       splitData: map['split_data'] != null
           ? Map<String, double>.from(map['split_data'] as Map)
@@ -150,47 +151,5 @@ class Expense {
       trailing: Text(type.label),
       subtitle: Text("${date.toString()} -- ${moneyFlow.label}"),
     );
-  }
-}
-
-/// How an expense is split among group members
-enum SplitType {
-  equal('equal'), // Split equally among all members
-  custom('custom'), // Custom amounts per member (use splitData)
-  full('full'), // One person pays everything (no split)
-  none('none'); // No split (personal expense in group context)
-
-  final String value;
-  const SplitType(this.value);
-
-  static SplitType fromString(String value) {
-    switch (value.toLowerCase()) {
-      case 'equal':
-        return SplitType.equal;
-      case 'custom':
-        return SplitType.custom;
-      case 'full':
-        return SplitType.full;
-      case 'none':
-        return SplitType.none;
-      default:
-        if (kDebugMode) {
-          print('⚠️ Unknown SplitType: $value, defaulting to equal');
-        }
-        return SplitType.equal;
-    }
-  }
-
-  String get label {
-    switch (this) {
-      case SplitType.equal:
-        return 'Diviso Equamente';
-      case SplitType.custom:
-        return 'Diviso Custom';
-      case SplitType.full:
-        return 'Pagato da Uno';
-      case SplitType.none:
-        return 'Personale';
-    }
   }
 }
