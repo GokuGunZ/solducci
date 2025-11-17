@@ -149,6 +149,15 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
   @override
   void initState() {
     super.initState();
+
+    // Initialize group fields from existing expense if in edit mode
+    if (widget.expenseForm.isEditMode && widget.expenseForm._initialExpense != null) {
+      final expense = widget.expenseForm._initialExpense!;
+      _paidBy = expense.paidBy;
+      _splitType = expense.splitType ?? SplitType.equal;
+      _customSplits = expense.splitData;
+    }
+
     if (widget.isGroupContext && widget.groupId != null) {
       _loadGroupMembers();
     }
@@ -169,8 +178,10 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
         setState(() {
           _groupMembers = members;
           _loadingMembers = false;
-          // Auto-select current user as paidBy
-          _paidBy = Supabase.instance.client.auth.currentUser?.id;
+          // Auto-select current user as paidBy ONLY if not already set (new expense)
+          if (_paidBy == null) {
+            _paidBy = Supabase.instance.client.auth.currentUser?.id;
+          }
         });
       }
     } catch (e, stackTrace) {
@@ -253,10 +264,6 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
           FieldWidget(expenseField: widget.expenseForm.typeField),
           const SizedBox(height: 16),
 
-          // Money flow selector
-          FieldWidget(expenseField: widget.expenseForm.flowField),
-          const SizedBox(height: 16),
-
           // GROUP FIELDS - Show only in group context
           if (widget.isGroupContext && _groupMembers.isNotEmpty) ...[
             GroupExpenseFields(
@@ -322,15 +329,16 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                       id: widget.expenseForm._initialExpense!.id,
                       description: widget.expenseForm.descriptionField.getFieldValue() as String,
                       amount: widget.expenseForm.moneyField.getFieldValue() as double,
-                      moneyFlow: widget.expenseForm.flowField.getFieldValue() as MoneyFlow,
+                      // MoneyFlow: always use default (legacy field, no longer used)
+                      moneyFlow: MoneyFlow.carlucci,
                       date: widget.expenseForm.dateField.getFieldValue() as DateTime,
                       type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
                       userId: widget.expenseForm._initialExpense!.userId,
-                      // Keep existing group fields for updates
+                      // FIX: Use current form values for group fields to allow updates
                       groupId: widget.expenseForm._initialExpense!.groupId,
-                      paidBy: widget.expenseForm._initialExpense!.paidBy,
-                      splitType: widget.expenseForm._initialExpense!.splitType,
-                      splitData: widget.expenseForm._initialExpense!.splitData,
+                      paidBy: widget.isGroupContext ? _paidBy : widget.expenseForm._initialExpense!.paidBy,
+                      splitType: widget.isGroupContext ? _splitType : widget.expenseForm._initialExpense!.splitType,
+                      splitData: widget.isGroupContext && _splitType == SplitType.custom ? _customSplits : (widget.isGroupContext ? null : widget.expenseForm._initialExpense!.splitData),
                     );
                     await widget.expenseForm._expenseService.updateExpense(updatedExpense);
                   } else {
@@ -339,7 +347,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                       id: -1,
                       description: widget.expenseForm.descriptionField.getFieldValue() as String,
                       amount: widget.expenseForm.moneyField.getFieldValue() as double,
-                      moneyFlow: widget.expenseForm.flowField.getFieldValue() as MoneyFlow,
+                      // MoneyFlow: always use default (legacy field, no longer used)
+                      moneyFlow: MoneyFlow.carlucci,
                       date: widget.expenseForm.dateField.getFieldValue() as DateTime,
                       type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
                       userId: userId,

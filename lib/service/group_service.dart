@@ -40,10 +40,10 @@ class GroupService {
         return [];
       }
 
-      // Step 2: Get groups by IDs
+      // Step 2: Get groups by IDs with member count
       final groupsResponse = await _supabase
           .from('groups')
-          .select()
+          .select('*, member_count:group_members(count)')
           .inFilter('id', groupIds)
           .order('created_at', ascending: false);
 
@@ -51,9 +51,18 @@ class GroupService {
         print('✅ Loaded ${(groupsResponse as List).length} groups');
       }
 
-      return (groupsResponse as List)
-          .map((map) => ExpenseGroup.fromMap(map))
-          .toList();
+      return (groupsResponse as List).map((map) {
+        // Extract member count from aggregation
+        final memberCountData = map['member_count'] as List?;
+        final count = memberCountData != null && memberCountData.isNotEmpty
+            ? memberCountData[0]['count'] as int?
+            : 0;
+
+        return ExpenseGroup.fromMap({
+          ...map,
+          'member_count': count,
+        });
+      }).toList();
     } catch (e) {
       if (kDebugMode) {
         print('❌ ERROR loading groups: $e');

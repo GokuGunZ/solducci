@@ -33,11 +33,11 @@ class CategoryBreakdown {
   });
 }
 
-/// Model for debt/credit calculation between Carl and Pit
+/// Model for debt/credit calculation between two users
 class DebtBalance {
-  final double carlOwes; // How much Carl owes to Pit
-  final double pitOwes; // How much Pit owes to Carl
-  final double netBalance; // Positive = Carl owes Pit, Negative = Pit owes Carl
+  final double carlOwes; // How much current user owes to other (legacy naming)
+  final double pitOwes; // How much other owes to current user (legacy naming)
+  final double netBalance; // Positive = you owe other, Negative = other owes you
   final String balanceLabel; // User-friendly label
 
   DebtBalance({
@@ -47,51 +47,73 @@ class DebtBalance {
     required this.balanceLabel,
   });
 
-  factory DebtBalance.calculate(List<Expense> expenses) {
-    double carlOwes = 0.0;
-    double pitOwes = 0.0;
-
-    for (var expense in expenses) {
-      switch (expense.moneyFlow) {
-        case MoneyFlow.carlToPit:
-          // Carl paid for Pit → Pit owes Carl
-          pitOwes += expense.amount;
-          break;
-        case MoneyFlow.pitToCarl:
-          // Pit paid for Carl → Carl owes Pit
-          carlOwes += expense.amount;
-          break;
-        case MoneyFlow.carlDiv2:
-          // Carl paid but split 50/50 → Pit owes half
-          pitOwes += expense.amount / 2;
-          break;
-        case MoneyFlow.pitDiv2:
-          // Pit paid but split 50/50 → Carl owes half
-          carlOwes += expense.amount / 2;
-          break;
-        case MoneyFlow.carlucci:
-        case MoneyFlow.pit:
-          // Personal expenses, no debt
-          break;
-      }
+  /// Create DebtBalance from balance map (from ExpenseService.calculateGroupBalance)
+  /// For 2-person groups only
+  ///
+  /// Convention:
+  /// - balances[userId] > 0 = they owe you (you are owed)
+  /// - balances[userId] < 0 = you owe them
+  /// - netBalance > 0 = you owe (current user owes)
+  /// - netBalance < 0 = you are owed (current user is owed)
+  factory DebtBalance.fromBalanceMap(
+    Map<String, double> balances,
+    String currentUserName,
+    String? otherUserName,
+  ) {
+    if (balances.isEmpty) {
+      return DebtBalance(
+        carlOwes: 0.0,
+        pitOwes: 0.0,
+        netBalance: 0.0,
+        balanceLabel: "Saldo in pareggio",
+      );
     }
 
-    final netBalance = carlOwes - pitOwes;
-    String balanceLabel;
+    // For 2-person group, there should be only one entry
+    final otherUserId = balances.keys.first;
+    final balance = balances[otherUserId] ?? 0.0;
+    // balance > 0 = they owe you
+    // balance < 0 = you owe them
 
-    if (netBalance > 0) {
-      balanceLabel = "Carl deve ${netBalance.toStringAsFixed(2)} € a Pit";
-    } else if (netBalance < 0) {
-      balanceLabel = "Pit deve ${(-netBalance).toStringAsFixed(2)} € a Carl";
+    final otherName = otherUserName ?? 'altro utente';
+
+    double youOwe = 0.0;
+    double theyOwe = 0.0;
+    double netBalance;
+    String label;
+
+    if (balance > 0) {
+      // Positive = they owe you (you are owed)
+      theyOwe = balance;
+      netBalance = -balance; // Negative netBalance = you are owed
+      label = "$otherName ti deve ${balance.toStringAsFixed(2)} €";
+    } else if (balance < 0) {
+      // Negative = you owe them
+      youOwe = -balance;
+      netBalance = -balance; // Positive netBalance = you owe
+      label = "Devi ${(-balance).toStringAsFixed(2)} € a $otherName";
     } else {
-      balanceLabel = "Saldo in pareggio";
+      netBalance = 0.0;
+      label = "Saldo in pareggio";
     }
 
     return DebtBalance(
-      carlOwes: carlOwes,
-      pitOwes: pitOwes,
+      carlOwes: youOwe,
+      pitOwes: theyOwe,
       netBalance: netBalance,
-      balanceLabel: balanceLabel,
+      balanceLabel: label,
+    );
+  }
+
+  @Deprecated('Use fromBalanceMap instead')
+  factory DebtBalance.calculate(List<Expense> expenses) {
+    // Legacy method - kept for backward compatibility
+    // Use ExpenseService.calculateGroupBalance() + fromBalanceMap() instead
+    return DebtBalance(
+      carlOwes: 0.0,
+      pitOwes: 0.0,
+      netBalance: 0.0,
+      balanceLabel: "Usa DebtBalance.fromBalanceMap",
     );
   }
 }

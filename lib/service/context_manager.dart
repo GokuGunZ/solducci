@@ -82,20 +82,33 @@ class ContextManager extends ChangeNotifier {
   /// Switch to personal context
   void switchToPersonal() {
     if (kDebugMode) {
-      print('🔄 Switching to Personal context');
+      print('🔄 [CONTEXT] Switching to Personal context');
+      print('🔄 [CONTEXT] Previous: ${_currentContext}');
     }
 
     _currentContext = ExpenseContext.personal();
+
+    if (kDebugMode) {
+      print('✅ [CONTEXT] Now in: ${_currentContext}');
+    }
+
     notifyListeners();
   }
 
   /// Switch to a group context
   void switchToGroup(ExpenseGroup group) {
     if (kDebugMode) {
-      print('🔄 Switching to Group context: ${group.name}');
+      print('🔄 [CONTEXT] Switching to Group context: ${group.name} (ID: ${group.id})');
+      print('🔄 [CONTEXT] Previous: ${_currentContext}');
     }
 
     _currentContext = ExpenseContext.group(group);
+
+    if (kDebugMode) {
+      print('✅ [CONTEXT] Now in: ${_currentContext}');
+      print('✅ [CONTEXT] Group ID: ${_currentContext.groupId}');
+    }
+
     notifyListeners();
   }
 

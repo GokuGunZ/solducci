@@ -1,16 +1,25 @@
 /// Enum representing how an expense should be split among group members
 enum SplitType {
   /// Split equally among all group members
-  equal('equal', 'Equamente tra tutti', 'Dividi l\'importo equamente tra tutti i membri del gruppo'),
+  equal(
+    'equal',
+    'Equamente tra tutti',
+    'Dividi l\'importo equamente tra tutti i membri del gruppo',
+  ),
+
+  lend('lend', 'Presta', 'Chi paga anticipa per tutti e verrà rimborsato'),
+
+  /// Offer - payer offers the expense, no reimbursement
+  offer('offer', 'Offri', 'Chi paga offre la spesa, nessun rimborso'),
 
   /// Custom split with specific amounts per member
-  custom('custom', 'Importi custom', 'Specifica quanto deve pagare ogni membro'),
+  custom(
+    'custom',
+    'Importi custom',
+    'Specifica quanto deve pagare ogni membro',
+  );
 
-  /// One person pays the full amount (no split)
-  full('full', 'Una persona paga tutto', 'Un solo membro paga l\'intera spesa'),
-
-  /// No split - group expense but not divided
-  none('none', 'Non dividere', 'Spesa di gruppo ma non divisa tra membri');
+  /// Lend - payer advances for all and gets reimbursed by everyone
 
   const SplitType(this.value, this.label, this.description);
 
@@ -33,10 +42,10 @@ enum SplitType {
         return '⚖️';
       case SplitType.custom:
         return '✏️';
-      case SplitType.full:
-        return '💰';
-      case SplitType.none:
-        return '🚫';
+      case SplitType.lend:
+        return '💸';
+      case SplitType.offer:
+        return '🎁';
     }
   }
 }

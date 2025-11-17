@@ -32,10 +32,7 @@ class ExpenseListItem extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _getCategoryColor(expense.type),
-          child: Icon(
-            _getCategoryIcon(expense.type),
-            color: Colors.white,
-          ),
+          child: Icon(_getCategoryIcon(expense.type), color: Colors.white),
         ),
         title: Row(
           children: [
@@ -49,7 +46,10 @@ class ExpenseListItem extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue[100],
                     borderRadius: BorderRadius.circular(4),
@@ -57,10 +57,7 @@ class ExpenseListItem extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        '👥',
-                        style: TextStyle(fontSize: 10),
-                      ),
+                      Text('👥', style: TextStyle(fontSize: 10)),
                       const SizedBox(width: 2),
                       Text(
                         'Gruppo',
@@ -79,7 +76,6 @@ class ExpenseListItem extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(expense.moneyFlow.getLabel()),
             Text(
               DateFormat('dd/MM/yyyy').format(expense.date),
               style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -89,10 +85,10 @@ class ExpenseListItem extends StatelessWidget {
         ),
         trailing: Text(
           expense.formatAmount(expense.amount),
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: _getAmountColor(expense.moneyFlow),
+            color: Colors.blue,
           ),
         ),
         onTap: () => _showExpenseDetails(context),
@@ -114,10 +110,7 @@ class ExpenseListItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Icon(Icons.delete, color: Colors.white, size: 32),
-            Text(
-              "Delete",
-              style: TextStyle(color: Colors.white),
-            ),
+            Text("Delete", style: TextStyle(color: Colors.white)),
           ],
         ),
       ),
@@ -129,10 +122,7 @@ class ExpenseListItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Icon(Icons.copy, color: Colors.white, size: 32),
-            Text(
-              "Duplicate",
-              style: TextStyle(color: Colors.white),
-            ),
+            Text("Duplicate", style: TextStyle(color: Colors.white)),
           ],
         ),
       ),
@@ -167,7 +157,9 @@ class ExpenseListItem extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
-            isPaidByCurrentUser ? '💰 Hai pagato tu' : '💰 Pagato da altro membro',
+            isPaidByCurrentUser
+                ? '💰 Hai pagato tu'
+                : '💰 Pagato da altro membro',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -269,7 +261,6 @@ class ExpenseListItem extends StatelessWidget {
               SizedBox(height: 20),
               _buildDetailRow('Descrizione', expense.description),
               _buildDetailRow('Importo', expense.formatAmount(expense.amount)),
-              _buildDetailRow('Flusso', expense.moneyFlow.getLabel()),
               _buildDetailRow('Categoria', expense.type.label),
               _buildDetailRow(
                 'Data',
@@ -278,7 +269,7 @@ class ExpenseListItem extends StatelessWidget {
               if (expense.isGroup) ...[
                 const Divider(height: 30),
                 Text(
-                  'Info Gruppo',
+                  'Divisione Spesa',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -292,7 +283,8 @@ class ExpenseListItem extends StatelessWidget {
                 ),
                 _buildDetailRow(
                   'Pagato da',
-                  expense.paidBy == Supabase.instance.client.auth.currentUser?.id
+                  expense.paidBy ==
+                          Supabase.instance.client.auth.currentUser?.id
                       ? 'Tu'
                       : 'Altro membro',
                 ),
@@ -556,21 +548,6 @@ class ExpenseListItem extends StatelessWidget {
         return Icons.sports_esports;
       case Tipologia.altro:
         return Icons.more_horiz;
-    }
-  }
-
-  Color _getAmountColor(MoneyFlow flow) {
-    switch (flow) {
-      case MoneyFlow.carlToPit:
-      case MoneyFlow.pitToCarl:
-        return Colors.blue;
-      case MoneyFlow.carlDiv2:
-      case MoneyFlow.pitDiv2:
-        return Colors.purple;
-      case MoneyFlow.carlucci:
-        return Colors.green;
-      case MoneyFlow.pit:
-        return Colors.orange;
     }
   }
 }

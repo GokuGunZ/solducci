@@ -27,8 +27,8 @@ class ExpenseSplit {
   /// Create ExpenseSplit from Supabase map
   factory ExpenseSplit.fromMap(Map<String, dynamic> map) {
     return ExpenseSplit(
-      id: map['id'] as String,
-      expenseId: map['expense_id'] as String,
+      id: map['id'].toString(), // Handle both int and String
+      expenseId: map['expense_id'].toString(), // Handle both int and String
       userId: map['user_id'] as String,
       amount: (map['amount'] as num).toDouble(),
       isPaid: map['is_paid'] as bool? ?? false,

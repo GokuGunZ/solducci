@@ -4,6 +4,7 @@ import 'package:solducci/models/user_profile.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/service/profile_service.dart';
 import 'package:solducci/service/group_service.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Profile page with user info, settings, and links to additional features
@@ -17,6 +18,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _profileService = ProfileService();
   final _groupService = GroupService();
+  final _contextManager = ContextManager();
 
   UserProfile? _userProfile;
   List<ExpenseGroup> _userGroups = [];
@@ -26,6 +28,19 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _loadProfileData();
+    // Listen to context changes to reload groups list
+    _contextManager.addListener(_onContextChanged);
+  }
+
+  @override
+  void dispose() {
+    _contextManager.removeListener(_onContextChanged);
+    super.dispose();
+  }
+
+  void _onContextChanged() {
+    // Reload profile data when groups change (e.g., after leaving a group)
     _loadProfileData();
   }
 

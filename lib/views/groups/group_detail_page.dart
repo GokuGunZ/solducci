@@ -111,7 +111,16 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
 
     if (confirm == true && mounted) {
       try {
-        await _contextManager.leaveCurrentGroup();
+        // FIX: Leave the group being viewed (widget.groupId), not the current context group
+        await _groupService.leaveGroup(widget.groupId);
+
+        // Reload the ContextManager to update the groups list
+        await _contextManager.loadUserGroups();
+
+        // If we just left the current context group, switch to personal
+        if (_contextManager.currentContext.groupId == widget.groupId) {
+          _contextManager.switchToPersonal();
+        }
 
         if (mounted) {
           context.pop();
@@ -163,7 +172,16 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
 
     if (confirm == true && mounted) {
       try {
-        await _contextManager.deleteCurrentGroup();
+        // FIX: Delete the specific group, then reload context
+        await _groupService.deleteGroup(widget.groupId);
+
+        // Reload the ContextManager to update the groups list
+        await _contextManager.loadUserGroups();
+
+        // If we just deleted the current context group, switch to personal
+        if (_contextManager.currentContext.groupId == widget.groupId) {
+          _contextManager.switchToPersonal();
+        }
 
         if (mounted) {
           context.pop();

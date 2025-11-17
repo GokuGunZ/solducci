@@ -83,6 +83,30 @@ class _CustomSplitEditorState extends State<CustomSplitEditor> {
     widget.onSplitsChanged(_splits);
   }
 
+  void _roundUpToMember(String userId) {
+    // Calculate remaining amount
+    final remaining = widget.totalAmount - _currentTotal;
+
+    if (remaining <= 0) {
+      // Already at or over total, don't add more
+      return;
+    }
+
+    // Get current amount for this member
+    final currentAmount = _splits[userId] ?? 0.0;
+
+    // Add remaining to this member
+    final newAmount = currentAmount + remaining;
+    final roundedAmount = double.parse(newAmount.toStringAsFixed(2));
+
+    setState(() {
+      _splits[userId] = roundedAmount;
+      _controllers[userId]!.text = roundedAmount.toStringAsFixed(2);
+    });
+
+    widget.onSplitsChanged(_splits);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -176,6 +200,23 @@ class _CustomSplitEditorState extends State<CustomSplitEditor> {
                       style: const TextStyle(fontSize: 14),
                     ),
                   ),
+
+                  // Round-up button (only show if there's remaining amount)
+                  if (_currentTotal < widget.totalAmount && (widget.totalAmount - _currentTotal) > 0.01) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      onPressed: () => _roundUpToMember(member.userId),
+                      icon: const Icon(Icons.add_circle_outline),
+                      iconSize: 20,
+                      tooltip: 'Assegna resto (${(widget.totalAmount - _currentTotal).toStringAsFixed(2)}€)',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      color: Colors.blue.shade600,
+                    ),
+                  ],
                 ],
               ),
             );

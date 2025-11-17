@@ -10,9 +10,7 @@ class DashboardHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Dashboard Analytics"),
-      ),
+      appBar: AppBar(title: const Text("Dashboard Analytics")),
       body: Padding(
         padding: EdgeInsets.all(16),
         child: GridView.count(
@@ -88,9 +86,7 @@ class DashboardHome extends StatelessWidget {
   }) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -100,10 +96,7 @@ class DashboardHome extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                color.withOpacity(0.8),
-                color.withOpacity(0.6),
-              ],
+              colors: [color.withOpacity(0.8), color.withOpacity(0.6)],
             ),
           ),
           child: Padding(
@@ -111,11 +104,7 @@ class DashboardHome extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: 60,
-                  color: Colors.white,
-                ),
+                Icon(icon, size: 60, color: Colors.white),
                 SizedBox(height: 16),
                 Text(
                   title,

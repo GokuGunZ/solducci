@@ -13,9 +13,7 @@ class TimelineView extends StatelessWidget {
     final expenseService = ExpenseService();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Timeline Spese"),
-      ),
+      appBar: AppBar(title: const Text("Timeline Spese")),
       body: StreamBuilder<List<Expense>>(
         stream: expenseService.stream,
         builder: (context, snapshot) {
@@ -188,7 +186,9 @@ class TimelineView extends StatelessWidget {
                                   elevation: 2,
                                   child: ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor: _getCategoryColor(expense.type),
+                                      backgroundColor: _getCategoryColor(
+                                        expense.type,
+                                      ),
                                       child: Icon(
                                         _getCategoryIcon(expense.type),
                                         color: Colors.white,
@@ -196,14 +196,18 @@ class TimelineView extends StatelessWidget {
                                     ),
                                     title: Text(
                                       expense.description,
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                     subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(expense.moneyFlow.getLabel()),
                                         Text(
-                                          DateFormat('HH:mm').format(expense.date),
+                                          DateFormat(
+                                            'HH:mm',
+                                          ).format(expense.date),
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey[500],
@@ -213,10 +217,10 @@ class TimelineView extends StatelessWidget {
                                     ),
                                     trailing: Text(
                                       '${expense.amount.toStringAsFixed(2)} €',
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: _getAmountColor(expense.moneyFlow),
+                                        color: Colors.blue,
                                       ),
                                     ),
                                   ),
@@ -282,21 +286,6 @@ class TimelineView extends StatelessWidget {
         return Icons.sports_esports;
       case Tipologia.altro:
         return Icons.more_horiz;
-    }
-  }
-
-  Color _getAmountColor(MoneyFlow flow) {
-    switch (flow) {
-      case MoneyFlow.carlToPit:
-      case MoneyFlow.pitToCarl:
-        return Colors.blue;
-      case MoneyFlow.carlDiv2:
-      case MoneyFlow.pitDiv2:
-        return Colors.purple;
-      case MoneyFlow.carlucci:
-        return Colors.green;
-      case MoneyFlow.pit:
-        return Colors.orange;
     }
   }
 }

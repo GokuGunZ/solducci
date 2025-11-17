@@ -13,9 +13,7 @@ class MonthlyView extends StatelessWidget {
     final expenseService = ExpenseService();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Spese per Mese"),
-      ),
+      appBar: AppBar(title: const Text("Spese per Mese")),
       body: StreamBuilder<List<Expense>>(
         stream: expenseService.stream,
         builder: (context, snapshot) {
@@ -62,10 +60,7 @@ class MonthlyView extends StatelessWidget {
                   ),
                   title: Text(
                     group.monthLabel,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
                     '${group.expenses.length} spese',
@@ -81,36 +76,40 @@ class MonthlyView extends StatelessWidget {
                   ),
                   children: [
                     Divider(),
-                    ...group.expenses.map((expense) => ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: _getCategoryColor(expense.type),
-                            radius: 20,
-                            child: Icon(
-                              _getCategoryIcon(expense.type),
-                              color: Colors.white,
-                              size: 20,
-                            ),
+                    ...group.expenses.map(
+                      (expense) => ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: _getCategoryColor(expense.type),
+                          radius: 20,
+                          child: Icon(
+                            _getCategoryIcon(expense.type),
+                            color: Colors.white,
+                            size: 20,
                           ),
-                          title: Text(expense.description),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(expense.moneyFlow.getLabel()),
-                              Text(
-                                DateFormat('dd/MM/yyyy').format(expense.date),
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        title: Text(expense.description),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              DateFormat('dd/MM/yyyy').format(expense.date),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
                               ),
-                            ],
-                          ),
-                          trailing: Text(
-                            '${expense.amount.toStringAsFixed(2)} €',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: _getAmountColor(expense.moneyFlow),
                             ),
+                          ],
+                        ),
+                        trailing: Text(
+                          '${expense.amount.toStringAsFixed(2)} €',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
                           ),
-                        )),
+                        ),
+                      ),
+                    ),
                     SizedBox(height: 10),
                   ],
                 ),
@@ -157,21 +156,6 @@ class MonthlyView extends StatelessWidget {
         return Icons.sports_esports;
       case Tipologia.altro:
         return Icons.more_horiz;
-    }
-  }
-
-  Color _getAmountColor(MoneyFlow flow) {
-    switch (flow) {
-      case MoneyFlow.carlToPit:
-      case MoneyFlow.pitToCarl:
-        return Colors.blue;
-      case MoneyFlow.carlDiv2:
-      case MoneyFlow.pitDiv2:
-        return Colors.purple;
-      case MoneyFlow.carlucci:
-        return Colors.green;
-      case MoneyFlow.pit:
-        return Colors.orange;
     }
   }
 }

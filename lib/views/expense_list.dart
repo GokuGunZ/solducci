@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/widgets/expense_list_item.dart';
 import 'package:solducci/widgets/context_switcher.dart';
@@ -14,6 +16,28 @@ class ExpenseList extends StatefulWidget {
 
 class _ExpenseListState extends State<ExpenseList> {
   ExpenseService expenseService = ExpenseService();
+  final _contextManager = ContextManager();
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to context changes to rebuild stream
+    _contextManager.addListener(_onContextChanged);
+  }
+
+  @override
+  void dispose() {
+    _contextManager.removeListener(_onContextChanged);
+    super.dispose();
+  }
+
+  void _onContextChanged() {
+    if (kDebugMode) {
+      print('🔄 [UI] Context changed, rebuilding widget to refresh stream');
+    }
+    // Force rebuild to recreate stream with new context
+    setState(() {});
+  }
 
   // Unified method to open expense form for add/edit/duplicate
   void openExpenseForm({
@@ -62,6 +86,20 @@ class _ExpenseListState extends State<ExpenseList> {
       body: StreamBuilder<List<Expense>>(
         stream: expenseService.stream,
         builder: (context, snapshot) {
+          // Debug logging
+          if (kDebugMode) {
+            print('🔍 [UI] StreamBuilder state: ${snapshot.connectionState}');
+            print('🔍 [UI] Has error: ${snapshot.hasError}');
+            if (snapshot.hasError) {
+              print('❌ [UI] Error: ${snapshot.error}');
+              print('❌ [UI] StackTrace: ${snapshot.stackTrace}');
+            }
+            print('🔍 [UI] Has data: ${snapshot.hasData}');
+            if (snapshot.hasData) {
+              print('🔍 [UI] Expenses count: ${snapshot.data!.length}');
+            }
+          }
+
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
@@ -115,6 +153,7 @@ class _ExpenseListState extends State<ExpenseList> {
       floatingActionButton: FloatingActionButton(
         onPressed: addExpense,
         tooltip: 'Aggiungi spesa',
+        heroTag: 'expense_list_fab',
         child: Icon(Icons.add),
       ),
     );

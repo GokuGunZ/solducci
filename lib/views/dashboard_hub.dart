@@ -9,10 +9,7 @@ class DashboardHub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Dashboard"),
-        elevation: 2,
-      ),
+      appBar: AppBar(title: const Text("Dashboard"), elevation: 2),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.count(
@@ -37,6 +34,7 @@ class DashboardHub extends StatelessWidget {
               color: Colors.green,
               onTap: () => context.push('/dashboard/category'),
             ),
+            /*
             _buildDashboardCard(
               context: context,
               title: 'Saldo',
@@ -45,6 +43,7 @@ class DashboardHub extends StatelessWidget {
               color: Colors.orange,
               onTap: () => context.push('/dashboard/balance'),
             ),
+            */
             _buildDashboardCard(
               context: context,
               title: 'Timeline',
@@ -95,9 +94,7 @@ class DashboardHub extends StatelessWidget {
   }) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -120,11 +117,7 @@ class DashboardHub extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      icon,
-                      size: 60,
-                      color: Colors.white,
-                    ),
+                    Icon(icon, size: 60, color: Colors.white),
                     const SizedBox(height: 16),
                     Text(
                       title,

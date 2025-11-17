@@ -104,7 +104,7 @@ class Expense {
 
   // expense(model) -> map(entity)
   Map<String, dynamic> toMap() {
-    final map = {
+    final Map<String, dynamic> map = {
       'description': description,
       'amount': amount,
       'money_flow': moneyFlow.name, // enum -> string
@@ -112,15 +112,12 @@ class Expense {
       'type': type.name, // enum -> string
     };
 
-    // Only include user_id if it's not null
-    if (userId != null) {
-      map['user_id'] = userId!;
-    }
+    // EXPLICIT: Always include user_id and group_id
+    // Use dynamic type to allow null values
+    map['user_id'] = userId;  // Can be null for group expenses
+    map['group_id'] = groupId;  // Can be null for personal expenses
 
-    // NEW: Multi-user fields
-    if (groupId != null) {
-      map['group_id'] = groupId!;
-    }
+    // Multi-user fields
     if (paidBy != null) {
       map['paid_by'] = paidBy!;
     }
@@ -135,6 +132,14 @@ class Expense {
     // Only include it for updates (positive IDs only)
     if (id > 0) {
       map['id'] = id;
+    }
+
+    if (kDebugMode) {
+      print('🔍 [EXPENSE.toMap] Serialized expense:');
+      print('   - user_id: ${map['user_id']}');
+      print('   - group_id: ${map['group_id']}');
+      print('   - paid_by: ${map['paid_by']}');
+      print('   - split_type: ${map['split_type']}');
     }
 
     return map;

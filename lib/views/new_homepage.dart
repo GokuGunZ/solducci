@@ -1,15 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/dashboard_data.dart';
 import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/auth_service.dart';
+import 'package:solducci/service/group_service.dart';
 import 'package:solducci/widgets/expense_list_item.dart';
 import 'package:solducci/widgets/context_switcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class NewHomepage extends StatelessWidget {
+class NewHomepage extends StatefulWidget {
   const NewHomepage({super.key});
+
+  @override
+  State<NewHomepage> createState() => _NewHomepageState();
+}
+
+class _NewHomepageState extends State<NewHomepage> {
+  final ExpenseService _expenseService = ExpenseService();
+  final _contextManager = ContextManager();
+
+  // Key to force rebuild of debt balance section
+  int _debtBalanceRefreshKey = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to context changes to rebuild stream
+    _contextManager.addListener(_onContextChanged);
+  }
+
+  @override
+  void dispose() {
+    _contextManager.removeListener(_onContextChanged);
+    super.dispose();
+  }
+
+  void _onContextChanged() {
+    if (kDebugMode) {
+      print(
+        '🔄 [UI - NewHomepage] Context changed, rebuilding widget to refresh stream',
+      );
+    }
+    // Force rebuild to recreate stream with new context
+    setState(() {
+      _debtBalanceRefreshKey++;
+    });
+  }
+
+  // Force refresh of debt balance section
+  void _refreshDebtBalance() {
+    if (kDebugMode) {
+      print('🔄 [UI - NewHomepage] Forcing debt balance refresh');
+    }
+    setState(() {
+      _debtBalanceRefreshKey++;
+    });
+  }
 
   Future<void> _logout(BuildContext context) async {
     final authService = AuthService();
@@ -52,8 +102,6 @@ class NewHomepage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expenseService = ExpenseService();
-
     return Scaffold(
       appBar: AppBar(
         title: const ContextSwitcher(),
@@ -67,7 +115,7 @@ class NewHomepage extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<List<Expense>>(
-        stream: expenseService.stream,
+        stream: _expenseService.stream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Errore: ${snapshot.error}'));
@@ -98,7 +146,6 @@ class NewHomepage extends StatelessWidget {
           // Calculate statistics
           final totalExpenses = _calculateTotal(expenses);
           final currentMonthTotal = _calculateCurrentMonthTotal(expenses);
-          final debtBalance = DebtBalance.calculate(expenses);
           final recentExpenses = _getRecentExpenses(expenses, 15);
 
           return SingleChildScrollView(
@@ -114,9 +161,14 @@ class NewHomepage extends StatelessWidget {
                       _buildTotalsSection(totalExpenses, currentMonthTotal),
                       SizedBox(height: 16),
 
-                      // Debt balance section
-                      _buildDebtBalanceSection(debtBalance),
-                      SizedBox(height: 16),
+                      // Debt balance section (only for group context)
+                      // Use ValueKey based on refresh counter to force rebuild
+                      if (_contextManager.currentContext.isGroup)
+                        _buildDebtBalanceSectionAsync(
+                          key: ValueKey('debt_balance_$_debtBalanceRefreshKey'),
+                        ),
+                      if (_contextManager.currentContext.isGroup)
+                        SizedBox(height: 16),
 
                       // Categories section
                       _buildCategoriesSection(context),
@@ -132,6 +184,12 @@ class NewHomepage extends StatelessWidget {
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: addExpense,
+        tooltip: 'Aggiungi spesa',
+        heroTag: 'homepage_fab',
+        child: Icon(Icons.add),
       ),
     );
   }
@@ -369,20 +427,198 @@ class NewHomepage extends StatelessWidget {
           ),
         ),
       ),
+    ).then((_) {
+      // Refresh debt balance after form is closed
+      _refreshDebtBalance();
+    });
+  }
+
+  void addExpense() {
+    _openExpenseForm(context, ExpenseForm.empty());
+  }
+
+  void _openExpenseForm(BuildContext context, ExpenseForm form) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: Text("Nuova Spesa"),
+            leading: IconButton(
+              icon: Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: form.getExpenseView(context),
+            ),
+          ),
+        ),
+      ),
+    ).then((_) {
+      // Refresh debt balance after form is closed (expense may have been added)
+      _refreshDebtBalance();
+    });
+  }
+
+  // Build debt balance section (async version for group context)
+  Widget _buildDebtBalanceSectionAsync({Key? key}) {
+    final groupId = _contextManager.currentContext.groupId;
+    if (groupId == null) return SizedBox.shrink();
+
+    return FutureBuilder<Map<String, double>>(
+      key: key,
+      future: _expenseService.calculateGroupBalance(groupId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Card(
+            elevation: 3,
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          if (kDebugMode) {
+            print('❌ Error loading debt balance: ${snapshot.error}');
+          }
+          return SizedBox.shrink();
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // No debts = balanced - fetch names for UI
+          return FutureBuilder<List<String>>(
+            future: _getUserNames(groupId),
+            builder: (context, nameSnapshot) {
+              final names = nameSnapshot.data ?? ['Tu', 'Altro membro'];
+              final debtBalance = DebtBalance(
+                carlOwes: 0.0,
+                pitOwes: 0.0,
+                netBalance: 0.0,
+                balanceLabel: "Saldo in pareggio",
+              );
+              return _buildDebtBalanceSection(
+                debtBalance,
+                names[0],
+                names[1],
+              );
+            },
+          );
+        }
+
+        final balances = snapshot.data!;
+
+        // Get user names from GroupService
+        return FutureBuilder<List<String>>(
+          future: _getUserNames(groupId),
+          builder: (context, nameSnapshot) {
+            if (nameSnapshot.connectionState == ConnectionState.waiting) {
+              return Card(
+                elevation: 3,
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(
+                    child: SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            final names = nameSnapshot.data ?? ['Tu', 'Altro membro'];
+            final currentUserName = names[0];
+            final otherUserName = names[1];
+
+            final debtBalance = DebtBalance.fromBalanceMap(
+              balances,
+              currentUserName,
+              otherUserName,
+            );
+
+            return _buildDebtBalanceSection(
+              debtBalance,
+              currentUserName,
+              otherUserName,
+            );
+          },
+        );
+      },
     );
   }
 
-  // Build debt balance section
-  Widget _buildDebtBalanceSection(DebtBalance balance) {
-    final carlOwes = balance.netBalance > 0;
+  // Helper to get both user names in the group
+  // Returns [currentUserName, otherUserName]
+  Future<List<String>> _getUserNames(String groupId) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId == null) return ['Tu', 'Altro membro'];
+
+      final members = await GroupService().getGroupMembers(groupId);
+      if (members.isEmpty) return ['Tu', 'Altro membro'];
+
+      // Find current user and other member
+      final currentMember = members.firstWhere(
+        (m) => m.userId == currentUserId,
+        orElse: () => members.first,
+      );
+
+      final otherMember = members.firstWhere(
+        (m) => m.userId != currentUserId,
+        orElse: () => members.last,
+      );
+
+      return [
+        currentMember.nickname ?? 'Tu',
+        otherMember.nickname ?? 'Altro membro',
+      ];
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error getting user names: $e');
+      }
+      return ['Tu', 'Altro membro'];
+    }
+  }
+
+  // Build debt balance section with dynamic user names
+  Widget _buildDebtBalanceSection(
+    DebtBalance balance,
+    String currentUserName,
+    String otherUserName,
+  ) {
+    // Use balance.netBalance convention from fromBalanceMap:
+    // netBalance > 0 = current user owes
+    // netBalance < 0 = current user is owed
+    final currentUserOwes = balance.netBalance > 0;
     final balanced = balance.netBalance == 0;
     final amount = balance.netBalance.abs();
+
+    // Get first letter for avatars
+    final currentInitial = currentUserName.isNotEmpty
+        ? currentUserName[0].toUpperCase()
+        : 'T';
+    final otherInitial = otherUserName.isNotEmpty
+        ? otherUserName[0].toUpperCase()
+        : 'A';
 
     return Card(
       elevation: 3,
       color: balanced
           ? Colors.green[50]
-          : (carlOwes ? Colors.orange[50] : Colors.blue[50]),
+          : (currentUserOwes ? Colors.orange[50] : Colors.blue[50]),
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: Column(
@@ -395,7 +631,7 @@ class NewHomepage extends StatelessWidget {
             SizedBox(height: 12),
             Row(
               children: [
-                // Carl column
+                // Current user column
                 Expanded(
                   flex: 2,
                   child: Column(
@@ -403,17 +639,19 @@ class NewHomepage extends StatelessWidget {
                       CircleAvatar(
                         backgroundColor: Colors.orange[200],
                         child: Text(
-                          'C',
+                          currentInitial,
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Carl',
+                        currentUserName,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -433,8 +671,8 @@ class NewHomepage extends StatelessWidget {
                         )
                       else
                         Icon(
-                          carlOwes ? Icons.arrow_forward : Icons.arrow_back,
-                          color: carlOwes
+                          currentUserOwes ? Icons.arrow_forward : Icons.arrow_back,
+                          color: currentUserOwes
                               ? Colors.orange[700]
                               : Colors.blue[700],
                           size: 24,
@@ -447,7 +685,7 @@ class NewHomepage extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: balanced
                               ? Colors.green[700]
-                              : (carlOwes
+                              : (currentUserOwes
                                     ? Colors.orange[700]
                                     : Colors.blue[700]),
                         ),
@@ -455,7 +693,7 @@ class NewHomepage extends StatelessWidget {
                       ),
                       if (!balanced)
                         Text(
-                          carlOwes ? 'Deve a' : 'Deve ricevere',
+                          currentUserOwes ? 'Deve a' : 'Deve ricevere',
                           style: TextStyle(
                             fontSize: 10,
                             color: Colors.grey[600],
@@ -466,7 +704,7 @@ class NewHomepage extends StatelessWidget {
                   ),
                 ),
 
-                // Pit column
+                // Other user column
                 Expanded(
                   flex: 2,
                   child: Column(
@@ -474,17 +712,19 @@ class NewHomepage extends StatelessWidget {
                       CircleAvatar(
                         backgroundColor: Colors.blue[200],
                         child: Text(
-                          'P',
+                          otherInitial,
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Pit',
+                        otherUserName,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -533,6 +773,8 @@ class NewHomepage extends StatelessWidget {
             return ExpenseListItem(
               expense: expense,
               dismissible: true,
+              onDeleted: _refreshDebtBalance,
+              onUpdated: _refreshDebtBalance,
             );
           },
         ),

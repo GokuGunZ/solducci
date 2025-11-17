@@ -77,6 +77,7 @@ class _MainhomeScaffoldState extends State<MainhomeScaffold> {
       ),
       body: _pages.elementAt(_selectedIndex),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'home_fab',
         child: Icon(Icons.camera_alt_outlined),
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
