@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
@@ -32,9 +31,6 @@ class _ExpenseListState extends State<ExpenseList> {
   }
 
   void _onContextChanged() {
-    if (kDebugMode) {
-      print('🔄 [UI] Context changed, rebuilding widget to refresh stream');
-    }
     // Force rebuild to recreate stream with new context
     setState(() {});
   }
@@ -86,20 +82,6 @@ class _ExpenseListState extends State<ExpenseList> {
       body: StreamBuilder<List<Expense>>(
         stream: expenseService.stream,
         builder: (context, snapshot) {
-          // Debug logging
-          if (kDebugMode) {
-            print('🔍 [UI] StreamBuilder state: ${snapshot.connectionState}');
-            print('🔍 [UI] Has error: ${snapshot.hasError}');
-            if (snapshot.hasError) {
-              print('❌ [UI] Error: ${snapshot.error}');
-              print('❌ [UI] StackTrace: ${snapshot.stackTrace}');
-            }
-            print('🔍 [UI] Has data: ${snapshot.hasData}');
-            if (snapshot.hasData) {
-              print('🔍 [UI] Expenses count: ${snapshot.data!.length}');
-            }
-          }
-
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:solducci/models/user_profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -16,9 +15,6 @@ class ProfileService {
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
-        if (kDebugMode) {
-          print('⚠️ No authenticated user');
-        }
         return null;
       }
 
@@ -28,15 +24,8 @@ class ProfileService {
           .eq('id', userId)
           .single();
 
-      if (kDebugMode) {
-        print('✅ Profile loaded: ${response['nickname']}');
-      }
-
       return UserProfile.fromMap(response);
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading profile: $e');
-      }
       return null;
     }
   }
@@ -52,9 +41,6 @@ class ProfileService {
 
       return UserProfile.fromMap(response);
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading profile $userId: $e');
-      }
       return null;
     }
   }
@@ -73,9 +59,6 @@ class ProfileService {
           .map((map) => UserProfile.fromMap(map))
           .toList();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading profiles: $e');
-      }
       return [];
     }
   }
@@ -96,14 +79,7 @@ class ProfileService {
           .from('profiles')
           .update(profile.toUpdateMap())
           .eq('id', userId);
-
-      if (kDebugMode) {
-        print('✅ Profile updated: ${profile.nickname}');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR updating profile: $e');
-      }
       rethrow;
     }
   }
@@ -123,14 +99,7 @@ class ProfileService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', userId);
-
-      if (kDebugMode) {
-        print('✅ Nickname updated: $nickname');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR updating nickname: $e');
-      }
       rethrow;
     }
   }
@@ -150,14 +119,7 @@ class ProfileService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', userId);
-
-      if (kDebugMode) {
-        print('✅ Avatar URL updated');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR updating avatar: $e');
-      }
       rethrow;
     }
   }
@@ -175,9 +137,6 @@ class ProfileService {
 
       return UserProfile.fromMap(response);
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR searching profile by email: $e');
-      }
       return null;
     }
   }
@@ -213,9 +172,6 @@ class ProfileService {
 
       return response != null;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR checking profile existence: $e');
-      }
       return false;
     }
   }
@@ -232,14 +188,7 @@ class ProfileService {
         'email': email,
         'nickname': nickname,
       });
-
-      if (kDebugMode) {
-        print('✅ Profile created manually: $nickname');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR creating profile: $e');
-      }
       rethrow;
     }
   }

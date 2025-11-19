@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_data.dart';
 import 'package:solducci/models/expense.dart';
-import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/utils/category_helpers.dart';
 
 class MonthlyView extends StatelessWidget {
   const MonthlyView({super.key});
@@ -79,10 +79,10 @@ class MonthlyView extends StatelessWidget {
                     ...group.expenses.map(
                       (expense) => ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: _getCategoryColor(expense.type),
+                          backgroundColor: CategoryHelpers.getCategoryColor(expense.type),
                           radius: 20,
                           child: Icon(
-                            _getCategoryIcon(expense.type),
+                            CategoryHelpers.getCategoryIcon(expense.type),
                             color: Colors.white,
                             size: 20,
                           ),
@@ -119,43 +119,5 @@ class MonthlyView extends StatelessWidget {
         },
       ),
     );
-  }
-
-  Color _getCategoryColor(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Colors.purple;
-      case Tipologia.cibo:
-        return Colors.green;
-      case Tipologia.utenze:
-        return Colors.blue;
-      case Tipologia.prodottiCasa:
-        return Colors.orange;
-      case Tipologia.ristorante:
-        return Colors.red;
-      case Tipologia.tempoLibero:
-        return Colors.pink;
-      case Tipologia.altro:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getCategoryIcon(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Icons.home;
-      case Tipologia.cibo:
-        return Icons.shopping_cart;
-      case Tipologia.utenze:
-        return Icons.bolt;
-      case Tipologia.prodottiCasa:
-        return Icons.cleaning_services;
-      case Tipologia.ristorante:
-        return Icons.restaurant;
-      case Tipologia.tempoLibero:
-        return Icons.sports_esports;
-      case Tipologia.altro:
-        return Icons.more_horiz;
-    }
   }
 }

@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Group invitation model
 /// Corresponds to 'group_invites' table in Supabase
 class GroupInvite {
@@ -33,30 +31,22 @@ class GroupInvite {
 
   /// Create GroupInvite from Supabase map
   factory GroupInvite.fromMap(Map<String, dynamic> map) {
-    try {
-      return GroupInvite(
-        id: map['id'] as String,
-        groupId: map['group_id'] as String,
-        inviterId: map['inviter_id'] as String,
-        inviteeEmail: map['invitee_email'] as String,
-        inviteeId: map['invitee_id'] as String?,
-        status: InviteStatus.fromString(map['status'] as String? ?? 'pending'),
-        createdAt: DateTime.parse(map['created_at'] as String),
-        expiresAt: DateTime.parse(map['expires_at'] as String),
-        respondedAt: map['responded_at'] != null
-            ? DateTime.parse(map['responded_at'] as String)
-            : null,
-        // Denormalized fields (from JOINs)
-        groupName: map['group_name'] as String?,
-        inviterNickname: map['inviter_nickname'] as String?,
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR parsing GroupInvite: $e');
-        print('   Data: $map');
-      }
-      rethrow;
-    }
+    return GroupInvite(
+      id: map['id'] as String,
+      groupId: map['group_id'] as String,
+      inviterId: map['inviter_id'] as String,
+      inviteeEmail: map['invitee_email'] as String,
+      inviteeId: map['invitee_id'] as String?,
+      status: InviteStatus.fromString(map['status'] as String? ?? 'pending'),
+      createdAt: DateTime.parse(map['created_at'] as String),
+      expiresAt: DateTime.parse(map['expires_at'] as String),
+      respondedAt: map['responded_at'] != null
+          ? DateTime.parse(map['responded_at'] as String)
+          : null,
+      // Denormalized fields (from JOINs)
+      groupName: map['group_name'] as String?,
+      inviterNickname: map['inviter_nickname'] as String?,
+    );
   }
 
   /// Convert GroupInvite to Supabase map for insert
@@ -150,9 +140,6 @@ enum InviteStatus {
       case 'expired':
         return InviteStatus.expired;
       default:
-        if (kDebugMode) {
-          print('⚠️ Unknown InviteStatus: $value, defaulting to pending');
-        }
         return InviteStatus.pending;
     }
   }

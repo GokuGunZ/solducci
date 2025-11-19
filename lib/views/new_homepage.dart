@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
@@ -10,6 +9,7 @@ import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/widgets/expense_list_item.dart';
 import 'package:solducci/widgets/context_switcher.dart';
+import 'package:solducci/utils/category_helpers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NewHomepage extends StatefulWidget {
@@ -40,11 +40,6 @@ class _NewHomepageState extends State<NewHomepage> {
   }
 
   void _onContextChanged() {
-    if (kDebugMode) {
-      print(
-        '🔄 [UI - NewHomepage] Context changed, rebuilding widget to refresh stream',
-      );
-    }
     // Force rebuild to recreate stream with new context
     setState(() {
       _debtBalanceRefreshKey++;
@@ -53,9 +48,6 @@ class _NewHomepageState extends State<NewHomepage> {
 
   // Force refresh of debt balance section
   void _refreshDebtBalance() {
-    if (kDebugMode) {
-      print('🔄 [UI - NewHomepage] Forcing debt balance refresh');
-    }
     setState(() {
       _debtBalanceRefreshKey++;
     });
@@ -340,8 +332,8 @@ class _NewHomepageState extends State<NewHomepage> {
 
   // Build individual category item with circular icon and + button
   Widget _buildCategoryItem(BuildContext context, Tipologia category) {
-    final categoryColor = _getCategoryColor(category);
-    final categoryIcon = _getCategoryIcon(category);
+    final categoryColor = CategoryHelpers.getCategoryColor(category);
+    final categoryIcon = CategoryHelpers.getCategoryIcon(category);
 
     return Padding(
       padding: EdgeInsets.all(4),
@@ -489,9 +481,6 @@ class _NewHomepageState extends State<NewHomepage> {
         }
 
         if (snapshot.hasError) {
-          if (kDebugMode) {
-            print('❌ Error loading debt balance: ${snapshot.error}');
-          }
           return SizedBox.shrink();
         }
 
@@ -586,9 +575,6 @@ class _NewHomepageState extends State<NewHomepage> {
         otherMember.nickname ?? 'Altro membro',
       ];
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error getting user names: $e');
-      }
       return ['Tu', 'Altro membro'];
     }
   }
@@ -780,45 +766,6 @@ class _NewHomepageState extends State<NewHomepage> {
         ),
       ],
     );
-  }
-
-  // Helper methods for colors and icons (used by category items)
-  Color _getCategoryColor(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Colors.purple;
-      case Tipologia.cibo:
-        return Colors.green;
-      case Tipologia.utenze:
-        return Colors.blue;
-      case Tipologia.prodottiCasa:
-        return Colors.orange;
-      case Tipologia.ristorante:
-        return Colors.red;
-      case Tipologia.tempoLibero:
-        return Colors.pink;
-      case Tipologia.altro:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getCategoryIcon(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Icons.home;
-      case Tipologia.cibo:
-        return Icons.shopping_cart;
-      case Tipologia.utenze:
-        return Icons.bolt;
-      case Tipologia.prodottiCasa:
-        return Icons.cleaning_services;
-      case Tipologia.ristorante:
-        return Icons.restaurant;
-      case Tipologia.tempoLibero:
-        return Icons.sports_esports;
-      case Tipologia.altro:
-        return Icons.more_horiz;
-    }
   }
 }
 

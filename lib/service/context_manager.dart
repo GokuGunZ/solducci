@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:solducci/models/group.dart';
 import 'package:solducci/service/group_service.dart';
 
@@ -29,23 +29,13 @@ class ContextManager extends ChangeNotifier {
 
   /// Initialize context manager - load user's groups
   Future<void> initialize() async {
-    if (kDebugMode) {
-      print('🔄 Initializing ContextManager...');
-    }
-
     _isLoading = true;
     notifyListeners();
 
     try {
       await loadUserGroups();
-
-      if (kDebugMode) {
-        print('✅ ContextManager initialized with ${_userGroups.length} groups');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR initializing ContextManager: $e');
-      }
+      // Error handled silently
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -63,52 +53,25 @@ class ContextManager extends ChangeNotifier {
           (g) => g.id == _currentContext.groupId,
         );
         if (!stillExists) {
-          if (kDebugMode) {
-            print('⚠️ Current group no longer exists, switching to personal');
-          }
           switchToPersonal();
         }
       }
 
       notifyListeners();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading user groups: $e');
-      }
       rethrow;
     }
   }
 
   /// Switch to personal context
   void switchToPersonal() {
-    if (kDebugMode) {
-      print('🔄 [CONTEXT] Switching to Personal context');
-      print('🔄 [CONTEXT] Previous: ${_currentContext}');
-    }
-
     _currentContext = ExpenseContext.personal();
-
-    if (kDebugMode) {
-      print('✅ [CONTEXT] Now in: ${_currentContext}');
-    }
-
     notifyListeners();
   }
 
   /// Switch to a group context
   void switchToGroup(ExpenseGroup group) {
-    if (kDebugMode) {
-      print('🔄 [CONTEXT] Switching to Group context: ${group.name} (ID: ${group.id})');
-      print('🔄 [CONTEXT] Previous: ${_currentContext}');
-    }
-
     _currentContext = ExpenseContext.group(group);
-
-    if (kDebugMode) {
-      print('✅ [CONTEXT] Now in: ${_currentContext}');
-      print('✅ [CONTEXT] Group ID: ${_currentContext.groupId}');
-    }
-
     notifyListeners();
   }
 
@@ -118,9 +81,6 @@ class ContextManager extends ChangeNotifier {
       final group = _userGroups.firstWhere((g) => g.id == groupId);
       switchToGroup(group);
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ Group $groupId not found in user groups');
-      }
       // Try loading from database
       final group = await _groupService.getGroupById(groupId);
       if (group != null) {
@@ -149,9 +109,6 @@ class ContextManager extends ChangeNotifier {
 
       return group;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR creating group: $e');
-      }
       rethrow;
     }
   }
@@ -167,9 +124,6 @@ class ContextManager extends ChangeNotifier {
       await loadUserGroups();
       switchToPersonal();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR deleting group: $e');
-      }
       rethrow;
     }
   }
@@ -185,9 +139,6 @@ class ContextManager extends ChangeNotifier {
       await loadUserGroups();
       switchToPersonal();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR leaving group: $e');
-      }
       rethrow;
     }
   }
@@ -203,21 +154,9 @@ class ContextManager extends ChangeNotifier {
 
   /// Clear context (on logout)
   void clear() {
-    if (kDebugMode) {
-      print('🔄 Clearing ContextManager');
-    }
-
     _currentContext = ExpenseContext.personal();
     _userGroups = [];
     notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    if (kDebugMode) {
-      print('🗑️ Disposing ContextManager');
-    }
-    super.dispose();
   }
 }
 

@@ -33,11 +33,9 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   }
 
   Future<void> _loadGroupData() async {
-    debugPrint('🔄 Loading group data for groupId: ${widget.groupId}');
     setState(() => _isLoading = true);
 
     try {
-      debugPrint('📊 Fetching group and members...');
       final results = await Future.wait([
         _groupService.getGroupById(widget.groupId),
         _groupService.getGroupMembers(widget.groupId),
@@ -46,14 +44,9 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       final group = results[0] as ExpenseGroup?;
       final members = results[1] as List<GroupMember>;
 
-      debugPrint('✅ Group fetched: ${group?.name}');
-      debugPrint('✅ Members count: ${members.length}');
-
       if (group != null) {
         // Check if current user is admin
-        debugPrint('🔐 Checking admin status...');
         final isAdmin = await _groupService.isUserAdmin(widget.groupId);
-        debugPrint('✅ Is admin: $isAdmin');
 
         setState(() {
           _group = group;
@@ -61,9 +54,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
           _isAdmin = isAdmin;
           _isLoading = false;
         });
-        debugPrint('✅ Group detail page loaded successfully');
       } else {
-        debugPrint('❌ Group is null, showing error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Gruppo non trovato')),
@@ -72,8 +63,6 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         }
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ Error loading group data: $e');
-      debugPrint('Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore: $e')),

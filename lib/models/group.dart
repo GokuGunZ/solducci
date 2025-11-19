@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Expense group model (couple, roommates, etc.)
 /// Corresponds to 'groups' table in Supabase
 class ExpenseGroup {
@@ -27,23 +25,15 @@ class ExpenseGroup {
 
   /// Create ExpenseGroup from Supabase map
   factory ExpenseGroup.fromMap(Map<String, dynamic> map) {
-    try {
-      return ExpenseGroup(
-        id: map['id'] as String,
-        name: map['name'] as String,
-        description: map['description'] as String?,
-        createdBy: map['created_by'] as String,
-        createdAt: DateTime.parse(map['created_at'] as String),
-        updatedAt: DateTime.parse(map['updated_at'] as String),
-        memberCount: map['member_count'] as int?,
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR parsing ExpenseGroup: $e');
-        print('   Data: $map');
-      }
-      rethrow;
-    }
+    return ExpenseGroup(
+      id: map['id'] as String,
+      name: map['name'] as String,
+      description: map['description'] as String?,
+      createdBy: map['created_by'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: DateTime.parse(map['updated_at'] as String),
+      memberCount: map['member_count'] as int?,
+    );
   }
 
   /// Convert ExpenseGroup to Supabase map
@@ -136,25 +126,17 @@ class GroupMember {
 
   /// Create GroupMember from Supabase map
   factory GroupMember.fromMap(Map<String, dynamic> map) {
-    try {
-      return GroupMember(
-        id: map['id'] as String,
-        groupId: map['group_id'] as String,
-        userId: map['user_id'] as String,
-        role: GroupRole.fromString(map['role'] as String? ?? 'member'),
-        joinedAt: DateTime.parse(map['joined_at'] as String),
-        // Denormalized fields (from JOIN with profiles)
-        nickname: map['nickname'] as String?,
-        email: map['email'] as String?,
-        avatarUrl: map['avatar_url'] as String?,
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR parsing GroupMember: $e');
-        print('   Data: $map');
-      }
-      rethrow;
-    }
+    return GroupMember(
+      id: map['id'] as String,
+      groupId: map['group_id'] as String,
+      userId: map['user_id'] as String,
+      role: GroupRole.fromString(map['role'] as String? ?? 'member'),
+      joinedAt: DateTime.parse(map['joined_at'] as String),
+      // Denormalized fields (from JOIN with profiles)
+      nickname: map['nickname'] as String?,
+      email: map['email'] as String?,
+      avatarUrl: map['avatar_url'] as String?,
+    );
   }
 
   /// Convert GroupMember to Supabase map
@@ -209,9 +191,6 @@ enum GroupRole {
       case 'member':
         return GroupRole.member;
       default:
-        if (kDebugMode) {
-          print('⚠️ Unknown GroupRole: $value, defaulting to member');
-        }
         return GroupRole.member;
     }
   }

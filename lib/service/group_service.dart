@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/models/group_invite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,7 +20,6 @@ class GroupService {
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
-        if (kDebugMode) print('⚠️ No authenticated user');
         return [];
       }
 
@@ -36,7 +34,6 @@ class GroupService {
           .toList();
 
       if (groupIds.isEmpty) {
-        if (kDebugMode) print('✅ User has no groups');
         return [];
       }
 
@@ -46,10 +43,6 @@ class GroupService {
           .select('*, member_count:group_members(count)')
           .inFilter('id', groupIds)
           .order('created_at', ascending: false);
-
-      if (kDebugMode) {
-        print('✅ Loaded ${(groupsResponse as List).length} groups');
-      }
 
       return (groupsResponse as List).map((map) {
         // Extract member count from aggregation
@@ -64,9 +57,6 @@ class GroupService {
         });
       }).toList();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading groups: $e');
-      }
       return [];
     }
   }
@@ -87,9 +77,6 @@ class GroupService {
 
       return group;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading group $groupId: $e');
-      }
       return null;
     }
   }
@@ -125,15 +112,8 @@ class GroupService {
         'role': 'admin',
       });
 
-      if (kDebugMode) {
-        print('✅ Group created: $name');
-      }
-
       return group;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR creating group: $e');
-      }
       rethrow;
     }
   }
@@ -145,14 +125,7 @@ class GroupService {
           .from('groups')
           .update(group.toUpdateMap())
           .eq('id', group.id);
-
-      if (kDebugMode) {
-        print('✅ Group updated: ${group.name}');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR updating group: $e');
-      }
       rethrow;
     }
   }
@@ -164,14 +137,7 @@ class GroupService {
           .from('groups')
           .delete()
           .eq('id', groupId);
-
-      if (kDebugMode) {
-        print('✅ Group deleted: $groupId');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR deleting group: $e');
-      }
       rethrow;
     }
   }
@@ -217,9 +183,6 @@ class GroupService {
         });
       }).toList();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading group members: $e');
-      }
       return [];
     }
   }
@@ -236,14 +199,7 @@ class GroupService {
         'user_id': userId,
         'role': role,
       });
-
-      if (kDebugMode) {
-        print('✅ Member added to group');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR adding member: $e');
-      }
       rethrow;
     }
   }
@@ -259,14 +215,7 @@ class GroupService {
           .delete()
           .eq('group_id', groupId)
           .eq('user_id', userId);
-
-      if (kDebugMode) {
-        print('✅ Member removed from group');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR removing member: $e');
-      }
       rethrow;
     }
   }
@@ -280,14 +229,7 @@ class GroupService {
       }
 
       await removeMemberFromGroup(groupId: groupId, userId: userId);
-
-      if (kDebugMode) {
-        print('✅ Left group');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR leaving group: $e');
-      }
       rethrow;
     }
   }
@@ -308,9 +250,6 @@ class GroupService {
       if (response == null) return false;
       return response['role'] == 'admin';
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR checking admin status: $e');
-      }
       return false;
     }
   }
@@ -376,15 +315,8 @@ class GroupService {
           .select()
           .single();
 
-      if (kDebugMode) {
-        print('✅ Invite sent to $inviteeEmail');
-      }
-
       return GroupInvite.fromMap(response);
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR sending invite: $e');
-      }
       rethrow;
     }
   }
@@ -439,9 +371,6 @@ class GroupService {
         });
       }).toList();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR loading pending invites: $e');
-      }
       return [];
     }
   }
@@ -476,14 +405,7 @@ class GroupService {
             'responded_at': DateTime.now().toIso8601String(),
           })
           .eq('id', inviteId);
-
-      if (kDebugMode) {
-        print('✅ Invite accepted');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR accepting invite: $e');
-      }
       rethrow;
     }
   }
@@ -501,14 +423,7 @@ class GroupService {
             'responded_at': DateTime.now().toIso8601String(),
           })
           .eq('id', inviteId);
-
-      if (kDebugMode) {
-        print('✅ Invite rejected');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR rejecting invite: $e');
-      }
       rethrow;
     }
   }
@@ -527,9 +442,6 @@ class GroupService {
 
       return (response as List).length;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR counting invites: $e');
-      }
       return 0;
     }
   }

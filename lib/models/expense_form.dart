@@ -164,15 +164,12 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
   }
 
   Future<void> _loadGroupMembers() async {
-    debugPrint('🔄 Loading group members for groupId: ${widget.groupId}');
     setState(() => _loadingMembers = true);
 
     try {
       final members = await GroupService()
           .getGroupMembers(widget.groupId!)
           .timeout(const Duration(seconds: 10));
-
-      debugPrint('✅ Loaded ${members.length} members');
 
       if (mounted) {
         setState(() {
@@ -185,9 +182,6 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
         });
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ Error loading group members: $e');
-      debugPrint('Stack trace: $stackTrace');
-
       if (mounted) {
         setState(() => _loadingMembers = false);
 
@@ -415,6 +409,28 @@ class FieldWidget extends StatefulWidget {
 }
 
 class _FieldWidgetState extends State<FieldWidget> {
+  TextEditingController? _amountController;
+  CurrencyTextInputFormatter? _formatter;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controller only for double type
+    if (widget.expenseField.getFieldType() == double) {
+      _formatter = CurrencyTextInputFormatter.currency(locale: 'it', symbol: '€');
+      final initialAmount = widget.expenseField.getFieldValue() as double?;
+      _amountController = TextEditingController(
+        text: _formatter!.formatDouble(initialAmount ?? 0),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final type = widget.expenseField.getFieldType();
@@ -445,13 +461,11 @@ class _FieldWidgetState extends State<FieldWidget> {
         ),
       );
     } else if (type == double) {
-      CurrencyTextInputFormatter formatter =
-          CurrencyTextInputFormatter.currency(locale: 'it', symbol: '€');
-      final initialAmount = widget.expenseField.getFieldValue() as double?;
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: 16),
         child: TextFormField(
-          inputFormatters: <TextInputFormatter>[formatter],
+          controller: _amountController,
+          inputFormatters: <TextInputFormatter>[_formatter!],
           decoration: InputDecoration(
             labelText: widget.expenseField.getFieldName(),
             hintText: '0,00 €',
@@ -464,17 +478,14 @@ class _FieldWidgetState extends State<FieldWidget> {
           ),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          initialValue: formatter.formatDouble(initialAmount ?? 0),
           onChanged: (value) {
-            // Update the field value as the user types
-            widget.expenseField.setValue(formatter.getDouble());
+            widget.expenseField.setValue(_formatter!.getDouble());
           },
           onSaved: (newValue) {
-            widget.expenseField.setValue(formatter.getDouble());
+            widget.expenseField.setValue(_formatter!.getDouble());
           },
           validator: (value) {
-            // Check the current value from the formatter
-            final currentAmount = formatter.getDouble();
+            final currentAmount = _formatter!.getDouble();
             if (currentAmount <= 0) {
               return 'Inserisci un importo valido';
             }

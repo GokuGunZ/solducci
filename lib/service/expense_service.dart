@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_split.dart';
 import 'package:solducci/models/split_type.dart';
@@ -22,38 +21,16 @@ class ExpenseService {
       // Auto-set context fields if not set
       final context = _contextManager.currentContext;
 
-      if (kDebugMode) {
-        print('🔍 [CREATE] Context: ${context.isPersonal ? "Personal" : "Group (${context.groupId})"}');
-        print('🔍 [CREATE] Expense before context set:');
-        print('   - groupId: ${newExpense.groupId}');
-        print('   - userId: ${newExpense.userId}');
-        print('   - paidBy: ${newExpense.paidBy}');
-        print('   - splitType: ${newExpense.splitType?.value}');
-      }
-
       // FORCE context fields based on current context (not just if null)
       if (context.isGroup) {
         newExpense.groupId = context.groupId;  // Always set from context
-        if (kDebugMode) {
-          print('🔧 [CREATE] FORCED groupId from context: ${newExpense.groupId}');
-        }
       }
       if (context.isPersonal) {
         newExpense.userId = _supabase.auth.currentUser?.id;  // Always set from auth
         newExpense.groupId = null;  // Ensure no groupId for personal expenses
-        if (kDebugMode) {
-          print('🔧 [CREATE] FORCED userId from auth: ${newExpense.userId}');
-          print('🔧 [CREATE] FORCED groupId to null (personal context)');
-        }
       }
 
       final dataToInsert = newExpense.toMap();
-      if (kDebugMode) {
-        print('📤 [CREATE] Data being sent to Supabase:');
-        dataToInsert.forEach((key, value) {
-          print('   $key: $value');
-        });
-      }
 
       // Insert expense and get the ID back
       final result = await _supabase
@@ -64,23 +41,10 @@ class ExpenseService {
 
       final expenseId = result['id'] as int;
 
-      if (kDebugMode) {
-        print('✅ [CREATE] Expense created successfully: ${newExpense.description} (ID: $expenseId)');
-        print('🔍 [CREATE] Result from DB:');
-        result.forEach((key, value) {
-          print('   $key: $value');
-        });
-        print('🔍 [CREATE] Verifying group_id in DB: ${result['group_id']}');
-      }
-
       // If group expense with splits, create expense_splits
       if (newExpense.groupId != null &&
           newExpense.splitType != null &&
           newExpense.splitType != SplitType.offer) {
-
-        if (kDebugMode) {
-          print('💰 Creating splits for expense $expenseId (type: ${newExpense.splitType?.label})');
-        }
 
         // Get group members to calculate splits
         final members = await GroupService().getGroupMembers(newExpense.groupId!);
@@ -95,16 +59,9 @@ class ExpenseService {
         // Insert splits
         if (splits.isNotEmpty) {
           await _supabase.from('expense_splits').insert(splits);
-
-          if (kDebugMode) {
-            print('✅ Created ${splits.length} expense splits');
-          }
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR creating expense: $e');
-      }
       rethrow;
     }
   }
@@ -114,55 +71,28 @@ class ExpenseService {
     final context = _contextManager.currentContext;
     final userId = _supabase.auth.currentUser?.id;
 
-    if (kDebugMode) {
-      print('🔍 [STREAM] Creating stream for context: ${context.isPersonal ? "Personal" : "Group (${context.groupId})"}');
-      print('🔍 [STREAM] Current user ID: $userId');
-    }
-
     if (userId == null) {
-      if (kDebugMode) print('⚠️ [STREAM] No authenticated user');
       return Stream.value([]);
     }
 
     if (context.isPersonal) {
       // Personal context: show only user's personal expenses (no group)
-      if (kDebugMode) {
-        print('🔍 [STREAM] Setting up PERSONAL stream: user_id=$userId, group_id=NULL');
-      }
       return _supabase
           .from('expenses')
           .stream(primaryKey: ['id'])
           .eq('user_id', userId)
           .map((data) {
-            if (kDebugMode) {
-              print('📊 [STREAM] Personal received ${data.length} rows from DB');
-            }
             // Filter out group expenses client-side
             final filtered = data.where((row) => row['group_id'] == null).toList();
-            if (kDebugMode) {
-              print('📊 [STREAM] Personal after filter: ${filtered.length} expenses (removed ${data.length - filtered.length} group expenses)');
-            }
             return _parseExpenses(filtered);
           });
     } else {
       // Group context: show expenses for this group
-      if (kDebugMode) {
-        print('🔍 [STREAM] Setting up GROUP stream: group_id=${context.groupId}');
-      }
       return _supabase
           .from('expenses')
           .stream(primaryKey: ['id'])
           .eq('group_id', context.groupId!)
           .map((data) {
-            if (kDebugMode) {
-              print('📊 [STREAM] Group received ${data.length} rows from DB');
-              if (data.isNotEmpty) {
-                print('📊 [STREAM] Sample rows:');
-                for (var i = 0; i < data.length && i < 3; i++) {
-                  print('   [${i + 1}] id=${data[i]['id']}, desc="${data[i]['description']}", group_id=${data[i]['group_id']}');
-                }
-              }
-            }
             return _parseExpenses(data);
           });
     }
@@ -170,46 +100,23 @@ class ExpenseService {
 
   // Helper to parse expense list
   List<Expense> _parseExpenses(List<Map<String, dynamic>> data) {
-    if (kDebugMode) {
-      print('📊 Received ${data.length} expenses from stream');
-    }
-
-    return data.map<Expense>((row) {
-      try {
-        return Expense.fromMap(row);
-      } catch (e) {
-        if (kDebugMode) {
-          print('❌ ERROR parsing expense from row: $row');
-          print('   Error: $e');
-        }
-        rethrow;
-      }
-    }).toList();
+    return data.map<Expense>((row) => Expense.fromMap(row)).toList();
   }
 
   /// Check if splits need to be recalculated based on changed fields
   bool _needsSplitRecalculation(Expense original, Expense updated) {
     // Check if amount changed
     if ((original.amount - updated.amount).abs() > 0.001) {
-      if (kDebugMode) {
-        print('   → Amount changed: ${original.amount} → ${updated.amount}');
-      }
       return true;
     }
 
     // Check if split type changed
     if (original.splitType != updated.splitType) {
-      if (kDebugMode) {
-        print('   → Split type changed: ${original.splitType?.value} → ${updated.splitType?.value}');
-      }
       return true;
     }
 
     // Check if payer changed
     if (original.paidBy != updated.paidBy) {
-      if (kDebugMode) {
-        print('   → Payer changed: ${original.paidBy} → ${updated.paidBy}');
-      }
       return true;
     }
 
@@ -221,9 +128,6 @@ class ExpenseService {
       // Check if keys are different
       if (originalData.keys.length != updatedData.keys.length ||
           !originalData.keys.every((key) => updatedData.containsKey(key))) {
-        if (kDebugMode) {
-          print('   → Custom split users changed');
-        }
         return true;
       }
 
@@ -232,32 +136,17 @@ class ExpenseService {
         final originalAmount = originalData[key] ?? 0.0;
         final updatedAmount = updatedData[key] ?? 0.0;
         if ((originalAmount - updatedAmount).abs() > 0.001) {
-          if (kDebugMode) {
-            print('   → Custom split amount changed for $key: $originalAmount → $updatedAmount');
-          }
           return true;
         }
       }
     }
 
-    if (kDebugMode) {
-      print('   → No split-relevant changes detected');
-    }
     return false;
   }
 
   // Update
   Future updateExpense(Expense updatedExpense) async {
     try {
-      if (kDebugMode) {
-        print('🔄 [UPDATE] Updating expense: ${updatedExpense.description} (ID: ${updatedExpense.id})');
-        print('🔍 [UPDATE] New values:');
-        print('   - amount: ${updatedExpense.amount}');
-        print('   - splitType: ${updatedExpense.splitType?.value}');
-        print('   - paidBy: ${updatedExpense.paidBy}');
-        print('   - groupId: ${updatedExpense.groupId}');
-      }
-
       // FIX: Fetch original expense to check if splits need recalculation
       final originalData = await _supabase
           .from('expenses')
@@ -270,19 +159,11 @@ class ExpenseService {
       // Check if split-relevant fields changed
       final needsRecalculation = _needsSplitRecalculation(originalExpense, updatedExpense);
 
-      if (kDebugMode) {
-        print('🔍 [UPDATE] Splits need recalculation: $needsRecalculation');
-      }
-
       // Update expense record
       await _supabase
           .from('expenses')
           .update(updatedExpense.toMap())
           .eq('id', updatedExpense.id);
-
-      if (kDebugMode) {
-        print('✅ [UPDATE] Expense record updated');
-      }
 
       // Handle splits based on the updated expense state
       if (updatedExpense.groupId != null) {
@@ -291,69 +172,19 @@ class ExpenseService {
         if (updatedExpense.splitType == SplitType.offer) {
           // Offer type = no splits needed, delete any existing
           // ALWAYS delete when offer (regardless of needsRecalculation)
-          if (kDebugMode) {
-            print('🗑️ [UPDATE] Split type is "offer", deleting all splits for expense ${updatedExpense.id}');
-          }
-
-          try {
-            // First, verify what splits exist before delete
-            final existingSplits = await _supabase
-                .from('expense_splits')
-                .select()
-                .eq('expense_id', updatedExpense.id);
-
-            if (kDebugMode) {
-              print('   Found ${existingSplits.length} existing splits before delete');
-            }
-
-            // Now delete them
-            await _supabase
-                .from('expense_splits')
-                .delete()
-                .eq('expense_id', updatedExpense.id);
-
-            if (kDebugMode) {
-              print('🗑️ [UPDATE] Delete command executed for ${existingSplits.length} splits');
-            }
-
-            // Verify deletion
-            final remainingSplits = await _supabase
-                .from('expense_splits')
-                .select()
-                .eq('expense_id', updatedExpense.id);
-
-            if (kDebugMode) {
-              print('   Remaining splits after delete: ${remainingSplits.length}');
-              if (remainingSplits.isNotEmpty) {
-                print('   ⚠️ WARNING: Splits were not deleted!');
-                for (var split in remainingSplits) {
-                  print('      - Split ID: ${split['id']}, user: ${split['user_id']}, amount: ${split['amount']}');
-                }
-              }
-            }
-          } catch (e) {
-            if (kDebugMode) {
-              print('   ❌ Error during delete: $e');
-            }
-            rethrow;
-          }
+          await _supabase
+              .from('expense_splits')
+              .delete()
+              .eq('expense_id', updatedExpense.id);
 
         } else if (needsRecalculation && updatedExpense.splitType != null) {
           // Need to recalculate splits (amount/type/payer changed)
-          if (kDebugMode) {
-            print('💰 [UPDATE] Recalculating splits for expense ${updatedExpense.id}');
-          }
 
-          // Delete old splits with verification
-          final deleteResult = await _supabase
+          // Delete old splits
+          await _supabase
               .from('expense_splits')
               .delete()
-              .eq('expense_id', updatedExpense.id)
-              .select();
-
-          if (kDebugMode) {
-            print('🗑️ [UPDATE] Deleted ${deleteResult.length} old splits');
-          }
+              .eq('expense_id', updatedExpense.id);
 
           // Small delay to ensure delete is committed
           await Future.delayed(Duration(milliseconds: 50));
@@ -370,44 +201,18 @@ class ExpenseService {
 
           // Insert new splits
           if (splits.isNotEmpty) {
-            if (kDebugMode) {
-              print('📝 [UPDATE] Inserting ${splits.length} new splits...');
-            }
-
             await _supabase.from('expense_splits').insert(splits);
-
-            if (kDebugMode) {
-              print('✅ [UPDATE] Created ${splits.length} new expense splits');
-              for (var split in splits) {
-                print('   - userId: ${split['user_id']}, amount: ${split['amount']}, paid: ${split['is_paid']}');
-              }
-            }
-          }
-        } else {
-          // No recalculation needed, splits remain unchanged
-          if (kDebugMode) {
-            print('ℹ️ [UPDATE] Splits unchanged, skipping recalculation');
           }
         }
 
       } else if (originalExpense.groupId != null && updatedExpense.groupId == null) {
         // Changed from group to personal expense, delete all splits
-        if (kDebugMode) {
-          print('🗑️ [UPDATE] Changed to personal expense, deleting all splits');
-        }
         await _supabase
             .from('expense_splits')
             .delete()
             .eq('expense_id', updatedExpense.id);
       }
-
-      if (kDebugMode) {
-        print('✅ Expense updated successfully: ${updatedExpense.description}');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR updating expense: $e');
-      }
       rethrow;
     }
   }
@@ -419,14 +224,7 @@ class ExpenseService {
           .from('expenses')
           .delete()
           .eq('id', expense.id);
-
-      if (kDebugMode) {
-        print('✅ Expense deleted successfully: ${expense.description}');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR deleting expense: $e');
-      }
       rethrow;
     }
   }
@@ -442,9 +240,6 @@ class ExpenseService {
 
       return _parseExpenses((response as List).cast<Map<String, dynamic>>());
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR getting group expenses: $e');
-      }
       return [];
     }
   }
@@ -465,9 +260,6 @@ class ExpenseService {
       final filtered = (response as List).where((row) => row['group_id'] == null).toList();
       return _parseExpenses(filtered.cast<Map<String, dynamic>>());
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR getting personal expenses: $e');
-      }
       return [];
     }
   }
@@ -527,9 +319,6 @@ class ExpenseService {
 
         if (nonPayerCount == 0) {
           // No one to split with, skip
-          if (kDebugMode) {
-            print('⚠️ [LEND] No other members to split with');
-          }
           break;
         }
 
@@ -554,9 +343,6 @@ class ExpenseService {
         break;
 
       default:
-        if (kDebugMode) {
-          print('⚠️ Unknown split type: ${expense.splitType}');
-        }
         break;
     }
 
@@ -590,9 +376,6 @@ class ExpenseService {
         });
       }).toList();
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR getting expense splits: $e');
-      }
       return [];
     }
   }
@@ -657,10 +440,6 @@ class ExpenseService {
           ''')
           .eq('expenses.group_id', groupId);
 
-      if (kDebugMode) {
-        print('💰 [BALANCE] Found ${response.length} total splits for group $groupId');
-      }
-
       final balances = <String, double>{};
 
       for (final splitData in response as List) {
@@ -670,10 +449,6 @@ class ExpenseService {
 
         // Skip if already paid
         if (split.isPaid) continue;
-
-        if (kDebugMode) {
-          print('   - Split: expenseId=${split.expenseId}, userId=${split.userId}, amount=${split.amount}, isPaid=${split.isPaid}');
-        }
 
         if (paidBy == currentUserId) {
           // Current user paid, others owe them
@@ -686,15 +461,8 @@ class ExpenseService {
         }
       }
 
-      if (kDebugMode) {
-        print('💰 [BALANCE] Final balances: $balances');
-      }
-
       return balances;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR calculating group balance: $e');
-      }
       return {};
     }
   }

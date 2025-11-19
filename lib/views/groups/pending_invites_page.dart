@@ -26,21 +26,16 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
   }
 
   Future<void> _loadInvites() async {
-    debugPrint('🔄 Loading pending invites...');
     setState(() => _isLoading = true);
 
     try {
       final invites = await _groupService.getPendingInvites();
-      debugPrint('✅ Loaded ${invites.length} pending invites');
 
       setState(() {
         _invites = invites;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
-      debugPrint('❌ Error loading invites: $e');
-      debugPrint('Stack trace: $stackTrace');
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore: $e')),
@@ -51,25 +46,17 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
   }
 
   Future<void> _acceptInvite(GroupInvite invite) async {
-    debugPrint('🔄 Accepting invite: ${invite.id}');
-    debugPrint('   Group: ${invite.groupName} (${invite.groupId})');
-
     try {
       await _groupService.acceptInvite(invite.id);
-      debugPrint('✅ Invite accepted successfully');
 
       // Reload user groups in ContextManager
-      debugPrint('🔄 Reloading ContextManager...');
       await _contextManager.initialize();
-      debugPrint('✅ ContextManager reloaded');
 
       if (mounted) {
         // Remove invite from list
-        debugPrint('🗑️ Removing invite from local list...');
         setState(() {
           _invites.removeWhere((i) => i.id == invite.id);
         });
-        debugPrint('✅ Invite removed from list. Remaining: ${_invites.length}');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -86,8 +73,6 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
         );
       }
     } catch (e) {
-      debugPrint('❌ Error accepting invite: $e');
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -100,8 +85,6 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
   }
 
   Future<void> _rejectInvite(GroupInvite invite) async {
-    debugPrint('🔄 Rejecting invite: ${invite.id}');
-
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -129,7 +112,6 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
 
     try {
       await _groupService.rejectInvite(invite.id);
-      debugPrint('✅ Invite rejected');
 
       setState(() {
         _invites.removeWhere((i) => i.id == invite.id);
@@ -144,8 +126,6 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
         );
       }
     } catch (e) {
-      debugPrint('❌ Error rejecting invite: $e');
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

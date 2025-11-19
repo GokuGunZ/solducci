@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// User profile model with nickname and avatar
 /// Corresponds to 'profiles' table in Supabase
 class UserProfile {
@@ -21,22 +19,14 @@ class UserProfile {
 
   /// Create UserProfile from Supabase map
   factory UserProfile.fromMap(Map<String, dynamic> map) {
-    try {
-      return UserProfile(
-        id: map['id'] as String,
-        email: map['email'] as String,
-        nickname: map['nickname'] as String? ?? 'Utente',
-        avatarUrl: map['avatar_url'] as String?,
-        createdAt: DateTime.parse(map['created_at'] as String),
-        updatedAt: DateTime.parse(map['updated_at'] as String),
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ ERROR parsing UserProfile: $e');
-        print('   Data: $map');
-      }
-      rethrow;
-    }
+    return UserProfile(
+      id: map['id'] as String,
+      email: map['email'] as String,
+      nickname: map['nickname'] as String? ?? 'Utente',
+      avatarUrl: map['avatar_url'] as String?,
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: DateTime.parse(map['updated_at'] as String),
+    );
   }
 
   /// Convert UserProfile to Supabase map

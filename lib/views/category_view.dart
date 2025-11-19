@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/dashboard_data.dart';
 import 'package:solducci/models/expense.dart';
-import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/utils/category_helpers.dart';
 
 class CategoryView extends StatelessWidget {
   const CategoryView({super.key});
@@ -108,9 +108,9 @@ class CategoryView extends StatelessWidget {
                             Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: _getCategoryColor(breakdown.category),
+                                  backgroundColor: CategoryHelpers.getCategoryColor(breakdown.category),
                                   child: Icon(
-                                    _getCategoryIcon(breakdown.category),
+                                    CategoryHelpers.getCategoryIcon(breakdown.category),
                                     color: Colors.white,
                                   ),
                                 ),
@@ -167,7 +167,7 @@ class CategoryView extends StatelessWidget {
                                 minHeight: 8,
                                 backgroundColor: Colors.grey[200],
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  _getCategoryColor(breakdown.category),
+                                  CategoryHelpers.getCategoryColor(breakdown.category),
                                 ),
                               ),
                             ),
@@ -183,43 +183,5 @@ class CategoryView extends StatelessWidget {
         },
       ),
     );
-  }
-
-  Color _getCategoryColor(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Colors.purple;
-      case Tipologia.cibo:
-        return Colors.green;
-      case Tipologia.utenze:
-        return Colors.blue;
-      case Tipologia.prodottiCasa:
-        return Colors.orange;
-      case Tipologia.ristorante:
-        return Colors.red;
-      case Tipologia.tempoLibero:
-        return Colors.pink;
-      case Tipologia.altro:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getCategoryIcon(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Icons.home;
-      case Tipologia.cibo:
-        return Icons.shopping_cart;
-      case Tipologia.utenze:
-        return Icons.bolt;
-      case Tipologia.prodottiCasa:
-        return Icons.cleaning_services;
-      case Tipologia.ristorante:
-        return Icons.restaurant;
-      case Tipologia.tempoLibero:
-        return Icons.sports_esports;
-      case Tipologia.altro:
-        return Icons.more_horiz;
-    }
   }
 }

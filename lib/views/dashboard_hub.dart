@@ -34,16 +34,6 @@ class DashboardHub extends StatelessWidget {
               color: Colors.green,
               onTap: () => context.push('/dashboard/category'),
             ),
-            /*
-            _buildDashboardCard(
-              context: context,
-              title: 'Saldo',
-              subtitle: 'Debiti/Crediti',
-              icon: Icons.balance,
-              color: Colors.orange,
-              onTap: () => context.push('/dashboard/balance'),
-            ),
-            */
             _buildDashboardCard(
               context: context,
               title: 'Timeline',

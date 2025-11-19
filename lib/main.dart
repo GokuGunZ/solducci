@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:solducci/routes/app_router.dart';
@@ -10,13 +9,7 @@ void main() async {
 
   try {
     // Load environment variables
-    if (kDebugMode) {
-      print('🔧 Loading environment variables...');
-    }
     await dotenv.load(fileName: "assets/dev/.env");
-    if (kDebugMode) {
-      print('✅ Environment variables loaded successfully');
-    }
 
     // Initialize Supabase with credentials from .env
     final supabaseUrl = dotenv.env['SUPABASE_URL'];
@@ -26,28 +19,12 @@ void main() async {
       throw Exception('Missing Supabase credentials in .env file');
     }
 
-    if (kDebugMode) {
-      print('🔧 Initializing Supabase...');
-      print('   URL: $supabaseUrl');
-    }
-
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
-
-    if (kDebugMode) {
-      print('✅ Supabase initialized successfully');
-      print('🚀 Starting Solducci app...');
-    }
 
     // Initialize ContextManager if user is already logged in
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {
-      if (kDebugMode) {
-        print('🔧 User logged in, initializing ContextManager...');
-      }
       await ContextManager().initialize();
-      if (kDebugMode) {
-        print('✅ ContextManager initialized');
-      }
     }
 
     // Listen to auth state changes
@@ -55,22 +32,13 @@ void main() async {
       final session = data.session;
       if (session != null) {
         // User logged in
-        if (kDebugMode) {
-          print('🔧 User logged in, initializing ContextManager...');
-        }
         await ContextManager().initialize();
       } else {
         // User logged out
-        if (kDebugMode) {
-          print('🔧 User logged out, clearing ContextManager...');
-        }
         ContextManager().clear();
       }
     });
   } catch (e) {
-    if (kDebugMode) {
-      print('❌ FATAL ERROR during initialization: $e');
-    }
     rethrow;
   }
 

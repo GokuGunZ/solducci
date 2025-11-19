@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense_form.dart';
@@ -53,15 +52,8 @@ class Expense {
         // Fallback to Italian format (e.g., "08/01/2025")
         final italianFormat = DateFormat('dd/MM/yyyy');
         parsedDate = italianFormat.parse(dateStr);
-        if (kDebugMode) {
-          print('⚠️ Parsed legacy date format: $dateStr -> $parsedDate');
-        }
       } catch (e2) {
-        // If both fail, log error and use current date
-        if (kDebugMode) {
-          print('❌ ERROR parsing date: $dateStr');
-          print('   Error details: $e2');
-        }
+        // If both fail, use current date
         parsedDate = DateTime.now();
       }
     }
@@ -72,22 +64,12 @@ class Expense {
       amount: (map['amount'] as num).toDouble(), // match your DB column
       moneyFlow: MoneyFlow.values.firstWhere(
         (f) => f.label == map['money_flow'] || f.name == map['money_flow'],
-        orElse: () {
-          if (kDebugMode) {
-            print('⚠️ Unknown money_flow: ${map['money_flow']}, using default');
-          }
-          return MoneyFlow.carlToPit;
-        },
+        orElse: () => MoneyFlow.carlToPit,
       ),
       date: parsedDate,
       type: Tipologia.values.firstWhere(
         (t) => t.label == map['type'] || t.name == map['type'],
-        orElse: () {
-          if (kDebugMode) {
-            print('⚠️ Unknown type: ${map['type']}, using default');
-          }
-          return Tipologia.altro;
-        },
+        orElse: () => Tipologia.altro,
       ),
       userId: map['user_id'] as String?,
       // NEW: Multi-user fields
@@ -132,14 +114,6 @@ class Expense {
     // Only include it for updates (positive IDs only)
     if (id > 0) {
       map['id'] = id;
-    }
-
-    if (kDebugMode) {
-      print('🔍 [EXPENSE.toMap] Serialized expense:');
-      print('   - user_id: ${map['user_id']}');
-      print('   - group_id: ${map['group_id']}');
-      print('   - paid_by: ${map['paid_by']}');
-      print('   - split_type: ${map['split_type']}');
     }
 
     return map;

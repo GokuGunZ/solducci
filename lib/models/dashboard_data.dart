@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:intl/intl.dart';
@@ -153,10 +152,6 @@ class DashboardService {
     // Sort groups by date descending
     groups.sort((a, b) => b.month.compareTo(a.month));
 
-    if (kDebugMode) {
-      print('📊 Grouped ${expenses.length} expenses into ${groups.length} months');
-    }
-
     return groups;
   }
 
@@ -188,10 +183,6 @@ class DashboardService {
 
     // Sort by total descending
     breakdowns.sort((a, b) => b.total.compareTo(a.total));
-
-    if (kDebugMode) {
-      print('📊 Calculated breakdown for ${Tipologia.values.length} categories');
-    }
 
     return breakdowns;
   }

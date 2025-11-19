@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/utils/category_helpers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Reusable expense list item widget with full functionality:
@@ -31,8 +32,8 @@ class ExpenseListItem extends StatelessWidget {
       elevation: 2,
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: _getCategoryColor(expense.type),
-          child: Icon(_getCategoryIcon(expense.type), color: Colors.white),
+          backgroundColor: CategoryHelpers.getCategoryColor(expense.type),
+          child: Icon(CategoryHelpers.getCategoryIcon(expense.type), color: Colors.white),
         ),
         title: Row(
           children: [
@@ -129,16 +130,42 @@ class ExpenseListItem extends StatelessWidget {
       confirmDismiss: (direction) async {
         switch (direction) {
           case DismissDirection.endToStart:
-            return await _confirmDelete(context);
+            // Delete - confirm and perform deletion
+            final confirmed = await _confirmDelete(context);
+            if (confirmed == true && context.mounted) {
+              // Perform deletion immediately in confirmDismiss
+              try {
+                await ExpenseService().deleteExpense(expense);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Spesa eliminata'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  onDeleted?.call();
+                }
+                return true; // Allow dismissal after successful deletion
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Errore durante eliminazione'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+                return false; // Don't dismiss on error
+              }
+            }
+            return false; // User cancelled
           case DismissDirection.startToEnd:
+            // Duplicate - don't dismiss
             await _duplicateExpense(context);
-            return false; // Don't dismiss
+            return false;
           default:
             return false;
         }
-      },
-      onDismissed: (direction) async {
-        await _onDismissed(context);
       },
       child: listTile,
     );
@@ -456,31 +483,6 @@ class ExpenseListItem extends StatelessWidget {
     );
   }
 
-  // Handle dismissal
-  Future<void> _onDismissed(BuildContext context) async {
-    try {
-      await ExpenseService().deleteExpense(expense);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Spesa eliminata'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        onDeleted?.call();
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore durante eliminazione'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   // Open expense form
   void _openExpenseForm(
     BuildContext context, {
@@ -510,44 +512,5 @@ class ExpenseListItem extends StatelessWidget {
         ),
       ),
     ).then((_) => onUpdated?.call());
-  }
-
-  // Helper methods for colors and icons
-  Color _getCategoryColor(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Colors.purple;
-      case Tipologia.cibo:
-        return Colors.green;
-      case Tipologia.utenze:
-        return Colors.blue;
-      case Tipologia.prodottiCasa:
-        return Colors.orange;
-      case Tipologia.ristorante:
-        return Colors.red;
-      case Tipologia.tempoLibero:
-        return Colors.pink;
-      case Tipologia.altro:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getCategoryIcon(Tipologia type) {
-    switch (type) {
-      case Tipologia.affitto:
-        return Icons.home;
-      case Tipologia.cibo:
-        return Icons.shopping_cart;
-      case Tipologia.utenze:
-        return Icons.bolt;
-      case Tipologia.prodottiCasa:
-        return Icons.cleaning_services;
-      case Tipologia.ristorante:
-        return Icons.restaurant;
-      case Tipologia.tempoLibero:
-        return Icons.sports_esports;
-      case Tipologia.altro:
-        return Icons.more_horiz;
-    }
   }
 }
