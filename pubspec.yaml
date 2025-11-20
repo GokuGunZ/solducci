@@ -27,5 +27,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/dev/.env
+  # Note: assets/dev/.env is only for local development
+  # Production builds use --dart-define instead
