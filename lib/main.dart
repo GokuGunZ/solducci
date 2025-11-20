@@ -8,15 +8,31 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Load environment variables
-    await dotenv.load(fileName: "assets/dev/.env");
+    // Try loading from dart-define first (production builds)
+    const supabaseUrlFromDefine = String.fromEnvironment('SUPABASE_URL');
+    const supabaseKeyFromDefine = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-    // Initialize Supabase with credentials from .env
-    final supabaseUrl = dotenv.env['SUPABASE_URL'];
-    final supabaseKey = dotenv.env['SUPABASE_ANON_KEY'];
+    String? supabaseUrl = supabaseUrlFromDefine.isNotEmpty ? supabaseUrlFromDefine : null;
+    String? supabaseKey = supabaseKeyFromDefine.isNotEmpty ? supabaseKeyFromDefine : null;
 
+    // Fallback to .env file for local development (flutter run)
     if (supabaseUrl == null || supabaseKey == null) {
-      throw Exception('Missing Supabase credentials in .env file');
+      try {
+        await dotenv.load(fileName: "assets/dev/.env");
+        supabaseUrl = dotenv.env['SUPABASE_URL'];
+        supabaseKey = dotenv.env['SUPABASE_ANON_KEY'];
+      } catch (e) {
+        // .env file not found or can't be loaded - will check credentials below
+      }
+    }
+
+    // Validate that we have the required credentials
+    if (supabaseUrl == null || supabaseKey == null || supabaseUrl.isEmpty || supabaseKey.isEmpty) {
+      throw Exception(
+        'Missing Supabase credentials.\n\n'
+        'For local development: Create assets/dev/.env with SUPABASE_URL and SUPABASE_ANON_KEY\n'
+        'For production builds: Use --dart-define to pass credentials'
+      );
     }
 
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
@@ -38,11 +54,89 @@ void main() async {
         ContextManager().clear();
       }
     });
-  } catch (e) {
-    rethrow;
+  } catch (e, stackTrace) {
+    // Log error for debugging
+    debugPrint('❌ INITIALIZATION ERROR: $e');
+    debugPrint('Stack trace: $stackTrace');
+
+    // Show user-friendly error screen instead of crashing
+    runApp(ErrorApp(error: e.toString()));
+    return;
   }
 
   runApp(const SolducciApp());
+}
+
+/// Error screen shown when app initialization fails
+class ErrorApp extends StatelessWidget {
+  final String error;
+  const ErrorApp({super.key, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Solducci - Error',
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.red[50],
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 80,
+                    color: Colors.red[700],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Errore di Inizializzazione',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[900],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red[300]!),
+                    ),
+                    child: Text(
+                      error,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[800],
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Controlla la configurazione e riavvia l\'app',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Main app widget with GoRouter configuration

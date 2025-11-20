@@ -42,11 +42,6 @@ jobs:
         run: |
           echo "$SIGNING_KEY_BASE64" | base64 --decode > android/app/upload-keystore.jks
 
-      - name: Setup .env
-        run: |
-          mkdir -p assets/dev
-          echo "GSHEET_CREDENTIALS=${{ secrets.GCP_CREDENTIALS_B64 }}" > assets/dev/.env
-
       - name: Create Key Properties
         env:
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -68,10 +63,16 @@ jobs:
       - name: Build Android APK (Signed)
         env:
           GSHEET_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_B64 }}
-        run: flutter build apk --release --dart-define=GSHEET_CREDENTIALS="$GSHEET_CREDENTIALS"
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          flutter build apk --release \
+            --dart-define=GSHEET_CREDENTIALS="$GSHEET_CREDENTIALS" \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
       - name: Clean up sensitive files
-        run: rm -f android/app/upload-keystore.jks android/key.properties android/app/google-services.json assets/dev/.env 
+        run: rm -f android/app/upload-keystore.jks android/key.properties android/app/google-services.json 
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
