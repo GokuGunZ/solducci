@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/group.dart';
+import 'package:solducci/models/expense_view.dart';
 import 'package:solducci/service/expense_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/group_service.dart';
@@ -107,16 +108,26 @@ class ExpenseForm {
   final _formKey = GlobalKey<FormState>();
 
   Widget getExpenseView(BuildContext context) {
-    // Check if we're in a group context
+    // Check current context type
     final currentContext = ContextManager().currentContext;
-    final isGroupContext = currentContext.isGroup;
 
-    return _ExpenseFormWidget(
-      formKey: _formKey,
-      expenseForm: this,
-      isGroupContext: isGroupContext,
-      groupId: currentContext.groupId,
-    );
+    if (currentContext.isView) {
+      // CASO VISTA: mostra selettore gruppi
+      return _ViewExpenseFormWidget(
+        formKey: _formKey,
+        expenseForm: this,
+        view: currentContext.view!,
+      );
+    } else {
+      // CASO NORMALE (Personal o Group singolo)
+      final isGroupContext = currentContext.isGroup;
+      return _ExpenseFormWidget(
+        formKey: _formKey,
+        expenseForm: this,
+        isGroupContext: isGroupContext,
+        groupId: currentContext.groupId,
+      );
+    }
   }
 }
 
@@ -744,4 +755,488 @@ class EnumFormField<T extends Enum> extends FormField<T> {
            );
          },
        );
+}
+
+/// Widget form per creare spese da contesto Vista
+/// Mostra selettore di gruppi (Card) e permette multi-select
+class _ViewExpenseFormWidget extends StatefulWidget {
+  final GlobalKey<FormState> formKey;
+  final ExpenseForm expenseForm;
+  final ExpenseView view;
+
+  const _ViewExpenseFormWidget({
+    required this.formKey,
+    required this.expenseForm,
+    required this.view,
+  });
+
+  @override
+  State<_ViewExpenseFormWidget> createState() => _ViewExpenseFormWidgetState();
+}
+
+class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
+  // Gruppi selezionati (per creare la spesa)
+  final Set<String> _selectedGroupIds = {};
+
+  // Membri di tutti i gruppi della vista (caricati all'inizio)
+  final Map<String, List<GroupMember>> _groupMembers = {};
+  bool _loadingMembers = false;
+
+  // Split fields (unificati per tutti i gruppi - FASE 1 semplificata)
+  String? _paidBy;
+  SplitType _splitType = SplitType.equal;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllGroupMembers();
+  }
+
+  Future<void> _loadAllGroupMembers() async {
+    setState(() => _loadingMembers = true);
+
+    try {
+      for (final group in widget.view.groups!) {
+        final members = await GroupService()
+            .getGroupMembers(group.id)
+            .timeout(const Duration(seconds: 10));
+        _groupMembers[group.id] = members;
+      }
+
+      if (mounted) {
+        setState(() {
+          _loadingMembers = false;
+          // Auto-select current user as paidBy
+          _paidBy = Supabase.instance.client.auth.currentUser?.id;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingMembers = false);
+        // Show error in next frame to avoid calling inherited widget in initState
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Errore caricamento membri: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
+      }
+    }
+  }
+
+  /// Ottieni tutti i membri unici dai gruppi selezionati
+  List<GroupMember> get _allSelectedMembers {
+    final allMembers = <GroupMember>[];
+    final seenUserIds = <String>{};
+
+    for (final groupId in _selectedGroupIds) {
+      final members = _groupMembers[groupId] ?? [];
+      for (final member in members) {
+        if (!seenUserIds.contains(member.userId)) {
+          allMembers.add(member);
+          seenUserIds.add(member.userId);
+        }
+      }
+    }
+
+    return allMembers;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Loading state
+    if (_loadingMembers) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Caricamento membri gruppi...'),
+          ],
+        ),
+      );
+    }
+
+    return Form(
+      key: widget.formKey,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+          // Campi base
+          FieldWidget(expenseField: widget.expenseForm.descriptionField),
+          const SizedBox(height: 16),
+          FieldWidget(expenseField: widget.expenseForm.moneyField),
+          const SizedBox(height: 16),
+          FieldWidget(expenseField: widget.expenseForm.dateField),
+          const SizedBox(height: 16),
+          FieldWidget(expenseField: widget.expenseForm.typeField),
+          const SizedBox(height: 24),
+
+          // SEZIONE SELEZIONE GRUPPI
+          Row(
+            children: [
+              Expanded(
+                child: Divider(color: Colors.grey[400], thickness: 1),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'SELEZIONA GRUPPI',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Divider(color: Colors.grey[400], thickness: 1),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Card selezionabili per ogni gruppo
+          ...widget.view.groups!.map((group) {
+            final isSelected = _selectedGroupIds.contains(group.id);
+            final members = _groupMembers[group.id] ?? [];
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                elevation: isSelected ? 4 : 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelected ? Colors.blue[700]! : Colors.grey[300]!,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedGroupIds.remove(group.id);
+                      } else {
+                        _selectedGroupIds.add(group.id);
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          color: isSelected ? Colors.blue[700] : Colors.grey,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                group.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: isSelected
+                                      ? Colors.blue[700]
+                                      : Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${members.length} membri',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+
+          // SPLIT FIELDS (visibili solo se almeno 1 gruppo selezionato)
+          if (_selectedGroupIds.isNotEmpty) ...[
+            const SizedBox(height: 24),
+
+            Row(
+              children: [
+                Expanded(
+                  child: Divider(color: Colors.grey[400], thickness: 1),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'SPLIT TRA MEMBRI',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Divider(color: Colors.grey[400], thickness: 1),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Dropdown "Chi ha pagato?" (unificato per tutti i gruppi)
+            Text(
+              'Chi ha pagato? *',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _paidBy,
+              decoration: InputDecoration(
+                hintText: 'Seleziona chi ha pagato',
+                prefixIcon: const Icon(Icons.person),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              items: _allSelectedMembers.map((member) {
+                return DropdownMenuItem<String>(
+                  value: member.userId,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.blue[200],
+                        child: Text(
+                          member.initials,
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text(
+                          member.nickname ?? member.email ?? 'Unknown',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) => setState(() => _paidBy = value),
+              validator: (value) =>
+                  value == null ? 'Seleziona chi ha pagato' : null,
+            ),
+
+            const SizedBox(height: 16),
+
+            // Split type selector
+            Text(
+              'Come dividere?',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ...SplitType.values.map((type) {
+              return RadioListTile<SplitType>(
+                value: type,
+                groupValue: _splitType,
+                onChanged: (value) => setState(() => _splitType = value!),
+                title: Row(
+                  children: [
+                    Text(
+                      type.icon,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            type.label,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            type.description,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                dense: true,
+              );
+            }),
+          ],
+
+          const SizedBox(height: 32),
+
+          // Submit button
+          ElevatedButton.icon(
+            onPressed: _selectedGroupIds.isEmpty ? null : _onSubmit,
+            icon: const Icon(Icons.check),
+            label: const Text('Crea Spesa'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              disabledForegroundColor: Colors.grey[600],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    ),
+  );
+}
+
+  Future<void> _onSubmit() async {
+    if (!widget.formKey.currentState!.validate()) return;
+    widget.formKey.currentState!.save();
+
+    if (_selectedGroupIds.length == 1) {
+      // CASO 1: Un solo gruppo selezionato → crea spesa normale
+      await _createSingleGroupExpense(_selectedGroupIds.first);
+    } else {
+      // CASO 2: Più gruppi selezionati → mostra dialog scelta
+      await _showMultiGroupChoiceDialog();
+    }
+  }
+
+  Future<void> _createSingleGroupExpense(String groupId) async {
+    final expense = Expense(
+      id: -1,
+      description: widget.expenseForm.descriptionField.getFieldValue() as String,
+      amount: widget.expenseForm.moneyField.getFieldValue() as double,
+      date: widget.expenseForm.dateField.getFieldValue() as DateTime,
+      type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
+      moneyFlow: MoneyFlow.carlucci, // Legacy field
+      userId: Supabase.instance.client.auth.currentUser?.id,
+      groupId: groupId,
+      paidBy: _paidBy,
+      splitType: _splitType,
+    );
+
+    await ExpenseService().createExpense(expense);
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _showMultiGroupChoiceDialog() async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Hai selezionato ${_selectedGroupIds.length} gruppi'),
+        content: const Text(
+          'Come vuoi procedere con questa spesa?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'cancel'),
+            child: const Text('Annulla'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, 'individual'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[700],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Spese Individuali'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, 'new_group'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[700],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Crea Nuovo Gruppo'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == 'individual') {
+      await _createIndividualExpenses();
+    } else if (choice == 'new_group') {
+      await _createNewGroupAndExpense();
+    }
+  }
+
+  Future<void> _createIndividualExpenses() async {
+    // Crea N spese separate, una per ogni gruppo
+    for (final groupId in _selectedGroupIds) {
+      await _createSingleGroupExpense(groupId);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_selectedGroupIds.length} spese create con successo',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _createNewGroupAndExpense() async {
+    // TODO: Implementare creazione gruppo con membri unificati
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Funzionalità "Crea Nuovo Gruppo" in sviluppo'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
 }
