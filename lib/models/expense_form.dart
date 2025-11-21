@@ -920,34 +920,38 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
                     width: isSelected ? 2 : 1,
                   ),
                 ),
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (isSelected) {
-                        _selectedGroupIds.remove(group.id);
-                      } else {
-                        _selectedGroupIds.add(group.id);
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isSelected
-                              ? Icons.check_circle
-                              : Icons.circle_outlined,
-                          color: isSelected ? Colors.blue[700] : Colors.grey,
-                          size: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header con checkbox e nome gruppo
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedGroupIds.remove(group.id);
+                          } else {
+                            _selectedGroupIds.add(group.id);
+                          }
+                        });
+                      },
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.circle_outlined,
+                              color: isSelected ? Colors.blue[700] : Colors.grey,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
                                 group.name,
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -957,20 +961,76 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
                                       : Colors.grey[800],
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${members.length} membri',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+
+                    // Chip membri (solo se gruppo selezionato)
+                    if (isSelected && members.isNotEmpty) ...[
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: members.map((member) {
+                            final isPayer = _paidBy == member.userId;
+                            return FilterChip(
+                              selected: isPayer,
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 10,
+                                    backgroundColor: isPayer
+                                        ? Colors.white
+                                        : Colors.blue[200],
+                                    child: Text(
+                                      member.initials,
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                        color: isPayer
+                                            ? Colors.blue[700]
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    member.nickname ??
+                                        member.email?.split('@').first ??
+                                        'Unknown',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isPayer
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              onSelected: (selected) {
+                                setState(() {
+                                  _paidBy = selected ? member.userId : null;
+                                });
+                              },
+                              selectedColor: Colors.blue[700],
+                              checkmarkColor: Colors.white,
+                              backgroundColor: Colors.grey[100],
+                              side: BorderSide(
+                                color: isPayer
+                                    ? Colors.blue[700]!
+                                    : Colors.grey[300]!,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             );
