@@ -3,6 +3,7 @@ import 'package:solducci/models/group.dart';
 import 'package:solducci/models/expense_view.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/view_storage_service.dart';
+import 'package:solducci/service/group_storage_service.dart';
 
 /// Manages the current expense context (Personal or Group)
 /// This is the core of the multi-user system - determines what expenses are shown
@@ -14,10 +15,12 @@ class ContextManager extends ChangeNotifier {
 
   final _groupService = GroupService();
   final _viewStorage = ViewStorageService();
+  final _groupStorage = GroupStorageService();
 
   ExpenseContext _currentContext = ExpenseContext.personal();
   List<ExpenseGroup> _userGroups = [];
   List<ExpenseView> _userViews = [];
+  Map<String, bool> _groupPreferences = {}; // Cache per preferenze gruppi
   bool _isLoading = false;
 
   // Getters
@@ -32,7 +35,7 @@ class ContextManager extends ChangeNotifier {
   String get contextDisplayName => _currentContext.displayName;
   String? get currentGroupId => _currentContext.groupId;
 
-  /// Initialize context manager - load user's groups and views
+  /// Initialize context manager - load user's groups, views, and preferences
   Future<void> initialize() async {
     _isLoading = true;
     notifyListeners();
@@ -40,6 +43,7 @@ class ContextManager extends ChangeNotifier {
     try {
       await loadUserGroups();
       await loadUserViews();
+      await loadGroupPreferences(); // Carica preferenze gruppi
       await _cleanupInvalidViews();
     } catch (e) {
       // Error handled silently
@@ -98,6 +102,35 @@ class ContextManager extends ChangeNotifier {
     }
   }
 
+  /// Load/refresh group preferences from local storage
+  Future<void> loadGroupPreferences() async {
+    try {
+      _groupPreferences = await _groupStorage.loadPreferences();
+      notifyListeners();
+    } catch (e) {
+      // If error loading preferences, just set empty map
+      _groupPreferences = {};
+      notifyListeners();
+    }
+  }
+
+  /// Get "include personal" preference for a specific group
+  bool getGroupIncludesPersonal(String groupId) {
+    return _groupPreferences[groupId] ?? false;
+  }
+
+  /// Toggle "include personal" preference for a specific group
+  Future<void> toggleIncludePersonalForGroup(String groupId) async {
+    final currentValue = _groupPreferences[groupId] ?? false;
+    await _groupStorage.setIncludePersonal(groupId, !currentValue);
+    await loadGroupPreferences();
+
+    // If it's the current group context, re-switch to apply the preference
+    if (_currentContext.isGroup && _currentContext.group!.id == groupId) {
+      switchToGroup(_currentContext.group!);
+    }
+  }
+
   /// Clean up views that contain groups that no longer exist
   Future<void> _cleanupInvalidViews() async {
     final validGroupIds = _userGroups.map((g) => g.id).toSet();
@@ -128,7 +161,8 @@ class ContextManager extends ChangeNotifier {
 
   /// Switch to a group context
   void switchToGroup(ExpenseGroup group) {
-    _currentContext = ExpenseContext.group(group);
+    final includePersonal = _groupPreferences[group.id] ?? false;
+    _currentContext = ExpenseContext.group(group, includePersonalForGroup: includePersonal);
     notifyListeners();
   }
 
@@ -273,6 +307,20 @@ class ContextManager extends ChangeNotifier {
     await loadUserViews();
   }
 
+  /// Toggle "include personal" preference for current group
+  Future<void> toggleIncludePersonalForCurrentGroup() async {
+    if (!_currentContext.isGroup) return;
+
+    final groupId = _currentContext.group!.id;
+    final newValue = !_currentContext.includePersonalForGroup;
+
+    await _groupStorage.setIncludePersonal(groupId, newValue);
+    await loadGroupPreferences();
+
+    // Re-switch to apply the preference
+    switchToGroup(_currentContext.group!);
+  }
+
   /// Find existing view with the same group composition (ignoring order and includePersonal)
   ExpenseView? findViewWithSameGroups(List<String> groupIds) {
     final sortedInputIds = groupIds.toList()..sort();
@@ -315,14 +363,16 @@ class ExpenseContext {
   final bool isView;
   final ExpenseGroup? group;
   final ExpenseView? view;
+  final bool includePersonalForGroup;
 
   ExpenseContext.personal()
       : isPersonal = true,
         isView = false,
         group = null,
-        view = null;
+        view = null,
+        includePersonalForGroup = false;
 
-  ExpenseContext.group(this.group)
+  ExpenseContext.group(this.group, {this.includePersonalForGroup = false})
       : isPersonal = false,
         isView = false,
         view = null {
@@ -334,7 +384,8 @@ class ExpenseContext {
   ExpenseContext.view(this.view)
       : isPersonal = false,
         isView = true,
-        group = null {
+        group = null,
+        includePersonalForGroup = false {
     if (view == null) {
       throw Exception('View cannot be null for view context');
     }
@@ -346,8 +397,11 @@ class ExpenseContext {
   /// Display name for UI
   String get displayName {
     if (isPersonal) return 'Personale';
-    if (isView) return view!.name;
-    return group!.name;
+    if (isView) {
+      return view!.includePersonal ? '${view!.name} 👤' : view!.name;
+    }
+    // Single group with optional personal icon
+    return includePersonalForGroup ? '${group!.name} 👤' : group!.name;
   }
 
   /// Group ID (null if personal or view)
@@ -363,8 +417,10 @@ class ExpenseContext {
     return [group!.id];
   }
 
-  /// Check if context includes personal expenses (only for views)
-  bool get includesPersonal => isView && view!.includePersonal;
+  /// Check if context includes personal expenses (for views and groups with toggle enabled)
+  bool get includesPersonal =>
+      (isView && view!.includePersonal) ||
+      (!isPersonal && !isView && includePersonalForGroup);
 
   /// Icon for context
   String get icon {

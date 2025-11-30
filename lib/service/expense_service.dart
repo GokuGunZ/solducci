@@ -92,8 +92,17 @@ class ExpenseService {
         return _groupExpensesStream(context.groupIds);
       }
     } else {
-      // Single group context
-      return _groupExpensesStream([context.groupId!]);
+      // Single group context (+ optional personal if toggle enabled)
+      if (context.includesPersonal) {
+        // Merge single group + personal expenses
+        return _mergeStreams([
+          _groupExpensesStream([context.groupId!]),
+          _personalExpensesStream(userId),
+        ]);
+      } else {
+        // Only single group expenses
+        return _groupExpensesStream([context.groupId!]);
+      }
     }
   }
 

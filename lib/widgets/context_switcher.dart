@@ -42,14 +42,14 @@ class ContextSwitcher extends StatelessWidget {
                     currentContext.isPersonal
                         ? Icons.person
                         : currentContext.isView
-                            ? Icons.dashboard
-                            : Icons.group,
+                        ? Icons.dashboard
+                        : Icons.group,
                     size: 20,
                     color: currentContext.isPersonal
                         ? Colors.purple
                         : currentContext.isView
-                            ? Colors.blue
-                            : Colors.green,
+                        ? Colors.blue
+                        : Colors.green,
                   ),
                   const SizedBox(width: 8),
                   Flexible(
@@ -63,10 +63,7 @@ class ContextSwitcher extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(
-                    Icons.arrow_drop_down,
-                    size: 20,
-                  ),
+                  const Icon(Icons.arrow_drop_down, size: 20),
                 ],
               ),
             ),
@@ -121,7 +118,9 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
           // Se clicco su un gruppo quando nessuno è selezionato, switch diretto
           if (_selectedGroupIds.isEmpty && _selectedViewIds.isEmpty) {
             final contextManager = ContextManager();
-            final group = contextManager.userGroups.firstWhere((g) => g.id == id);
+            final group = contextManager.userGroups.firstWhere(
+              (g) => g.id == id,
+            );
             contextManager.switchToGroup(group);
             Navigator.pop(context);
             return;
@@ -168,13 +167,15 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
       final contextManager = ContextManager();
 
       if (_selectedGroupIds.length == 1) {
-        final group = contextManager.userGroups
-            .firstWhere((g) => g.id == _selectedGroupIds.first);
+        final group = contextManager.userGroups.firstWhere(
+          (g) => g.id == _selectedGroupIds.first,
+        );
         contextManager.switchToGroup(group);
         Navigator.pop(context);
       } else if (_selectedViewIds.length == 1) {
-        final view = contextManager.userViews
-            .firstWhere((v) => v.id == _selectedViewIds.first);
+        final view = contextManager.userViews.firstWhere(
+          (v) => v.id == _selectedViewIds.first,
+        );
         contextManager.switchToView(view);
         Navigator.pop(context);
       }
@@ -213,9 +214,9 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
             padding: const EdgeInsets.all(16),
             child: Text(
               'Seleziona Contesto',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
 
@@ -238,9 +239,11 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                       id: 'personal',
                       label: 'Personale',
                       type: ContextChipType.personal,
-                      isSelected: contextManager.currentContext.isPersonal &&
+                      isSelected:
+                          contextManager.currentContext.isPersonal &&
                           !_isInMultiSelectMode,
-                      onTap: () => _onChipTap('personal', ContextChipType.personal),
+                      onTap: () =>
+                          _onChipTap('personal', ContextChipType.personal),
                     ),
 
                     const SizedBox(height: 24),
@@ -297,18 +300,20 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                       spacing: 8,
                       runSpacing: 8,
                       children: userGroups.map((group) {
-                        final isSelected =
-                            _selectedGroupIds.contains(group.id);
+                        final isSelected = _selectedGroupIds.contains(group.id);
+                        final includesPersonal = contextManager.getGroupIncludesPersonal(group.id);
 
                         return ContextChip(
                           id: group.id,
                           label: group.name,
                           type: ContextChipType.group,
                           isSelected: isSelected,
+                          includesPersonal: includesPersonal,
                           onTap: () =>
                               _onChipTap(group.id, ContextChipType.group),
-                          // TODO: Implementare creazione vista rapida gruppo+personale
-                          onAddPersonalTap: null,
+                          onAddPersonalTap: () async {
+                            await contextManager.toggleIncludePersonalForGroup(group.id);
+                          },
                         );
                       }).toList(),
                     ),
