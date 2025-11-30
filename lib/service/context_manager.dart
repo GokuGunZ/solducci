@@ -172,6 +172,27 @@ class ContextManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Switch to a temporary (unsaved) view with given group IDs
+  /// Used for multi-select preview without creating a permanent view
+  void switchToTemporaryView(List<String> groupIds, {bool includePersonal = false}) {
+    // Get the actual group objects for the given IDs
+    final groups = _userGroups.where((g) => groupIds.contains(g.id)).toList();
+
+    // Create a temporary view (not saved to storage)
+    final tempView = ExpenseView(
+      id: 'temp-${DateTime.now().millisecondsSinceEpoch}', // Temporary ID
+      name: 'Vista Temporanea',
+      groupIds: groupIds,
+      includePersonal: includePersonal,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      groups: groups,
+    );
+
+    _currentContext = ExpenseContext.view(tempView);
+    notifyListeners();
+  }
+
   /// Switch to group by ID (useful for deep linking)
   Future<void> switchToGroupById(String groupId) async {
     try {
@@ -345,6 +366,30 @@ class ContextManager extends ChangeNotifier {
     }
 
     return await _groupService.getGroupMembers(_currentContext.groupId!);
+  }
+
+  /// Update a group and refresh
+  Future<void> updateGroup(ExpenseGroup group) async {
+    await _groupService.updateGroup(group);
+    await loadUserGroups();
+
+    // If it's the current group, update context
+    if (_currentContext.isGroup && _currentContext.groupId == group.id) {
+      final updatedGroup = _userGroups.firstWhere((g) => g.id == group.id);
+      switchToGroup(updatedGroup);
+    }
+  }
+
+  /// Update a view and refresh
+  Future<void> updateView(ExpenseView view) async {
+    await _viewStorage.updateView(view);
+    await loadUserViews();
+
+    // If it's the current view, update context
+    if (_currentContext.isView && _currentContext.viewId == view.id) {
+      final updatedView = _userViews.firstWhere((v) => v.id == view.id);
+      switchToView(updatedView);
+    }
   }
 
   /// Clear context (on logout)

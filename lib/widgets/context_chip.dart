@@ -9,6 +9,7 @@ class ContextChip extends StatelessWidget {
   final String label;
   final ContextChipType type;
   final bool isSelected;
+  final bool isRelated; // Correlato (vista ↔ gruppi)
   final bool includesPersonal;
   final VoidCallback onTap;
   final VoidCallback? onAddPersonalTap;
@@ -18,6 +19,7 @@ class ContextChip extends StatelessWidget {
     required this.label,
     required this.type,
     required this.isSelected,
+    this.isRelated = false,
     this.includesPersonal = false,
     required this.onTap,
     this.onAddPersonalTap,
@@ -36,6 +38,7 @@ class ContextChip extends StatelessWidget {
     // Colore in base al tipo e selezione
     final Color chipColor;
     final Color textColor;
+    final Color accentColor;
 
     if (isSelected) {
       chipColor = type == ContextChipType.personal
@@ -44,19 +47,54 @@ class ContextChip extends StatelessWidget {
               ? Colors.blue[700]!
               : Colors.green[700]!;
       textColor = Colors.white;
+      accentColor = chipColor;
+    } else if (isRelated) {
+      // Stato "correlato": background semi-trasparente + colore accent
+      chipColor = type == ContextChipType.view
+          ? Colors.blue[50]!
+          : Colors.green[50]!;
+      textColor = type == ContextChipType.view
+          ? Colors.blue[700]!
+          : Colors.green[700]!;
+      accentColor = type == ContextChipType.view
+          ? Colors.blue[300]!
+          : Colors.green[300]!;
     } else {
       chipColor = Colors.grey[100]!;
       textColor = Colors.grey[800]!;
+      accentColor = Colors.grey[300]!;
     }
+
+    // BoxShadow per glow effect
+    final List<BoxShadow> shadows = isSelected
+        ? [
+            // Glow più forte per selezionati
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.4),
+              blurRadius: 12,
+              spreadRadius: 2,
+            ),
+          ]
+        : isRelated
+            ? [
+                // Glow leggero per correlati (B+C mix)
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : [];
 
     return Container(
       decoration: BoxDecoration(
         color: chipColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? chipColor : Colors.grey[300]!,
+          color: isSelected ? chipColor : (isRelated ? accentColor : Colors.grey[300]!),
           width: isSelected ? 2 : 1,
         ),
+        boxShadow: shadows,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -113,9 +151,9 @@ class ContextChip extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 child: Icon(
                   includesPersonal ? Icons.person_remove : Icons.person_add,
-                  size: 16,
+                  size: includesPersonal ? 20 : 16, // Più grande quando attivo
                   color: includesPersonal
-                      ? (isSelected ? Colors.white : Colors.green[700])
+                      ? Colors.purple[600] // Viola quando attivo
                       : (isSelected ? Colors.white70 : Colors.grey[600]),
                 ),
               ),

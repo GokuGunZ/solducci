@@ -35,12 +35,16 @@ class AppRouter {
       final isGoingToSplash = state.matchedLocation == '/';
 
       // If not authenticated and not going to auth pages, redirect to splash/login
-      if (!isAuthenticated && !isGoingToLogin && !isGoingToSignup && !isGoingToSplash) {
+      if (!isAuthenticated &&
+          !isGoingToLogin &&
+          !isGoingToSignup &&
+          !isGoingToSplash) {
         return '/login';
       }
 
       // If authenticated and going to auth pages, redirect to home
-      if (isAuthenticated && (isGoingToLogin || isGoingToSignup || isGoingToSplash)) {
+      if (isAuthenticated &&
+          (isGoingToLogin || isGoingToSignup || isGoingToSplash)) {
         return '/home';
       }
 
@@ -48,26 +52,14 @@ class AppRouter {
     },
     routes: [
       // Splash Screen (initial route)
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
 
       // Auth Routes (no shell)
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginPage(),
-      ),
-      GoRoute(
-        path: '/signup',
-        builder: (context, state) => const SignupPage(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+      GoRoute(path: '/signup', builder: (context, state) => const SignupPage()),
 
       // Main App Shell with Bottom Navigation (single route with IndexedStack)
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const ShellWithNav(),
-      ),
+      GoRoute(path: '/home', builder: (context, state) => const ShellWithNav()),
 
       // Dashboard Detail Routes (full screen with back button)
       GoRoute(
@@ -96,10 +88,7 @@ class AppRouter {
         path: '/personal-expenses',
         builder: (context, state) => const PersonalExpensesPage(),
       ),
-      GoRoute(
-        path: '/notes',
-        builder: (context, state) => const NotesPage(),
-      ),
+      GoRoute(path: '/notes', builder: (context, state) => const NotesPage()),
 
       // Group Management Routes
       GoRoute(
@@ -122,10 +111,7 @@ class AppRouter {
         builder: (context, state) {
           final groupId = state.pathParameters['id']!;
           final groupName = state.uri.queryParameters['name'] ?? 'Gruppo';
-          return InviteMemberPage(
-            groupId: groupId,
-            groupName: groupName,
-          );
+          return InviteMemberPage(groupId: groupId, groupName: groupName);
         },
       ),
 
@@ -142,11 +128,9 @@ class AppRouter {
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<AuthState> stream) {
     notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-      (_) {
-        notifyListeners();
-      },
-    );
+    _subscription = stream.asBroadcastStream().listen((_) {
+      notifyListeners();
+    });
   }
 
   late final StreamSubscription<AuthState> _subscription;
