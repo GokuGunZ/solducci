@@ -9,7 +9,8 @@ class ContextChip extends StatelessWidget {
   final String label;
   final ContextChipType type;
   final bool isSelected;
-  final bool isRelated; // Correlato (vista ↔ gruppi)
+  final bool isRelated; // Correlato (vista ↔ gruppi) - molto trasparente
+  final bool isLightlySelected; // Selezione leggera (doppio tap) - meno trasparente
   final bool includesPersonal;
   final VoidCallback onTap;
   final VoidCallback? onAddPersonalTap;
@@ -20,6 +21,7 @@ class ContextChip extends StatelessWidget {
     required this.type,
     required this.isSelected,
     this.isRelated = false,
+    this.isLightlySelected = false,
     this.includesPersonal = false,
     required this.onTap,
     this.onAddPersonalTap,
@@ -48,8 +50,19 @@ class ContextChip extends StatelessWidget {
               : Colors.green[700]!;
       textColor = Colors.white;
       accentColor = chipColor;
+    } else if (isLightlySelected) {
+      // Stato "lightly selected" (doppio tap): meno trasparente di related
+      chipColor = type == ContextChipType.view
+          ? Colors.blue[100]!
+          : Colors.green[100]!;
+      textColor = type == ContextChipType.view
+          ? Colors.blue[700]!
+          : Colors.green[700]!;
+      accentColor = type == ContextChipType.view
+          ? Colors.blue[400]!
+          : Colors.green[400]!;
     } else if (isRelated) {
-      // Stato "correlato": background semi-trasparente + colore accent
+      // Stato "correlato" (tap singolo): molto trasparente
       chipColor = type == ContextChipType.view
           ? Colors.blue[50]!
           : Colors.green[50]!;
@@ -75,16 +88,25 @@ class ContextChip extends StatelessWidget {
               spreadRadius: 2,
             ),
           ]
-        : isRelated
+        : isLightlySelected
             ? [
-                // Glow leggero per correlati (B+C mix)
+                // Glow medio per lightly selected (doppio tap)
                 BoxShadow(
-                  color: accentColor.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  spreadRadius: 1,
+                  color: accentColor.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: 1.5,
                 ),
               ]
-            : [];
+            : isRelated
+                ? [
+                    // Glow leggero per correlati (tap singolo)
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : [];
 
     return Container(
       decoration: BoxDecoration(

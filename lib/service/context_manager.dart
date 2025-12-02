@@ -4,6 +4,7 @@ import 'package:solducci/models/expense_view.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/view_storage_service.dart';
 import 'package:solducci/service/group_storage_service.dart';
+import 'package:solducci/service/context_persistence_service.dart';
 
 /// Manages the current expense context (Personal or Group)
 /// This is the core of the multi-user system - determines what expenses are shown
@@ -16,17 +17,20 @@ class ContextManager extends ChangeNotifier {
   final _groupService = GroupService();
   final _viewStorage = ViewStorageService();
   final _groupStorage = GroupStorageService();
+  final _contextPersistence = ContextPersistenceService();
 
   ExpenseContext _currentContext = ExpenseContext.personal();
   List<ExpenseGroup> _userGroups = [];
   List<ExpenseView> _userViews = [];
   Map<String, bool> _groupPreferences = {}; // Cache per preferenze gruppi
+  ExpenseView? _currentTemporaryView; // Vista temporanea corrente (singleton)
   bool _isLoading = false;
 
   // Getters
   ExpenseContext get currentContext => _currentContext;
   List<ExpenseGroup> get userGroups => _userGroups;
   List<ExpenseView> get userViews => _userViews;
+  ExpenseView? get currentTemporaryView => _currentTemporaryView;
   bool get isLoading => _isLoading;
 
   // Quick checks
@@ -45,11 +49,48 @@ class ContextManager extends ChangeNotifier {
       await loadUserViews();
       await loadGroupPreferences(); // Carica preferenze gruppi
       await _cleanupInvalidViews();
+      await restoreLastContext(); // Ripristina ultimo contesto salvato
     } catch (e) {
       // Error handled silently
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Ripristina l'ultimo contesto salvato dall'utente
+  /// Se non esiste o non è valido, rimane su Personal (default)
+  Future<void> restoreLastContext() async {
+    try {
+      final lastContext = await _contextPersistence.loadLastContext();
+
+      if (lastContext == null) {
+        // Nessun contesto salvato, rimani su Personal
+        return;
+      }
+
+      final type = lastContext['type'] as String;
+      final id = lastContext['id'] as String?;
+
+      if (type == 'personal') {
+        switchToPersonal();
+      } else if (type == 'group' && id != null) {
+        // Cerca il gruppo
+        final group = _userGroups.where((g) => g.id == id).firstOrNull;
+        if (group != null) {
+          switchToGroup(group);
+        }
+        // Se gruppo non trovato, rimani su Personal
+      } else if (type == 'view' && id != null) {
+        // Cerca la vista
+        final view = _userViews.where((v) => v.id == id).firstOrNull;
+        if (view != null) {
+          switchToView(view);
+        }
+        // Se vista non trovata, rimani su Personal
+      }
+    } catch (e) {
+      // In caso di errore, rimani su Personal
     }
   }
 
@@ -156,20 +197,37 @@ class ContextManager extends ChangeNotifier {
   /// Switch to personal context
   void switchToPersonal() {
     _currentContext = ExpenseContext.personal();
+    _currentTemporaryView = null; // Clear temporary view
     notifyListeners();
+
+    // Salva contesto per persistenza
+    _contextPersistence.saveLastContext(type: 'personal');
   }
 
   /// Switch to a group context
   void switchToGroup(ExpenseGroup group) {
     final includePersonal = _groupPreferences[group.id] ?? false;
     _currentContext = ExpenseContext.group(group, includePersonalForGroup: includePersonal);
+    _currentTemporaryView = null; // Clear temporary view
     notifyListeners();
+
+    // Salva contesto per persistenza
+    _contextPersistence.saveLastContext(type: 'group', id: group.id);
   }
 
   /// Switch to a view context
   void switchToView(ExpenseView view) {
     _currentContext = ExpenseContext.view(view);
+    // Clear temporary view only if switching to a real view (not temp)
+    if (!view.id.startsWith('temp-')) {
+      _currentTemporaryView = null;
+    }
     notifyListeners();
+
+    // Salva contesto per persistenza (solo se non è vista temporanea)
+    if (!view.id.startsWith('temp-')) {
+      _contextPersistence.saveLastContext(type: 'view', id: view.id);
+    }
   }
 
   /// Switch to a temporary (unsaved) view with given group IDs
@@ -178,16 +236,23 @@ class ContextManager extends ChangeNotifier {
     // Get the actual group objects for the given IDs
     final groups = _userGroups.where((g) => groupIds.contains(g.id)).toList();
 
+    // Check if there's an existing view with the same groups
+    final existingView = findViewWithSameGroups(groupIds);
+    final viewName = existingView?.name ?? 'Vista Temporanea';
+
     // Create a temporary view (not saved to storage)
     final tempView = ExpenseView(
       id: 'temp-${DateTime.now().millisecondsSinceEpoch}', // Temporary ID
-      name: 'Vista Temporanea',
+      name: viewName, // Use existing view name if found
       groupIds: groupIds,
       includePersonal: includePersonal,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       groups: groups,
     );
+
+    // Salva nel singleton per accesso dal modal
+    _currentTemporaryView = tempView;
 
     _currentContext = ExpenseContext.view(tempView);
     notifyListeners();
@@ -251,6 +316,10 @@ class ContextManager extends ChangeNotifier {
 
       // Get the view from the loaded list (with groups populated)
       final loadedView = _userViews.firstWhere((v) => v.id == view.id);
+
+      // Clear temporary view since we just saved it
+      _currentTemporaryView = null;
+
       switchToView(loadedView);
 
       return loadedView;

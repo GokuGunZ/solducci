@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/widgets/context_chip.dart';
+import 'package:solducci/widgets/create_view_bubble.dart';
 import 'package:solducci/models/expense_view.dart';
 
 /// Widget che mostra il contesto corrente (Personal/Gruppo/Vista) e permette di switchare
@@ -124,29 +126,49 @@ class _ContextPickerModal extends StatefulWidget {
 class _ContextPickerModalState extends State<_ContextPickerModal> {
   // Multi-select per creare viste
   final Set<String> _selectedGroupIds = {};
-  final Set<String> _selectedViewIds = {};
+  final Set<String> _visuallyHighlightedGroupIds = {}; // Gruppi evidenziati da tap singolo su vista (visual only)
+  final Set<String> _selectedViewIds = {}; // Viste con tap singolo (visual only)
+  final Set<String> _fullySelectedViewIds = {}; // Viste con doppio tap (actual selection)
 
   // Controller per edit nome
   final TextEditingController _nameController = TextEditingController();
   bool _isEditingName = false;
 
+  // Controllo visibilità bubble informativa
+  bool _showBubble = false;
+
+  // Timer per gestire delay tra tap singolo e doppio
+  Timer? _tapTimer;
+  String? _pendingTapViewId;
+
   bool get _isInMultiSelectMode =>
-      _selectedGroupIds.length > 1 || _selectedViewIds.length > 1;
+      _selectedGroupIds.length > 1 || _fullySelectedViewIds.length > 1;
 
   @override
   void initState() {
     super.initState();
     // Pre-select current context se non in multi-select
-    final currentContext = ContextManager().currentContext;
+    final contextManager = ContextManager();
+    final currentContext = contextManager.currentContext;
+
     if (currentContext.isGroup) {
       _selectedGroupIds.add(currentContext.groupId!);
     } else if (currentContext.isView) {
-      _selectedViewIds.add(currentContext.viewId!);
+      // Check if it's a temporary view
+      final tempView = contextManager.currentTemporaryView;
+      if (tempView != null && currentContext.viewId == tempView.id) {
+        // Vista temporanea: pre-seleziona i gruppi invece della vista
+        _selectedGroupIds.addAll(tempView.groupIds);
+      } else {
+        // Vista normale: pre-seleziona la vista
+        _selectedViewIds.add(currentContext.viewId!);
+      }
     }
   }
 
   @override
   void dispose() {
+    _tapTimer?.cancel();
     _nameController.dispose();
     super.dispose();
   }
@@ -159,6 +181,7 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
       setState(() {
         _selectedGroupIds.clear();
         _selectedViewIds.clear();
+        _visuallyHighlightedGroupIds.clear();
       });
       contextManager.switchToPersonal();
     } else if (type == ContextChipType.group) {
@@ -167,12 +190,19 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
         // Deseleziona
         setState(() {
           _selectedGroupIds.remove(id);
+          // Nascondi bubble se non più in multi-select
+          if (_selectedGroupIds.length <= 1) {
+            _showBubble = false;
+          }
         });
       } else {
-        // Seleziona
+        // Seleziona nuovo gruppo
         setState(() {
           _selectedGroupIds.add(id);
-          _selectedViewIds.clear(); // Clear viste se selezioni gruppi
+          // Clear TUTTE le viste e gruppi evidenziati se clicchi un gruppo
+          _selectedViewIds.clear();
+          _fullySelectedViewIds.clear();
+          _visuallyHighlightedGroupIds.clear();
         });
       }
 
@@ -186,39 +216,103 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
       } else if (_selectedGroupIds.length > 1) {
         // Multi-select: crea vista temporanea per preview
         contextManager.switchToTemporaryView(_selectedGroupIds.toList());
+
+        // Mostra bubble informativa se non ci sono viste create
+        if (contextManager.userViews.isEmpty) {
+          setState(() {
+            _showBubble = true;
+          });
+        }
       }
     } else if (type == ContextChipType.view) {
-      // Vista: toggle multi-select
-      if (_selectedViewIds.contains(id)) {
-        // Deseleziona vista
-        setState(() {
-          _selectedViewIds.remove(id);
-        });
-      } else {
-        // Seleziona vista
-        setState(() {
-          _selectedViewIds.add(id);
-        });
-      }
+      // Vista: tap singolo (visual only, non seleziona gruppi)
+      _onViewSingleTap(id, contextManager);
+    }
+  }
 
-      // Popola _selectedGroupIds con l'unione dei gruppi delle viste selezionate
+  /// Gestisce tap singolo su vista con delay per distinguere da doppio tap
+  void _onViewSingleTap(String id, ContextManager contextManager) {
+    // Se c'è già un timer pending, è un doppio tap
+    if (_tapTimer?.isActive == true && _pendingTapViewId == id) {
+      // Cancella il timer e esegui doppio tap
+      _tapTimer?.cancel();
+      _pendingTapViewId = null;
+      _onViewDoubleTap(id, contextManager);
+      return;
+    }
+
+    // Avvia timer per tap singolo con delay
+    _pendingTapViewId = id;
+    _tapTimer = Timer(const Duration(milliseconds: 300), () {
+      // Esegui tap singolo dopo il delay
+      _executeSingleTap(id, contextManager);
+      _pendingTapViewId = null;
+    });
+  }
+
+  /// Esegue tap singolo (visual only - gruppi molto trasparenti)
+  void _executeSingleTap(String id, ContextManager contextManager) {
+    if (_selectedViewIds.contains(id)) {
+      // Deseleziona vista
       setState(() {
-        _selectedGroupIds.clear();
-        for (final viewId in _selectedViewIds) {
-          final view = contextManager.userViews.firstWhere((v) => v.id == viewId);
-          _selectedGroupIds.addAll(view.groupIds);
-        }
+        _selectedViewIds.remove(id);
+        _visuallyHighlightedGroupIds.clear();
       });
+    } else {
+      // Seleziona vista (visual only)
+      setState(() {
+        _selectedViewIds.add(id);
+        _fullySelectedViewIds.clear(); // Clear doppi tap precedenti
+        _selectedGroupIds.clear(); // Clear gruppi selezionati precedentemente
 
-      // Refresh dinamico basato sul numero di viste selezionate
-      if (_selectedViewIds.length == 1) {
-        // 1 vista: switch normale
+        // Popola gruppi per visualizzazione (ma NON sono effettivamente selezionati)
+        _visuallyHighlightedGroupIds.clear();
         final view = contextManager.userViews.firstWhere((v) => v.id == id);
-        contextManager.switchToView(view);
-      } else if (_selectedViewIds.length > 1) {
-        // Multi-select viste: crea vista temporanea con unione gruppi
-        contextManager.switchToTemporaryView(_selectedGroupIds.toList());
+        _visuallyHighlightedGroupIds.addAll(view.groupIds);
+      });
+    }
+
+    // Switch contesto per refresh dinamico
+    if (_selectedViewIds.length == 1) {
+      final view = contextManager.userViews.firstWhere((v) => v.id == id);
+      contextManager.switchToView(view);
+    } else if (_selectedViewIds.isEmpty) {
+      contextManager.switchToPersonal();
+    }
+  }
+
+  /// Gestisce doppio tap su vista (selezione effettiva con gruppi)
+  void _onViewDoubleTap(String id, ContextManager contextManager) {
+    if (_fullySelectedViewIds.contains(id)) {
+      // Deseleziona dalla selezione completa
+      setState(() {
+        _fullySelectedViewIds.remove(id);
+        _selectedViewIds.remove(id);
+      });
+    } else {
+      // Seleziona completamente (popola gruppi)
+      setState(() {
+        _fullySelectedViewIds.add(id);
+        _selectedViewIds.add(id);
+        _visuallyHighlightedGroupIds.clear(); // Clear gruppi evidenziati da tap singolo
+      });
+    }
+
+    // Popola _selectedGroupIds con l'unione dei gruppi delle viste fully selected
+    setState(() {
+      _selectedGroupIds.clear();
+      for (final viewId in _fullySelectedViewIds) {
+        final view = contextManager.userViews.firstWhere((v) => v.id == viewId);
+        _selectedGroupIds.addAll(view.groupIds);
       }
+    });
+
+    // Refresh dinamico
+    if (_fullySelectedViewIds.length == 1) {
+      final view = contextManager.userViews.firstWhere((v) => v.id == id);
+      contextManager.switchToView(view);
+    } else if (_fullySelectedViewIds.length > 1) {
+      contextManager.switchToTemporaryView(_selectedGroupIds.toList());
     }
   }
 
@@ -435,31 +529,39 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
   Widget build(BuildContext context) {
     final contextManager = ContextManager();
 
+    // Condizione per mostrare la bubble
+    final shouldShowBubble = _selectedGroupIds.length > 1 &&
+        _selectedViewIds.isEmpty &&
+        contextManager.userViews.isEmpty &&
+        _showBubble;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
-      builder: (context, scrollController) => Column(
+      builder: (context, scrollController) => Stack(
         children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
 
-          // Dynamic Header
-          _buildDynamicHeader(contextManager),
+              // Dynamic Header
+              _buildDynamicHeader(contextManager),
 
-          const Divider(height: 1),
+              const Divider(height: 1),
 
-          // Content
-          Expanded(
+              // Content
+              Expanded(
             child: ListenableBuilder(
               listenable: contextManager,
               builder: (context, child) {
@@ -513,9 +615,9 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                             type: ContextChipType.view,
                             isSelected: isSelected,
                             isRelated: isRelated,
+                            isLightlySelected: _fullySelectedViewIds.contains(view.id),
                             includesPersonal: view.includePersonal,
-                            onTap: () =>
-                                _onChipTap(view.id, ContextChipType.view),
+                            onTap: () => _onChipTap(view.id, ContextChipType.view),
                             onAddPersonalTap: () =>
                                 _toggleIncludePersonal(view.id),
                           );
@@ -542,21 +644,30 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                       runSpacing: 8,
                       children: userGroups.map((group) {
                         final isInSelectedGroups = _selectedGroupIds.contains(group.id);
+                        final isVisuallyHighlighted = _visuallyHighlightedGroupIds.contains(group.id);
                         final isRelated = _isGroupRelated(group.id);
                         final includesPersonal = contextManager.getGroupIncludesPersonal(group.id);
 
-                        // Se ci sono viste selezionate, i gruppi sono "related" (derivati), non "selected"
+                        // Determina stato visualizzazione gruppi
                         final bool isSelected;
                         final bool isRelatedFinal;
+                        final bool isLightlySelected;
 
-                        if (_selectedViewIds.isNotEmpty && isInSelectedGroups) {
-                          // Gruppo derivato da viste: mostra come "related" (semi-trasparente)
+                        if (_fullySelectedViewIds.isNotEmpty && isInSelectedGroups) {
+                          // Gruppo derivato da viste con doppio tap: meno trasparente
+                          isSelected = false;
+                          isRelatedFinal = false;
+                          isLightlySelected = true;
+                        } else if (_selectedViewIds.isNotEmpty && isVisuallyHighlighted) {
+                          // Gruppo evidenziato da tap singolo su vista: molto trasparente (NON selezionato)
                           isSelected = false;
                           isRelatedFinal = true;
+                          isLightlySelected = false;
                         } else {
                           // Comportamento normale
                           isSelected = isInSelectedGroups;
                           isRelatedFinal = isRelated;
+                          isLightlySelected = false;
                         }
 
                         return ContextChip(
@@ -565,6 +676,7 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                           type: ContextChipType.group,
                           isSelected: isSelected,
                           isRelated: isRelatedFinal,
+                          isLightlySelected: isLightlySelected,
                           includesPersonal: includesPersonal,
                           onTap: () =>
                               _onChipTap(group.id, ContextChipType.group),
@@ -611,6 +723,23 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
               ),
             ),
           ),
+        ],
+      ),
+
+          // Bubble informativa (sopra il contenuto)
+          if (shouldShowBubble)
+            Positioned(
+              top: 120, // Sotto il Dynamic Header
+              left: 0,
+              right: 0,
+              child: CreateViewBubble(
+                onDismiss: () {
+                  setState(() {
+                    _showBubble = false;
+                  });
+                },
+              ),
+            ),
         ],
       ),
     );
