@@ -233,19 +233,29 @@ class TaskService {
       final recurrence = await getEffectiveRecurrence(taskId);
 
       if (recurrence != null && recurrence.isActive) {
-        // Recurring task: add to history and reset
+        // Recurring task: add to history and reset with next due date
         await _supabase.from('task_completions').insert({
           'task_id': taskId,
           'completed_at': DateTime.now().toIso8601String(),
           'notes': notes,
         });
 
-        // Reset task to pending
-        await _supabase.from('tasks').update({
+        // Calculate next occurrence
+        final nextOccurrence = recurrence.getNextOccurrence(DateTime.now());
+
+        // Reset task to pending with updated due date
+        final updateData = {
           'status': TaskStatus.pending.value,
           'completed_at': null,
           'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', taskId);
+        };
+
+        // Update due date if next occurrence is available
+        if (nextOccurrence != null) {
+          updateData['due_date'] = nextOccurrence.toIso8601String();
+        }
+
+        await _supabase.from('tasks').update(updateData).eq('id', taskId);
       } else {
         // Non-recurring task: mark as completed
         await _supabase.from('tasks').update({

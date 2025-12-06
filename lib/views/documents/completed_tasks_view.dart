@@ -26,6 +26,7 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
   List<Task>? _tasks;
   bool _isLoading = true;
   String? _error;
+  final _taskService = TaskService();
 
   @override
   void initState() {
@@ -34,9 +35,13 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
   }
 
   Future<void> _loadTasks() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
-      final taskService = TaskService();
-      final tasks = await taskService.getTasksByStatus(
+      final tasks = await _taskService.getTasksByStatus(
         widget.document.id,
         TaskStatus.completed,
       );
@@ -104,17 +109,22 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
       );
     }
 
-    // Task list
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: tasks.length,
-      itemBuilder: (context, index) {
-        final task = tasks[index];
-        return TaskListItem(
-          task: task,
-          onTap: () => _showTaskDetails(context, task),
-        );
-      },
+    // Task list with pull-to-refresh
+    return RefreshIndicator(
+      onRefresh: _loadTasks,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: tasks.length,
+        itemBuilder: (context, index) {
+          final task = tasks[index];
+          return TaskListItem(
+            task: task,
+            document: widget.document,
+            onTap: () => _showTaskDetails(context, task),
+            onTaskChanged: _loadTasks, // Refresh on task change
+          );
+        },
+      ),
     );
   }
 
@@ -125,6 +135,7 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
         builder: (context) => TaskForm(
           document: widget.document,
           task: task,
+          onTaskSaved: _loadTasks, // Refresh after task is saved
         ),
       ),
     );

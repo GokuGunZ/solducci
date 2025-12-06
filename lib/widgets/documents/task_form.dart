@@ -3,8 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/models/document.dart';
+import 'package:solducci/models/recurrence.dart';
 import 'package:solducci/service/task_service.dart';
+import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/widgets/documents/tag_selector.dart';
+import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 
 /// Form for creating or editing a task
 /// Handles all task fields: title, description, tags, priority, due date, size
@@ -12,12 +15,14 @@ class TaskForm extends StatefulWidget {
   final TodoDocument document;
   final Task? task; // null = create, non-null = edit
   final String? parentTaskId; // For creating sub-tasks
+  final VoidCallback? onTaskSaved; // Callback after successful save
 
   const TaskForm({
     super.key,
     required this.document,
     this.task,
     this.parentTaskId,
+    this.onTaskSaved,
   });
 
   @override
@@ -34,8 +39,11 @@ class _TaskFormState extends State<TaskForm> {
   List<Tag> _selectedTags = [];
   TaskPriority? _selectedPriority;
   TShirtSize? _selectedSize;
+  TaskStatus? _selectedStatus;
   DateTime? _selectedDueDate;
+  Recurrence? _recurrence;
   bool _isLoading = false;
+  final _recurrenceService = RecurrenceService();
 
   @override
   void initState() {
@@ -49,8 +57,10 @@ class _TaskFormState extends State<TaskForm> {
     if (widget.task != null) {
       _selectedPriority = widget.task!.priority;
       _selectedSize = widget.task!.tShirtSize;
+      _selectedStatus = widget.task!.status;
       _selectedDueDate = widget.task!.dueDate;
       _loadTaskTags();
+      _loadRecurrence();
     }
   }
 
@@ -73,6 +83,21 @@ class _TaskFormState extends State<TaskForm> {
       }
     } catch (e) {
       // Error loading tags
+    }
+  }
+
+  Future<void> _loadRecurrence() async {
+    if (widget.task == null) return;
+
+    try {
+      final recurrence = await _recurrenceService.getRecurrenceForTask(widget.task!.id);
+      if (mounted && recurrence != null) {
+        setState(() {
+          _recurrence = recurrence;
+        });
+      }
+    } catch (e) {
+      // Error loading recurrence
     }
   }
 
@@ -165,6 +190,18 @@ class _TaskFormState extends State<TaskForm> {
 
             // T-shirt size selector
             _buildSizeSelector(),
+
+            const SizedBox(height: 16),
+
+            // Status selector (only if advanced states enabled)
+            if (_shouldShowAdvancedStates())
+              _buildStatusSelector(),
+
+            if (_shouldShowAdvancedStates())
+              const SizedBox(height: 16),
+
+            // Recurrence section
+            _buildRecurrenceSection(),
 
             const SizedBox(height: 24),
 
@@ -421,6 +458,221 @@ class _TaskFormState extends State<TaskForm> {
     );
   }
 
+  /// Check if any selected tag has advanced states enabled
+  bool _shouldShowAdvancedStates() {
+    return _selectedTags.any((tag) => tag.useAdvancedStates);
+  }
+
+  Widget _buildStatusSelector() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.flag, color: Colors.indigo),
+                SizedBox(width: 8),
+                Text(
+                  'Stato',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildStatusChip(TaskStatus.pending, 'In attesa', Colors.grey),
+                _buildStatusChip(TaskStatus.assigned, 'Assegnata', Colors.blue),
+                _buildStatusChip(TaskStatus.inProgress, 'In corso', Colors.orange),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(TaskStatus status, String label, Color color) {
+    final isSelected = _selectedStatus == status;
+
+    return FilterChip(
+      selected: isSelected,
+      label: Text(label),
+      backgroundColor: Colors.grey[200],
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      onSelected: (selected) {
+        setState(() {
+          _selectedStatus = selected ? status : TaskStatus.pending;
+        });
+      },
+    );
+  }
+
+  Widget _buildRecurrenceSection() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.repeat, color: Colors.orange),
+                const SizedBox(width: 8),
+                const Text(
+                  'Ricorrenza',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                if (_recurrence == null)
+                  TextButton.icon(
+                    onPressed: _configureRecurrence,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Configura'),
+                  )
+                else
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _configureRecurrence,
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Modifica'),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            _recurrence = null;
+                          });
+                        },
+                        tooltip: 'Rimuovi ricorrenza',
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_recurrence == null)
+              Text(
+                'Nessuna ricorrenza configurata',
+                style: TextStyle(color: Colors.grey[600]),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withAlpha(30),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule, size: 16, color: Colors.orange),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getRecurrenceIntraDayDescription(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 16, color: Colors.orange),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getRecurrenceInterDayDescription(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    if (_recurrence!.endDate != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.event_busy, size: 16, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Fino al ${DateFormat('dd/MM/yyyy').format(_recurrence!.endDate!)}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getRecurrenceIntraDayDescription() {
+    if (_recurrence == null) return '';
+
+    if (_recurrence!.hourlyFrequency != null) {
+      return 'Ogni ${_recurrence!.hourlyFrequency} ore';
+    } else if (_recurrence!.specificTimes != null && _recurrence!.specificTimes!.isNotEmpty) {
+      final times = _recurrence!.specificTimes!
+          .map((t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}')
+          .join(', ');
+      return 'Alle: $times';
+    }
+    return 'Una volta al giorno';
+  }
+
+  String _getRecurrenceInterDayDescription() {
+    if (_recurrence == null) return '';
+
+    if (_recurrence!.dailyFrequency != null) {
+      return 'Ogni ${_recurrence!.dailyFrequency} giorni';
+    } else if (_recurrence!.weeklyDays != null && _recurrence!.weeklyDays!.isNotEmpty) {
+      const dayNames = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+      final days = _recurrence!.weeklyDays!.map((d) => dayNames[d]).join(', ');
+      return 'Ogni: $days';
+    } else if (_recurrence!.monthlyDays != null && _recurrence!.monthlyDays!.isNotEmpty) {
+      final days = _recurrence!.monthlyDays!.join(', ');
+      return 'Giorni del mese: $days';
+    }
+    return 'Ogni giorno';
+  }
+
+  Future<void> _configureRecurrence() async {
+    final result = await showDialog<Recurrence>(
+      context: context,
+      builder: (context) => RecurrenceFormDialog(
+        recurrence: _recurrence,
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _recurrence = result;
+      });
+    }
+  }
+
   Future<void> _selectTags() async {
     final result = await showModalBottomSheet<List<Tag>>(
       context: context,
@@ -471,7 +723,7 @@ class _TaskFormState extends State<TaskForm> {
 
       if (widget.task == null) {
         // Create new task
-        final newTask = Task.create(
+        var newTask = Task.create(
           documentId: widget.document.id,
           parentTaskId: widget.parentTaskId,
           title: title,
@@ -480,10 +732,35 @@ class _TaskFormState extends State<TaskForm> {
           dueDate: _selectedDueDate,
         );
 
+        // Set status if advanced states enabled
+        if (_selectedStatus != null && _shouldShowAdvancedStates()) {
+          newTask = newTask.copyWith(status: _selectedStatus);
+        }
+
         final tagIds = _selectedTags.map((t) => t.id).toList();
-        await _taskService.createTask(newTask, tagIds: tagIds);
+        final createdTask = await _taskService.createTask(newTask, tagIds: tagIds);
+
+        // Save recurrence if configured
+        if (_recurrence != null) {
+          final recurrenceWithTaskId = Recurrence(
+            id: _recurrence!.id,
+            taskId: createdTask.id,
+            tagId: null,
+            hourlyFrequency: _recurrence!.hourlyFrequency,
+            specificTimes: _recurrence!.specificTimes,
+            dailyFrequency: _recurrence!.dailyFrequency,
+            weeklyDays: _recurrence!.weeklyDays,
+            monthlyDays: _recurrence!.monthlyDays,
+            yearlyDates: _recurrence!.yearlyDates,
+            startDate: _recurrence!.startDate,
+            endDate: _recurrence!.endDate,
+            createdAt: _recurrence!.createdAt,
+          );
+          await _recurrenceService.createRecurrence(recurrenceWithTaskId);
+        }
 
         if (mounted) {
+          widget.onTaskSaved?.call(); // Trigger refresh callback
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Task creata con successo!')),
@@ -491,12 +768,17 @@ class _TaskFormState extends State<TaskForm> {
         }
       } else {
         // Update existing task
-        final updatedTask = widget.task!.copyWith(
+        var updatedTask = widget.task!.copyWith(
           title: title,
           description: description.isEmpty ? null : description,
           priority: _selectedPriority,
           dueDate: _selectedDueDate,
         );
+
+        // Set status if advanced states enabled
+        if (_selectedStatus != null && _shouldShowAdvancedStates()) {
+          updatedTask = updatedTask.copyWith(status: _selectedStatus);
+        }
 
         await _taskService.updateTask(updatedTask);
 
@@ -504,7 +786,38 @@ class _TaskFormState extends State<TaskForm> {
         final tagIds = _selectedTags.map((t) => t.id).toList();
         await _taskService.assignTags(widget.task!.id, tagIds);
 
+        // Update recurrence
+        final existingRecurrence = await _recurrenceService.getRecurrenceForTask(widget.task!.id);
+
+        if (_recurrence != null) {
+          // Create or update recurrence
+          final recurrenceWithTaskId = Recurrence(
+            id: existingRecurrence?.id ?? _recurrence!.id,
+            taskId: widget.task!.id,
+            tagId: null,
+            hourlyFrequency: _recurrence!.hourlyFrequency,
+            specificTimes: _recurrence!.specificTimes,
+            dailyFrequency: _recurrence!.dailyFrequency,
+            weeklyDays: _recurrence!.weeklyDays,
+            monthlyDays: _recurrence!.monthlyDays,
+            yearlyDates: _recurrence!.yearlyDates,
+            startDate: _recurrence!.startDate,
+            endDate: _recurrence!.endDate,
+            createdAt: existingRecurrence?.createdAt ?? DateTime.now(),
+          );
+
+          if (existingRecurrence != null) {
+            await _recurrenceService.updateRecurrence(recurrenceWithTaskId);
+          } else {
+            await _recurrenceService.createRecurrence(recurrenceWithTaskId);
+          }
+        } else if (existingRecurrence != null) {
+          // Delete recurrence if it was removed
+          await _recurrenceService.deleteRecurrence(existingRecurrence.id);
+        }
+
         if (mounted) {
+          widget.onTaskSaved?.call(); // Trigger refresh callback
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Task aggiornata con successo!')),
