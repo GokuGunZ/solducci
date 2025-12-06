@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// Placeholder page for notes and lists
-/// Future feature: Shopping lists, pantry inventory, reminders
+/// Now redirects to the new ToDo Lists feature
 class NotesPage extends StatelessWidget {
   const NotesPage({super.key});
 
@@ -18,22 +19,22 @@ class NotesPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.note_alt_outlined,
+                Icons.check_circle_outline,
                 size: 120,
-                color: Colors.orange[300],
+                color: Colors.purple[300],
               ),
               const SizedBox(height: 32),
               Text(
-                'Note & Liste',
+                'ToDo Lists',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.orange[700],
+                  color: Colors.purple[700],
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                'Funzionalità in arrivo',
+                'Gestisci le tue task e progetti',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.grey[600],
@@ -43,37 +44,51 @@ class NotesPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
+                  color: Colors.purple[50],
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildFeatureItem('Lista della spesa', Icons.shopping_cart),
-                    _buildFeatureItem('Inventario dispensa', Icons.kitchen),
-                    _buildFeatureItem('Promemoria generici', Icons.notifications),
-                    _buildFeatureItem('Note condivise', Icons.share),
+                    _buildFeatureItem('Task con sub-task', Icons.list),
+                    _buildFeatureItem('Tag e categorie', Icons.label),
+                    _buildFeatureItem('Task ricorrenti', Icons.repeat),
+                    _buildFeatureItem('Priorità e scadenze', Icons.flag),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Questa funzionalità sarà disponibile presto!'),
-                    ),
-                  );
+                  context.push('/documents');
                 },
-                icon: const Icon(Icons.add),
-                label: const Text('Crea Nota'),
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Apri ToDo Lists'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange[600],
+                  backgroundColor: Colors.purple[700],
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
                     vertical: 16,
                   ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Altre funzionalità in arrivo:',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Lista della spesa • Inventario dispensa • Note condivise',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[400],
                 ),
               ),
             ],
@@ -88,7 +103,7 @@ class NotesPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: Colors.orange[700], size: 24),
+          Icon(icon, color: Colors.purple[700], size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -100,6 +115,7 @@ class NotesPage extends StatelessWidget {
               ),
             ),
           ),
+          Icon(Icons.check, color: Colors.green[600], size: 20),
         ],
       ),
     );
