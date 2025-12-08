@@ -51,8 +51,11 @@ class Recurrence {
     required this.createdAt,
   }) {
     // Validation: must be attached to either task or tag, not both
+    // Allow both to be null during creation (will be set by service)
     assert(
-      (taskId != null && tagId == null) || (taskId == null && tagId != null),
+      (taskId != null && tagId == null) ||
+      (taskId == null && tagId != null) ||
+      (taskId == null && tagId == null),
       'Recurrence must be attached to either a task or a tag, not both',
     );
 

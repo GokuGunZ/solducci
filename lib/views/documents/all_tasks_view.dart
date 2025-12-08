@@ -86,136 +86,154 @@ class _AllTasksViewState extends State<AllTasksView>
             .where((t) => t.status != TaskStatus.completed)
             .toList();
 
-        // Apply filters and sorting
-        tasks = tasks.applyFilterSort(_filterConfig);
-
-        // Empty state
-        if (tasks.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _filterConfig.hasFilters
-                      ? Icons.filter_alt_off
-                      : Icons.check_circle_outline,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _filterConfig.hasFilters
-                      ? 'Nessuna task trovata'
-                      : 'Nessuna task',
-                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _filterConfig.hasFilters
-                      ? 'Prova a cambiare i filtri'
-                      : 'Aggiungi la tua prima task!',
-                  style: TextStyle(color: Colors.grey[500]),
-                ),
-                if (_filterConfig.hasFilters) ...[
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _filterConfig = const FilterSortConfig();
-                      });
-                    },
-                    icon: const Icon(Icons.clear),
-                    label: const Text('Rimuovi filtri'),
-                  ),
-                ],
-              ],
-            ),
+        // If tag filter is active, use async filtering
+        if (_filterConfig.tagIds.isNotEmpty) {
+          return FutureBuilder<List<Task>>(
+            future: tasks.applyFilterSortAsync(_filterConfig),
+            builder: (context, asyncSnapshot) {
+              if (asyncSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (asyncSnapshot.hasError) {
+                return Center(child: Text('Errore: ${asyncSnapshot.error}'));
+              }
+              return _buildTaskList(asyncSnapshot.data ?? []);
+            },
           );
         }
 
-        // Task list with pull-to-refresh and filter button
-        return Column(
-          children: [
-            // Filter bar
-            if (_filterConfig.hasFilters)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: Colors.purple[50],
-                child: Row(
-                  children: [
-                    Icon(Icons.filter_list, size: 20, color: Colors.purple[700]),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_filterConfig.activeFiltersCount} filtri attivi',
-                      style: TextStyle(
-                        color: Colors.purple[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _filterConfig = const FilterSortConfig();
-                        });
-                      },
-                      child: const Text('Rimuovi'),
-                    ),
-                  ],
-                ),
-              ),
+        // Apply filters and sorting (synchronous)
+        tasks = tasks.applyFilterSort(_filterConfig);
 
-            // Filter button
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _showFilterDialog,
-                      icon: Badge(
-                        isLabelVisible: _filterConfig.hasFilters,
-                        label: Text('${_filterConfig.activeFiltersCount}'),
-                        child: const Icon(Icons.filter_list),
-                      ),
-                      label: const Text('Filtri e ordinamento'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _filterConfig.hasFilters
-                            ? Colors.purple[700]
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Task list
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  _refreshTasks();
-                  // Wait a bit for the stream to update
-                  await Future.delayed(const Duration(milliseconds: 500));
-                },
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: tasks.length,
-                  itemBuilder: (context, index) {
-                    final task = tasks[index];
-                    return TaskListItem(
-                      task: task,
-                      document: widget.document,
-                      onTap: () => _showTaskDetails(context, task),
-                      onTaskChanged: _refreshTasks, // Refresh on task change
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        );
+        return _buildTaskList(tasks);
       },
+    );
+  }
+
+  Widget _buildTaskList(List<Task> tasks) {
+    // Empty state
+    if (tasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _filterConfig.hasFilters
+                  ? Icons.filter_alt_off
+                  : Icons.check_circle_outline,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _filterConfig.hasFilters
+                  ? 'Nessuna task trovata'
+                  : 'Nessuna task',
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _filterConfig.hasFilters
+                  ? 'Prova a cambiare i filtri'
+                  : 'Aggiungi la tua prima task!',
+              style: TextStyle(color: Colors.grey[500]),
+            ),
+            if (_filterConfig.hasFilters) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _filterConfig = const FilterSortConfig();
+                  });
+                },
+                icon: const Icon(Icons.clear),
+                label: const Text('Rimuovi filtri'),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Task list with pull-to-refresh and filter button
+    return Column(
+      children: [
+        // Filter bar
+        if (_filterConfig.hasFilters)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.purple[50],
+            child: Row(
+              children: [
+                Icon(Icons.filter_list, size: 20, color: Colors.purple[700]),
+                const SizedBox(width: 8),
+                Text(
+                  '${_filterConfig.activeFiltersCount} filtri attivi',
+                  style: TextStyle(
+                    color: Colors.purple[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _filterConfig = const FilterSortConfig();
+                    });
+                  },
+                  child: const Text('Rimuovi'),
+                ),
+              ],
+            ),
+          ),
+
+        // Filter button
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showFilterDialog,
+                  icon: Badge(
+                    isLabelVisible: _filterConfig.hasFilters,
+                    label: Text('${_filterConfig.activeFiltersCount}'),
+                    child: const Icon(Icons.filter_list),
+                  ),
+                  label: const Text('Filtri e ordinamento'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _filterConfig.hasFilters
+                        ? Colors.purple[700]
+                        : null,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Task list
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _refreshTasks();
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: tasks.length,
+              itemBuilder: (context, index) {
+                final task = tasks[index];
+                return TaskListItem(
+                  task: task,
+                  document: widget.document,
+                  onTap: () => _showTaskDetails(context, task),
+                  onTaskChanged: _refreshTasks, // Refresh on task change
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 

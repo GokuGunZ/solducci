@@ -5,8 +5,9 @@ import 'package:solducci/models/tag.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/recurrence.dart';
 import 'package:solducci/service/task_service.dart';
+import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
-import 'package:solducci/widgets/documents/tag_selector.dart';
+import 'package:solducci/widgets/documents/tag_form_dialog.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 
 /// Form for creating or editing a task
@@ -16,6 +17,7 @@ class TaskForm extends StatefulWidget {
   final Task? task; // null = create, non-null = edit
   final String? parentTaskId; // For creating sub-tasks
   final VoidCallback? onTaskSaved; // Callback after successful save
+  final List<Tag>? initialTags; // Pre-selected tags for new tasks
 
   const TaskForm({
     super.key,
@@ -23,6 +25,7 @@ class TaskForm extends StatefulWidget {
     this.task,
     this.parentTaskId,
     this.onTaskSaved,
+    this.initialTags,
   });
 
   @override
@@ -32,11 +35,14 @@ class TaskForm extends StatefulWidget {
 class _TaskFormState extends State<TaskForm> {
   final _formKey = GlobalKey<FormState>();
   final _taskService = TaskService();
+  final _tagService = TagService();
 
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
 
   List<Tag> _selectedTags = [];
+  List<Tag> _availableTags = [];
+  bool _isLoadingTags = true;
   TaskPriority? _selectedPriority;
   TShirtSize? _selectedSize;
   TaskStatus? _selectedStatus;
@@ -53,6 +59,9 @@ class _TaskFormState extends State<TaskForm> {
     _titleController = TextEditingController(text: widget.task?.title ?? '');
     _descriptionController = TextEditingController(text: widget.task?.description ?? '');
 
+    // Load available tags
+    _loadAvailableTags();
+
     // Initialize values for edit mode
     if (widget.task != null) {
       _selectedPriority = widget.task!.priority;
@@ -61,6 +70,9 @@ class _TaskFormState extends State<TaskForm> {
       _selectedDueDate = widget.task!.dueDate;
       _loadTaskTags();
       _loadRecurrence();
+    } else if (widget.initialTags != null) {
+      // Pre-select tags for new tasks
+      _selectedTags = List.from(widget.initialTags!);
     }
   }
 
@@ -69,6 +81,25 @@ class _TaskFormState extends State<TaskForm> {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAvailableTags() async {
+    try {
+      final tags = await _tagService.getRootTags();
+      if (mounted) {
+        setState(() {
+          _availableTags = tags;
+          _isLoadingTags = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _availableTags = [];
+          _isLoadingTags = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadTaskTags() async {
@@ -108,33 +139,11 @@ class _TaskFormState extends State<TaskForm> {
         title: Text(widget.task == null ? 'Nuova Task' : 'Modifica Task'),
         backgroundColor: Colors.purple[700],
         foregroundColor: Colors.white,
-        actions: [
-          if (_isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                ),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.check),
-              onPressed: _saveTask,
-              tooltip: 'Salva',
-            ),
-        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
           children: [
             // Title field
             TextFormField(
@@ -230,6 +239,20 @@ class _TaskFormState extends State<TaskForm> {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _isLoading ? null : _saveTask,
+        backgroundColor: _isLoading ? Colors.grey : Colors.purple[700],
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(Icons.check, color: Colors.white),
+      ),
     );
   }
 
@@ -254,35 +277,75 @@ class _TaskFormState extends State<TaskForm> {
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  onPressed: _selectTags,
+                  onPressed: _showCreateTagDialog,
                   icon: const Icon(Icons.add),
-                  label: const Text('Aggiungi'),
+                  label: const Text('Crea Nuovo'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.purple[700],
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            if (_selectedTags.isEmpty)
-              Text(
-                'Nessun tag selezionato',
-                style: TextStyle(color: Colors.grey[600]),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _selectedTags
-                    .map((tag) => tag.getChip(
-                          onDelete: () {
-                            setState(() {
-                              _selectedTags.remove(tag);
-                            });
-                          },
-                        ))
-                    .toList(),
-              ),
+            _isLoadingTags
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _availableTags.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          'Nessun tag disponibile. Creane uno!',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _availableTags
+                            .map((tag) => _buildTagChip(tag))
+                            .toList(),
+                      ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTagChip(Tag tag) {
+    final isSelected = _selectedTags.any((t) => t.id == tag.id);
+    final color = tag.colorObject ?? Colors.purple;
+
+    return FilterChip(
+      selected: isSelected,
+      avatar: Icon(
+        tag.iconData ?? Icons.label,
+        size: 18,
+        color: isSelected ? Colors.white : color,
+      ),
+      label: Text(tag.name),
+      backgroundColor: color.withAlpha(50),
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      onSelected: (selected) {
+        setState(() {
+          if (selected) {
+            _selectedTags.add(tag);
+          } else {
+            _selectedTags.removeWhere((t) => t.id == tag.id);
+          }
+        });
+      },
     );
   }
 
@@ -673,19 +736,15 @@ class _TaskFormState extends State<TaskForm> {
     }
   }
 
-  Future<void> _selectTags() async {
-    final result = await showModalBottomSheet<List<Tag>>(
+  Future<void> _showCreateTagDialog() async {
+    final result = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      builder: (context) => TagSelector(
-        selectedTags: _selectedTags,
-      ),
+      builder: (context) => const TagFormDialog(tag: null),
     );
 
-    if (result != null) {
-      setState(() {
-        _selectedTags = result;
-      });
+    // Reload tags if a new tag was created
+    if (result == true) {
+      _loadAvailableTags();
     }
   }
 
@@ -698,7 +757,7 @@ class _TaskFormState extends State<TaskForm> {
       initialDate: initialDate.isBefore(now) ? now : initialDate,
       firstDate: now,
       lastDate: DateTime(now.year + 5),
-      locale: const Locale('it', 'IT'),
+      // locale: const Locale('it', 'IT'), // Removed - causing crashes if not configured
     );
 
     if (pickedDate != null) {
@@ -731,6 +790,9 @@ class _TaskFormState extends State<TaskForm> {
           priority: _selectedPriority,
           dueDate: _selectedDueDate,
         );
+
+        // Set T-shirt size and status
+        newTask = newTask.copyWith(tShirtSize: _selectedSize);
 
         // Set status if advanced states enabled
         if (_selectedStatus != null && _shouldShowAdvancedStates()) {
@@ -773,6 +835,7 @@ class _TaskFormState extends State<TaskForm> {
           description: description.isEmpty ? null : description,
           priority: _selectedPriority,
           dueDate: _selectedDueDate,
+          tShirtSize: _selectedSize,
         );
 
         // Set status if advanced states enabled

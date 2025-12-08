@@ -162,6 +162,11 @@ class TaskService {
         if (parent == null) {
           throw Exception('Parent task not found');
         }
+
+        // If parent is completed, uncomplete it (can't have incomplete subtasks)
+        if (parent.status == TaskStatus.completed) {
+          await uncompleteTask(parent.id);
+        }
       }
 
       final dataToInsert = task.toInsertMap();
@@ -230,6 +235,15 @@ class TaskService {
         throw Exception('Task not found');
       }
 
+      // Check if task has incomplete subtasks
+      final subtasks = await getChildTasks(taskId);
+      if (subtasks.isNotEmpty) {
+        final hasIncompleteSubtasks = subtasks.any((t) => t.status != TaskStatus.completed);
+        if (hasIncompleteSubtasks) {
+          throw Exception('Non puoi completare una task con subtask incomplete');
+        }
+      }
+
       final recurrence = await getEffectiveRecurrence(taskId);
 
       if (recurrence != null && recurrence.isActive) {
@@ -277,11 +291,21 @@ class TaskService {
   /// Uncomplete a task (set back to pending)
   Future<void> uncompleteTask(String taskId) async {
     try {
+      final task = await getTaskById(taskId);
+
       await _supabase.from('tasks').update({
         'status': TaskStatus.pending.value,
         'completed_at': null,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', taskId);
+
+      // If this task has a completed parent, uncomplete it too
+      if (task?.parentTaskId != null) {
+        final parent = await getTaskById(task!.parentTaskId!);
+        if (parent != null && parent.status == TaskStatus.completed) {
+          await uncompleteTask(parent.id); // Recursive uncomplete
+        }
+      }
     } catch (e) {
       rethrow;
     }

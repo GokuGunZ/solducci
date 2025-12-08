@@ -167,6 +167,7 @@ class _TaskListItemState extends State<TaskListItem> {
   }
 
   Widget? _buildSubtitle() {
+    final hasDescription = widget.task.description != null && widget.task.description!.isNotEmpty;
     final chips = <Widget>[];
 
     // Status indicator (only for assigned/inProgress)
@@ -272,7 +273,7 @@ class _TaskListItemState extends State<TaskListItem> {
       );
     }
 
-    // Subtasks count
+    // Subtasks count (tappable to expand/collapse)
     if (widget.task.hasSubtasks) {
       final completedCount = widget.task.subtasks!
           .where((t) => t.status == TaskStatus.completed)
@@ -280,7 +281,7 @@ class _TaskListItemState extends State<TaskListItem> {
       final totalCount = widget.task.subtasks!.length;
 
       chips.add(
-        Chip(
+        ActionChip(
           avatar: const Icon(Icons.list, size: 14),
           label: Text(
             '$completedCount/$totalCount',
@@ -289,18 +290,45 @@ class _TaskListItemState extends State<TaskListItem> {
           backgroundColor: Colors.purple.withAlpha(50),
           padding: EdgeInsets.zero,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onPressed: () {
+            setState(() {
+              _isExpanded = !_isExpanded;
+            });
+          },
         ),
       );
     }
 
-    if (chips.isEmpty) return null;
+    // Return null if no description and no chips
+    if (!hasDescription && chips.isEmpty) return null;
 
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        children: chips,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Description text
+          if (hasDescription) ...[
+            Text(
+              widget.task.description!,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (chips.isNotEmpty) const SizedBox(height: 8),
+          ],
+
+          // Chips (indicators)
+          if (chips.isNotEmpty)
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: chips,
+            ),
+        ],
       ),
     );
   }

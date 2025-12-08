@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/task.dart';
+import 'package:solducci/models/tag.dart';
+import 'package:solducci/service/tag_service.dart';
 
 /// Configuration for filtering and sorting tasks
 class FilterSortConfig {
   final Set<TaskPriority> priorities;
   final Set<TaskStatus> statuses;
   final bool showOverdueOnly;
-  final TaskSortOption sortBy;
+  final Set<String> tagIds; // Filter by tag IDs
+  final TaskSortOption? sortBy;
   final bool sortAscending;
 
   const FilterSortConfig({
     this.priorities = const {},
     this.statuses = const {},
     this.showOverdueOnly = false,
-    this.sortBy = TaskSortOption.dueDate,
+    this.tagIds = const {},
+    this.sortBy,
     this.sortAscending = true,
   });
 
@@ -21,6 +25,7 @@ class FilterSortConfig {
     Set<TaskPriority>? priorities,
     Set<TaskStatus>? statuses,
     bool? showOverdueOnly,
+    Set<String>? tagIds,
     TaskSortOption? sortBy,
     bool? sortAscending,
   }) {
@@ -28,19 +33,21 @@ class FilterSortConfig {
       priorities: priorities ?? this.priorities,
       statuses: statuses ?? this.statuses,
       showOverdueOnly: showOverdueOnly ?? this.showOverdueOnly,
+      tagIds: tagIds ?? this.tagIds,
       sortBy: sortBy ?? this.sortBy,
       sortAscending: sortAscending ?? this.sortAscending,
     );
   }
 
   bool get hasFilters =>
-      priorities.isNotEmpty || statuses.isNotEmpty || showOverdueOnly;
+      priorities.isNotEmpty || statuses.isNotEmpty || showOverdueOnly || tagIds.isNotEmpty;
 
   int get activeFiltersCount {
     int count = 0;
     if (priorities.isNotEmpty) count++;
     if (statuses.isNotEmpty) count++;
     if (showOverdueOnly) count++;
+    if (tagIds.isNotEmpty) count++;
     return count;
   }
 }
@@ -72,8 +79,13 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
   late Set<TaskPriority> _selectedPriorities;
   late Set<TaskStatus> _selectedStatuses;
   late bool _showOverdueOnly;
-  late TaskSortOption _sortBy;
+  late Set<String> _selectedTagIds;
+  TaskSortOption? _sortBy;
   late bool _sortAscending;
+
+  final _tagService = TagService();
+  List<Tag> _availableTags = [];
+  bool _isLoadingTags = true;
 
   @override
   void initState() {
@@ -81,8 +93,29 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
     _selectedPriorities = Set.from(widget.initialConfig.priorities);
     _selectedStatuses = Set.from(widget.initialConfig.statuses);
     _showOverdueOnly = widget.initialConfig.showOverdueOnly;
+    _selectedTagIds = Set.from(widget.initialConfig.tagIds);
     _sortBy = widget.initialConfig.sortBy;
     _sortAscending = widget.initialConfig.sortAscending;
+    _loadTags();
+  }
+
+  Future<void> _loadTags() async {
+    try {
+      final tags = await _tagService.getRootTags();
+      if (mounted) {
+        setState(() {
+          _availableTags = tags;
+          _isLoadingTags = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _availableTags = [];
+          _isLoadingTags = false;
+        });
+      }
+    }
   }
 
   @override
@@ -153,6 +186,40 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
                   _buildStatusChip(TaskStatus.inProgress, 'In corso', Colors.orange),
                 ],
               ),
+
+              const SizedBox(height: 16),
+
+              // Tag filter
+              const Text(
+                'Tag',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              _isLoadingTags
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : _availableTags.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Nessun tag disponibile',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _availableTags
+                              .map((tag) => _buildTagChip(tag))
+                              .toList(),
+                        ),
 
               const SizedBox(height: 16),
 
@@ -319,6 +386,36 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
     );
   }
 
+  Widget _buildTagChip(Tag tag) {
+    final isSelected = _selectedTagIds.contains(tag.id);
+    final color = tag.colorObject ?? Colors.purple;
+    return FilterChip(
+      selected: isSelected,
+      avatar: Icon(
+        tag.iconData ?? Icons.label,
+        size: 18,
+        color: isSelected ? Colors.white : color,
+      ),
+      label: Text(tag.name),
+      backgroundColor: color.withAlpha(50),
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      onSelected: (selected) {
+        setState(() {
+          if (selected) {
+            _selectedTagIds.add(tag.id);
+          } else {
+            _selectedTagIds.remove(tag.id);
+          }
+        });
+      },
+    );
+  }
+
   Widget _buildSortChip(TaskSortOption option) {
     final isSelected = _sortBy == option;
     return ChoiceChip(
@@ -330,11 +427,10 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _sortBy = option;
-          });
-        }
+        setState(() {
+          // Allow deselecting by tapping again
+          _sortBy = selected ? option : null;
+        });
       },
     );
   }
@@ -343,8 +439,9 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
     setState(() {
       _selectedPriorities.clear();
       _selectedStatuses.clear();
+      _selectedTagIds.clear();
       _showOverdueOnly = false;
-      _sortBy = TaskSortOption.dueDate;
+      _sortBy = null; // Also reset sorting
       _sortAscending = true;
     });
   }
@@ -354,6 +451,7 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
       priorities: _selectedPriorities,
       statuses: _selectedStatuses,
       showOverdueOnly: _showOverdueOnly,
+      tagIds: _selectedTagIds,
       sortBy: _sortBy,
       sortAscending: _sortAscending,
     );

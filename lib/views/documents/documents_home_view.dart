@@ -9,6 +9,7 @@ import 'package:solducci/views/documents/tag_view.dart';
 import 'package:solducci/views/documents/completed_tasks_view.dart';
 import 'package:solducci/views/documents/tag_management_view.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
+import 'package:solducci/widgets/documents/tag_form_dialog.dart';
 
 /// Main documents/todo home view with swipe-based navigation
 /// Shows: All Tasks | Tag Views | Completed Tasks
@@ -70,12 +71,16 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showCreateTaskDialog,
-            tooltip: 'Nuova task',
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: _showCreateTagDialog,
+            tooltip: 'Crea nuovo tag',
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
+          TextButton.icon(
+            icon: const Icon(Icons.label, color: Colors.white),
+            label: const Text(
+              'Tag',
+              style: TextStyle(color: Colors.white),
+            ),
             onPressed: () {
               Navigator.push(
                 context,
@@ -84,7 +89,6 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                 ),
               );
             },
-            tooltip: 'Gestisci tag',
           ),
         ],
       ),
@@ -162,6 +166,14 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
+  }
+
+  Future<void> _showCreateTagDialog() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => const TagFormDialog(tag: null),
+    );
+    // Tags will be automatically refreshed via stream in _PageViewContent
   }
 
   void _showCreateTaskDialog() {

@@ -372,15 +372,33 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
               children: [
                 const Text('Seleziona i giorni del mese (1-31):'),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: List.generate(31, (index) {
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: 31,
+                  itemBuilder: (context, index) {
                     final day = index + 1;
                     final isSelected = _monthlyDays.contains(day);
                     return FilterChip(
-                      label: Text('$day'),
+                      label: Text(
+                        '$day',
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       selected: isSelected,
+                      selectedColor: Colors.purple[700],
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       onSelected: (selected) {
                         setState(() {
                           if (selected) {
@@ -391,7 +409,7 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
                         });
                       },
                     );
-                  }),
+                  },
                 ),
               ],
             ),
