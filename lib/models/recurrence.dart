@@ -59,18 +59,23 @@ class Recurrence {
       'Recurrence must be attached to either a task or a tag, not both',
     );
 
-    // Validation: must have at least one intra-day frequency
+    // Validation: intra-day frequency
+    // Note: Both hourlyFrequency and specificTimes can be null, which means "once per day" (default behavior)
     assert(
-      hourlyFrequency != null || specificTimes != null,
-      'Must specify either hourlyFrequency or specificTimes',
+      hourlyFrequency == null || hourlyFrequency! > 0,
+      'hourlyFrequency must be greater than 0 if specified',
+    );
+    assert(
+      specificTimes == null || specificTimes!.isNotEmpty,
+      'specificTimes must not be an empty list if specified',
     );
 
     // Validation: must have at least one inter-day frequency
     assert(
       dailyFrequency != null ||
-          weeklyDays != null ||
-          monthlyDays != null ||
-          yearlyDates != null,
+          (weeklyDays != null && weeklyDays!.isNotEmpty) ||
+          (monthlyDays != null && monthlyDays!.isNotEmpty) ||
+          (yearlyDates != null && yearlyDates!.isNotEmpty),
       'Must specify at least one inter-day frequency option',
     );
   }

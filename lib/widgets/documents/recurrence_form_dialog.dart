@@ -391,8 +391,10 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
                         style: const TextStyle(fontSize: 12),
                       ),
                       selected: isSelected,
+                      showCheckmark: false,
                       selectedColor: Colors.purple[700],
-                      checkmarkColor: Colors.white,
+                      elevation: isSelected ? 4 : 0,
+                      shadowColor: Colors.purple.withAlpha(100),
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

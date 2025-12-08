@@ -25,12 +25,15 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   final _documentService = DocumentService();
 
   TodoDocument? _currentDocument;
+  int _currentPage = 1; // Start at "Tutte" page
+  List<Tag> _currentTags = [];
+  VoidCallback? _onTaskCreated; // Callback to refresh current page
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(
-      initialPage: 0,
+      initialPage: 1, // Start at "Tutte" page instead of "Completate"
       keepPage: true, // Mantiene la pagina corrente anche durante i rebuild
     );
   }
@@ -70,11 +73,6 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
         backgroundColor: Colors.purple[700],
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: _showCreateTagDialog,
-            tooltip: 'Crea nuovo tag',
-          ),
           TextButton.icon(
             icon: const Icon(Icons.label, color: Colors.white),
             label: const Text(
@@ -157,6 +155,13 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
             key: const ValueKey('page_view_content'), // Key stabile per evitare rebuild
             pageController: _pageController,
             document: _currentDocument!,
+            onPageChanged: (page, tags, refreshCallback) {
+              // Update state without triggering rebuild of StreamBuilder
+              _currentPage = page;
+              _currentTags = tags;
+              _onTaskCreated = refreshCallback;
+            },
+            onCreateTag: _showCreateTagDialog,
           );
         },
       ),
@@ -169,9 +174,24 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   }
 
   Future<void> _showCreateTagDialog() async {
-    await showDialog<bool>(
+    await showGeneralDialog<bool>(
       context: context,
-      builder: (context) => const TagFormDialog(tag: null),
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const TagFormDialog(tag: null);
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          ),
+          child: child,
+        );
+      },
     );
     // Tags will be automatically refreshed via stream in _PageViewContent
   }
@@ -179,10 +199,21 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   void _showCreateTaskDialog() {
     if (_currentDocument == null) return;
 
+    // Determine if we're on a tag page and get the corresponding tag
+    Tag? initialTag;
+    if (_currentPage >= 2 && _currentPage < 2 + _currentTags.length) {
+      // We're on a tag page (pages 2 to N+1)
+      initialTag = _currentTags[_currentPage - 2];
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TaskForm(document: _currentDocument!),
+        builder: (context) => TaskForm(
+          document: _currentDocument!,
+          initialTags: initialTag != null ? [initialTag] : null,
+          onTaskSaved: _onTaskCreated, // Trigger refresh after task creation
+        ),
       ),
     );
   }
@@ -193,11 +224,15 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 class _PageViewContent extends StatefulWidget {
   final PageController pageController;
   final TodoDocument document;
+  final void Function(int page, List<Tag> tags, VoidCallback? refreshCallback) onPageChanged;
+  final Future<void> Function() onCreateTag;
 
   const _PageViewContent({
     super.key,
     required this.pageController,
     required this.document,
+    required this.onPageChanged,
+    required this.onCreateTag,
   });
 
   @override
@@ -208,7 +243,10 @@ class _PageViewContentState extends State<_PageViewContent> {
   final _tagService = TagService();
   List<Tag> _tags = [];
   bool _isLoadingTags = true;
-  int _currentPage = 0; // Stato della pagina corrente gestito internamente
+  int _currentPage = 1; // Start at "Tutte" page (matches PageController initialPage)
+
+  // Refresh key to force rebuild of pages
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -226,6 +264,12 @@ class _PageViewContentState extends State<_PageViewContent> {
           _tags = tags;
           _isLoadingTags = false;
         });
+        // Notify parent about initial tags load after the frame is built
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback);
+          }
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -233,8 +277,21 @@ class _PageViewContentState extends State<_PageViewContent> {
           _tags = [];
           _isLoadingTags = false;
         });
+        // Notify parent even on error after the frame is built
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback);
+          }
+        });
       }
     }
+  }
+
+  void _getRefreshCallback() {
+    // Increment key to force rebuild of current page
+    setState(() {
+      _refreshKey++;
+    });
   }
 
   @override
@@ -256,6 +313,8 @@ class _PageViewContentState extends State<_PageViewContent> {
     setState(() {
       _currentPage = page;
     });
+    // Notify parent about page change
+    widget.onPageChanged(page, _tags, _getRefreshCallback);
   }
 
   @override
@@ -273,33 +332,70 @@ class _PageViewContentState extends State<_PageViewContent> {
 
         // PageView with swipe - using builder for lazy loading
         Expanded(
-          child: PageView.builder(
-            key: const ValueKey('main_page_view'),
-            controller: widget.pageController,
-            onPageChanged: _onPageChanged,
-            itemCount: totalPages,
-            itemBuilder: (context, index) {
-              // Page 0: All Tasks
-              if (index == 0) {
-                return AllTasksView(document: widget.document);
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              // Detect overscroll at the end (after last tag)
+              if (notification is ScrollUpdateNotification) {
+                final metrics = notification.metrics;
+                // Check if we're at the last page and trying to scroll further
+                if (metrics.pixels > metrics.maxScrollExtent + 50) {
+                  // User is trying to swipe beyond the last page
+                  _handleSwipeBeyondLastPage();
+                }
               }
+              return false;
+            },
+            child: PageView.builder(
+              key: ValueKey('main_page_view_$_refreshKey'),
+              controller: widget.pageController,
+              onPageChanged: _onPageChanged,
+              itemCount: totalPages,
+              itemBuilder: (context, index) {
+                // Page 0: Completed Tasks (first)
+                if (index == 0) {
+                  return CompletedTasksView(
+                    key: ValueKey('completed_$_refreshKey'),
+                    document: widget.document,
+                  );
+                }
 
-              // Pages 1 to N-1: Tag Views
-              if (index <= _tags.length) {
-                final tag = _tags[index - 1];
+                // Page 1: All Tasks (second)
+                if (index == 1) {
+                  return AllTasksView(
+                    key: ValueKey('all_tasks_$_refreshKey'),
+                    document: widget.document,
+                  );
+                }
+
+                // Pages 2 to N+1: Tag Views
+                final tag = _tags[index - 2];
                 return TagView(
+                  key: ValueKey('tag_${tag.id}_$_refreshKey'),
                   document: widget.document,
                   tag: tag,
                 );
-              }
-
-              // Last page: Completed Tasks
-              return CompletedTasksView(document: widget.document);
-            },
+              },
+            ),
           ),
         ),
       ],
     );
+  }
+
+  bool _isShowingDialog = false;
+
+  void _handleSwipeBeyondLastPage() {
+    // Prevent multiple dialogs from opening
+    if (_isShowingDialog) return;
+
+    final lastTagPage = 2 + _tags.length - 1;
+    // Only trigger if we're on the last tag page
+    if (_currentPage == lastTagPage) {
+      _isShowingDialog = true;
+      _showCreateTagDialogWithFade(context).then((_) {
+        _isShowingDialog = false;
+      });
+    }
   }
 
   Widget _buildPageIndicator(int totalPages, List<Tag> tags) {
@@ -311,20 +407,23 @@ class _PageViewContentState extends State<_PageViewContent> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // All Tasks indicator
-              _buildDot(0, 'Tutte', null, null),
+              // Completed indicator (page 0)
+              _buildDot(0, 'Completate', Icons.check_circle, null),
 
-              // Tag indicators with icons
+              // All Tasks indicator (page 1)
+              _buildDot(1, 'Tutte', null, null),
+
+              // Tag indicators (pages 2 to N+1)
               for (int i = 0; i < tags.length; i++)
                 _buildDot(
-                  i + 1,
+                  i + 2,
                   tags[i].name,
                   tags[i].iconData,
                   tags[i].colorObject,
                 ),
 
-              // Completed indicator
-              _buildDot(totalPages - 1, 'Completate', Icons.check_circle, null),
+              // Add tag button (smaller, after tags)
+              _buildAddTagButton(),
             ],
           ),
         ),
@@ -389,5 +488,71 @@ class _PageViewContentState extends State<_PageViewContent> {
         ),
       ),
     );
+  }
+
+  Widget _buildAddTagButton() {
+    return GestureDetector(
+      onTap: () async {
+        await widget.onCreateTag();
+        // Reload tags after creating a new one
+        _loadTags();
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.purple[700],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purple.withAlpha(100),
+              blurRadius: 3,
+              spreadRadius: 0.5,
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 14,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCreateTagDialogWithFade(BuildContext context) async {
+    final result = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const TagFormDialog(tag: null);
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          ),
+          child: child,
+        );
+      },
+    );
+
+    if (result == true) {
+      // Reload tags and navigate back to the last tag view
+      await _loadTags();
+      if (mounted && _tags.isNotEmpty) {
+        // Navigate to the newly created tag (last one before the add page)
+        widget.pageController.animateToPage(
+          2 + _tags.length - 1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
   }
 }

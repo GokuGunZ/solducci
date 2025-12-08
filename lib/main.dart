@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:solducci/routes/app_router.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize date formatting for Italian locale
+  await initializeDateFormatting('it_IT', null);
 
   try {
     // Try loading from dart-define first (production builds)
@@ -152,6 +157,16 @@ class SolducciApp extends StatelessWidget {
         primarySwatch: Colors.purple,
         useMaterial3: true,
       ),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('it', 'IT'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('it', 'IT'),
       routerConfig: AppRouter.router,
     );
   }

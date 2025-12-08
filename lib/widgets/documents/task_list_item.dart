@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/document.dart';
+import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 
@@ -30,11 +31,13 @@ class _TaskListItemState extends State<TaskListItem> {
   bool _isExpanded = false;
   final _taskService = TaskService();
   bool _isRecurring = false;
+  List<Tag> _tags = [];
 
   @override
   void initState() {
     super.initState();
     _checkRecurrence();
+    _loadTags();
   }
 
   Future<void> _checkRecurrence() async {
@@ -42,6 +45,15 @@ class _TaskListItemState extends State<TaskListItem> {
     if (mounted && recurrence != null && recurrence.isActive) {
       setState(() {
         _isRecurring = true;
+      });
+    }
+  }
+
+  Future<void> _loadTags() async {
+    final tags = await _taskService.getEffectiveTags(widget.task.id);
+    if (mounted) {
+      setState(() {
+        _tags = tags;
       });
     }
   }
@@ -299,8 +311,8 @@ class _TaskListItemState extends State<TaskListItem> {
       );
     }
 
-    // Return null if no description and no chips
-    if (!hasDescription && chips.isEmpty) return null;
+    // Return null if no description, no chips, and no tags
+    if (!hasDescription && chips.isEmpty && _tags.isEmpty) return null;
 
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
@@ -318,15 +330,58 @@ class _TaskListItemState extends State<TaskListItem> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            if (chips.isNotEmpty) const SizedBox(height: 8),
+            if (chips.isNotEmpty || _tags.isNotEmpty) const SizedBox(height: 8),
           ],
 
-          // Chips (indicators)
-          if (chips.isNotEmpty)
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: chips,
+          // Row with chips and tag indicators
+          if (chips.isNotEmpty || _tags.isNotEmpty)
+            Row(
+              children: [
+                // Chips (indicators)
+                if (chips.isNotEmpty)
+                  Expanded(
+                    child: Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: chips,
+                    ),
+                  ),
+
+                // Tag indicators (colored circles with icons)
+                if (_tags.isNotEmpty) ...[
+                  if (chips.isNotEmpty) const SizedBox(width: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: _tags.map((tag) {
+                      final color = tag.colorObject ?? Colors.grey;
+                      return Tooltip(
+                        message: tag.name,
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withAlpha(100),
+                                blurRadius: 2,
+                                spreadRadius: 0.5,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            tag.iconData ?? Icons.label,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
             ),
         ],
       ),

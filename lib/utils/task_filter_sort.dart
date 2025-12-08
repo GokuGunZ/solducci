@@ -4,79 +4,184 @@ import 'package:solducci/service/task_service.dart';
 
 /// Extension methods for filtering and sorting tasks
 extension TaskFilterSort on List<Task> {
-  /// Apply filters to the task list
-  Future<List<Task>> applyFiltersAsync(FilterSortConfig config) async {
-    var filtered = this;
+  /// Flatten task tree recursively into a single list
+  List<Task> _flattenTaskTree() {
+    final flatList = <Task>[];
 
-    // Filter by priority
-    if (config.priorities.isNotEmpty) {
-      filtered = filtered
-          .where((task) =>
-              task.priority != null && config.priorities.contains(task.priority))
-          .toList();
-    }
-
-    // Filter by status
-    if (config.statuses.isNotEmpty) {
-      filtered = filtered
-          .where((task) => config.statuses.contains(task.status))
-          .toList();
-    }
-
-    // Filter by overdue
-    if (config.showOverdueOnly) {
-      filtered = filtered.where((task) => task.isOverdue).toList();
-    }
-
-    // Filter by tags (requires async operation to load task tags)
-    if (config.tagIds.isNotEmpty) {
-      final taskService = TaskService();
-      final tasksWithMatchingTags = <Task>[];
-
-      for (final task in filtered) {
-        final taskTags = await taskService.getEffectiveTags(task.id);
-        final taskTagIds = taskTags.map((t) => t.id).toSet();
-
-        // Task must have at least one of the selected tags
-        if (taskTagIds.any((tagId) => config.tagIds.contains(tagId))) {
-          tasksWithMatchingTags.add(task);
+    void addTaskAndChildren(Task task) {
+      flatList.add(task);
+      if (task.subtasks != null) {
+        for (final subtask in task.subtasks!) {
+          addTaskAndChildren(subtask);
         }
       }
-
-      filtered = tasksWithMatchingTags;
     }
 
-    return filtered;
+    for (final task in this) {
+      addTaskAndChildren(task);
+    }
+
+    return flatList;
+  }
+
+  /// Apply filters to the task list (handles hierarchical tasks)
+  Future<List<Task>> applyFiltersAsync(FilterSortConfig config) async {
+    final taskService = TaskService();
+    final matchingTasks = <String>{}; // Track matching task IDs
+    final tasksToInclude = <String>{}; // Tasks to include in final result
+
+    // Flatten the task tree to include all subtasks
+    final allTasks = _flattenTaskTree();
+
+    // Build a map of all tasks for quick lookup
+    final taskMap = <String, Task>{};
+    for (final task in allTasks) {
+      taskMap[task.id] = task;
+    }
+
+    // First pass: Find all tasks that match the filters directly
+    for (final task in allTasks) {
+      bool matches = true;
+
+      // Filter by priority
+      if (config.priorities.isNotEmpty) {
+        matches = matches &&
+                  task.priority != null &&
+                  config.priorities.contains(task.priority);
+      }
+
+      // Filter by status
+      if (config.statuses.isNotEmpty) {
+        matches = matches && config.statuses.contains(task.status);
+      }
+
+      // Filter by overdue
+      if (config.showOverdueOnly) {
+        matches = matches && task.isOverdue;
+      }
+
+      // Filter by tags (requires async operation to load task tags)
+      if (config.tagIds.isNotEmpty) {
+        final taskTags = await taskService.getEffectiveTags(task.id);
+        final taskTagIds = taskTags.map((t) => t.id).toSet();
+        matches = matches &&
+                  taskTagIds.any((tagId) => config.tagIds.contains(tagId));
+      }
+
+      if (matches) {
+        matchingTasks.add(task.id);
+      }
+    }
+
+    // Second pass: Include parent tasks of matching subtasks
+    for (final taskId in matchingTasks) {
+      tasksToInclude.add(taskId);
+
+      // Walk up the parent chain and include all ancestors
+      var currentTask = taskMap[taskId];
+      while (currentTask != null && currentTask.parentTaskId != null) {
+        tasksToInclude.add(currentTask.parentTaskId!);
+        currentTask = taskMap[currentTask.parentTaskId];
+      }
+    }
+
+    // Third pass: Rebuild tree with filtered subtasks
+    Task filterSubtasks(Task task) {
+      if (task.subtasks == null || task.subtasks!.isEmpty) {
+        return task;
+      }
+
+      // Filter subtasks to only include those in tasksToInclude
+      final filteredSubtasks = task.subtasks!
+          .where((subtask) => tasksToInclude.contains(subtask.id))
+          .map((subtask) => filterSubtasks(subtask)) // Recursively filter
+          .toList();
+
+      // Return task with filtered subtasks
+      return task.copyWith(subtasks: filteredSubtasks);
+    }
+
+    // Apply filtering to root tasks
+    return where((task) => tasksToInclude.contains(task.id))
+        .map((task) => filterSubtasks(task))
+        .toList();
   }
 
   /// Apply filters to the task list (synchronous version without tag filtering)
   List<Task> applyFilters(FilterSortConfig config) {
-    var filtered = this;
+    final matchingTasks = <String>{}; // Track matching task IDs
+    final tasksToInclude = <String>{}; // Tasks to include in final result
 
-    // Filter by priority
-    if (config.priorities.isNotEmpty) {
-      filtered = filtered
-          .where((task) =>
-              task.priority != null && config.priorities.contains(task.priority))
+    // Flatten the task tree to include all subtasks
+    final allTasks = _flattenTaskTree();
+
+    // Build a map of all tasks for quick lookup
+    final taskMap = <String, Task>{};
+    for (final task in allTasks) {
+      taskMap[task.id] = task;
+    }
+
+    // First pass: Find all tasks that match the filters directly
+    for (final task in allTasks) {
+      bool matches = true;
+
+      // Filter by priority
+      if (config.priorities.isNotEmpty) {
+        matches = matches &&
+                  task.priority != null &&
+                  config.priorities.contains(task.priority);
+      }
+
+      // Filter by status
+      if (config.statuses.isNotEmpty) {
+        matches = matches && config.statuses.contains(task.status);
+      }
+
+      // Filter by overdue
+      if (config.showOverdueOnly) {
+        matches = matches && task.isOverdue;
+      }
+
+      // Note: Tag filtering is not supported in synchronous mode
+      // Use applyFiltersAsync for tag filtering
+
+      if (matches) {
+        matchingTasks.add(task.id);
+      }
+    }
+
+    // Second pass: Include parent tasks of matching subtasks
+    for (final taskId in matchingTasks) {
+      tasksToInclude.add(taskId);
+
+      // Walk up the parent chain and include all ancestors
+      var currentTask = taskMap[taskId];
+      while (currentTask != null && currentTask.parentTaskId != null) {
+        tasksToInclude.add(currentTask.parentTaskId!);
+        currentTask = taskMap[currentTask.parentTaskId];
+      }
+    }
+
+    // Third pass: Rebuild tree with filtered subtasks
+    Task filterSubtasks(Task task) {
+      if (task.subtasks == null || task.subtasks!.isEmpty) {
+        return task;
+      }
+
+      // Filter subtasks to only include those in tasksToInclude
+      final filteredSubtasks = task.subtasks!
+          .where((subtask) => tasksToInclude.contains(subtask.id))
+          .map((subtask) => filterSubtasks(subtask)) // Recursively filter
           .toList();
+
+      // Return task with filtered subtasks
+      return task.copyWith(subtasks: filteredSubtasks);
     }
 
-    // Filter by status
-    if (config.statuses.isNotEmpty) {
-      filtered = filtered
-          .where((task) => config.statuses.contains(task.status))
-          .toList();
-    }
-
-    // Filter by overdue
-    if (config.showOverdueOnly) {
-      filtered = filtered.where((task) => task.isOverdue).toList();
-    }
-
-    // Note: Tag filtering is not supported in synchronous mode
-    // Use applyFiltersAsync for tag filtering
-
-    return filtered;
+    // Apply filtering to root tasks
+    return where((task) => tasksToInclude.contains(task.id))
+        .map((task) => filterSubtasks(task))
+        .toList();
   }
 
   /// Sort the task list

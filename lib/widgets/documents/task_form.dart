@@ -50,6 +50,7 @@ class _TaskFormState extends State<TaskForm> {
   Recurrence? _recurrence;
   bool _isLoading = false;
   final _recurrenceService = RecurrenceService();
+  Task? _parentTask; // Parent task for subtask creation
 
   @override
   void initState() {
@@ -61,6 +62,11 @@ class _TaskFormState extends State<TaskForm> {
 
     // Load available tags
     _loadAvailableTags();
+
+    // Load parent task if creating a subtask
+    if (widget.parentTaskId != null) {
+      _loadParentTask();
+    }
 
     // Initialize values for edit mode
     if (widget.task != null) {
@@ -81,6 +87,21 @@ class _TaskFormState extends State<TaskForm> {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadParentTask() async {
+    if (widget.parentTaskId == null) return;
+
+    try {
+      final task = await _taskService.getTaskById(widget.parentTaskId!);
+      if (mounted) {
+        setState(() {
+          _parentTask = task;
+        });
+      }
+    } catch (e) {
+      // Error loading parent task
+    }
   }
 
   Future<void> _loadAvailableTags() async {
@@ -134,9 +155,19 @@ class _TaskFormState extends State<TaskForm> {
 
   @override
   Widget build(BuildContext context) {
+    // Determine the AppBar title
+    String title;
+    if (widget.task != null) {
+      title = 'Modifica Task';
+    } else if (_parentTask != null) {
+      title = 'Nuova sottotask di ${_parentTask!.title}';
+    } else {
+      title = 'Nuova Task';
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.task == null ? 'Nuova Task' : 'Modifica Task'),
+        title: Text(title),
         backgroundColor: Colors.purple[700],
         foregroundColor: Colors.white,
       ),
@@ -757,7 +788,7 @@ class _TaskFormState extends State<TaskForm> {
       initialDate: initialDate.isBefore(now) ? now : initialDate,
       firstDate: now,
       lastDate: DateTime(now.year + 5),
-      // locale: const Locale('it', 'IT'), // Removed - causing crashes if not configured
+      locale: const Locale('it', 'IT'),
     );
 
     if (pickedDate != null) {
