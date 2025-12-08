@@ -7,6 +7,7 @@ import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
 import 'package:solducci/utils/task_filter_sort.dart';
+import 'package:solducci/theme/todo_theme.dart';
 
 /// View showing tasks filtered by a specific tag
 class TagView extends StatefulWidget {
@@ -171,15 +172,15 @@ class _TagViewState extends State<TagView>
         if (_filterConfig.hasFilters)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.purple[50],
+            color: TodoTheme.lightPurple,
             child: Row(
               children: [
-                Icon(Icons.filter_list, size: 20, color: Colors.purple[700]),
+                const Icon(Icons.filter_list, size: 20, color: TodoTheme.primaryPurple),
                 const SizedBox(width: 8),
                 Text(
                   '${_filterConfig.activeFiltersCount} filtri attivi',
-                  style: TextStyle(
-                    color: Colors.purple[700],
+                  style: const TextStyle(
+                    color: TodoTheme.primaryPurple,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -212,7 +213,7 @@ class _TagViewState extends State<TagView>
                   label: const Text('Filtri e ordinamento'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _filterConfig.hasFilters
-                        ? Colors.purple[700]
+                        ? TodoTheme.primaryPurple
                         : null,
                   ),
                 ),

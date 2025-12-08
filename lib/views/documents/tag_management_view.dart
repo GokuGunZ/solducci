@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/widgets/documents/tag_form_dialog.dart';
+import 'package:solducci/widgets/common/todo_app_bar.dart';
+import 'package:solducci/theme/todo_theme.dart';
 
 /// View for managing tags (CRUD operations)
 class TagManagementView extends StatefulWidget {
@@ -97,15 +99,13 @@ class _TagManagementViewState extends State<TagManagementView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestione Tag'),
-        backgroundColor: Colors.purple[700],
-        foregroundColor: Colors.white,
+      appBar: const TodoAppBar(
+        title: 'Gestione Tag',
       ),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showTagFormDialog(null),
-        backgroundColor: Colors.purple[700],
+        backgroundColor: TodoTheme.primaryPurple,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

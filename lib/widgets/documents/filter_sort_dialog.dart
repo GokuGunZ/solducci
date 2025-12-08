@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/tag_service.dart';
+import 'package:solducci/theme/todo_theme.dart';
+import 'package:solducci/widgets/common/todo_app_bar.dart';
 
 /// Configuration for filtering and sorting tasks
 class FilterSortConfig {
@@ -121,36 +123,23 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      child: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  const Icon(Icons.filter_list, color: Colors.purple),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Filtri e Ordinamento',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const Divider(),
-
-              // Filters section
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+        child: Scaffold(
+          appBar: TodoAppBar(
+            title: 'Filtri e Ordinamento',
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              color: TodoTheme.primaryPurple,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Filters section
               const SizedBox(height: 16),
               _buildSectionTitle('Filtri', Icons.filter_alt),
               const SizedBox(height: 12),
@@ -232,7 +221,7 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
                     _showOverdueOnly = value ?? false;
                   });
                 },
-                activeColor: Colors.purple[700],
+                activeColor: TodoTheme.primaryPurple,
                 contentPadding: EdgeInsets.zero,
               ),
 
@@ -291,41 +280,46 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
               ),
 
               const SizedBox(height: 24),
-
-              // Actions
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: _resetFilters,
-                    child: const Text('Resetta'),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Annulla'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _applyFilters,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple[700],
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Applica'),
-                  ),
-                ],
+            ],
+          ),
+        ),
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            border: Border(
+              top: BorderSide(color: Colors.grey[300]!, width: 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              TextButton(
+                onPressed: _resetFilters,
+                child: const Text('Resetta'),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annulla'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _applyFilters,
+                style: TodoTheme.elevatedButtonStyle,
+                child: const Text('Applica'),
               ),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 
   Widget _buildSectionTitle(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.purple[700]),
+        Icon(icon, size: 20, color: TodoTheme.primaryPurple),
         const SizedBox(width: 8),
         Text(
           title,
@@ -421,7 +415,7 @@ class _FilterSortDialogState extends State<FilterSortDialog> {
     return ChoiceChip(
       selected: isSelected,
       label: Text(option.label),
-      selectedColor: Colors.purple[700],
+      selectedColor: TodoTheme.primaryPurple,
       labelStyle: TextStyle(
         color: isSelected ? Colors.white : Colors.black87,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

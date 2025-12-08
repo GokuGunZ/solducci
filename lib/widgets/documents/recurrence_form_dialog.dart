@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/recurrence.dart';
+import 'package:solducci/theme/todo_theme.dart';
 
 /// Dialog for creating or editing a recurrence rule
 /// Two-level configuration: Intra-day (times) + Inter-day (days)
@@ -392,9 +393,9 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
                       ),
                       selected: isSelected,
                       showCheckmark: false,
-                      selectedColor: Colors.purple[700],
+                      selectedColor: TodoTheme.primaryPurple,
                       elevation: isSelected ? 4 : 0,
-                      shadowColor: Colors.purple.withAlpha(100),
+                      shadowColor: TodoTheme.primaryPurple.withAlpha(100),
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

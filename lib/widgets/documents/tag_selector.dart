@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/tag_service.dart';
+import 'package:solducci/theme/todo_theme.dart';
 
 /// Modal bottom sheet for selecting multiple tags
 /// Shows all available tags with checkboxes and returns selected ones
@@ -142,10 +143,7 @@ class _TagSelectorState extends State<TagSelector> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: _confirmSelection,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple[700],
-                        foregroundColor: Colors.white,
-                      ),
+                      style: TodoTheme.elevatedButtonStyle,
                       child: const Text('Conferma'),
                     ),
                   ],
@@ -198,7 +196,7 @@ class _TagSelectorState extends State<TagSelector> {
               ),
             )
           : null,
-      activeColor: Colors.purple[700],
+      activeColor: TodoTheme.primaryPurple,
     );
   }
 
@@ -231,10 +229,7 @@ class _TagSelectorState extends State<TagSelector> {
             },
             icon: const Icon(Icons.add),
             label: const Text('Crea Tag'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple[700],
-              foregroundColor: Colors.white,
-            ),
+            style: TodoTheme.elevatedButtonStyle,
           ),
         ],
       ),

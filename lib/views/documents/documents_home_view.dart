@@ -58,9 +58,9 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
       }
     }
   }
@@ -130,7 +130,9 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 
           // Build main UI with CustomScrollView
           return _PageViewContent(
-            key: const ValueKey('page_view_content'), // Key stabile per evitare rebuild
+            key: const ValueKey(
+              'page_view_content',
+            ), // Key stabile per evitare rebuild
             pageController: _pageController,
             document: _currentDocument!,
             onPageChanged: (page, tags, refreshCallback) {
@@ -171,10 +173,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOut,
-          ),
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,
         );
       },
@@ -210,7 +209,8 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 class _PageViewContent extends StatefulWidget {
   final PageController pageController;
   final TodoDocument document;
-  final void Function(int page, List<Tag> tags, VoidCallback? refreshCallback) onPageChanged;
+  final void Function(int page, List<Tag> tags, VoidCallback? refreshCallback)
+  onPageChanged;
   final Future<void> Function() onCreateTag;
   final VoidCallback onNavigateToTagManagement;
 
@@ -231,7 +231,8 @@ class _PageViewContentState extends State<_PageViewContent> {
   final _tagService = TagService();
   List<Tag> _tags = [];
   bool _isLoadingTags = true;
-  int _currentPage = 1; // Start at "Tutte" page (matches PageController initialPage)
+  int _currentPage =
+      1; // Start at "Tutte" page (matches PageController initialPage)
 
   // Refresh key to force rebuild of pages
   int _refreshKey = 0;
@@ -375,18 +376,16 @@ class _PageViewContentState extends State<_PageViewContent> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                stops: const [0.0, 0.9, 1.0],
+                stops: const [0.0, 0.9, 0.95, 1.0],
                 colors: [
                   Colors.purple.withValues(alpha: 0.0),
                   Colors.purple.withValues(alpha: 0.1),
+                  Colors.purple.withValues(alpha: 0.20),
                   Colors.purple.withValues(alpha: 0.35),
                 ],
               ),
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.purple[700]!,
-                  width: 2,
-                ),
+                bottom: BorderSide(color: Colors.purple[700]!, width: 2),
               ),
             ),
             child: SafeArea(
@@ -395,12 +394,18 @@ class _PageViewContentState extends State<_PageViewContent> {
                 children: [
                   // Back button, title and tag management button
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         // Back button
                         IconButton(
-                          icon: Icon(Icons.arrow_back, color: Colors.purple[700]),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: Colors.purple[700],
+                          ),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                         const SizedBox(width: 8),
@@ -517,7 +522,9 @@ class _PageViewContentState extends State<_PageViewContent> {
               height: isActive ? 24 : 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isActive ? Colors.white.withValues(alpha: 0.3) : dotColor,
+                color: isActive
+                    ? Colors.white.withValues(alpha: 0.3)
+                    : dotColor,
               ),
               child: Icon(
                 icon ?? Icons.list,
@@ -566,11 +573,7 @@ class _PageViewContentState extends State<_PageViewContent> {
             ),
           ],
         ),
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-          size: 14,
-        ),
+        child: const Icon(Icons.add, color: Colors.white, size: 14),
       ),
     );
   }
@@ -587,10 +590,7 @@ class _PageViewContentState extends State<_PageViewContent> {
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOut,
-          ),
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,
         );
       },

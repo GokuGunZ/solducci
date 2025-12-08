@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/tag_service.dart';
+import 'package:solducci/theme/todo_theme.dart';
+import 'package:solducci/widgets/common/todo_app_bar.dart';
 
 /// Dialog for creating or editing a tag
 class TagFormDialog extends StatefulWidget {
@@ -91,7 +93,7 @@ class _TagFormDialogState extends State<TagFormDialog> {
       _useAdvancedStates = widget.tag!.useAdvancedStates;
     } else {
       // Default values for new tag
-      _selectedColor = Colors.purple;
+      _selectedColor = TodoTheme.primaryPurple;
       _selectedIcon = Icons.label;
     }
   }
@@ -202,230 +204,190 @@ class _TagFormDialogState extends State<TagFormDialog> {
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.purple[700],
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(4),
-                ),
-              ),
-              child: Row(
+        child: Scaffold(
+          appBar: TodoAppBar(
+            title: widget.tag == null ? 'Nuovo Tag' : 'Modifica Tag',
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              color: TodoTheme.primaryPurple,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    _selectedIcon ?? Icons.label,
-                    color: Colors.white,
-                    size: 28,
+                  // Name field
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.title),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Inserisci un nome';
+                      }
+                      return null;
+                    },
+                    textCapitalization: TextCapitalization.sentences,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.tag == null ? 'Nuovo Tag' : 'Modifica Tag',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+
+                  const SizedBox(height: 16),
+
+                  // Description field
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descrizione',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Color picker
+                  const Text(
+                    'Colore',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _availableColors.map((color) {
+                      final isSelected = _selectedColor?.toARGB32() == color.toARGB32();
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedColor = color),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: isSelected
+                                ? Border.all(color: Colors.black, width: 3)
+                                : null,
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check, color: Colors.white)
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Icon picker
+                  const Text(
+                    'Icona',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _availableIcons.map((icon) {
+                      final isSelected = _selectedIcon?.codePoint == icon.codePoint;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedIcon = icon),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? _selectedColor?.withValues(alpha: 0.2)
+                                : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                            border: isSelected
+                                ? Border.all(color: _selectedColor ?? TodoTheme.primaryPurple, width: 2)
+                                : null,
+                          ),
+                          child: Icon(
+                            icon,
+                            color: isSelected ? _selectedColor : Colors.grey[600],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Show completed toggle
+                  SwitchListTile(
+                    title: const Text('Mostra task completate'),
+                    subtitle: const Text(
+                      'Se attivo, la vista di questo tag mostrerà anche le task completate',
+                    ),
+                    value: _showCompleted,
+                    onChanged: (value) => setState(() => _showCompleted = value),
+                    activeColor: TodoTheme.primaryPurple,
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Use advanced states toggle
+                  SwitchListTile(
+                    title: const Text('Usa stati avanzati'),
+                    subtitle: const Text(
+                      'Abilita gli stati Assegnato e In Corso per le task di questo tag',
+                    ),
+                    value: _useAdvancedStates,
+                    onChanged: (value) => setState(() => _useAdvancedStates = value),
+                    activeColor: TodoTheme.primaryPurple,
                   ),
                 ],
               ),
             ),
-
-            // Form content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Name field
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nome *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.title),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Inserisci un nome';
-                          }
-                          return null;
-                        },
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Description field
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Descrizione',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.description),
-                        ),
-                        maxLines: 3,
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Color picker
-                      const Text(
-                        'Colore',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _availableColors.map((color) {
-                          final isSelected = _selectedColor?.toARGB32() == color.toARGB32();
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedColor = color),
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: isSelected
-                                    ? Border.all(color: Colors.black, width: 3)
-                                    : null,
-                              ),
-                              child: isSelected
-                                  ? const Icon(Icons.check, color: Colors.white)
-                                  : null,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Icon picker
-                      const Text(
-                        'Icona',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _availableIcons.map((icon) {
-                          final isSelected = _selectedIcon?.codePoint == icon.codePoint;
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedIcon = icon),
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? _selectedColor?.withValues(alpha: 0.2)
-                                    : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                                border: isSelected
-                                    ? Border.all(color: _selectedColor ?? Colors.purple, width: 2)
-                                    : null,
-                              ),
-                              child: Icon(
-                                icon,
-                                color: isSelected ? _selectedColor : Colors.grey[600],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Show completed toggle
-                      SwitchListTile(
-                        title: const Text('Mostra task completate'),
-                        subtitle: const Text(
-                          'Se attivo, la vista di questo tag mostrerà anche le task completate',
-                        ),
-                        value: _showCompleted,
-                        onChanged: (value) => setState(() => _showCompleted = value),
-                        activeColor: Colors.purple[700],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // Use advanced states toggle
-                      SwitchListTile(
-                        title: const Text('Usa stati avanzati'),
-                        subtitle: const Text(
-                          'Abilita gli stati Assegnato e In Corso per le task di questo tag',
-                        ),
-                        value: _useAdvancedStates,
-                        onChanged: (value) => setState(() => _useAdvancedStates = value),
-                        activeColor: Colors.purple[700],
-                      ),
-                    ],
-                  ),
-                ),
+          ),
+          bottomNavigationBar: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              border: Border(
+                top: BorderSide(color: Colors.grey[300]!, width: 1),
               ),
             ),
-
-            // Actions
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(4),
-                  bottomRight: Radius.circular(4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isLoading ? null : () => Navigator.pop(context),
+                  child: const Text('Annulla'),
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _isLoading ? null : () => Navigator.pop(context),
-                    child: const Text('Annulla'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _saveTag,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple[700],
-                      foregroundColor: Colors.white,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(widget.tag == null ? 'Crea' : 'Salva'),
-                  ),
-                ],
-              ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _saveTag,
+                  style: TodoTheme.elevatedButtonStyle,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(widget.tag == null ? 'Crea' : 'Salva'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

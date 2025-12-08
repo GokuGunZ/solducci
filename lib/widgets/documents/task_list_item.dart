@@ -5,6 +5,7 @@ import 'package:solducci/models/document.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
+import 'package:solducci/theme/todo_theme.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
 class TaskListItem extends StatefulWidget {
@@ -32,6 +33,7 @@ class _TaskListItemState extends State<TaskListItem> {
   final _taskService = TaskService();
   bool _isRecurring = false;
   List<Tag> _tags = [];
+  bool _isTogglingComplete = false; // Track if toggle is in progress
 
   @override
   void initState() {
@@ -86,8 +88,8 @@ class _TaskListItemState extends State<TaskListItem> {
           children: [
             ListTile(
               leading: Checkbox(
-                value: widget.task.isCompleted,
-                onChanged: (_) => _toggleComplete(),
+                value: _isTogglingComplete ? !widget.task.isCompleted : widget.task.isCompleted,
+                onChanged: _isTogglingComplete ? null : (_) => _toggleComplete(),
                 activeColor: Colors.green,
               ),
               title: Text(
@@ -299,7 +301,7 @@ class _TaskListItemState extends State<TaskListItem> {
             '$completedCount/$totalCount',
             style: const TextStyle(fontSize: 10),
           ),
-          backgroundColor: Colors.purple.withAlpha(50),
+          backgroundColor: TodoTheme.primaryPurple.withAlpha(50),
           padding: EdgeInsets.zero,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           onPressed: () {
@@ -407,32 +409,51 @@ class _TaskListItemState extends State<TaskListItem> {
   }
 
   Future<void> _toggleComplete() async {
+    if (_isTogglingComplete) return; // Prevent double-tap
+
+    final wasCompleted = widget.task.isCompleted;
+
+    // Set toggling state for immediate visual feedback
+    setState(() {
+      _isTogglingComplete = true;
+    });
+
+    // Show immediate feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasCompleted ? 'Task ripristinata' : 'Task completata',
+          ),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+
+    // Update database
     try {
-      if (widget.task.isCompleted) {
+      if (wasCompleted) {
         await _taskService.uncompleteTask(widget.task.id);
       } else {
         await _taskService.completeTask(widget.task.id);
       }
 
-      widget.onTaskChanged?.call(); // Trigger refresh
-
+      // Trigger refresh to update all views (this will reload from DB)
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.task.isCompleted
-                  ? 'Task ripristinata'
-                  : 'Task completata',
-            ),
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        widget.onTaskChanged?.call();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore: $e')),
         );
+      }
+    } finally {
+      // Reset toggling state
+      if (mounted) {
+        setState(() {
+          _isTogglingComplete = false;
+        });
       }
     }
   }

@@ -9,6 +9,8 @@ import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/widgets/documents/tag_form_dialog.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
+import 'package:solducci/widgets/common/todo_app_bar.dart';
+import 'package:solducci/theme/todo_theme.dart';
 
 /// Form for creating or editing a task
 /// Handles all task fields: title, description, tags, priority, due date, size
@@ -166,10 +168,8 @@ class _TaskFormState extends State<TaskForm> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: Colors.purple[700],
-        foregroundColor: Colors.white,
+      appBar: TodoAppBar(
+        title: title,
       ),
       body: Form(
         key: _formKey,
@@ -272,7 +272,7 @@ class _TaskFormState extends State<TaskForm> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _isLoading ? null : _saveTask,
-        backgroundColor: _isLoading ? Colors.grey : Colors.purple[700],
+        backgroundColor: _isLoading ? Colors.grey : TodoTheme.primaryPurple,
         child: _isLoading
             ? const SizedBox(
                 width: 24,
@@ -297,7 +297,7 @@ class _TaskFormState extends State<TaskForm> {
           children: [
             Row(
               children: [
-                const Icon(Icons.label, color: Colors.purple),
+                const Icon(Icons.label, color: TodoTheme.primaryPurple),
                 const SizedBox(width: 8),
                 const Text(
                   'Tag',
@@ -312,7 +312,7 @@ class _TaskFormState extends State<TaskForm> {
                   icon: const Icon(Icons.add),
                   label: const Text('Crea Nuovo'),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.purple[700],
+                    foregroundColor: TodoTheme.primaryPurple,
                   ),
                 ),
               ],
@@ -351,7 +351,7 @@ class _TaskFormState extends State<TaskForm> {
 
   Widget _buildTagChip(Tag tag) {
     final isSelected = _selectedTags.any((t) => t.id == tag.id);
-    final color = tag.colorObject ?? Colors.purple;
+    final color = tag.colorObject ?? TodoTheme.primaryPurple;
 
     return FilterChip(
       selected: isSelected,
