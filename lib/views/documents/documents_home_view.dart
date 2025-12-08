@@ -68,28 +68,6 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ToDo Lists'),
-        backgroundColor: Colors.purple[700],
-        foregroundColor: Colors.white,
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.label, color: Colors.white),
-            label: const Text(
-              'Tag',
-              style: TextStyle(color: Colors.white),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TagManagementView(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
       body: StreamBuilder<List<TodoDocument>>(
         stream: _documentService.getTodoDocumentsStream(),
         builder: (context, docSnapshot) {
@@ -150,7 +128,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
             _currentDocument = documents.first;
           }
 
-          // Build main UI with PageView
+          // Build main UI with CustomScrollView
           return _PageViewContent(
             key: const ValueKey('page_view_content'), // Key stabile per evitare rebuild
             pageController: _pageController,
@@ -162,6 +140,14 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
               _onTaskCreated = refreshCallback;
             },
             onCreateTag: _showCreateTagDialog,
+            onNavigateToTagManagement: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TagManagementView(),
+                ),
+              );
+            },
           );
         },
       ),
@@ -226,6 +212,7 @@ class _PageViewContent extends StatefulWidget {
   final TodoDocument document;
   final void Function(int page, List<Tag> tags, VoidCallback? refreshCallback) onPageChanged;
   final Future<void> Function() onCreateTag;
+  final VoidCallback onNavigateToTagManagement;
 
   const _PageViewContent({
     super.key,
@@ -233,6 +220,7 @@ class _PageViewContent extends StatefulWidget {
     required this.document,
     required this.onPageChanged,
     required this.onCreateTag,
+    required this.onNavigateToTagManagement,
   });
 
   @override
@@ -325,13 +313,11 @@ class _PageViewContentState extends State<_PageViewContent> {
 
     final totalPages = 2 + _tags.length; // All Tasks + Tags + Completed
 
-    return Column(
+    return Stack(
       children: [
-        // Page indicator
-        _buildPageIndicator(totalPages, _tags),
-
-        // PageView with swipe - using builder for lazy loading
-        Expanded(
+        // PageView with top padding for the AppBar
+        Positioned.fill(
+          top: 160, // Initial expanded height of AppBar
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               // Detect overscroll at the end (after last tag)
@@ -375,6 +361,74 @@ class _PageViewContentState extends State<_PageViewContent> {
                   tag: tag,
                 );
               },
+            ),
+          ),
+        ),
+
+        // AppBar overlay with gradient
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0.0, 0.9, 1.0],
+                colors: [
+                  Colors.purple.withValues(alpha: 0.0),
+                  Colors.purple.withValues(alpha: 0.1),
+                  Colors.purple.withValues(alpha: 0.35),
+                ],
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.purple[700]!,
+                  width: 2,
+                ),
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Back button, title and tag management button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        // Back button
+                        IconButton(
+                          icon: Icon(Icons.arrow_back, color: Colors.purple[700]),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'ToDo Lists',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple[700],
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          icon: Icon(Icons.label, color: Colors.purple[700]),
+                          label: Text(
+                            'Tag',
+                            style: TextStyle(color: Colors.purple[700]),
+                          ),
+                          onPressed: widget.onNavigateToTagManagement,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Page indicators
+                  _buildPageIndicator(totalPages, _tags),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
           ),
         ),
