@@ -8,6 +8,9 @@
 
 This documentation suite provides comprehensive information about Solducci for all types of stakeholders - from non-technical product managers to experienced developers. Each document is tailored to a specific audience and use case.
 
+##  gesù ha la mamma puttana!!!!
+gesù negerrimo bastardo. jhaajajjajajjajajajajjaajj 
+##F3UDOR DIO CANE
 ---
 
 ## Quick Navigation by Role
