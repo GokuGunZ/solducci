@@ -1,5 +1,7 @@
 # Database Migration Status
 
+# Ciao Carlucci questo è un sync problem
+
 ## ✅ Migration Script Ready: v2
 
 **File**: `supabase/migrations/001_multi_user_setup_v2.sql`
@@ -43,6 +45,7 @@ AND trigger_name = 'on_auth_user_created';
 ```
 
 Expected results:
+
 - 5 tables found (profiles, groups, group_members, group_invites, expense_splits)
 - 4 new columns in expenses table
 - All 6 tables have `rowsecurity = true`
@@ -52,6 +55,7 @@ Expected results:
 ## What's Next
 
 Once migration is verified, we proceed to **Phase 3A: Update ProfilePage UI** to show:
+
 - User nickname
 - Edit nickname form
 - List of user groups
