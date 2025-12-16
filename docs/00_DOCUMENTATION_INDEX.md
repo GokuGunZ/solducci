@@ -6,7 +6,10 @@
 
 ## Welcome!
 
-This documentation suite provides comprehensive information about Solducci for all types of stakeholders - from non-technical product managers to experienced developers. Each document is tailored to a specific audience and use case.
+This documentation suite provides comprehensive information about Solducci for all types of stakeholders - from non-technical product managers to experienced developers. Each document is tailored to a specific audience and use case. 
+
+## ciao amici carlucci è qui 
+blablabla, pusho! 
 
 ---
 
