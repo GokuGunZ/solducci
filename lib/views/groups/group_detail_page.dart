@@ -8,10 +8,7 @@ import 'package:solducci/service/context_manager.dart';
 class GroupDetailPage extends StatefulWidget {
   final String groupId;
 
-  const GroupDetailPage({
-    super.key,
-    required this.groupId,
-  });
+  const GroupDetailPage({super.key, required this.groupId});
 
   @override
   State<GroupDetailPage> createState() => _GroupDetailPageState();
@@ -56,17 +53,17 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         });
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Gruppo non trovato')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Gruppo non trovato')));
           context.pop();
         }
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         setState(() => _isLoading = false);
       }
     }
@@ -89,10 +86,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Lascia',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Lascia', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -122,9 +116,9 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
       }
     }
@@ -150,10 +144,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Elimina',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Elimina', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -183,9 +174,9 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
       }
     }
@@ -257,10 +248,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                       const SizedBox(height: 8),
                       Text(
                         _group!.description!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -275,44 +263,46 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
             _buildSectionTitle('Membri (${_members.length})'),
             const SizedBox(height: 8),
 
-            ..._members.map((member) => Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.purple[200],
-                      child: Text(
-                        (member.nickname ?? 'U')[0].toUpperCase(),
-                        style: TextStyle(
-                          color: Colors.purple[700],
-                          fontWeight: FontWeight.bold,
-                        ),
+            ..._members.map(
+              (member) => Card(
+                elevation: 2,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.purple[200],
+                    child: Text(
+                      (member.nickname ?? 'U')[0].toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.purple[700],
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    title: Text(member.nickname ?? 'Unknown'),
-                    subtitle: Text(member.email ?? ''),
-                    trailing: member.role == GroupRole.admin
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange[100],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Admin',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange[900],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          )
-                        : null,
                   ),
-                )),
+                  title: Text(member.nickname ?? 'Unknown'),
+                  subtitle: Text(member.email ?? ''),
+                  trailing: member.role == GroupRole.admin
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Admin',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange[900],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ),
 
             const SizedBox(height: 16),
 

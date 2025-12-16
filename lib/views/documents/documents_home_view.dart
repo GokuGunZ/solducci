@@ -431,7 +431,7 @@ class _PageViewContentState extends State<_PageViewContent> {
                   ),
                   // Page indicators
                   _buildPageIndicator(totalPages, _tags),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                 ],
               ),
             ),
@@ -458,32 +458,35 @@ class _PageViewContentState extends State<_PageViewContent> {
   }
 
   Widget _buildPageIndicator(int totalPages, List<Tag> tags) {
-    return SizedBox(
-      height: 56, // Fixed height to prevent vertical oscillation
-      child: Center(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Completed indicator (page 0)
-              _buildDot(0, 'Completate', Icons.check_circle, null),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SizedBox(
+        height: 56, // Fixed height to prevent vertical oscillation
+        child: Center(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Completed indicator (page 0)
+                _buildDot(0, 'Completate', Icons.check_circle, null),
 
-              // All Tasks indicator (page 1)
-              _buildDot(1, 'Tutte', null, null),
+                // All Tasks indicator (page 1)
+                _buildDot(1, 'Tutte', null, null),
 
-              // Tag indicators (pages 2 to N+1)
-              for (int i = 0; i < tags.length; i++)
-                _buildDot(
-                  i + 2,
-                  tags[i].name,
-                  tags[i].iconData,
-                  tags[i].colorObject,
-                ),
+                // Tag indicators (pages 2 to N+1)
+                for (int i = 0; i < tags.length; i++)
+                  _buildDot(
+                    i + 2,
+                    tags[i].name,
+                    tags[i].iconData,
+                    tags[i].colorObject,
+                  ),
 
-              // Add tag button (smaller, after tags)
-              _buildAddTagButton(),
-            ],
+                // Add tag button (smaller, after tags)
+                _buildAddTagButton(),
+              ],
+            ),
           ),
         ),
       ),

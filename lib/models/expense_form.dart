@@ -151,7 +151,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
     super.initState();
 
     // Initialize group fields from existing expense if in edit mode
-    if (widget.expenseForm.isEditMode && widget.expenseForm._initialExpense != null) {
+    if (widget.expenseForm.isEditMode &&
+        widget.expenseForm._initialExpense != null) {
       final expense = widget.expenseForm._initialExpense!;
       _paidBy = expense.paidBy;
       _splitType = expense.splitType ?? SplitType.equal;
@@ -181,7 +182,7 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
           }
         });
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (mounted) {
         setState(() => _loadingMembers = false);
 
@@ -277,7 +278,9 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
               const SizedBox(height: 16),
               CustomSplitEditor(
                 members: _groupMembers,
-                totalAmount: widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0,
+                totalAmount:
+                    widget.expenseForm.moneyField.getFieldValue() as double? ??
+                    0.0,
                 initialSplits: _customSplits,
                 onSplitsChanged: (splits) {
                   setState(() => _customSplits = splits);
@@ -297,13 +300,21 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                 if (widget.isGroupContext &&
                     _splitType == SplitType.custom &&
                     _customSplits != null) {
-                  final totalAmount = widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
-                  final splitsTotal = _customSplits!.values.fold(0.0, (sum, amount) => sum + amount);
+                  final totalAmount =
+                      widget.expenseForm.moneyField.getFieldValue()
+                          as double? ??
+                      0.0;
+                  final splitsTotal = _customSplits!.values.fold(
+                    0.0,
+                    (sum, amount) => sum + amount,
+                  );
 
                   if ((splitsTotal - totalAmount).abs() > 0.01) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Gli importi custom devono sommare a ${totalAmount.toStringAsFixed(2)}€'),
+                        content: Text(
+                          'Gli importi custom devono sommare a ${totalAmount.toStringAsFixed(2)}€',
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -317,42 +328,80 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                   // Get current user ID from Supabase
                   final userId = Supabase.instance.client.auth.currentUser?.id;
 
-                  if (widget.expenseForm.isEditMode && widget.expenseForm._initialExpense != null) {
+                  if (widget.expenseForm.isEditMode &&
+                      widget.expenseForm._initialExpense != null) {
                     // Update existing expense
                     final updatedExpense = Expense(
                       id: widget.expenseForm._initialExpense!.id,
-                      description: widget.expenseForm.descriptionField.getFieldValue() as String,
-                      amount: widget.expenseForm.moneyField.getFieldValue() as double,
+                      description:
+                          widget.expenseForm.descriptionField.getFieldValue()
+                              as String,
+                      amount:
+                          widget.expenseForm.moneyField.getFieldValue()
+                              as double,
                       // MoneyFlow: always use default (legacy field, no longer used)
                       moneyFlow: MoneyFlow.carlucci,
-                      date: widget.expenseForm.dateField.getFieldValue() as DateTime,
-                      type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
+                      date:
+                          widget.expenseForm.dateField.getFieldValue()
+                              as DateTime,
+                      type:
+                          widget.expenseForm.typeField.getFieldValue()
+                              as Tipologia,
                       userId: widget.expenseForm._initialExpense!.userId,
                       // FIX: Use current form values for group fields to allow updates
                       groupId: widget.expenseForm._initialExpense!.groupId,
-                      paidBy: widget.isGroupContext ? _paidBy : widget.expenseForm._initialExpense!.paidBy,
-                      splitType: widget.isGroupContext ? _splitType : widget.expenseForm._initialExpense!.splitType,
-                      splitData: widget.isGroupContext && _splitType == SplitType.custom ? _customSplits : (widget.isGroupContext ? null : widget.expenseForm._initialExpense!.splitData),
+                      paidBy: widget.isGroupContext
+                          ? _paidBy
+                          : widget.expenseForm._initialExpense!.paidBy,
+                      splitType: widget.isGroupContext
+                          ? _splitType
+                          : widget.expenseForm._initialExpense!.splitType,
+                      splitData:
+                          widget.isGroupContext &&
+                              _splitType == SplitType.custom
+                          ? _customSplits
+                          : (widget.isGroupContext
+                                ? null
+                                : widget
+                                      .expenseForm
+                                      ._initialExpense!
+                                      .splitData),
                     );
-                    await widget.expenseForm._expenseService.updateExpense(updatedExpense);
+                    await widget.expenseForm._expenseService.updateExpense(
+                      updatedExpense,
+                    );
                   } else {
                     // Create new expense
                     final newExpense = Expense(
                       id: -1,
-                      description: widget.expenseForm.descriptionField.getFieldValue() as String,
-                      amount: widget.expenseForm.moneyField.getFieldValue() as double,
+                      description:
+                          widget.expenseForm.descriptionField.getFieldValue()
+                              as String,
+                      amount:
+                          widget.expenseForm.moneyField.getFieldValue()
+                              as double,
                       // MoneyFlow: always use default (legacy field, no longer used)
                       moneyFlow: MoneyFlow.carlucci,
-                      date: widget.expenseForm.dateField.getFieldValue() as DateTime,
-                      type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
+                      date:
+                          widget.expenseForm.dateField.getFieldValue()
+                              as DateTime,
+                      type:
+                          widget.expenseForm.typeField.getFieldValue()
+                              as Tipologia,
                       userId: userId,
                       // NEW: Add group fields if in group context
                       groupId: widget.isGroupContext ? widget.groupId : null,
                       paidBy: widget.isGroupContext ? _paidBy : null,
                       splitType: widget.isGroupContext ? _splitType : null,
-                      splitData: widget.isGroupContext && _splitType == SplitType.custom ? _customSplits : null,
+                      splitData:
+                          widget.isGroupContext &&
+                              _splitType == SplitType.custom
+                          ? _customSplits
+                          : null,
                     );
-                    await widget.expenseForm._expenseService.createExpense(newExpense);
+                    await widget.expenseForm._expenseService.createExpense(
+                      newExpense,
+                    );
                   }
 
                   widget.formKey.currentState!.reset();
@@ -365,8 +414,13 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
               },
               icon: const Icon(Icons.check),
               label: Text(
-                widget.expenseForm.isEditMode ? 'Salva Modifiche' : 'Aggiungi Spesa',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                widget.expenseForm.isEditMode
+                    ? 'Salva Modifiche'
+                    : 'Aggiungi Spesa',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -417,7 +471,10 @@ class _FieldWidgetState extends State<FieldWidget> {
     super.initState();
     // Initialize controller only for double type
     if (widget.expenseField.getFieldType() == double) {
-      _formatter = CurrencyTextInputFormatter.currency(locale: 'it', symbol: '€');
+      _formatter = CurrencyTextInputFormatter.currency(
+        locale: 'it',
+        symbol: '€',
+      );
       final initialAmount = widget.expenseField.getFieldValue() as double?;
       _amountController = TextEditingController(
         text: _formatter!.formatDouble(initialAmount ?? 0),

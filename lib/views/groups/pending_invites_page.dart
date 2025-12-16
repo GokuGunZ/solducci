@@ -35,11 +35,11 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
         _invites = invites;
         _isLoading = false;
       });
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         setState(() => _isLoading = false);
       }
     }
@@ -60,7 +60,9 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Hai accettato l\'invito al gruppo "${invite.groupName}"'),
+            content: Text(
+              'Hai accettato l\'invito al gruppo "${invite.groupName}"',
+            ),
             backgroundColor: Colors.green,
             action: SnackBarAction(
               label: 'Visualizza',
@@ -75,10 +77,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Errore: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -99,10 +98,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Rifiuta',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Rifiuta', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -128,10 +124,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Errore: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -157,25 +150,22 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inviti Pendenti'),
-        elevation: 2,
-      ),
+      appBar: AppBar(title: const Text('Inviti Pendenti'), elevation: 2),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _invites.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadInvites,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _invites.length,
-                    itemBuilder: (context, index) {
-                      final invite = _invites[index];
-                      return _buildInviteCard(invite);
-                    },
-                  ),
-                ),
+          ? _buildEmptyState()
+          : RefreshIndicator(
+              onRefresh: _loadInvites,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _invites.length,
+                itemBuilder: (context, index) {
+                  final invite = _invites[index];
+                  return _buildInviteCard(invite);
+                },
+              ),
+            ),
     );
   }
 
@@ -184,11 +174,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.mail_outline,
-            size: 100,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.mail_outline, size: 100, color: Colors.grey[400]),
           const SizedBox(height: 24),
           Text(
             'Nessun invito pendente',
@@ -202,10 +188,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
           Text(
             'Quando riceverai inviti a gruppi,\napparirranno qui',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -230,11 +213,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
                 CircleAvatar(
                   radius: 25,
                   backgroundColor: Colors.blue[200],
-                  child: Icon(
-                    Icons.group,
-                    color: Colors.blue[700],
-                    size: 30,
-                  ),
+                  child: Icon(Icons.group, color: Colors.blue[700], size: 30),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -251,11 +230,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(
-                            Icons.person,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
+                          Icon(Icons.person, size: 16, color: Colors.grey[600]),
                           const SizedBox(width: 4),
                           Text(
                             'Da: ${invite.inviterNickname ?? "Sconosciuto"}',
