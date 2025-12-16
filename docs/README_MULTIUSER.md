@@ -9,6 +9,9 @@ Solducci è stato trasformato da un'app single-user a un sistema multi-user che 
 - Invitare altri utenti via email
 - Switchare facilmente tra contesto personale e gruppi
 
+
+ciao pitucciii <3
+
 ## 🏗️ Architettura
 
 ### Context-Based Architecture
