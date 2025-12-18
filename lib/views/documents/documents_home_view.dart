@@ -314,11 +314,77 @@ class _PageViewContentState extends State<_PageViewContent> {
 
     final totalPages = 2 + _tags.length; // All Tasks + Tags + Completed
 
-    return Stack(
+    return Column(
       children: [
-        // PageView with top padding for the AppBar
-        Positioned.fill(
-          top: 160, // Initial expanded height of AppBar
+        // AppBar at the top
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: const [0.0, 0.9, 0.95, 1.0],
+              colors: [
+                Colors.purple.withValues(alpha: 0.0),
+                Colors.purple.withValues(alpha: 0.1),
+                Colors.purple.withValues(alpha: 0.20),
+                Colors.purple.withValues(alpha: 0.35),
+              ],
+            ),
+            border: Border(
+              bottom: BorderSide(color: Colors.purple[700]!, width: 2),
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Back button, title and tag management button
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      // Back button
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_back,
+                          color: Colors.purple[700],
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ToDo Lists',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple[700],
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        icon: Icon(Icons.label, color: Colors.purple[700]),
+                        label: Text(
+                          'Tag',
+                          style: TextStyle(color: Colors.purple[700]),
+                        ),
+                        onPressed: widget.onNavigateToTagManagement,
+                      ),
+                    ],
+                  ),
+                ),
+                // Page indicators
+                _buildPageIndicator(totalPages, _tags),
+                const SizedBox(height: 6),
+              ],
+            ),
+          ),
+        ),
+
+        // PageView below the AppBar
+        Expanded(
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               // Detect overscroll at the end (after last tag)
@@ -362,78 +428,6 @@ class _PageViewContentState extends State<_PageViewContent> {
                   tag: tag,
                 );
               },
-            ),
-          ),
-        ),
-
-        // AppBar overlay with gradient
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.0, 0.9, 0.95, 1.0],
-                colors: [
-                  Colors.purple.withValues(alpha: 0.0),
-                  Colors.purple.withValues(alpha: 0.1),
-                  Colors.purple.withValues(alpha: 0.20),
-                  Colors.purple.withValues(alpha: 0.35),
-                ],
-              ),
-              border: Border(
-                bottom: BorderSide(color: Colors.purple[700]!, width: 2),
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Back button, title and tag management button
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        // Back button
-                        IconButton(
-                          icon: Icon(
-                            Icons.arrow_back,
-                            color: Colors.purple[700],
-                          ),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'ToDo Lists',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple[700],
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          icon: Icon(Icons.label, color: Colors.purple[700]),
-                          label: Text(
-                            'Tag',
-                            style: TextStyle(color: Colors.purple[700]),
-                          ),
-                          onPressed: widget.onNavigateToTagManagement,
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Page indicators
-                  _buildPageIndicator(totalPages, _tags),
-                  const SizedBox(height: 6),
-                ],
-              ),
             ),
           ),
         ),

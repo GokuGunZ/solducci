@@ -12,7 +12,8 @@ class TaskListItem extends StatefulWidget {
   final Task task;
   final TodoDocument? document; // Optional: needed for creating subtasks
   final VoidCallback? onTap;
-  final VoidCallback? onTaskChanged; // Callback when task is modified/deleted/duplicated
+  final VoidCallback?
+  onTaskChanged; // Callback when task is modified/deleted/duplicated
   final int depth; // For indentation of subtasks
 
   const TaskListItem({
@@ -43,7 +44,9 @@ class _TaskListItemState extends State<TaskListItem> {
   }
 
   Future<void> _checkRecurrence() async {
-    final recurrence = await _taskService.getEffectiveRecurrence(widget.task.id);
+    final recurrence = await _taskService.getEffectiveRecurrence(
+      widget.task.id,
+    );
     if (mounted && recurrence != null && recurrence.isActive) {
       setState(() {
         _isRecurring = true;
@@ -86,37 +89,74 @@ class _TaskListItemState extends State<TaskListItem> {
         elevation: 2,
         child: Column(
           children: [
-            ListTile(
-              leading: Checkbox(
-                value: _isTogglingComplete ? !widget.task.isCompleted : widget.task.isCompleted,
-                onChanged: _isTogglingComplete ? null : (_) => _toggleComplete(),
-                activeColor: Colors.green,
-              ),
-              title: Text(
-                widget.task.title,
-                style: widget.task.isCompleted
-                    ? const TextStyle(
-                        decoration: TextDecoration.lineThrough,
-                        color: Colors.grey,
-                      )
-                    : null,
-              ),
-              subtitle: _buildSubtitle(),
-              trailing: _buildTrailingActions(),
+            InkWell(
               onTap: widget.onTap,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top row: Checkbox, Title, and Subtask chip
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Checkbox
+                        Checkbox(
+                          value: _isTogglingComplete
+                              ? !widget.task.isCompleted
+                              : widget.task.isCompleted,
+                          onChanged: _isTogglingComplete
+                              ? null
+                              : (_) => _toggleComplete(),
+                          activeColor: Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        // Title
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12.0),
+                            child: Text(
+                              widget.task.title,
+                              style: widget.task.isCompleted
+                                  ? const TextStyle(
+                                      decoration: TextDecoration.lineThrough,
+                                      color: Colors.grey,
+                                      fontSize: 16,
+                                    )
+                                  : const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Trailing actions (subtask chip or add button)
+                        if (_buildTrailingActions() != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: _buildTrailingActions()!,
+                          ),
+                      ],
+                    ),
+                    // Bottom section: Description, chips, and tags
+                    if (_buildSubtitle() != null) _buildSubtitle()!,
+                  ],
+                ),
+              ),
             ),
 
             // Subtasks (expandable)
             if (_isExpanded && widget.task.hasSubtasks)
               Column(
                 children: widget.task.subtasks!
-                    .map((subtask) => TaskListItem(
-                          task: subtask,
-                          document: widget.document,
-                          depth: widget.depth + 1,
-                          onTap: widget.onTap,
-                          onTaskChanged: widget.onTaskChanged, // Propagate callback
-                        ))
+                    .map(
+                      (subtask) => TaskListItem(
+                        task: subtask,
+                        document: widget.document,
+                        depth: widget.depth + 1,
+                        onTap: widget.onTap,
+                        onTaskChanged:
+                            widget.onTaskChanged, // Propagate callback
+                      ),
+                    )
                     .toList(),
               ),
           ],
@@ -127,35 +167,82 @@ class _TaskListItemState extends State<TaskListItem> {
 
   Widget? _buildTrailingActions() {
     if (!widget.task.hasSubtasks) {
-      // No subtasks: show only "add subtask" button
+      // No subtasks: show only "add subtask" icon button
       return IconButton(
         icon: const Icon(Icons.add_circle_outline, size: 20),
         onPressed: _showAddSubtaskDialog,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
         tooltip: 'Aggiungi sub-task',
       );
     }
 
-    // Has subtasks: show expand/collapse and "add subtask" buttons
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.add_circle_outline, size: 20),
-          onPressed: _showAddSubtaskDialog,
-          tooltip: 'Aggiungi sub-task',
+    // Has subtasks: show interactive chip with counter and actions
+    return _buildSubtaskChip();
+  }
+
+  Widget _buildSubtaskChip() {
+    final completedCount = widget.task.subtasks!
+        .where((t) => t.status == TaskStatus.completed)
+        .length;
+    final totalCount = widget.task.subtasks!.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: TodoTheme.primaryPurple.withAlpha(30),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: TodoTheme.primaryPurple.withAlpha(100),
+          width: 1.5,
         ),
-        IconButton(
-          icon: Icon(
-            _isExpanded ? Icons.expand_less : Icons.expand_more,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Counter (tappable to expand/collapse)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                '$completedCount/$totalCount',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: TodoTheme.primaryPurple,
+                ),
+              ),
+            ),
           ),
-          onPressed: () {
-            setState(() {
-              _isExpanded = !_isExpanded;
-            });
-          },
-          tooltip: _isExpanded ? 'Comprimi' : 'Espandi',
-        ),
-      ],
+          const SizedBox(width: 6),
+          // Divider
+          Container(
+            width: 1.5,
+            height: 20,
+            color: TodoTheme.primaryPurple.withAlpha(80),
+          ),
+          const SizedBox(width: 6),
+          // Add subtask button
+          InkWell(
+            onTap: _showAddSubtaskDialog,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Icon(
+                Icons.add_circle_outline,
+                size: 20,
+                color: TodoTheme.primaryPurple,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -172,16 +259,15 @@ class _TaskListItemState extends State<TaskListItem> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TaskForm(
-          document: widget.document!,
-          parentTaskId: widget.task.id,
-        ),
+        builder: (context) =>
+            TaskForm(document: widget.document!, parentTaskId: widget.task.id),
       ),
     );
   }
 
   Widget? _buildSubtitle() {
-    final hasDescription = widget.task.description != null && widget.task.description!.isNotEmpty;
+    final hasDescription =
+        widget.task.description != null && widget.task.description!.isNotEmpty;
     final chips = <Widget>[];
 
     // Status indicator (only for assigned/inProgress)
@@ -196,15 +282,8 @@ class _TaskListItemState extends State<TaskListItem> {
 
       chips.add(
         Chip(
-          avatar: Icon(
-            Icons.flag,
-            size: 14,
-            color: statusColor,
-          ),
-          label: Text(
-            statusLabel,
-            style: const TextStyle(fontSize: 10),
-          ),
+          avatar: Icon(Icons.flag, size: 14, color: statusColor),
+          label: Text(statusLabel, style: const TextStyle(fontSize: 10)),
           backgroundColor: statusColor.withAlpha(50),
           padding: EdgeInsets.zero,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -216,15 +295,8 @@ class _TaskListItemState extends State<TaskListItem> {
     if (_isRecurring) {
       chips.add(
         Chip(
-          avatar: const Icon(
-            Icons.repeat,
-            size: 14,
-            color: Colors.orange,
-          ),
-          label: const Text(
-            'Ricorrente',
-            style: TextStyle(fontSize: 10),
-          ),
+          avatar: const Icon(Icons.repeat, size: 14, color: Colors.orange),
+          label: const Text('Ricorrente', style: TextStyle(fontSize: 10)),
           backgroundColor: Colors.orange.withAlpha(50),
           padding: EdgeInsets.zero,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -264,8 +336,9 @@ class _TaskListItemState extends State<TaskListItem> {
               color: isOverdue ? Colors.red : null,
             ),
           ),
-          backgroundColor:
-              isOverdue ? Colors.red.withAlpha(50) : Colors.blue.withAlpha(50),
+          backgroundColor: isOverdue
+              ? Colors.red.withAlpha(50)
+              : Colors.blue.withAlpha(50),
           padding: EdgeInsets.zero,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
@@ -287,37 +360,13 @@ class _TaskListItemState extends State<TaskListItem> {
       );
     }
 
-    // Subtasks count (tappable to expand/collapse)
-    if (widget.task.hasSubtasks) {
-      final completedCount = widget.task.subtasks!
-          .where((t) => t.status == TaskStatus.completed)
-          .length;
-      final totalCount = widget.task.subtasks!.length;
-
-      chips.add(
-        ActionChip(
-          avatar: const Icon(Icons.list, size: 14),
-          label: Text(
-            '$completedCount/$totalCount',
-            style: const TextStyle(fontSize: 10),
-          ),
-          backgroundColor: TodoTheme.primaryPurple.withAlpha(50),
-          padding: EdgeInsets.zero,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          onPressed: () {
-            setState(() {
-              _isExpanded = !_isExpanded;
-            });
-          },
-        ),
-      );
-    }
+    // Note: Subtasks count is now shown in the trailing chip, not here
 
     // Return null if no description, no chips, and no tags
     if (!hasDescription && chips.isEmpty && _tags.isEmpty) return null;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0),
+      padding: const EdgeInsets.only(top: 8.0, left: 48.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -325,64 +374,61 @@ class _TaskListItemState extends State<TaskListItem> {
           if (hasDescription) ...[
             Text(
               widget.task.description!,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[700],
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             if (chips.isNotEmpty || _tags.isNotEmpty) const SizedBox(height: 8),
           ],
 
-          // Row with chips and tag indicators
+          // Row with chips on left and tag indicators on right
           if (chips.isNotEmpty || _tags.isNotEmpty)
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Chips (indicators)
+                // Chips (indicators) on the left
                 if (chips.isNotEmpty)
                   Expanded(
-                    child: Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: chips,
-                    ),
+                    child: Wrap(spacing: 4, runSpacing: 4, children: chips),
                   ),
 
-                // Tag indicators (colored circles with icons)
-                if (_tags.isNotEmpty) ...[
-                  if (chips.isNotEmpty) const SizedBox(width: 8),
+                // Spacer to push tags to the right
+                if (chips.isNotEmpty && _tags.isNotEmpty)
+                  const SizedBox(width: 8),
+
+                // Tag indicators (colored circles with icons) on the bottom right
+                if (_tags.isNotEmpty)
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
+                    alignment: WrapAlignment.end,
                     children: _tags.map((tag) {
                       final color = tag.colorObject ?? Colors.grey;
                       return Tooltip(
                         message: tag.name,
                         child: Container(
-                          width: 24,
-                          height: 24,
+                          width: 28,
+                          height: 28,
                           decoration: BoxDecoration(
                             color: color,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
                                 color: color.withAlpha(100),
-                                blurRadius: 2,
+                                blurRadius: 3,
                                 spreadRadius: 0.5,
                               ),
                             ],
                           ),
                           child: Icon(
                             tag.iconData ?? Icons.label,
-                            size: 14,
+                            size: 16,
                             color: Colors.white,
                           ),
                         ),
                       );
                     }).toList(),
                   ),
-                ],
               ],
             ),
         ],
@@ -422,9 +468,7 @@ class _TaskListItemState extends State<TaskListItem> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            wasCompleted ? 'Task ripristinata' : 'Task completata',
-          ),
+          content: Text(wasCompleted ? 'Task ripristinata' : 'Task completata'),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -444,9 +488,9 @@ class _TaskListItemState extends State<TaskListItem> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
       }
     } finally {
       // Reset toggling state
@@ -463,9 +507,7 @@ class _TaskListItemState extends State<TaskListItem> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Elimina task'),
-        content: Text(
-          'Vuoi davvero eliminare "${widget.task.title}"?',
-        ),
+        content: Text('Vuoi davvero eliminare "${widget.task.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -485,16 +527,16 @@ class _TaskListItemState extends State<TaskListItem> {
         await _taskService.deleteTask(widget.task.id);
         widget.onTaskChanged?.call(); // Trigger refresh
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Task eliminata')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Task eliminata')));
         }
         return true;
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
         return false;
       }
@@ -508,15 +550,15 @@ class _TaskListItemState extends State<TaskListItem> {
       await _taskService.duplicateTask(widget.task.id);
       widget.onTaskChanged?.call(); // Trigger refresh
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task duplicata')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Task duplicata')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
       }
     }
   }
