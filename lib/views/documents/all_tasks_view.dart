@@ -4,6 +4,7 @@ import 'package:solducci/models/task.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
+import 'package:solducci/widgets/documents/task_creation_row.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
 import 'package:solducci/utils/task_filter_sort.dart';
 import 'package:solducci/theme/todo_theme.dart';
@@ -11,10 +12,14 @@ import 'package:solducci/theme/todo_theme.dart';
 /// View showing all tasks (pending + in progress + assigned) for a document
 class AllTasksView extends StatefulWidget {
   final TodoDocument document;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
+  final void Function(VoidCallback?)? onInlineCreationCallbackChanged;
 
   const AllTasksView({
     super.key,
     required this.document,
+    this.showAllPropertiesNotifier,
+    this.onInlineCreationCallbackChanged,
   });
 
   @override
@@ -29,11 +34,14 @@ class _AllTasksViewState extends State<AllTasksView>
   final _taskService = TaskService();
   Stream<List<Task>>? _taskStream;
   FilterSortConfig _filterConfig = const FilterSortConfig();
+  bool _isCreatingTask = false;
 
   @override
   void initState() {
     super.initState();
     _taskStream = _taskService.getTasksForDocument(widget.document.id);
+    // Pass the inline creation callback to parent
+    widget.onInlineCreationCallbackChanged?.call(startInlineCreation);
   }
 
   void _refreshTasks() {
@@ -59,7 +67,19 @@ class _AllTasksViewState extends State<AllTasksView>
   Widget build(BuildContext context) {
     super.build(context); // Required by AutomaticKeepAliveClientMixin
 
-    return StreamBuilder<List<Task>>(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.purple.withValues(alpha: 0.03),
+            Colors.blue.withValues(alpha: 0.02),
+            Colors.white,
+          ],
+        ),
+      ),
+      child: StreamBuilder<List<Task>>(
       stream: _taskStream,
       builder: (context, snapshot) {
         // Loading state
@@ -108,12 +128,13 @@ class _AllTasksViewState extends State<AllTasksView>
 
         return _buildTaskList(tasks);
       },
+      ),
     );
   }
 
   Widget _buildTaskList(List<Task> tasks) {
     // Empty state
-    if (tasks.isEmpty) {
+    if (tasks.isEmpty && !_isCreatingTask) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -221,14 +242,36 @@ class _AllTasksViewState extends State<AllTasksView>
             },
             child: ListView.builder(
               padding: const EdgeInsets.all(8),
-              itemCount: tasks.length,
+              itemCount: tasks.length + (_isCreatingTask ? 1 : 0),
               itemBuilder: (context, index) {
-                final task = tasks[index];
+                // Show creation row at the top
+                if (_isCreatingTask && index == 0) {
+                  return TaskCreationRow(
+                    key: const ValueKey('task_creation'),
+                    document: widget.document,
+                    showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                    onCancel: () {
+                      setState(() {
+                        _isCreatingTask = false;
+                      });
+                    },
+                    onTaskCreated: () {
+                      setState(() {
+                        _isCreatingTask = false;
+                      });
+                      _refreshTasks();
+                    },
+                  );
+                }
+
+                final taskIndex = _isCreatingTask ? index - 1 : index;
+                final task = tasks[taskIndex];
                 return TaskListItem(
                   task: task,
                   document: widget.document,
                   onTap: () => _showTaskDetails(context, task),
-                  onTaskChanged: _refreshTasks, // Refresh on task change
+                  onTaskChanged: _refreshTasks,
+                  showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
                 );
               },
             ),
@@ -236,6 +279,12 @@ class _AllTasksViewState extends State<AllTasksView>
         ),
       ],
     );
+  }
+
+  void startInlineCreation() {
+    setState(() {
+      _isCreatingTask = true;
+    });
   }
 
   void _showTaskDetails(BuildContext context, Task task) {

@@ -8,6 +8,7 @@ import 'package:solducci/views/documents/all_tasks_view.dart';
 import 'package:solducci/views/documents/tag_view.dart';
 import 'package:solducci/views/documents/completed_tasks_view.dart';
 import 'package:solducci/views/documents/tag_management_view.dart';
+import 'package:solducci/views/documents/task_tile_design_preview.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/widgets/documents/tag_form_dialog.dart';
 
@@ -28,6 +29,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   int _currentPage = 1; // Start at "Tutte" page
   List<Tag> _currentTags = [];
   VoidCallback? _onTaskCreated; // Callback to refresh current page
+  VoidCallback? _onStartInlineCreation; // Callback to start inline creation
 
   @override
   void initState() {
@@ -135,11 +137,12 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
             ), // Key stabile per evitare rebuild
             pageController: _pageController,
             document: _currentDocument!,
-            onPageChanged: (page, tags, refreshCallback) {
+            onPageChanged: (page, tags, refreshCallback, inlineCreationCallback) {
               // Update state without triggering rebuild of StreamBuilder
               _currentPage = page;
               _currentTags = tags;
               _onTaskCreated = refreshCallback;
+              _onStartInlineCreation = inlineCreationCallback;
             },
             onCreateTag: _showCreateTagDialog,
             onNavigateToTagManagement: () {
@@ -184,6 +187,12 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   void _showCreateTaskDialog() {
     if (_currentDocument == null) return;
 
+    // If we're on "All Tasks" page (index 1) and have inline creation callback, use it
+    if (_currentPage == 1 && _onStartInlineCreation != null) {
+      _onStartInlineCreation!();
+      return;
+    }
+
     // Determine if we're on a tag page and get the corresponding tag
     Tag? initialTag;
     if (_currentPage >= 2 && _currentPage < 2 + _currentTags.length) {
@@ -191,6 +200,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
       initialTag = _currentTags[_currentPage - 2];
     }
 
+    // For other pages (Completed, Tag views), use the full form
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -209,7 +219,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 class _PageViewContent extends StatefulWidget {
   final PageController pageController;
   final TodoDocument document;
-  final void Function(int page, List<Tag> tags, VoidCallback? refreshCallback)
+  final void Function(int page, List<Tag> tags, VoidCallback? refreshCallback, VoidCallback? inlineCreationCallback)
   onPageChanged;
   final Future<void> Function() onCreateTag;
   final VoidCallback onNavigateToTagManagement;
@@ -234,13 +244,25 @@ class _PageViewContentState extends State<_PageViewContent> {
   int _currentPage =
       1; // Start at "Tutte" page (matches PageController initialPage)
 
+  // ValueNotifier for efficient property visibility updates
+  final ValueNotifier<bool> _showAllTaskPropertiesNotifier = ValueNotifier(false);
+
   // Refresh key to force rebuild of pages
   int _refreshKey = 0;
+
+  // Callback to start inline creation (set by child view)
+  VoidCallback? _startInlineCreationCallback;
 
   @override
   void initState() {
     super.initState();
     _loadTags();
+  }
+
+  @override
+  void dispose() {
+    _showAllTaskPropertiesNotifier.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTags() async {
@@ -256,7 +278,7 @@ class _PageViewContentState extends State<_PageViewContent> {
         // Notify parent about initial tags load after the frame is built
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback);
+            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback, _startInlineCreationCallback);
           }
         });
       }
@@ -269,7 +291,7 @@ class _PageViewContentState extends State<_PageViewContent> {
         // Notify parent even on error after the frame is built
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback);
+            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback, _startInlineCreationCallback);
           }
         });
       }
@@ -293,17 +315,12 @@ class _PageViewContentState extends State<_PageViewContent> {
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   void _onPageChanged(int page) {
     setState(() {
       _currentPage = page;
     });
     // Notify parent about page change
-    widget.onPageChanged(page, _tags, _getRefreshCallback);
+    widget.onPageChanged(page, _tags, _getRefreshCallback, _startInlineCreationCallback);
   }
 
   @override
@@ -364,6 +381,37 @@ class _PageViewContentState extends State<_PageViewContent> {
                         ),
                       ),
                       const Spacer(),
+                      // Design preview button (temporary)
+                      IconButton(
+                        icon: Icon(Icons.palette, color: Colors.purple[700]),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TaskTileDesignPreview(),
+                            ),
+                          );
+                        },
+                        tooltip: 'Design Preview',
+                      ),
+                      // Toggle button for showing all properties
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _showAllTaskPropertiesNotifier,
+                        builder: (context, showAll, child) {
+                          return IconButton(
+                            icon: Icon(
+                              showAll ? Icons.edit_off : Icons.edit,
+                              color: Colors.purple[700],
+                            ),
+                            onPressed: () {
+                              _showAllTaskPropertiesNotifier.value = !_showAllTaskPropertiesNotifier.value;
+                            },
+                            tooltip: showAll
+                                ? 'Nascondi proprietà vuote'
+                                : 'Mostra tutte le proprietà',
+                          );
+                        },
+                      ),
                       TextButton.icon(
                         icon: Icon(Icons.label, color: Colors.purple[700]),
                         label: Text(
@@ -409,6 +457,7 @@ class _PageViewContentState extends State<_PageViewContent> {
                   return CompletedTasksView(
                     key: ValueKey('completed_$_refreshKey'),
                     document: widget.document,
+                    showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
                   );
                 }
 
@@ -417,6 +466,10 @@ class _PageViewContentState extends State<_PageViewContent> {
                   return AllTasksView(
                     key: ValueKey('all_tasks_$_refreshKey'),
                     document: widget.document,
+                    showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
+                    onInlineCreationCallbackChanged: (callback) {
+                      _startInlineCreationCallback = callback;
+                    },
                   );
                 }
 
@@ -426,6 +479,7 @@ class _PageViewContentState extends State<_PageViewContent> {
                   key: ValueKey('tag_${tag.id}_$_refreshKey'),
                   document: widget.document,
                   tag: tag,
+                  showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
                 );
               },
             ),

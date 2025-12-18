@@ -13,11 +13,13 @@ import 'package:solducci/theme/todo_theme.dart';
 class TagView extends StatefulWidget {
   final TodoDocument document;
   final Tag tag;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
   const TagView({
     super.key,
     required this.document,
     required this.tag,
+    this.showAllPropertiesNotifier,
   });
 
   @override
@@ -86,8 +88,21 @@ class _TagViewState extends State<TagView>
   Widget build(BuildContext context) {
     super.build(context); // Required by AutomaticKeepAliveClientMixin
 
-    // No header bar, just the task list
-    return _buildTaskList();
+    // No header bar, just the task list with gradient background
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.purple.withValues(alpha: 0.03),
+            Colors.blue.withValues(alpha: 0.02),
+            Colors.white,
+          ],
+        ),
+      ),
+      child: _buildTaskList(),
+    );
   }
 
   Widget _buildTaskList() {
@@ -235,6 +250,7 @@ class _TagViewState extends State<TagView>
                       document: widget.document,
                       onTap: () => _showTaskDetails(context, task),
                       onTaskChanged: _loadTasks, // Refresh on task change
+                      showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
                     )),
 
                 // Completed tasks (if enabled)
@@ -256,6 +272,7 @@ class _TagViewState extends State<TagView>
                         document: widget.document,
                         onTap: () => _showTaskDetails(context, task),
                         onTaskChanged: _loadTasks, // Refresh on task change
+                        showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
                       )),
                 ],
               ],

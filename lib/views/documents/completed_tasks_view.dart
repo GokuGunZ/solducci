@@ -8,10 +8,12 @@ import 'package:solducci/widgets/documents/task_form.dart';
 /// View showing only completed tasks for a document
 class CompletedTasksView extends StatefulWidget {
   final TodoDocument document;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
   const CompletedTasksView({
     super.key,
     required this.document,
+    this.showAllPropertiesNotifier,
   });
 
   @override
@@ -44,7 +46,19 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
   Widget build(BuildContext context) {
     super.build(context); // Required by AutomaticKeepAliveClientMixin
 
-    return StreamBuilder<List<Task>>(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.purple.withValues(alpha: 0.03),
+            Colors.blue.withValues(alpha: 0.02),
+            Colors.white,
+          ],
+        ),
+      ),
+      child: StreamBuilder<List<Task>>(
       stream: _taskStream,
       builder: (context, snapshot) {
         // Loading state
@@ -105,11 +119,13 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
                 document: widget.document,
                 onTap: () => _showTaskDetails(context, task),
                 onTaskChanged: _refreshTasks, // Refresh on task change
+                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
               );
             },
           ),
         );
       },
+      ),
     );
   }
 
