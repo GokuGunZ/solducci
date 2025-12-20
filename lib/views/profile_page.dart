@@ -5,6 +5,9 @@ import 'package:solducci/models/group.dart';
 import 'package:solducci/service/profile_service.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/views/documents/task_tile_design_preview.dart';
+import 'package:solducci/views/documents/filter_sort_ui_preview.dart';
+import 'package:solducci/views/documents/dropdown_selector_preview.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Profile page with user info, settings, and links to additional features
@@ -326,6 +329,54 @@ class _ProfilePageState extends State<ProfilePage> {
                   // Info Section
                   _buildSectionTitle('Info & Supporto'),
                   const SizedBox(height: 8),
+
+                  _buildListTile(
+                    context: context,
+                    icon: Icons.palette,
+                    title: 'Task Card Design',
+                    subtitle: 'Anteprima stili delle task card',
+                    color: Colors.deepPurple,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TaskTileDesignPreview(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  _buildListTile(
+                    context: context,
+                    icon: Icons.tune,
+                    title: 'Filter & Sort UI',
+                    subtitle: 'Showcase soluzioni filtri e ordinamento',
+                    color: Colors.indigo,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FilterSortUIPreview(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  _buildListTile(
+                    context: context,
+                    icon: Icons.arrow_drop_down_circle,
+                    title: 'Dropdown Selectors',
+                    subtitle: 'Showcase dropdown animati per filtri',
+                    color: Colors.teal,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DropdownSelectorPreview(),
+                        ),
+                      );
+                    },
+                  ),
 
                   _buildListTile(
                     context: context,

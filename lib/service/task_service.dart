@@ -117,6 +117,70 @@ class TaskService {
     return allTags.values.toList();
   }
 
+  /// Get effective tags for multiple tasks in batch (optimized)
+  /// Returns a map of taskId to List of Tag
+  Future<Map<String, List<Tag>>> getEffectiveTagsForTasks(List<String> taskIds) async {
+    if (taskIds.isEmpty) return {};
+
+    final result = <String, List<Tag>>{};
+
+    // Batch load all task-tag relationships
+    final taskTagsResponse = await _supabase
+        .from('task_tags')
+        .select('task_id, tag_id')
+        .inFilter('task_id', taskIds);
+
+    // Group by task_id
+    final taskTagMap = <String, List<String>>{};
+    for (final row in taskTagsResponse) {
+      final taskId = row['task_id'] as String;
+      final tagId = row['tag_id'] as String;
+      taskTagMap.putIfAbsent(taskId, () => []).add(tagId);
+    }
+
+    // Get all unique tag IDs
+    final allTagIds = taskTagMap.values.expand((ids) => ids).toSet();
+
+    // Batch load all tags
+    final tagMap = <String, Tag>{};
+    for (final tagId in allTagIds) {
+      final tag = await _tagService.getTagById(tagId);
+      if (tag != null) tagMap[tagId] = tag;
+    }
+
+    // Build result map
+    for (final taskId in taskIds) {
+      final tagIds = taskTagMap[taskId] ?? [];
+      final tags = tagIds.map((id) => tagMap[id]).whereType<Tag>().toList();
+      result[taskId] = tags;
+    }
+
+    return result;
+  }
+
+  /// Get effective tags for tasks including all subtasks (recursive)
+  /// Returns a map of taskId to List of Tag for all tasks and their descendants
+  Future<Map<String, List<Tag>>> getEffectiveTagsForTasksWithSubtasks(List<Task> tasks) async {
+    // Collect all task IDs including subtasks recursively
+    final allTaskIds = <String>{};
+
+    void collectTaskIds(Task task) {
+      allTaskIds.add(task.id);
+      if (task.subtasks != null) {
+        for (final subtask in task.subtasks!) {
+          collectTaskIds(subtask);
+        }
+      }
+    }
+
+    for (final task in tasks) {
+      collectTaskIds(task);
+    }
+
+    // Use the existing batch loading method
+    return await getEffectiveTagsForTasks(allTaskIds.toList());
+  }
+
   /// Get effective recurrence for a task (own recurrence > parent recurrence > tag recurrence)
   Future<Recurrence?> getEffectiveRecurrence(String taskId) async {
     // Priority 1: Task's own recurrence
@@ -375,9 +439,10 @@ class TaskService {
     }
   }
 
-  /// Get all tasks with a specific tag
+  /// Get all tasks with a specific tag (with subtasks included in tree)
   Future<List<Task>> getTasksByTag(String tagId, {bool includeCompleted = false}) async {
     try {
+      // Get all tasks with this tag
       var query = _supabase
           .from('tasks')
           .select('*, task_tags!inner(tag_id)')
@@ -388,10 +453,73 @@ class TaskService {
       }
 
       final response = await query.order('position');
+      final tasksWithTag = _parseTasks(response);
 
-      return _parseTasks(response);
+      // For each task with tag, get all its descendants (subtasks)
+      final allTasks = <Task>[];
+      final processedIds = <String>{};
+
+      for (final task in tasksWithTag) {
+        if (!processedIds.contains(task.id)) {
+          // Load the full task tree starting from this task
+          final taskWithSubtasks = await _loadTaskWithSubtasks(
+            task.id,
+            includeCompleted: includeCompleted,
+          );
+          if (taskWithSubtasks != null) {
+            allTasks.add(taskWithSubtasks);
+            processedIds.add(taskWithSubtasks.id);
+            // Mark all descendants as processed
+            _markDescendantsAsProcessed(taskWithSubtasks, processedIds);
+          }
+        }
+      }
+
+      return allTasks;
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Helper to load a task with all its subtasks
+  Future<Task?> _loadTaskWithSubtasks(String taskId, {bool includeCompleted = false}) async {
+    final task = await getTaskById(taskId);
+    if (task == null) return null;
+
+    // Load subtasks
+    final subtasks = await getChildTasks(taskId);
+
+    if (subtasks.isNotEmpty) {
+      final filteredSubtasks = <Task>[];
+      for (final subtask in subtasks) {
+        // Filter by completion status
+        if (!includeCompleted && subtask.status == TaskStatus.completed) {
+          continue;
+        }
+
+        // Recursively load subtask's children
+        final subtaskWithChildren = await _loadTaskWithSubtasks(
+          subtask.id,
+          includeCompleted: includeCompleted,
+        );
+        if (subtaskWithChildren != null) {
+          filteredSubtasks.add(subtaskWithChildren);
+        }
+      }
+
+      task.subtasks = filteredSubtasks.isEmpty ? null : filteredSubtasks;
+    }
+
+    return task;
+  }
+
+  /// Helper to mark all descendants as processed
+  void _markDescendantsAsProcessed(Task task, Set<String> processedIds) {
+    if (task.subtasks != null) {
+      for (final subtask in task.subtasks!) {
+        processedIds.add(subtask.id);
+        _markDescendantsAsProcessed(subtask, processedIds);
+      }
     }
   }
 

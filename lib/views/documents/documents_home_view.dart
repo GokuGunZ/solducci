@@ -8,7 +8,6 @@ import 'package:solducci/views/documents/all_tasks_view.dart';
 import 'package:solducci/views/documents/tag_view.dart';
 import 'package:solducci/views/documents/completed_tasks_view.dart';
 import 'package:solducci/views/documents/tag_management_view.dart';
-import 'package:solducci/views/documents/task_tile_design_preview.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/widgets/documents/tag_form_dialog.dart';
 
@@ -381,19 +380,6 @@ class _PageViewContentState extends State<_PageViewContent> {
                         ),
                       ),
                       const Spacer(),
-                      // Design preview button (temporary)
-                      IconButton(
-                        icon: Icon(Icons.palette, color: Colors.purple[700]),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const TaskTileDesignPreview(),
-                            ),
-                          );
-                        },
-                        tooltip: 'Design Preview',
-                      ),
                       // Toggle button for showing all properties
                       ValueListenableBuilder<bool>(
                         valueListenable: _showAllTaskPropertiesNotifier,
@@ -470,6 +456,7 @@ class _PageViewContentState extends State<_PageViewContent> {
                     onInlineCreationCallbackChanged: (callback) {
                       _startInlineCreationCallback = callback;
                     },
+                    availableTags: _tags,
                   );
                 }
 

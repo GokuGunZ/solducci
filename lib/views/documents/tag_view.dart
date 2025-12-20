@@ -6,8 +6,8 @@ import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
+import 'package:solducci/widgets/documents/compact_filter_sort_bar.dart';
 import 'package:solducci/utils/task_filter_sort.dart';
-import 'package:solducci/theme/todo_theme.dart';
 
 /// View showing tasks filtered by a specific tag
 class TagView extends StatefulWidget {
@@ -36,6 +36,7 @@ class _TagViewState extends State<TagView>
   String? _error;
   final _taskService = TaskService();
   FilterSortConfig _filterConfig = const FilterSortConfig();
+  Map<String, List<Tag>> _taskTagsMap = {}; // Cache for preloaded tags
 
   @override
   void initState() {
@@ -55,6 +56,11 @@ class _TagViewState extends State<TagView>
         includeCompleted: widget.tag.showCompleted,
       );
 
+      // Preload tags for all tasks including subtasks
+      if (tasks.isNotEmpty) {
+        _taskTagsMap = await _taskService.getEffectiveTagsForTasksWithSubtasks(tasks);
+      }
+
       if (mounted) {
         setState(() {
           _tasks = tasks;
@@ -68,19 +74,6 @@ class _TagViewState extends State<TagView>
           _isLoading = false;
         });
       }
-    }
-  }
-
-  Future<void> _showFilterDialog() async {
-    final result = await showDialog<FilterSortConfig>(
-      context: context,
-      builder: (context) => FilterSortDialog(initialConfig: _filterConfig),
-    );
-
-    if (result != null) {
-      setState(() {
-        _filterConfig = result;
-      });
     }
   }
 
@@ -183,58 +176,15 @@ class _TagViewState extends State<TagView>
     // Task list with filter UI, completed at bottom and pull-to-refresh
     return Column(
       children: [
-        // Filter bar
-        if (_filterConfig.hasFilters)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: TodoTheme.lightPurple,
-            child: Row(
-              children: [
-                const Icon(Icons.filter_list, size: 20, color: TodoTheme.primaryPurple),
-                const SizedBox(width: 8),
-                Text(
-                  '${_filterConfig.activeFiltersCount} filtri attivi',
-                  style: const TextStyle(
-                    color: TodoTheme.primaryPurple,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _filterConfig = const FilterSortConfig();
-                    });
-                  },
-                  child: const Text('Rimuovi'),
-                ),
-              ],
-            ),
-          ),
-
-        // Filter button
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _showFilterDialog,
-                  icon: Badge(
-                    isLabelVisible: _filterConfig.hasFilters,
-                    label: Text('${_filterConfig.activeFiltersCount}'),
-                    child: const Icon(Icons.filter_list),
-                  ),
-                  label: const Text('Filtri e ordinamento'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _filterConfig.hasFilters
-                        ? TodoTheme.primaryPurple
-                        : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        // Compact Filter & Sort Bar
+        CompactFilterSortBar(
+          key: const ValueKey('compact_filter_sort_bar'),
+          filterConfig: _filterConfig,
+          onFilterChanged: (newConfig) {
+            setState(() {
+              _filterConfig = newConfig;
+            });
+          },
         ),
 
         // Task list
@@ -251,6 +201,8 @@ class _TagViewState extends State<TagView>
                       onTap: () => _showTaskDetails(context, task),
                       onTaskChanged: _loadTasks, // Refresh on task change
                       showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                      preloadedTags: _taskTagsMap[task.id],
+                      taskTagsMap: _taskTagsMap, // Pass full map for subtasks
                     )),
 
                 // Completed tasks (if enabled)
@@ -273,6 +225,8 @@ class _TagViewState extends State<TagView>
                         onTap: () => _showTaskDetails(context, task),
                         onTaskChanged: _loadTasks, // Refresh on task change
                         showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                        preloadedTags: _taskTagsMap[task.id],
+                        taskTagsMap: _taskTagsMap, // Pass full map for subtasks
                       )),
                 ],
               ],

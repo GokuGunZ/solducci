@@ -2,6 +2,40 @@ import 'package:solducci/models/task.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
 import 'package:solducci/service/task_service.dart';
 
+/// Helper function to check if a task matches a date filter
+bool _matchesDateFilter(Task task, DateFilterOption filter) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+
+  switch (filter) {
+    case DateFilterOption.today:
+      if (task.dueDate == null) return false;
+      final dueDay = DateTime(
+        task.dueDate!.year,
+        task.dueDate!.month,
+        task.dueDate!.day,
+      );
+      return dueDay.isAtSameMomentAs(today);
+
+    case DateFilterOption.thisWeek:
+      if (task.dueDate == null) return false;
+      final weekStart = today.subtract(Duration(days: today.weekday - 1));
+      final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59));
+      return task.dueDate!.isAfter(weekStart.subtract(const Duration(seconds: 1))) &&
+             task.dueDate!.isBefore(weekEnd.add(const Duration(seconds: 1)));
+
+    case DateFilterOption.thisMonth:
+      if (task.dueDate == null) return false;
+      return task.dueDate!.year == now.year && task.dueDate!.month == now.month;
+
+    case DateFilterOption.overdue:
+      return task.isOverdue;
+
+    case DateFilterOption.noDueDate:
+      return task.dueDate == null;
+  }
+}
+
 /// Extension methods for filtering and sorting tasks
 extension TaskFilterSort on List<Task> {
   /// Flatten task tree recursively into a single list
@@ -55,7 +89,19 @@ extension TaskFilterSort on List<Task> {
         matches = matches && config.statuses.contains(task.status);
       }
 
-      // Filter by overdue
+      // Filter by size (t-shirt size)
+      if (config.sizes.isNotEmpty) {
+        matches = matches &&
+                  task.tShirtSize != null &&
+                  config.sizes.contains(task.tShirtSize);
+      }
+
+      // Filter by date
+      if (config.dateFilter != null) {
+        matches = matches && _matchesDateFilter(task, config.dateFilter!);
+      }
+
+      // Filter by overdue (deprecated, use dateFilter instead)
       if (config.showOverdueOnly) {
         matches = matches && task.isOverdue;
       }
@@ -137,7 +183,19 @@ extension TaskFilterSort on List<Task> {
         matches = matches && config.statuses.contains(task.status);
       }
 
-      // Filter by overdue
+      // Filter by size (t-shirt size)
+      if (config.sizes.isNotEmpty) {
+        matches = matches &&
+                  task.tShirtSize != null &&
+                  config.sizes.contains(task.tShirtSize);
+      }
+
+      // Filter by date
+      if (config.dateFilter != null) {
+        matches = matches && _matchesDateFilter(task, config.dateFilter!);
+      }
+
+      // Filter by overdue (deprecated, use dateFilter instead)
       if (config.showOverdueOnly) {
         matches = matches && task.isOverdue;
       }
@@ -221,6 +279,20 @@ extension TaskFilterSort on List<Task> {
           } else {
             // Higher priority (urgent=3) should come first
             comparison = b.priority!.index.compareTo(a.priority!.index);
+          }
+          break;
+
+        case TaskSortOption.size:
+          // Tasks with no size go to the end
+          if (a.tShirtSize == null && b.tShirtSize == null) {
+            comparison = 0;
+          } else if (a.tShirtSize == null) {
+            comparison = 1;
+          } else if (b.tShirtSize == null) {
+            comparison = -1;
+          } else {
+            // Smaller sizes (xs=0) should come first by default
+            comparison = a.tShirtSize!.index.compareTo(b.tShirtSize!.index);
           }
           break;
 

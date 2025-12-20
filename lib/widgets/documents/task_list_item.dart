@@ -6,6 +6,7 @@ import 'package:solducci/models/document.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_creation_row.dart';
+import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/theme/todo_theme.dart';
 
@@ -19,6 +20,8 @@ class TaskListItem extends StatefulWidget {
   final int depth; // For indentation of subtasks
   final ValueNotifier<bool>?
   showAllPropertiesNotifier; // Global toggle from parent
+  final List<Tag>? preloadedTags; // Optional: preloaded tags to avoid async loading
+  final Map<String, List<Tag>>? taskTagsMap; // Optional: map of all task tags (for subtasks)
 
   const TaskListItem({
     super.key,
@@ -28,6 +31,8 @@ class TaskListItem extends StatefulWidget {
     this.onTaskChanged,
     this.depth = 0,
     this.showAllPropertiesNotifier,
+    this.preloadedTags,
+    this.taskTagsMap,
   });
 
   @override
@@ -78,8 +83,8 @@ class _TaskListItemState extends State<TaskListItem> {
         margin: EdgeInsets.only(
           left: 8.0 + (widget.depth * 16.0),
           right: 8.0,
-          top: 4.0,
-          bottom: 4.0,
+          top: widget.depth > 0 ? 2.0 : 4.0,
+          bottom: widget.depth > 0 ? 2.0 : 4.0,
         ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -90,31 +95,41 @@ class _TaskListItemState extends State<TaskListItem> {
               Colors.white.withValues(alpha: 0.7),
             ],
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(widget.depth > 0 ? 12 : 16),
           border: Border.all(
             color: Colors.white.withValues(alpha: 0.5),
-            width: 1.5,
+            width: widget.depth > 0 ? 1.0 : 1.5,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: TodoTheme.primaryPurple.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: widget.depth > 0
+              ? [
+                  BoxShadow(
+                    color: TodoTheme.primaryPurple.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: TodoTheme.primaryPurple.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(widget.depth > 0 ? 12 : 16),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Padding(
-              padding: const EdgeInsets.all(14.0),
+              // Reduce padding for subtasks
+              padding: EdgeInsets.all(widget.depth > 0 ? 8.0 : 14.0),
               child: Column(
                 children: [
                   InkWell(
-                    onTap: widget.onTap,
+                    onTap: () => _showTaskDetails(context),
                     child: Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      // Reduce padding for subtasks
+                      padding: EdgeInsets.all(widget.depth > 0 ? 6.0 : 12.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -145,12 +160,13 @@ class _TaskListItemState extends State<TaskListItem> {
                                 ),
                             ],
                           ),
-                          // Description (inline editable) - Independent rebuild
-                          _TaskDescription(
-                            key: ValueKey('desc_${widget.task.id}'),
-                            task: widget.task,
-                            onTaskChanged: widget.onTaskChanged,
-                          ),
+                          // Description (inline editable) - Hidden for subtasks
+                          if (widget.depth == 0)
+                            _TaskDescription(
+                              key: ValueKey('desc_${widget.task.id}'),
+                              task: widget.task,
+                              onTaskChanged: widget.onTaskChanged,
+                            ),
                           // Property icons row (always visible)
                           _buildPropertyIconsRow(),
                           // Tags row - Independent rebuild
@@ -158,6 +174,7 @@ class _TaskListItemState extends State<TaskListItem> {
                             key: ValueKey('tags_${widget.task.id}'),
                             taskId: widget.task.id,
                             onTaskChanged: widget.onTaskChanged,
+                            preloadedTags: widget.preloadedTags,
                           ),
                         ],
                       ),
@@ -193,11 +210,13 @@ class _TaskListItemState extends State<TaskListItem> {
                             task: subtask,
                             document: widget.document,
                             depth: widget.depth + 1,
-                            onTap: widget.onTap,
+                            onTap: null, // Don't propagate parent's onTap, let subtask handle itself
                             onTaskChanged:
                                 widget.onTaskChanged, // Propagate callback
                             showAllPropertiesNotifier:
                                 widget.showAllPropertiesNotifier,
+                            preloadedTags: widget.taskTagsMap?[subtask.id],
+                            taskTagsMap: widget.taskTagsMap, // Propagate map for nested subtasks
                           ),
                         ),
                       ],
@@ -690,6 +709,26 @@ class _TaskListItemState extends State<TaskListItem> {
       }
     }
   }
+
+  void _showTaskDetails(BuildContext context) {
+    // If onTap is provided, use it (for parent compatibility)
+    // Otherwise, open TaskForm directly for this task
+    if (widget.onTap != null) {
+      widget.onTap!();
+    } else if (widget.document != null) {
+      // Open TaskForm for this specific task
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TaskForm(
+            document: widget.document!,
+            task: widget.task,
+            onTaskSaved: widget.onTaskChanged,
+          ),
+        ),
+      );
+    }
+  }
 }
 
 // ========== SEPARATE WIDGETS FOR INDEPENDENT REBUILDS ==========
@@ -926,8 +965,14 @@ class _TaskDescriptionState extends State<_TaskDescription> {
 class _TaskTagsRow extends StatefulWidget {
   final String taskId;
   final VoidCallback? onTaskChanged;
+  final List<Tag>? preloadedTags;
 
-  const _TaskTagsRow({super.key, required this.taskId, this.onTaskChanged});
+  const _TaskTagsRow({
+    super.key,
+    required this.taskId,
+    this.onTaskChanged,
+    this.preloadedTags,
+  });
 
   @override
   State<_TaskTagsRow> createState() => _TaskTagsRowState();
@@ -941,7 +986,13 @@ class _TaskTagsRowState extends State<_TaskTagsRow> {
   @override
   void initState() {
     super.initState();
-    _loadTags();
+    // Use preloaded tags if available, otherwise load asynchronously
+    if (widget.preloadedTags != null) {
+      _tags = widget.preloadedTags!;
+      _isLoading = false;
+    } else {
+      _loadTags();
+    }
   }
 
   Future<void> _loadTags() async {

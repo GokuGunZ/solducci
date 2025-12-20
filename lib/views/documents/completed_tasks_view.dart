@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/task.dart';
+import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
@@ -27,6 +28,7 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
 
   final _taskService = TaskService();
   Stream<List<Task>>? _taskStream;
+  Map<String, List<Tag>> _taskTagsMap = {}; // Cache for preloaded tags
 
   @override
   void initState() {
@@ -40,6 +42,12 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
       _taskStream = _taskService.getTasksForDocument(widget.document.id)
           .map((tasks) => tasks.where((t) => t.status == TaskStatus.completed).toList());
     });
+  }
+
+  Future<void> _preloadTagsForTasks(List<Task> tasks) async {
+    if (tasks.isEmpty) return;
+    // Use the new method that includes subtasks
+    _taskTagsMap = await _taskService.getEffectiveTagsForTasksWithSubtasks(tasks);
   }
 
   @override
@@ -104,25 +112,37 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
           );
         }
 
-        // Task list with pull-to-refresh
-        return RefreshIndicator(
-          onRefresh: () async {
-            _refreshTasks();
+        // Preload tags for all tasks
+        return FutureBuilder<void>(
+          future: _preloadTagsForTasks(tasks),
+          builder: (context, tagsSnapshot) {
+            if (tagsSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // Task list with pull-to-refresh
+            return RefreshIndicator(
+              onRefresh: () async {
+                _refreshTasks();
+              },
+              child: ListView.builder(
+                padding: const EdgeInsets.all(8),
+                itemCount: tasks.length,
+                itemBuilder: (context, index) {
+                  final task = tasks[index];
+                  return TaskListItem(
+                    task: task,
+                    document: widget.document,
+                    onTap: () => _showTaskDetails(context, task),
+                    onTaskChanged: _refreshTasks, // Refresh on task change
+                    showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                    preloadedTags: _taskTagsMap[task.id],
+                    taskTagsMap: _taskTagsMap, // Pass full map for subtasks
+                  );
+                },
+              ),
+            );
           },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: tasks.length,
-            itemBuilder: (context, index) {
-              final task = tasks[index];
-              return TaskListItem(
-                task: task,
-                document: widget.document,
-                onTap: () => _showTaskDetails(context, task),
-                onTaskChanged: _refreshTasks, // Refresh on task change
-                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-              );
-            },
-          ),
         );
       },
       ),

@@ -5,20 +5,36 @@ import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/theme/todo_theme.dart';
 import 'package:solducci/widgets/common/todo_app_bar.dart';
 
+/// Date filter options
+enum DateFilterOption {
+  today('Oggi'),
+  thisWeek('Questa settimana'),
+  thisMonth('Questo mese'),
+  overdue('In ritardo'),
+  noDueDate('Senza scadenza');
+
+  final String label;
+  const DateFilterOption(this.label);
+}
+
 /// Configuration for filtering and sorting tasks
 class FilterSortConfig {
   final Set<TaskPriority> priorities;
   final Set<TaskStatus> statuses;
-  final bool showOverdueOnly;
+  final Set<TShirtSize> sizes; // Filter by t-shirt size
   final Set<String> tagIds; // Filter by tag IDs
+  final DateFilterOption? dateFilter; // Filter by due date
+  final bool showOverdueOnly; // Deprecated - use dateFilter instead
   final TaskSortOption? sortBy;
   final bool sortAscending;
 
   const FilterSortConfig({
     this.priorities = const {},
     this.statuses = const {},
-    this.showOverdueOnly = false,
+    this.sizes = const {},
     this.tagIds = const {},
+    this.dateFilter,
+    this.showOverdueOnly = false,
     this.sortBy,
     this.sortAscending = true,
   });
@@ -26,30 +42,43 @@ class FilterSortConfig {
   FilterSortConfig copyWith({
     Set<TaskPriority>? priorities,
     Set<TaskStatus>? statuses,
-    bool? showOverdueOnly,
+    Set<TShirtSize>? sizes,
     Set<String>? tagIds,
+    DateFilterOption? dateFilter,
+    bool? showOverdueOnly,
     TaskSortOption? sortBy,
     bool? sortAscending,
+    bool clearSortBy = false, // Explicit flag to clear sortBy
+    bool clearDateFilter = false, // Explicit flag to clear dateFilter
   }) {
     return FilterSortConfig(
       priorities: priorities ?? this.priorities,
       statuses: statuses ?? this.statuses,
-      showOverdueOnly: showOverdueOnly ?? this.showOverdueOnly,
+      sizes: sizes ?? this.sizes,
       tagIds: tagIds ?? this.tagIds,
-      sortBy: sortBy ?? this.sortBy,
+      dateFilter: clearDateFilter ? null : (dateFilter ?? this.dateFilter),
+      showOverdueOnly: showOverdueOnly ?? this.showOverdueOnly,
+      sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
       sortAscending: sortAscending ?? this.sortAscending,
     );
   }
 
   bool get hasFilters =>
-      priorities.isNotEmpty || statuses.isNotEmpty || showOverdueOnly || tagIds.isNotEmpty;
+      priorities.isNotEmpty ||
+      statuses.isNotEmpty ||
+      sizes.isNotEmpty ||
+      tagIds.isNotEmpty ||
+      dateFilter != null ||
+      showOverdueOnly;
 
   int get activeFiltersCount {
     int count = 0;
     if (priorities.isNotEmpty) count++;
     if (statuses.isNotEmpty) count++;
-    if (showOverdueOnly) count++;
+    if (sizes.isNotEmpty) count++;
     if (tagIds.isNotEmpty) count++;
+    if (dateFilter != null) count++;
+    if (showOverdueOnly) count++;
     return count;
   }
 }
@@ -57,6 +86,7 @@ class FilterSortConfig {
 enum TaskSortOption {
   dueDate('Data scadenza'),
   priority('Priorità'),
+  size('Dimensione'),
   title('Titolo'),
   createdAt('Data creazione');
 
