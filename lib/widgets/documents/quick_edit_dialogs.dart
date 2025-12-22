@@ -216,13 +216,13 @@ class QuickSizePicker extends StatelessWidget {
 
 /// Quick edit dialog for tags
 class QuickTagPicker extends StatefulWidget {
-  final String taskId;
+  final String? taskId;
   final List<Tag> currentTags;
   final Function(List<Tag>) onSelected;
 
   const QuickTagPicker({
     super.key,
-    required this.taskId,
+    this.taskId,
     required this.currentTags,
     required this.onSelected,
   });

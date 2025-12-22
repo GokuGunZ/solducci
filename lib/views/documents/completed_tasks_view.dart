@@ -4,7 +4,7 @@ import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
-import 'package:solducci/widgets/documents/task_form.dart';
+import 'package:solducci/views/documents/task_detail_page.dart';
 
 /// View showing only completed tasks for a document
 class CompletedTasksView extends StatefulWidget {
@@ -27,21 +27,15 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
   bool get wantKeepAlive => true;
 
   final _taskService = TaskService();
-  Stream<List<Task>>? _taskStream;
+  late final Stream<List<Task>> _taskStream;
   Map<String, List<Tag>> _taskTagsMap = {}; // Cache for preloaded tags
 
   @override
   void initState() {
     super.initState();
+    // Initialize stream once - Supabase realtime will handle updates automatically
     _taskStream = _taskService.getTasksForDocument(widget.document.id)
         .map((tasks) => tasks.where((t) => t.status == TaskStatus.completed).toList());
-  }
-
-  void _refreshTasks() {
-    setState(() {
-      _taskStream = _taskService.getTasksForDocument(widget.document.id)
-          .map((tasks) => tasks.where((t) => t.status == TaskStatus.completed).toList());
-    });
   }
 
   Future<void> _preloadTagsForTasks(List<Task> tasks) async {
@@ -54,19 +48,7 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
   Widget build(BuildContext context) {
     super.build(context); // Required by AutomaticKeepAliveClientMixin
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.purple.withValues(alpha: 0.03),
-            Colors.blue.withValues(alpha: 0.02),
-            Colors.white,
-          ],
-        ),
-      ),
-      child: StreamBuilder<List<Task>>(
+    return StreamBuilder<List<Task>>(
       stream: _taskStream,
       builder: (context, snapshot) {
         // Loading state
@@ -120,32 +102,31 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
               return const Center(child: CircularProgressIndicator());
             }
 
-            // Task list with pull-to-refresh
-            return RefreshIndicator(
-              onRefresh: () async {
-                _refreshTasks();
-              },
+            // Task list - no refresh needed, stream updates automatically
+            return Container(
+              color: Colors.transparent, // CRITICAL: Prevent ListView default white background
               child: ListView.builder(
                 padding: const EdgeInsets.all(8),
                 itemCount: tasks.length,
                 itemBuilder: (context, index) {
-                  final task = tasks[index];
-                  return TaskListItem(
-                    task: task,
-                    document: widget.document,
-                    onTap: () => _showTaskDetails(context, task),
-                    onTaskChanged: _refreshTasks, // Refresh on task change
-                    showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-                    preloadedTags: _taskTagsMap[task.id],
-                    taskTagsMap: _taskTagsMap, // Pass full map for subtasks
-                  );
-                },
+                final task = tasks[index];
+                // Use unique key based on task id to optimize rebuilds
+                return TaskListItem(
+                  key: ValueKey('task_${task.id}'),
+                  task: task,
+                  document: widget.document,
+                  onTap: () => _showTaskDetails(context, task),
+                  // No onTaskChanged - stream will update automatically
+                  showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                  preloadedTags: _taskTagsMap[task.id],
+                  taskTagsMap: _taskTagsMap, // Pass full map for subtasks
+                );
+              },
               ),
             );
           },
         );
       },
-      ),
     );
   }
 
@@ -153,10 +134,10 @@ class _CompletedTasksViewState extends State<CompletedTasksView>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TaskForm(
+        builder: (context) => TaskDetailPage(
           document: widget.document,
           task: task,
-          onTaskSaved: _refreshTasks, // Refresh after task is saved
+          showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
         ),
       ),
     );

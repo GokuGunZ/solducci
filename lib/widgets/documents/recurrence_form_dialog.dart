@@ -31,6 +31,7 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
   // Period
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
+  bool _isEnabled = true; // Default to enabled
 
   @override
   void initState() {
@@ -67,6 +68,7 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
     // Period
     _startDate = r.startDate;
     _endDate = r.endDate;
+    _isEnabled = r.isEnabled;
   }
 
   @override
@@ -451,6 +453,26 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
         ),
         const SizedBox(height: 16),
 
+        // Enable/Disable toggle
+        SwitchListTile(
+          secondary: Icon(
+            _isEnabled ? Icons.check_circle : Icons.cancel,
+            color: _isEnabled ? Colors.green : Colors.grey,
+          ),
+          title: const Text('Ricorrenza attiva'),
+          subtitle: Text(
+            _isEnabled
+                ? 'La ricorrenza è abilitata'
+                : 'La ricorrenza è disabilitata (verrà mostrata in grigio)',
+          ),
+          value: _isEnabled,
+          onChanged: (value) {
+            setState(() => _isEnabled = value);
+          },
+        ),
+
+        const SizedBox(height: 8),
+
         // Start date
         ListTile(
           leading: const Icon(Icons.calendar_today),
@@ -583,6 +605,7 @@ class _RecurrenceFormDialogState extends State<RecurrenceFormDialog> {
         yearlyDates: null, // Not implemented in UI yet
         startDate: _startDate,
         endDate: _endDate,
+        isEnabled: _isEnabled,
         createdAt: widget.recurrence?.createdAt ?? DateTime.now(),
       );
 

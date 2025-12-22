@@ -18,7 +18,8 @@ class TaskForm extends StatefulWidget {
   final TodoDocument document;
   final Task? task; // null = create, non-null = edit
   final String? parentTaskId; // For creating sub-tasks
-  final VoidCallback? onTaskSaved; // Callback after successful save
+  @Deprecated('No longer needed - stream updates automatically')
+  final VoidCallback? onTaskSaved; // Deprecated: Supabase stream updates automatically
   final List<Tag>? initialTags; // Pre-selected tags for new tasks
 
   const TaskForm({
@@ -60,7 +61,9 @@ class _TaskFormState extends State<TaskForm> {
 
     // Initialize controllers
     _titleController = TextEditingController(text: widget.task?.title ?? '');
-    _descriptionController = TextEditingController(text: widget.task?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.task?.description ?? '',
+    );
 
     // Load available tags
     _loadAvailableTags();
@@ -144,7 +147,9 @@ class _TaskFormState extends State<TaskForm> {
     if (widget.task == null) return;
 
     try {
-      final recurrence = await _recurrenceService.getRecurrenceForTask(widget.task!.id);
+      final recurrence = await _recurrenceService.getRecurrenceForTask(
+        widget.task!.id,
+      );
       if (mounted && recurrence != null) {
         setState(() {
           _recurrence = recurrence;
@@ -168,13 +173,16 @@ class _TaskFormState extends State<TaskForm> {
     }
 
     return Scaffold(
-      appBar: TodoAppBar(
-        title: title,
-      ),
+      appBar: TodoAppBar(title: title),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 80,
+          ),
           children: [
             // Title field
             TextFormField(
@@ -234,11 +242,9 @@ class _TaskFormState extends State<TaskForm> {
             const SizedBox(height: 16),
 
             // Status selector (only if advanced states enabled)
-            if (_shouldShowAdvancedStates())
-              _buildStatusSelector(),
+            if (_shouldShowAdvancedStates()) _buildStatusSelector(),
 
-            if (_shouldShowAdvancedStates())
-              const SizedBox(height: 16),
+            if (_shouldShowAdvancedStates()) const SizedBox(height: 16),
 
             // Recurrence section
             _buildRecurrenceSection(),
@@ -301,10 +307,7 @@ class _TaskFormState extends State<TaskForm> {
                 const SizedBox(width: 8),
                 const Text(
                   'Tag',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 TextButton.icon(
@@ -326,23 +329,20 @@ class _TaskFormState extends State<TaskForm> {
                     ),
                   )
                 : _availableTags.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          'Nessun tag disponibile. Creane uno!',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      )
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _availableTags
-                            .map((tag) => _buildTagChip(tag))
-                            .toList(),
-                      ),
+                ? Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      'Nessun tag disponibile. Creane uno!',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                  )
+                : Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _availableTags
+                        .map((tag) => _buildTagChip(tag))
+                        .toList(),
+                  ),
           ],
         ),
       ),
@@ -394,10 +394,7 @@ class _TaskFormState extends State<TaskForm> {
                 SizedBox(width: 8),
                 Text(
                   'Priorità',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -407,8 +404,13 @@ class _TaskFormState extends State<TaskForm> {
               runSpacing: 8,
               children: [
                 _buildPriorityChip(null, 'Nessuna', Colors.grey),
-                ...TaskPriority.values.map((priority) =>
-                    _buildPriorityChip(priority, priority.label, priority.color)),
+                ...TaskPriority.values.map(
+                  (priority) => _buildPriorityChip(
+                    priority,
+                    priority.label,
+                    priority.color,
+                  ),
+                ),
               ],
             ),
           ],
@@ -467,8 +469,10 @@ class _TaskFormState extends State<TaskForm> {
                     Text(
                       _selectedDueDate == null
                           ? 'Nessuna scadenza'
-                          : DateFormat('EEEE, dd MMMM yyyy', 'it_IT')
-                              .format(_selectedDueDate!),
+                          : DateFormat(
+                              'EEEE, dd MMMM yyyy',
+                              'it_IT',
+                            ).format(_selectedDueDate!),
                       style: TextStyle(
                         color: _selectedDueDate == null
                             ? Colors.grey[600]
@@ -509,10 +513,7 @@ class _TaskFormState extends State<TaskForm> {
                 SizedBox(width: 8),
                 Text(
                   'Dimensione (T-shirt)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -522,7 +523,9 @@ class _TaskFormState extends State<TaskForm> {
               runSpacing: 8,
               children: [
                 _buildSizeChip(null, 'Nessuna'),
-                ...TShirtSize.values.map((size) => _buildSizeChip(size, size.label)),
+                ...TShirtSize.values.map(
+                  (size) => _buildSizeChip(size, size.label),
+                ),
               ],
             ),
           ],
@@ -571,10 +574,7 @@ class _TaskFormState extends State<TaskForm> {
                 SizedBox(width: 8),
                 Text(
                   'Stato',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -585,7 +585,11 @@ class _TaskFormState extends State<TaskForm> {
               children: [
                 _buildStatusChip(TaskStatus.pending, 'In attesa', Colors.grey),
                 _buildStatusChip(TaskStatus.assigned, 'Assegnata', Colors.blue),
-                _buildStatusChip(TaskStatus.inProgress, 'In corso', Colors.orange),
+                _buildStatusChip(
+                  TaskStatus.inProgress,
+                  'In corso',
+                  Colors.orange,
+                ),
               ],
             ),
           ],
@@ -629,10 +633,7 @@ class _TaskFormState extends State<TaskForm> {
                 const SizedBox(width: 8),
                 const Text(
                   'Ricorrenza',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 if (_recurrence == null)
@@ -681,7 +682,11 @@ class _TaskFormState extends State<TaskForm> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.schedule, size: 16, color: Colors.orange),
+                        const Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: Colors.orange,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _getRecurrenceIntraDayDescription(),
@@ -692,7 +697,11 @@ class _TaskFormState extends State<TaskForm> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.calendar_today, size: 16, color: Colors.orange),
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: Colors.orange,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _getRecurrenceInterDayDescription(),
@@ -704,7 +713,11 @@ class _TaskFormState extends State<TaskForm> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.event_busy, size: 16, color: Colors.orange),
+                          const Icon(
+                            Icons.event_busy,
+                            size: 16,
+                            color: Colors.orange,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Fino al ${DateFormat('dd/MM/yyyy').format(_recurrence!.endDate!)}',
@@ -727,7 +740,8 @@ class _TaskFormState extends State<TaskForm> {
 
     if (_recurrence!.hourlyFrequency != null) {
       return 'Ogni ${_recurrence!.hourlyFrequency} ore';
-    } else if (_recurrence!.specificTimes != null && _recurrence!.specificTimes!.isNotEmpty) {
+    } else if (_recurrence!.specificTimes != null &&
+        _recurrence!.specificTimes!.isNotEmpty) {
       final times = _recurrence!.specificTimes!
           .map((t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}')
           .join(', ');
@@ -741,11 +755,13 @@ class _TaskFormState extends State<TaskForm> {
 
     if (_recurrence!.dailyFrequency != null) {
       return 'Ogni ${_recurrence!.dailyFrequency} giorni';
-    } else if (_recurrence!.weeklyDays != null && _recurrence!.weeklyDays!.isNotEmpty) {
+    } else if (_recurrence!.weeklyDays != null &&
+        _recurrence!.weeklyDays!.isNotEmpty) {
       const dayNames = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
       final days = _recurrence!.weeklyDays!.map((d) => dayNames[d]).join(', ');
       return 'Ogni: $days';
-    } else if (_recurrence!.monthlyDays != null && _recurrence!.monthlyDays!.isNotEmpty) {
+    } else if (_recurrence!.monthlyDays != null &&
+        _recurrence!.monthlyDays!.isNotEmpty) {
       final days = _recurrence!.monthlyDays!.join(', ');
       return 'Giorni del mese: $days';
     }
@@ -755,9 +771,7 @@ class _TaskFormState extends State<TaskForm> {
   Future<void> _configureRecurrence() async {
     final result = await showDialog<Recurrence>(
       context: context,
-      builder: (context) => RecurrenceFormDialog(
-        recurrence: _recurrence,
-      ),
+      builder: (context) => RecurrenceFormDialog(recurrence: _recurrence),
     );
 
     if (result != null) {
@@ -831,7 +845,10 @@ class _TaskFormState extends State<TaskForm> {
         }
 
         final tagIds = _selectedTags.map((t) => t.id).toList();
-        final createdTask = await _taskService.createTask(newTask, tagIds: tagIds);
+        final createdTask = await _taskService.createTask(
+          newTask,
+          tagIds: tagIds,
+        );
 
         // Save recurrence if configured
         if (_recurrence != null) {
@@ -853,7 +870,7 @@ class _TaskFormState extends State<TaskForm> {
         }
 
         if (mounted) {
-          widget.onTaskSaved?.call(); // Trigger refresh callback
+          // Stream will update automatically
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Task creata con successo!')),
@@ -881,7 +898,8 @@ class _TaskFormState extends State<TaskForm> {
         await _taskService.assignTags(widget.task!.id, tagIds);
 
         // Update recurrence
-        final existingRecurrence = await _recurrenceService.getRecurrenceForTask(widget.task!.id);
+        final existingRecurrence = await _recurrenceService
+            .getRecurrenceForTask(widget.task!.id);
 
         if (_recurrence != null) {
           // Create or update recurrence
@@ -911,7 +929,7 @@ class _TaskFormState extends State<TaskForm> {
         }
 
         if (mounted) {
-          widget.onTaskSaved?.call(); // Trigger refresh callback
+          // Stream will update automatically
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Task aggiornata con successo!')),
@@ -920,9 +938,9 @@ class _TaskFormState extends State<TaskForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
       }
     } finally {
       if (mounted) {

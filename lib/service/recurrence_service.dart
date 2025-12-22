@@ -123,6 +123,7 @@ class RecurrenceService {
         'yearly_dates': recurrence.yearlyDates,
         'start_date': recurrence.startDate.toIso8601String(),
         'end_date': recurrence.endDate?.toIso8601String(),
+        'is_enabled': recurrence.isEnabled,
       };
 
       await _supabase

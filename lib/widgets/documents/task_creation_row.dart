@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/task.dart';
+import 'package:solducci/models/tag.dart';
+import 'package:solducci/models/recurrence.dart';
 import 'package:solducci/service/task_service.dart';
+import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
+import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 import 'package:solducci/theme/todo_theme.dart';
 
 /// Widget for inline task creation
@@ -38,6 +42,8 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
   TaskPriority? _priority;
   DateTime? _dueDate;
   TShirtSize? _tShirtSize;
+  Recurrence? _recurrence;
+  List<Tag> _selectedTags = [];
 
   @override
   void initState() {
@@ -84,6 +90,34 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
       task.tShirtSize = _tShirtSize;
 
       await _taskService.createTask(task);
+
+      // Save recurrence if configured
+      if (_recurrence != null) {
+        final recurrenceService = RecurrenceService();
+        final recurrenceWithTaskId = Recurrence(
+          id: _recurrence!.id,
+          taskId: task.id,
+          tagId: null,
+          hourlyFrequency: _recurrence!.hourlyFrequency,
+          specificTimes: _recurrence!.specificTimes,
+          dailyFrequency: _recurrence!.dailyFrequency,
+          weeklyDays: _recurrence!.weeklyDays,
+          monthlyDays: _recurrence!.monthlyDays,
+          yearlyDates: _recurrence!.yearlyDates,
+          startDate: _recurrence!.startDate,
+          endDate: _recurrence!.endDate,
+          isEnabled: _recurrence!.isEnabled,
+          createdAt: _recurrence!.createdAt,
+        );
+        await recurrenceService.createRecurrence(recurrenceWithTaskId);
+      }
+
+      // Save tags if selected
+      if (_selectedTags.isNotEmpty) {
+        for (final tag in _selectedTags) {
+          await _taskService.addTag(task.id, tag.id);
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -231,7 +265,82 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
             label: _tShirtSize?.label,
             onTap: _showSizePicker,
           ),
+          const SizedBox(width: 8),
+          _buildRecurrenceIcon(),
+          const SizedBox(width: 8),
+          // Tag icon: only for depth 0 tasks (no parent)
+          if (widget.parentTaskId == null) ...[
+            _buildPropertyIcon(
+              icon: Icons.label_outline,
+              color: _selectedTags.isNotEmpty ? Colors.green : Colors.grey[400]!,
+              label: _selectedTags.isNotEmpty ? '${_selectedTags.length}' : null,
+              onTap: _showTagPicker,
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildRecurrenceIcon() {
+    final hasRecurrence = _recurrence != null;
+    final isEnabled = _recurrence?.isEnabled ?? true;
+
+    // Determine color based on enabled state
+    final iconColor = hasRecurrence
+        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
+        : Colors.grey[400]!;
+    final backgroundColor = hasRecurrence
+        ? (isEnabled ? Colors.orange.withAlpha(30) : Colors.grey.withAlpha(30))
+        : Colors.transparent;
+    final borderColor = hasRecurrence
+        ? (isEnabled ? Colors.orange.withAlpha(100) : Colors.grey.withAlpha(100))
+        : Colors.orange.withAlpha(50);
+
+    return InkWell(
+      onTap: _isSaving ? null : _showRecurrencePicker,
+      onLongPress: _isSaving || !hasRecurrence ? null : _removeRecurrence,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: borderColor,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.repeat,
+              size: 16,
+              color: iconColor,
+            ),
+            if (hasRecurrence) ...[
+              const SizedBox(width: 4),
+              Text(
+                'Ric.',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: iconColor,
+                ),
+              ),
+              const SizedBox(width: 2),
+              InkWell(
+                onTap: _isSaving ? null : _removeRecurrence,
+                child: Icon(
+                  Icons.close,
+                  size: 14,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -309,6 +418,43 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
         onSelected: (newSize) {
           setState(() {
             _tShirtSize = newSize;
+          });
+        },
+      ),
+    );
+  }
+
+  Future<void> _showRecurrencePicker() async {
+    final result = await showDialog<Recurrence>(
+      context: context,
+      builder: (context) => RecurrenceFormDialog(recurrence: _recurrence),
+    );
+
+    if (result != null) {
+      setState(() {
+        _recurrence = result;
+      });
+    }
+  }
+
+  void _removeRecurrence() {
+    setState(() {
+      _recurrence = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ricorrenza rimossa')),
+    );
+  }
+
+  Future<void> _showTagPicker() async {
+    await showQuickEditBottomSheet(
+      context: context,
+      child: QuickTagPicker(
+        taskId: null, // No task ID yet since we're creating
+        currentTags: _selectedTags,
+        onSelected: (newTags) {
+          setState(() {
+            _selectedTags = newTags;
           });
         },
       ),

@@ -1,8 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/widgets/documents/tag_form_dialog.dart';
-import 'package:solducci/widgets/common/todo_app_bar.dart';
 import 'package:solducci/theme/todo_theme.dart';
 
 /// View for managing tags (CRUD operations)
@@ -98,16 +98,23 @@ class _TagManagementViewState extends State<TagManagementView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const TodoAppBar(
-        title: 'Gestione Tag',
-      ),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showTagFormDialog(null),
-        backgroundColor: TodoTheme.primaryPurple,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+    return Stack(
+      children: [
+        // Background gradient - covers entire screen
+        Positioned.fill(
+          child: TodoTheme.customBackgroundGradient,
+        ),
+        // Scaffold on top
+        Scaffold(
+          backgroundColor: Colors.transparent, // CRITICAL: Allow background gradient to show through
+          extendBodyBehindAppBar: true, // Extend body behind AppBar
+          appBar: _buildGlassAppBar(),
+          body: SafeArea(
+            child: _buildBody(),
+          ),
+          floatingActionButton: _buildGlassFAB(),
+        ),
+      ],
     );
   }
 
@@ -160,87 +167,320 @@ class _TagManagementViewState extends State<TagManagementView> {
     }
 
     // Tag list
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: _tags.length,
-      itemBuilder: (context, index) {
-        final tag = _tags[index];
-        return _buildTagCard(tag);
-      },
+    return Container(
+      color: Colors.transparent, // CRITICAL: Prevent ListView default white background
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: _tags.length,
+        itemBuilder: (context, index) {
+          final tag = _tags[index];
+          return _buildTagCard(tag);
+        },
+      ),
     );
   }
 
   Widget _buildTagCard(Tag tag) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: ListTile(
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: tag.colorObject ?? Colors.grey[300],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            tag.iconData ?? Icons.label,
-            color: Colors.white,
-            size: 24,
-          ),
-        ),
-        title: Text(
-          tag.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (tag.description != null) ...[
-              const SizedBox(height: 4),
-              Text(tag.description!),
-            ],
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  tag.showCompleted
-                    ? Icons.visibility
-                    : Icons.visibility_off,
-                  size: 14,
-                  color: Colors.grey[600],
+    final tagColor = tag.colorObject ?? Colors.grey[300]!;
+    final borderColor = Color.lerp(tagColor, Colors.white, 0.3)!.withValues(alpha: 0.7);
+    final highlightColor = Color.lerp(tagColor, Colors.white, 0.5)!.withValues(alpha: 0.5);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.08),
+                  Colors.white.withValues(alpha: 0.03),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: TodoTheme.primaryPurple.withValues(alpha: 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  tag.showCompleted
-                    ? 'Mostra completate'
-                    : 'Nascondi completate',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  blurRadius: 2,
+                  offset: const Offset(-1, -1),
                 ),
               ],
             ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blue),
-              onPressed: () => _showTagFormDialog(tag),
-              tooltip: 'Modifica',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _showTagFormDialog(tag),
+                borderRadius: BorderRadius.circular(16),
+                splashColor: tagColor.withValues(alpha: 0.1),
+                highlightColor: tagColor.withValues(alpha: 0.05),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Tag icon with glassmorphism
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              tagColor.withValues(alpha: 0.9),
+                              tagColor.withValues(alpha: 0.7),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: borderColor,
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: tagColor.withValues(alpha: 0.5),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 4),
+                            ),
+                            BoxShadow(
+                              color: highlightColor,
+                              blurRadius: 1,
+                              offset: const Offset(-1, -1),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          tag.iconData ?? Icons.label,
+                          color: Colors.white,
+                          size: 28,
+                          shadows: const [
+                            Shadow(
+                              color: Colors.black26,
+                              blurRadius: 3,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Tag info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tag.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: TodoTheme.primaryPurple,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black12,
+                                    blurRadius: 2,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (tag.description != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                tag.description!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  tag.showCompleted
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                  size: 16,
+                                  color: TodoTheme.primaryPurple.withValues(alpha: 0.7),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  tag.showCompleted
+                                      ? 'Mostra completate'
+                                      : 'Nascondi completate',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: TodoTheme.primaryPurple.withValues(alpha: 0.7),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Action buttons
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            color: Colors.blue,
+                            onPressed: () => _showTagFormDialog(tag),
+                            tooltip: 'Modifica',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            color: Colors.red,
+                            onPressed: () => _deleteTag(tag),
+                            tooltip: 'Elimina',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _deleteTag(tag),
-              tooltip: 'Elimina',
-            ),
-          ],
+          ),
         ),
-        onTap: () => _showTagFormDialog(tag),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildGlassAppBar() {
+    return AppBar(
+      flexibleSpace: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: TodoTheme.glassAppBarDecoration(),
+          ),
+        ),
+      ),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      iconTheme: const IconThemeData(color: TodoTheme.primaryPurple),
+      title: const Text(
+        'Gestione Tag',
+        style: TextStyle(
+          color: TodoTheme.primaryPurple,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(2),
+        child: Container(
+          height: 2,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                TodoTheme.primaryPurple.withValues(alpha: 0.3),
+                TodoTheme.primaryPurple,
+                TodoTheme.primaryPurple.withValues(alpha: 0.3),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassFAB() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.purple[700]!.withValues(alpha: 0.3),
+                Colors.purple[900]!.withValues(alpha: 0.15),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.purple[400]!.withValues(alpha: 0.6),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.purple[700]!.withValues(alpha: 0.5),
+                blurRadius: 24,
+                spreadRadius: 2,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.purple[300]!.withValues(alpha: 0.4),
+                blurRadius: 3,
+                offset: const Offset(-2, -2),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showTagFormDialog(null),
+              borderRadius: BorderRadius.circular(16),
+              splashColor: Colors.white.withValues(alpha: 0.3),
+              highlightColor: Colors.white.withValues(alpha: 0.2),
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Radial gradient effect behind icon
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.4),
+                            Colors.white.withValues(alpha: 0.0),
+                          ],
+                          stops: const [0.0, 1.0],
+                        ),
+                      ),
+                    ),
+                    // Icon with enhanced visibility
+                    const Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 32,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

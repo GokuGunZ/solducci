@@ -33,6 +33,7 @@ class Recurrence {
   // ========== Recurrence period ==========
   DateTime startDate;
   DateTime? endDate; // null = infinite recurrence
+  bool isEnabled; // Toggle to enable/disable the recurrence
 
   final DateTime createdAt;
 
@@ -48,6 +49,7 @@ class Recurrence {
     this.yearlyDates,
     required this.startDate,
     this.endDate,
+    this.isEnabled = true, // Default to enabled
     required this.createdAt,
   }) {
     // Validation: must be attached to either task or tag, not both
@@ -82,6 +84,7 @@ class Recurrence {
 
   /// Check if recurrence is currently active
   bool get isActive {
+    if (!isEnabled) return false; // Check if enabled first
     final now = DateTime.now();
     if (now.isBefore(startDate)) return false;
     if (endDate != null && now.isAfter(endDate!)) return false;
@@ -327,6 +330,7 @@ class Recurrence {
       endDate: map['end_date'] != null
           ? DateTime.parse(map['end_date'] as String)
           : null,
+      isEnabled: map['is_enabled'] as bool? ?? true,
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
@@ -352,6 +356,7 @@ class Recurrence {
       'yearly_dates': yearlyDates,
       'start_date': startDate.toIso8601String(),
       'end_date': endDate?.toIso8601String(),
+      'is_enabled': isEnabled,
     };
 
     // Only include id for updates
@@ -379,6 +384,7 @@ class Recurrence {
     List<String>? yearlyDates,
     DateTime? startDate,
     DateTime? endDate,
+    bool? isEnabled,
   }) {
     return Recurrence(
       id: id,
@@ -392,6 +398,7 @@ class Recurrence {
       yearlyDates: yearlyDates ?? this.yearlyDates,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      isEnabled: isEnabled ?? this.isEnabled,
       createdAt: createdAt,
     );
   }

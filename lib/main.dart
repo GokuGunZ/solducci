@@ -156,6 +156,7 @@ class SolducciApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.purple,
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.transparent, // CRITICAL: Allow background gradients to show through
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

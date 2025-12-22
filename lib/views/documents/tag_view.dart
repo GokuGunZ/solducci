@@ -4,7 +4,7 @@ import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
-import 'package:solducci/widgets/documents/task_form.dart';
+import 'package:solducci/views/documents/task_detail_page.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
 import 'package:solducci/widgets/documents/compact_filter_sort_bar.dart';
 import 'package:solducci/utils/task_filter_sort.dart';
@@ -81,21 +81,8 @@ class _TagViewState extends State<TagView>
   Widget build(BuildContext context) {
     super.build(context); // Required by AutomaticKeepAliveClientMixin
 
-    // No header bar, just the task list with gradient background
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.purple.withValues(alpha: 0.03),
-            Colors.blue.withValues(alpha: 0.02),
-            Colors.white,
-          ],
-        ),
-      ),
-      child: _buildTaskList(),
-    );
+    // No header bar, just the task list (transparent to show background gradient)
+    return _buildTaskList();
   }
 
   Widget _buildTaskList() {
@@ -191,15 +178,18 @@ class _TagViewState extends State<TagView>
         Expanded(
           child: RefreshIndicator(
             onRefresh: _loadTasks,
-            child: ListView(
-              padding: const EdgeInsets.all(8),
-              children: [
-                // Active tasks
+            child: Container(
+              color: Colors.transparent, // CRITICAL: Prevent ListView default white background
+              child: ListView(
+                padding: const EdgeInsets.all(8),
+                children: [
+                // Active tasks - use keys to optimize rebuilds
                 ...activeTasks.map((task) => TaskListItem(
+                      key: ValueKey('task_${task.id}'),
                       task: task,
                       document: widget.document,
                       onTap: () => _showTaskDetails(context, task),
-                      onTaskChanged: _loadTasks, // Refresh on task change
+                      // No onTaskChanged - manual reload via pull-to-refresh only
                       showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
                       preloadedTags: _taskTagsMap[task.id],
                       taskTagsMap: _taskTagsMap, // Pass full map for subtasks
@@ -220,16 +210,18 @@ class _TagViewState extends State<TagView>
                     ),
                   ),
                   ...completedTasks.map((task) => TaskListItem(
+                        key: ValueKey('task_${task.id}'),
                         task: task,
                         document: widget.document,
                         onTap: () => _showTaskDetails(context, task),
-                        onTaskChanged: _loadTasks, // Refresh on task change
+                        // No onTaskChanged - manual reload via pull-to-refresh only
                         showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
                         preloadedTags: _taskTagsMap[task.id],
                         taskTagsMap: _taskTagsMap, // Pass full map for subtasks
                       )),
                 ],
               ],
+              ),
             ),
           ),
         ),
@@ -241,10 +233,10 @@ class _TagViewState extends State<TagView>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TaskForm(
+        builder: (context) => TaskDetailPage(
           document: widget.document,
           task: task,
-          onTaskSaved: _loadTasks, // Refresh after task is saved
+          showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
         ),
       ),
     );

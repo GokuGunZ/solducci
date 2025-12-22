@@ -242,73 +242,93 @@ extension TaskFilterSort on List<Task> {
         .toList();
   }
 
-  /// Sort the task list
+  /// Sort the task list recursively (includes subtasks)
   List<Task> applySorting(FilterSortConfig config) {
     // If no sorting option selected, return as-is
     if (config.sortBy == null) {
       return this;
     }
 
-    final sorted = List<Task>.from(this);
-
-    sorted.sort((a, b) {
-      int comparison = 0;
-
-      switch (config.sortBy!) {
-        case TaskSortOption.dueDate:
-          // Tasks with no due date go to the end
-          if (a.dueDate == null && b.dueDate == null) {
-            comparison = 0;
-          } else if (a.dueDate == null) {
-            comparison = 1;
-          } else if (b.dueDate == null) {
-            comparison = -1;
-          } else {
-            comparison = a.dueDate!.compareTo(b.dueDate!);
-          }
-          break;
-
-        case TaskSortOption.priority:
-          // Tasks with no priority go to the end
-          if (a.priority == null && b.priority == null) {
-            comparison = 0;
-          } else if (a.priority == null) {
-            comparison = 1;
-          } else if (b.priority == null) {
-            comparison = -1;
-          } else {
-            // Higher priority (urgent=3) should come first
-            comparison = b.priority!.index.compareTo(a.priority!.index);
-          }
-          break;
-
-        case TaskSortOption.size:
-          // Tasks with no size go to the end
-          if (a.tShirtSize == null && b.tShirtSize == null) {
-            comparison = 0;
-          } else if (a.tShirtSize == null) {
-            comparison = 1;
-          } else if (b.tShirtSize == null) {
-            comparison = -1;
-          } else {
-            // Smaller sizes (xs=0) should come first by default
-            comparison = a.tShirtSize!.index.compareTo(b.tShirtSize!.index);
-          }
-          break;
-
-        case TaskSortOption.title:
-          comparison = a.title.toLowerCase().compareTo(b.title.toLowerCase());
-          break;
-
-        case TaskSortOption.createdAt:
-          comparison = a.createdAt.compareTo(b.createdAt);
-          break;
+    // Helper function to recursively sort a task and its subtasks
+    Task sortTaskAndSubtasks(Task task) {
+      if (task.subtasks == null || task.subtasks!.isEmpty) {
+        return task;
       }
 
-      return config.sortAscending ? comparison : -comparison;
-    });
+      // Sort the subtasks recursively
+      final sortedSubtasks = task.subtasks!
+          .map((subtask) => sortTaskAndSubtasks(subtask))
+          .toList()
+        ..sort((a, b) => _compareTasksForSorting(a, b, config));
 
-    return sorted;
+      return task.copyWith(subtasks: sortedSubtasks);
+    }
+
+    // Sort the top-level tasks
+    final sorted = List<Task>.from(this);
+    sorted.sort((a, b) => _compareTasksForSorting(a, b, config));
+
+    // Recursively sort subtasks for each task
+    return sorted.map((task) => sortTaskAndSubtasks(task)).toList();
+  }
+
+  /// Compare two tasks for sorting (null values always go to end)
+  int _compareTasksForSorting(Task a, Task b, FilterSortConfig config) {
+    int comparison = 0;
+
+    switch (config.sortBy!) {
+      case TaskSortOption.dueDate:
+        // Tasks with no due date always go to the end
+        if (a.dueDate == null && b.dueDate == null) {
+          comparison = 0;
+        } else if (a.dueDate == null) {
+          return 1; // a goes to end
+        } else if (b.dueDate == null) {
+          return -1; // b goes to end
+        } else {
+          comparison = a.dueDate!.compareTo(b.dueDate!);
+        }
+        break;
+
+      case TaskSortOption.priority:
+        // Tasks with no priority always go to the end
+        if (a.priority == null && b.priority == null) {
+          comparison = 0;
+        } else if (a.priority == null) {
+          return 1; // a goes to end
+        } else if (b.priority == null) {
+          return -1; // b goes to end
+        } else {
+          // Higher priority (urgent=3) should come first
+          comparison = b.priority!.index.compareTo(a.priority!.index);
+        }
+        break;
+
+      case TaskSortOption.size:
+        // Tasks with no size always go to the end
+        if (a.tShirtSize == null && b.tShirtSize == null) {
+          comparison = 0;
+        } else if (a.tShirtSize == null) {
+          return 1; // a goes to end
+        } else if (b.tShirtSize == null) {
+          return -1; // b goes to end
+        } else {
+          // Smaller sizes (xs=0) should come first by default
+          comparison = a.tShirtSize!.index.compareTo(b.tShirtSize!.index);
+        }
+        break;
+
+      case TaskSortOption.title:
+        comparison = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        break;
+
+      case TaskSortOption.createdAt:
+        comparison = a.createdAt.compareTo(b.createdAt);
+        break;
+    }
+
+    // Apply sort direction only to non-null comparisons
+    return config.sortAscending ? comparison : -comparison;
   }
 
   /// Apply both filters and sorting (async version with tag support)

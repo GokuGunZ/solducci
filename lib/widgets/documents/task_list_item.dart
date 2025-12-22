@@ -4,24 +4,30 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/tag.dart';
+import 'package:solducci/models/recurrence.dart';
 import 'package:solducci/service/task_service.dart';
+import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/widgets/documents/task_creation_row.dart';
-import 'package:solducci/widgets/documents/task_form.dart';
+import 'package:solducci/views/documents/task_detail_page.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
+import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 import 'package:solducci/theme/todo_theme.dart';
+import 'package:solducci/utils/task_state_manager.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
 class TaskListItem extends StatefulWidget {
   final Task task;
   final TodoDocument? document; // Optional: needed for creating subtasks
   final VoidCallback? onTap;
-  final VoidCallback?
-  onTaskChanged; // Callback when task is modified/deleted/duplicated
+  @Deprecated('No longer needed - stream updates automatically')
+  final VoidCallback? onTaskChanged; // Deprecated: Supabase stream updates automatically
   final int depth; // For indentation of subtasks
   final ValueNotifier<bool>?
   showAllPropertiesNotifier; // Global toggle from parent
-  final List<Tag>? preloadedTags; // Optional: preloaded tags to avoid async loading
-  final Map<String, List<Tag>>? taskTagsMap; // Optional: map of all task tags (for subtasks)
+  final List<Tag>?
+  preloadedTags; // Optional: preloaded tags to avoid async loading
+  final Map<String, List<Tag>>?
+  taskTagsMap; // Optional: map of all task tags (for subtasks)
 
   const TaskListItem({
     super.key,
@@ -42,23 +48,149 @@ class TaskListItem extends StatefulWidget {
 class _TaskListItemState extends State<TaskListItem> {
   bool _isExpanded = false;
   final _taskService = TaskService();
-  bool _isRecurring = false;
+  Recurrence? _recurrence;
   bool _isTogglingComplete = false; // Track if toggle is in progress
   bool _isCreatingSubtask = false;
+  final GlobalKey<AnimatedListState> _subtasksListKey = GlobalKey<AnimatedListState>();
+  List<Task> _displayedSubtasks = [];
+  AlwaysNotifyValueNotifier<Task>? _taskNotifier;
 
   @override
   void initState() {
     super.initState();
     _checkRecurrence();
+    // Initialize displayed subtasks - CRITICAL: Create a copy to avoid shared references
+    _displayedSubtasks = List<Task>.from(widget.task.subtasks ?? []);
+
+    // Listen to task notifier for updates (especially for subtasks)
+    final stateManager = TaskStateManager();
+    _taskNotifier = stateManager.getOrCreateTaskNotifier(widget.task.id, widget.task);
+    _taskNotifier!.addListener(_onTaskUpdated);
+  }
+
+  @override
+  void dispose() {
+    _taskNotifier?.removeListener(_onTaskUpdated);
+    super.dispose();
+  }
+
+  void _onTaskUpdated() {
+    print('🔔 Task notifier updated for: ${widget.task.id.substring(0, 8)}');
+    print('   New subtasks count: ${_taskNotifier!.value.subtasks?.length ?? 0}');
+    print('   Subtask IDs: ${_taskNotifier!.value.subtasks?.map((t) => t.id.substring(0, 8)).join(", ")}');
+
+    // Update displayed subtasks when notifier changes
+    // CRITICAL: Create a copy to avoid shared references
+    _updateDisplayedSubtasks(List<Task>.from(_taskNotifier!.value.subtasks ?? []));
+  }
+
+  @override
+  void didUpdateWidget(TaskListItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    print('📱 didUpdateWidget called for task: ${widget.task.id.substring(0, 8)}');
+    print('   Old subtasks: ${oldWidget.task.subtasks?.length ?? 0}');
+    print('   New subtasks: ${widget.task.subtasks?.length ?? 0}');
+    print('   Same task ID: ${oldWidget.task.id == widget.task.id}');
+
+    // Re-check recurrence when the widget updates (e.g., after task changes)
+    if (oldWidget.task.id == widget.task.id) {
+      _checkRecurrence();
+
+      // IMPORTANT: Don't use widget.task.subtasks directly!
+      // The widget.task might have stale data. Instead, we should listen
+      // to the ValueNotifier updates, but didUpdateWidget is triggered
+      // by the parent widget rebuilding, not by ValueNotifier changes.
+      // So we need a different approach.
+
+      // For now, log and update if subtasks count changed
+      if ((oldWidget.task.subtasks?.length ?? 0) != (widget.task.subtasks?.length ?? 0)) {
+        print('   📋 Subtask count changed, updating displayed subtasks');
+        // CRITICAL: Create a copy to avoid shared references
+        _updateDisplayedSubtasks(List<Task>.from(widget.task.subtasks ?? []));
+      }
+    }
+  }
+
+  /// Update displayed subtasks with animation (similar to main task list)
+  ///
+  /// CRITICAL: This method MUST receive a copy of the subtasks list, not a reference!
+  /// If `newSubtasks` is the same reference as the Task's subtasks field, modifying
+  /// `_displayedSubtasks` will modify the Task object, causing data corruption.
+  ///
+  /// Always call with: `List<Task>.from(task.subtasks ?? [])`
+  void _updateDisplayedSubtasks(List<Task> newSubtasks) {
+    // Find insertions
+    final newSubtaskIds = newSubtasks.map((t) => t.id).toList();
+    final oldSubtaskIds = _displayedSubtasks.map((t) => t.id).toList();
+
+    for (int i = 0; i < newSubtasks.length; i++) {
+      if (i >= _displayedSubtasks.length || newSubtasks[i].id != _displayedSubtasks[i].id) {
+        final taskId = newSubtasks[i].id;
+        if (!oldSubtaskIds.contains(taskId)) {
+          print('✨ INSERT subtask at index $i: $taskId');
+          print('   Current displayed count: ${_displayedSubtasks.length}');
+          print('   AnimatedList state exists: ${_subtasksListKey.currentState != null}');
+
+          // First update the displayed list
+          _displayedSubtasks.insert(i, newSubtasks[i]);
+
+          // Wait a frame before inserting into AnimatedList to ensure state is updated
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _subtasksListKey.currentState != null) {
+              _subtasksListKey.currentState!.insertItem(
+                i,
+                duration: const Duration(milliseconds: 400),
+              );
+              print('   Inserted into AnimatedList at index $i');
+            }
+          });
+
+          // Force rebuild to update the AnimatedList's initialItemCount
+          setState(() {});
+
+          return; // Handle one change at a time
+        }
+      }
+    }
+
+    // Find deletions
+    for (int i = _displayedSubtasks.length - 1; i >= 0; i--) {
+      final taskId = _displayedSubtasks[i].id;
+      if (!newSubtaskIds.contains(taskId)) {
+        print('🗑️ REMOVE subtask at index $i: $taskId');
+
+        // Remove from displayed list
+        _displayedSubtasks.removeAt(i);
+
+        // Remove from AnimatedList
+        _subtasksListKey.currentState?.removeItem(
+          i,
+          (context, animation) => SizeTransition(
+            sizeFactor: animation,
+            child: FadeTransition(
+              opacity: animation,
+              child: Container(),
+            ),
+          ),
+          duration: const Duration(milliseconds: 300),
+        );
+
+        // Force rebuild
+        setState(() {});
+
+        return;
+      }
+    }
   }
 
   Future<void> _checkRecurrence() async {
     final recurrence = await _taskService.getEffectiveRecurrence(
       widget.task.id,
     );
-    if (mounted && recurrence != null && recurrence.isActive) {
+
+    if (mounted) {
       setState(() {
-        _isRecurring = true;
+        _recurrence = recurrence;
       });
     }
   }
@@ -80,148 +212,181 @@ class _TaskListItemState extends State<TaskListItem> {
         }
       },
       child: Container(
+        color: Colors.transparent, // CRITICAL: Prevent white background
         margin: EdgeInsets.only(
-          left: 8.0 + (widget.depth * 16.0),
-          right: 8.0,
-          top: widget.depth > 0 ? 2.0 : 4.0,
-          bottom: widget.depth > 0 ? 2.0 : 4.0,
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withValues(alpha: 0.9),
-              Colors.white.withValues(alpha: 0.7),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(widget.depth > 0 ? 12 : 16),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.5),
-            width: widget.depth > 0 ? 1.0 : 1.5,
-          ),
-          boxShadow: widget.depth > 0
-              ? [
-                  BoxShadow(
-                    color: TodoTheme.primaryPurple.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: TodoTheme.primaryPurple.withValues(alpha: 0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+          left: (widget.depth * 16.0),
+          top: widget.depth > 0 ? 5.0 : 2.0,
+          bottom: widget.depth > 0 ? 5.0 : 2.0,
+          right: widget.depth > 0 ? 2.0 : 0.0,
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(widget.depth > 0 ? 12 : 16),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Padding(
-              // Reduce padding for subtasks
-              padding: EdgeInsets.all(widget.depth > 0 ? 8.0 : 14.0),
-              child: Column(
-                children: [
-                  InkWell(
-                    onTap: () => _showTaskDetails(context),
-                    child: Padding(
-                      // Reduce padding for subtasks
-                      padding: EdgeInsets.all(widget.depth > 0 ? 6.0 : 12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Top row: Checkbox, Title, and Subtask chip
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Improved Checkbox with hierarchy indicator
-                              _buildCheckbox(),
-                              const SizedBox(width: 8),
-                              // Title (inline editable) - Independent rebuild
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: _TaskTitle(
-                                    key: ValueKey('title_${widget.task.id}'),
-                                    task: widget.task,
-                                    onTaskChanged: widget.onTaskChanged,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Trailing actions (subtask chip or add button)
-                              if (_buildTrailingActions() != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: _buildTrailingActions()!,
-                                ),
-                            ],
+            filter: ImageFilter.blur(
+              sigmaX: 15,
+              sigmaY: 15,
+            ), // Increased blur for stronger glass effect
+            child: Container(
+              decoration: widget.depth > 0
+                  ? TodoTheme.glassDecoration(
+                      opacity:
+                          0.03, // Subtasks VERY transparent for true glass effect
+                      borderOpacity: 0.35,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: TodoTheme.primaryPurple.withValues(
+                            alpha: 0.08,
                           ),
-                          // Description (inline editable) - Hidden for subtasks
-                          if (widget.depth == 0)
-                            _TaskDescription(
-                              key: ValueKey('desc_${widget.task.id}'),
-                              task: widget.task,
-                              onTaskChanged: widget.onTaskChanged,
-                            ),
-                          // Property icons row (always visible)
-                          _buildPropertyIconsRow(),
-                          // Tags row - Independent rebuild
-                          _TaskTagsRow(
-                            key: ValueKey('tags_${widget.task.id}'),
-                            taskId: widget.task.id,
-                            onTaskChanged: widget.onTaskChanged,
-                            preloadedTags: widget.preloadedTags,
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    )
+                  : TodoTheme.glassDecoration(
+                      opacity:
+                          0.05, // Main tasks VERY transparent - let gradient show through!
+                      borderOpacity: 0.5,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: TodoTheme.primaryPurple.withValues(
+                            alpha: 0.12,
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Subtasks (expandable)
-                  if (_isExpanded && (widget.task.hasSubtasks || _isCreatingSubtask))
-                    Column(
-                      children: [
-                        // Show creation row if creating subtask
-                        if (_isCreatingSubtask)
-                          TaskCreationRow(
-                            key: ValueKey('subtask_creation_${widget.task.id}'),
-                            document: widget.document!,
-                            showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-                            parentTaskId: widget.task.id,
-                            onCancel: () {
-                              setState(() {
-                                _isCreatingSubtask = false;
-                              });
-                            },
-                            onTaskCreated: () {
-                              setState(() {
-                                _isCreatingSubtask = false;
-                              });
-                              widget.onTaskChanged?.call();
-                            },
-                          ),
-                        // Existing subtasks
-                        ...?widget.task.subtasks?.map(
-                          (subtask) => TaskListItem(
-                            task: subtask,
-                            document: widget.document,
-                            depth: widget.depth + 1,
-                            onTap: null, // Don't propagate parent's onTap, let subtask handle itself
-                            onTaskChanged:
-                                widget.onTaskChanged, // Propagate callback
-                            showAllPropertiesNotifier:
-                                widget.showAllPropertiesNotifier,
-                            preloadedTags: widget.taskTagsMap?[subtask.id],
-                            taskTagsMap: widget.taskTagsMap, // Propagate map for nested subtasks
-                          ),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          blurRadius: 2,
+                          offset: const Offset(-1, -1),
                         ),
                       ],
                     ),
-                ],
+              child: Padding(
+                // Reduce padding for subtasks
+                padding: EdgeInsets.all(widget.depth > 0 ? 0.0 : 6.0),
+                child: Column(
+                  children: [
+                    InkWell(
+                      onTap: () => _showTaskDetails(context),
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      child: Padding(
+                        // Reduce padding for subtasks
+                        padding: EdgeInsets.only(
+                          top: widget.depth > 0 ? 6.0 : 4.0,
+                          right: widget.depth > 0 ? 0.0 : 6.0,
+                          left: 6.0,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top row: Checkbox, Title+Description Column, and Subtask chip
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Improved Checkbox with hierarchy indicator
+                                _buildCheckbox(),
+                                const SizedBox(width: 8),
+                                // Title and Description in a Column
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Title (inline editable)
+                                      _TaskTitle(
+                                        key: ValueKey(
+                                          'title_${widget.task.id}',
+                                        ),
+                                        task: widget.task,
+                                      ),
+                                      // Description (inline editable) - Hidden for subtasks
+                                      if (widget.depth == 0)
+                                        _TaskDescription(
+                                          key: ValueKey(
+                                            'desc_${widget.task.id}',
+                                          ),
+                                          task: widget.task,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Trailing actions (subtask chip or add button)
+                                if (_buildTrailingActions() != null)
+                                  _buildTrailingActions()!,
+                              ],
+                            ),
+                            // Property icons row (always visible)
+                            _buildPropertyIconsRow(),
+                            // Tags removed from here - now shown in trailing actions
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Subtasks (expandable) - Using AnimatedList for smooth animations
+                    if (_isExpanded &&
+                        (_displayedSubtasks.isNotEmpty || _isCreatingSubtask))
+                      AnimatedList(
+                        key: _subtasksListKey,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        initialItemCount: _displayedSubtasks.length + (_isCreatingSubtask ? 1 : 0),
+                        itemBuilder: (context, index, animation) {
+                          // Show creation row as first item if creating subtask
+                          if (_isCreatingSubtask && index == 0) {
+                            return TaskCreationRow(
+                              key: ValueKey(
+                                'subtask_creation_${widget.task.id}',
+                              ),
+                              document: widget.document!,
+                              showAllPropertiesNotifier:
+                                  widget.showAllPropertiesNotifier,
+                              parentTaskId: widget.task.id,
+                              onCancel: () {
+                                setState(() {
+                                  _isCreatingSubtask = false;
+                                });
+                              },
+                              onTaskCreated: () {
+                                setState(() {
+                                  _isCreatingSubtask = false;
+                                });
+                                // Parent task will update via TaskStateManager
+                              },
+                            );
+                          }
+
+                          // Adjust index if creation row is present
+                          final subtaskIndex = _isCreatingSubtask ? index - 1 : index;
+                          final subtask = _displayedSubtasks[subtaskIndex];
+
+                          // Animate new subtasks
+                          return SizeTransition(
+                            sizeFactor: animation,
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: TaskListItem(
+                                key: ValueKey('task_${subtask.id}'),
+                                task: subtask,
+                                document: widget.document,
+                                depth: widget.depth + 1,
+                                onTap: null,
+                                showAllPropertiesNotifier:
+                                    widget.showAllPropertiesNotifier,
+                                preloadedTags: widget.taskTagsMap?[subtask.id],
+                                taskTagsMap: widget.taskTagsMap,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -231,19 +396,35 @@ class _TaskListItemState extends State<TaskListItem> {
   }
 
   Widget? _buildTrailingActions() {
-    if (!widget.task.hasSubtasks) {
-      // No subtasks: show only "add subtask" icon button
-      return IconButton(
-        icon: const Icon(Icons.add_circle_outline, size: 20),
-        onPressed: _showAddSubtaskDialog,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        tooltip: 'Aggiungi sub-task',
-      );
-    }
-
-    // Has subtasks: show interactive chip with counter and actions
-    return _buildSubtaskChip();
+    // Always include tags row widget that manages its own state
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Tags - always shown here now, manages empty state internally
+        _TaskTagsRow(
+          key: ValueKey('tags_${widget.task.id}'),
+          taskId: widget.task.id,
+          preloadedTags: widget.preloadedTags,
+          compact: true, // Compact mode for trailing
+        ),
+        // Spacing between tags and subtask button (if tags present)
+        // Space handled by _TaskTagsRow internally
+        // Subtask button or chip
+        if (!widget.task.hasSubtasks)
+          Padding(
+            padding: EdgeInsets.only(right: widget.depth > 0 ? 15.0 : 0.0),
+            child: IconButton(
+              icon: const Icon(Icons.add_circle_outline, size: 20),
+              onPressed: _showAddSubtaskDialog,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              tooltip: 'Aggiungi sub-task',
+            ),
+          )
+        else
+          _buildSubtaskChip(),
+      ],
+    );
   }
 
   Widget _buildSubtaskChip() {
@@ -252,61 +433,117 @@ class _TaskListItemState extends State<TaskListItem> {
         .length;
     final totalCount = widget.task.subtasks!.length;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: TodoTheme.primaryPurple.withAlpha(30),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: TodoTheme.primaryPurple.withAlpha(100),
-          width: 1.5,
-        ),
+    return Padding(
+      padding: EdgeInsets.only(
+        right: widget.depth > 0 ? 20.0 : 0.0,
+        bottom: widget.depth > 0 ? 6.0 : 0.0,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Counter (tappable to expand/collapse)
-          InkWell(
-            onTap: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-              });
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                '$completedCount/$totalCount',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: TodoTheme.primaryPurple,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              TodoTheme.primaryPurple.withValues(alpha: 0.25),
+              Colors.white.withValues(alpha: 0.15),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Color.lerp(
+              TodoTheme.primaryPurple,
+              Colors.white,
+              0.3,
+            )!.withValues(alpha: 0.7),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: Color.lerp(
+                TodoTheme.primaryPurple,
+                Colors.white,
+                0.5,
+              )!.withValues(alpha: 0.5),
+              blurRadius: 1,
+              offset: const Offset(-1, -1),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Counter (tappable to expand/collapse)
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _isExpanded = !_isExpanded;
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '$completedCount/$totalCount',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: TodoTheme.primaryPurple,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black12,
+                        blurRadius: 2,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          // Divider
-          Container(
-            width: 1.5,
-            height: 20,
-            color: TodoTheme.primaryPurple.withAlpha(80),
-          ),
-          const SizedBox(width: 6),
-          // Add subtask button
-          InkWell(
-            onTap: _showAddSubtaskDialog,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Icon(
-                Icons.add_circle_outline,
-                size: 20,
-                color: TodoTheme.primaryPurple,
+            const SizedBox(width: 6),
+            // Divider with glass effect
+            Container(
+              width: 1.5,
+              height: 20,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    TodoTheme.primaryPurple.withValues(alpha: 0.4),
+                    Colors.white.withValues(alpha: 0.3),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            // Add subtask button
+            InkWell(
+              onTap: _showAddSubtaskDialog,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Icon(
+                  Icons.add_circle_outline,
+                  size: 20,
+                  color: TodoTheme.primaryPurple,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black12,
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -420,7 +657,7 @@ class _TaskListItemState extends State<TaskListItem> {
     bool hasSize,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12.0, left: 48.0, right: 8.0),
+      padding: const EdgeInsets.only(bottom: 6.0, left: 48.0, right: 8.0),
       child: Row(
         children: [
           // Show filled properties or all properties if toggle is on
@@ -457,48 +694,79 @@ class _TaskListItemState extends State<TaskListItem> {
             ),
             const SizedBox(width: 8),
           ],
-          if (showAll || _isRecurring) ...[
-            _buildPropertyIcon(
-              icon: Icons.repeat,
-              color: _isRecurring ? Colors.orange : Colors.grey[400]!,
-              label: _isRecurring ? 'Ric.' : null,
-              onTap: () {
-                // TODO: Add recurrence picker
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Ricorrenza: funzionalità in arrivo'),
-                  ),
-                );
-              },
-            ),
+          if (showAll || _recurrence != null) ...[
+            _buildRecurrenceIcon(),
             const SizedBox(width: 8),
           ],
+          // Tag icon removed - now handled by _TaskTagsRow
         ],
       ),
     );
   }
 
-  /// Build a single property icon
+  /// Build a single property icon with glassmorphic styling
   Widget _buildPropertyIcon({
     required IconData icon,
     required Color color,
     String? label,
     required VoidCallback onTap,
   }) {
+    // Get a lighter version of the color for the border
+    final borderColor = Color.lerp(
+      color,
+      Colors.white,
+      0.3,
+    )!.withValues(alpha: 0.7);
+    final highlightColor = Color.lerp(
+      color,
+      Colors.white,
+      0.5,
+    )!.withValues(alpha: 0.5);
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: label != null ? color.withAlpha(30) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withAlpha(100), width: 1),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withValues(alpha: 0.25),
+              Colors.white.withValues(alpha: 0.15),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: borderColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: highlightColor,
+              blurRadius: 1,
+              offset: const Offset(-1, -1),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: color),
+            Icon(
+              icon,
+              size: 16,
+              color: color,
+              shadows: const [
+                Shadow(
+                  color: Colors.black12,
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
             if (label != null) ...[
               const SizedBox(width: 4),
               Text(
@@ -507,6 +775,120 @@ class _TaskListItemState extends State<TaskListItem> {
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: color,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black12,
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build recurrence icon with visual feedback and removal option
+  Widget _buildRecurrenceIcon() {
+    final hasRecurrence = _recurrence != null;
+    final isEnabled = _recurrence?.isEnabled ?? true;
+
+    // Determine color based on enabled state
+    final iconColor = hasRecurrence
+        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
+        : Colors.grey[400]!;
+
+    // Get a lighter version of the color for the border
+    final borderColor = Color.lerp(
+      iconColor,
+      Colors.white,
+      0.3,
+    )!.withValues(alpha: 0.7);
+    final highlightColor = Color.lerp(
+      iconColor,
+      Colors.white,
+      0.5,
+    )!.withValues(alpha: 0.5);
+
+    return InkWell(
+      onTap: _showRecurrencePicker,
+      onLongPress: !hasRecurrence ? null : _removeRecurrence,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              iconColor.withValues(alpha: 0.25),
+              Colors.white.withValues(alpha: 0.15),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: borderColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: iconColor.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: highlightColor,
+              blurRadius: 1,
+              offset: const Offset(-1, -1),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.repeat,
+              size: 16,
+              color: iconColor,
+              shadows: const [
+                Shadow(
+                  color: Colors.black12,
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            if (hasRecurrence) ...[
+              const SizedBox(width: 4),
+              Text(
+                'Ric.',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: iconColor,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black12,
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 2),
+              InkWell(
+                onTap: _removeRecurrence,
+                child: Icon(
+                  Icons.close,
+                  size: 14,
+                  color: Colors.red,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black12,
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -527,7 +909,7 @@ class _TaskListItemState extends State<TaskListItem> {
           try {
             widget.task.priority = newPriority;
             await _taskService.updateTask(widget.task);
-            widget.onTaskChanged?.call();
+            // Stream will update automatically
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Priorità aggiornata')),
@@ -554,7 +936,7 @@ class _TaskListItemState extends State<TaskListItem> {
           try {
             widget.task.dueDate = newDueDate;
             await _taskService.updateTask(widget.task);
-            widget.onTaskChanged?.call();
+            // Stream will update automatically
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Scadenza aggiornata')),
@@ -581,7 +963,7 @@ class _TaskListItemState extends State<TaskListItem> {
           try {
             widget.task.tShirtSize = newSize;
             await _taskService.updateTask(widget.task);
-            widget.onTaskChanged?.call();
+            // Stream will update automatically
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Dimensione aggiornata')),
@@ -599,7 +981,98 @@ class _TaskListItemState extends State<TaskListItem> {
     );
   }
 
+  Future<void> _showRecurrencePicker() async {
+    // Get current recurrence if exists
+    final recurrenceService = RecurrenceService();
+    final currentRecurrence = await recurrenceService.getRecurrenceForTask(
+      widget.task.id,
+    );
+
+    if (!mounted) return;
+
+    final result = await showDialog<Recurrence>(
+      context: context,
+      builder: (context) => RecurrenceFormDialog(recurrence: currentRecurrence),
+    );
+
+    if (result != null) {
+      try {
+        // Create a new Recurrence with the taskId set
+        final recurrenceWithTaskId = Recurrence(
+          id: result.id,
+          taskId: widget.task.id,
+          tagId: null,
+          hourlyFrequency: result.hourlyFrequency,
+          specificTimes: result.specificTimes,
+          dailyFrequency: result.dailyFrequency,
+          weeklyDays: result.weeklyDays,
+          monthlyDays: result.monthlyDays,
+          yearlyDates: result.yearlyDates,
+          startDate: result.startDate,
+          endDate: result.endDate,
+          isEnabled: result.isEnabled,
+          createdAt: result.createdAt,
+        );
+
+        // Save or update the recurrence
+        if (currentRecurrence == null) {
+          await recurrenceService.createRecurrence(recurrenceWithTaskId);
+        } else {
+          await recurrenceService.updateRecurrence(recurrenceWithTaskId);
+        }
+
+        // Refresh the recurrence state
+        await _checkRecurrence();
+        // Stream will update automatically
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ricorrenza configurata')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
+        }
+      }
+    }
+  }
+
+  Future<void> _removeRecurrence() async {
+    try {
+      final recurrenceService = RecurrenceService();
+      final currentRecurrence = await recurrenceService.getRecurrenceForTask(
+        widget.task.id,
+      );
+
+      if (currentRecurrence != null) {
+        await recurrenceService.deleteRecurrence(currentRecurrence.id);
+
+        setState(() {
+          _recurrence = null;
+        });
+
+        // Stream will update automatically
+
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Ricorrenza rimossa')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
+      }
+    }
+  }
+
   // ========== END OF QUICK-EDIT METHODS ==========
+  // Note: Tag picker now handled by _TaskTagsRow
 
   Future<void> _toggleComplete() async {
     if (_isTogglingComplete) return; // Prevent double-tap
@@ -629,9 +1102,9 @@ class _TaskListItemState extends State<TaskListItem> {
         await _taskService.completeTask(widget.task.id);
       }
 
-      // Trigger refresh to update all views (this will reload from DB)
+      // Stream will update automatically from DB
       if (mounted) {
-        widget.onTaskChanged?.call();
+        // No need to trigger refresh - stream handles it
       }
     } catch (e) {
       if (mounted) {
@@ -672,7 +1145,7 @@ class _TaskListItemState extends State<TaskListItem> {
     if (result == true) {
       try {
         await _taskService.deleteTask(widget.task.id);
-        widget.onTaskChanged?.call(); // Trigger refresh
+        // Stream will update automatically
         if (mounted) {
           ScaffoldMessenger.of(
             context,
@@ -695,7 +1168,7 @@ class _TaskListItemState extends State<TaskListItem> {
   Future<void> _duplicateTask() async {
     try {
       await _taskService.duplicateTask(widget.task.id);
-      widget.onTaskChanged?.call(); // Trigger refresh
+      // Stream will update automatically
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -712,18 +1185,18 @@ class _TaskListItemState extends State<TaskListItem> {
 
   void _showTaskDetails(BuildContext context) {
     // If onTap is provided, use it (for parent compatibility)
-    // Otherwise, open TaskForm directly for this task
+    // Otherwise, open TaskDetailPage for this task
     if (widget.onTap != null) {
       widget.onTap!();
     } else if (widget.document != null) {
-      // Open TaskForm for this specific task
+      // Open TaskDetailPage for this specific task
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TaskForm(
+          builder: (context) => TaskDetailPage(
             document: widget.document!,
             task: widget.task,
-            onTaskSaved: widget.onTaskChanged,
+            showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
           ),
         ),
       );
@@ -736,9 +1209,8 @@ class _TaskListItemState extends State<TaskListItem> {
 /// Stateful widget for task title editing
 class _TaskTitle extends StatefulWidget {
   final Task task;
-  final VoidCallback? onTaskChanged;
 
-  const _TaskTitle({super.key, required this.task, this.onTaskChanged});
+  const _TaskTitle({super.key, required this.task});
 
   @override
   State<_TaskTitle> createState() => _TaskTitleState();
@@ -793,7 +1265,7 @@ class _TaskTitleState extends State<_TaskTitle> {
       try {
         widget.task.title = newTitle;
         await _taskService.updateTask(widget.task);
-        widget.onTaskChanged?.call();
+        // Stream will update automatically
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -815,10 +1287,15 @@ class _TaskTitleState extends State<_TaskTitle> {
       return TextField(
         controller: _titleController,
         focusNode: _titleFocusNode,
-        style: const TextStyle(fontSize: 16),
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.9),
         ),
         onSubmitted: (_) => _saveTitleEdit(),
         onTapOutside: (_) => _saveTitleEdit(),
@@ -828,16 +1305,16 @@ class _TaskTitleState extends State<_TaskTitle> {
     return GestureDetector(
       onTap: _startTitleEdit,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+        color: Colors.transparent,
+        padding: const EdgeInsets.only(top: 4.0, left: 4.0),
         child: Text(
           widget.task.title,
           style: widget.task.isCompleted
               ? const TextStyle(
                   decoration: TextDecoration.lineThrough,
-                  color: Colors.grey,
-                  fontSize: 16,
+                  fontSize: 18,
                 )
-              : const TextStyle(fontSize: 16),
+              : const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -847,9 +1324,8 @@ class _TaskTitleState extends State<_TaskTitle> {
 /// Stateful widget for task description editing
 class _TaskDescription extends StatefulWidget {
   final Task task;
-  final VoidCallback? onTaskChanged;
 
-  const _TaskDescription({super.key, required this.task, this.onTaskChanged});
+  const _TaskDescription({super.key, required this.task});
 
   @override
   State<_TaskDescription> createState() => _TaskDescriptionState();
@@ -898,7 +1374,7 @@ class _TaskDescriptionState extends State<_TaskDescription> {
             ? null
             : newDescription;
         await _taskService.updateTask(widget.task);
-        widget.onTaskChanged?.call();
+        // Stream will update automatically
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -920,7 +1396,7 @@ class _TaskDescriptionState extends State<_TaskDescription> {
         (widget.task.description != null &&
             widget.task.description!.isNotEmpty)) {
       return Padding(
-        padding: const EdgeInsets.only(top: 8.0, left: 48.0, right: 8.0),
+        padding: const EdgeInsets.only(bottom: 4.0, right: 8.0),
         child: _isEditingDescription
             ? TextField(
                 controller: _descriptionController,
@@ -934,6 +1410,8 @@ class _TaskDescriptionState extends State<_TaskDescription> {
                     vertical: 8,
                   ),
                   hintText: 'Aggiungi descrizione...',
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.9),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.check, size: 20),
                     onPressed: _saveDescriptionEdit,
@@ -946,6 +1424,7 @@ class _TaskDescriptionState extends State<_TaskDescription> {
             : GestureDetector(
                 onTap: _startDescriptionEdit,
                 child: Container(
+                  color: Colors.transparent,
                   padding: const EdgeInsets.all(4.0),
                   child: Text(
                     widget.task.description!,
@@ -964,14 +1443,14 @@ class _TaskDescriptionState extends State<_TaskDescription> {
 /// Stateful widget for task tags display and editing
 class _TaskTagsRow extends StatefulWidget {
   final String taskId;
-  final VoidCallback? onTaskChanged;
   final List<Tag>? preloadedTags;
+  final bool compact; // Compact mode for trailing (no label, smaller)
 
   const _TaskTagsRow({
     super.key,
     required this.taskId,
-    this.onTaskChanged,
     this.preloadedTags,
+    this.compact = false,
   });
 
   @override
@@ -991,6 +1470,16 @@ class _TaskTagsRowState extends State<_TaskTagsRow> {
       _tags = widget.preloadedTags!;
       _isLoading = false;
     } else {
+      _loadTags();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_TaskTagsRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // CRITICAL: Reload tags when parent rebuilds (triggered by TaskStateManager)
+    // This ensures tags are always fresh when task state changes
+    if (!_isLoading) {
       _loadTags();
     }
   }
@@ -1028,7 +1517,7 @@ class _TaskTagsRowState extends State<_TaskTagsRow> {
             }
 
             await _loadTags();
-            widget.onTaskChanged?.call();
+            // Stream will update automatically
             if (mounted) {
               ScaffoldMessenger.of(
                 context,
@@ -1048,79 +1537,140 @@ class _TaskTagsRowState extends State<_TaskTagsRow> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || _tags.isEmpty) {
+    if (_isLoading) {
       return const SizedBox.shrink();
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 8.0, left: 48.0, right: 8.0),
-      child: Row(
-        children: [
-          Text(
-            'Tag:',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: _tags.map((tag) {
-                final color = tag.colorObject ?? Colors.grey;
-                return GestureDetector(
-                  onTap: _showTagPicker,
-                  child: Tooltip(
-                    message: tag.name,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withAlpha(100),
-                            blurRadius: 3,
-                            spreadRadius: 0.5,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        tag.iconData ?? Icons.label,
-                        size: 16,
-                        color: Colors.white,
-                      ),
+    // Compact mode (for trailing)
+    if (widget.compact) {
+      return _buildCompactMode();
+    }
+
+    // Old inline mode (deprecated, should not be used anymore)
+    return const SizedBox.shrink();
+  }
+
+  /// Build compact mode for trailing actions
+  Widget _buildCompactMode() {
+    // Has tags - show them with spacing after
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Add tag button
+        _buildAddTagButton(),
+        const SizedBox(width: 8),
+        // Tag chips
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: _tags.map((tag) {
+            final color = tag.colorObject ?? Colors.grey;
+            final borderColor = Color.lerp(
+              color,
+              Colors.white,
+              0.3,
+            )!.withValues(alpha: 0.7);
+            final highlightColor = Color.lerp(
+              color,
+              Colors.white,
+              0.5,
+            )!.withValues(alpha: 0.5);
+
+            return GestureDetector(
+              onTap: _showTagPicker,
+              child: Tooltip(
+                message: tag.name,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withValues(alpha: 0.9),
+                        color.withValues(alpha: 0.7),
+                      ],
                     ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: borderColor, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.5),
+                        blurRadius: 6,
+                        spreadRadius: 0.5,
+                        offset: const Offset(0, 2),
+                      ),
+                      BoxShadow(
+                        color: highlightColor,
+                        blurRadius: 1,
+                        offset: const Offset(-1, -1),
+                      ),
+                    ],
                   ),
-                );
-              }).toList(),
-            ),
-          ),
-          InkWell(
-            onTap: _showTagPicker,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: TodoTheme.primaryPurple.withAlpha(100),
-                  width: 1.5,
+                  child: Icon(
+                    tag.iconData ?? Icons.label,
+                    size: 16,
+                    color: Colors.white,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black26,
+                        blurRadius: 2,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              child: Icon(
-                Icons.new_label,
-                size: 20,
-                color: TodoTheme.primaryPurple,
-              ),
-            ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(width: 8), // Space before subtask button
+      ],
+    );
+  }
+
+  InkWell _buildAddTagButton() {
+    return InkWell(
+      onTap: _showTagPicker,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              TodoTheme.primaryPurple.withValues(alpha: 0.15),
+              Colors.white.withValues(alpha: 0.1),
+            ],
           ),
-        ],
+          border: Border.all(
+            color: Color.lerp(
+              TodoTheme.primaryPurple,
+              Colors.white,
+              0.4,
+            )!.withValues(alpha: 0.6),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: TodoTheme.primaryPurple.withValues(alpha: 0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          Icons.new_label,
+          size: 16,
+          color: TodoTheme.primaryPurple,
+          shadows: const [
+            Shadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1)),
+          ],
+        ),
       ),
     );
   }

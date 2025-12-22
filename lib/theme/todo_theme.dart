@@ -53,17 +53,69 @@ class TodoTheme {
     ],
   );
 
+  /// Custom layered background gradient for ToDo list view
+  /// Composed of three overlapping sweep and linear gradients
+  static Widget customBackgroundGradient = Stack(
+    children: [
+      // Layer 1: Bottom-right sweep gradient (Black -> Green -> Light Blue)
+      Positioned.fill(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: SweepGradient(
+              center: Alignment.bottomRight,
+              startAngle: 75 * 3.14159 / 180,
+              endAngle: 240 * 3.14159 / 180,
+              colors: [
+                Color(0x66000000), // Black with 40% opacity
+                Color(0x664CAF50), // Green with 40% opacity
+                Color.fromARGB(164, 3, 168, 244), // Light Blue with 40% opacity
+              ],
+            ),
+          ),
+        ),
+      ),
+      // Layer 2: Bottom-left sweep gradient (White -> Grey -> Purple)
+      Positioned.fill(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: SweepGradient(
+              center: Alignment.bottomLeft,
+              startAngle: 211.5 * 3.14159 / 180,
+              endAngle: 333 * 3.14159 / 180,
+              colors: [
+                Color(0x4DFFFFFF), // White with 30% opacity
+                Color(0x4D9E9E9E), // Grey with 30% opacity
+                Color.fromARGB(214, 155, 39, 176), // Purple with 30% opacity
+              ],
+            ),
+          ),
+        ),
+      ),
+      // Layer 3: Linear gradient top to bottom (Purple -> Blue -> Black)
+      Positioned.fill(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.fromARGB(51, 155, 39, 176), // Purple with 10% opacity
+                Color.fromARGB(65, 33, 149, 243), // Blue with 10% opacity
+                Color.fromARGB(150, 0, 0, 0), // Black with 10% opacity
+              ],
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+
   // ========== BORDER ==========
 
   /// Border for AppBar bottom (purple line)
   static BoxDecoration appBarDecoration = BoxDecoration(
     gradient: appBarGradient,
-    border: Border(
-      bottom: BorderSide(
-        color: primaryPurple,
-        width: 2,
-      ),
-    ),
+    border: Border(bottom: BorderSide(color: primaryPurple, width: 2)),
   );
 
   // ========== TEXT STYLES ==========
@@ -96,9 +148,7 @@ class TodoTheme {
     foregroundColor: onPrimaryColor,
     elevation: 2,
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
-    ),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
   );
 
   /// Outlined button style with purple border
@@ -106,9 +156,7 @@ class TodoTheme {
     foregroundColor: primaryPurple,
     side: BorderSide(color: primaryPurple, width: 1.5),
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
-    ),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
   );
 
   /// Text button style with purple color
@@ -184,6 +232,110 @@ class TodoTheme {
       gradient: gradient ?? solidGradient,
       borderRadius: borderRadius,
       border: border,
+    );
+  }
+
+  // ========== GLASS MORPHISM ==========
+
+  /// Glass morphism decoration for containers
+  /// Creates a frosted glass effect with blur backdrop, semi-transparent background, and luminous border
+  /// TRUE GLASSMORPHISM: Very high transparency to let background gradient show through
+  static BoxDecoration glassDecoration({
+    double opacity = 0.05, // MUCH lower opacity for true glass effect
+    double borderOpacity = 0.4,
+    BorderRadius? borderRadius,
+    Color? backgroundColor,
+    Color? borderColor,
+    List<BoxShadow>? boxShadow,
+  }) {
+    return BoxDecoration(
+      // Use a subtle gradient with VERY low opacity
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          (backgroundColor ?? Colors.white).withValues(alpha: opacity * 1.5),
+          (backgroundColor ?? Colors.white).withValues(alpha: opacity * 0.5),
+        ],
+      ),
+      borderRadius: borderRadius ?? BorderRadius.circular(16),
+      border: Border.all(
+        color: (borderColor ?? Colors.white).withValues(alpha: borderOpacity),
+        width: 1.5,
+      ),
+      boxShadow: boxShadow ?? [
+        BoxShadow(
+          color: primaryPurple.withValues(alpha: 0.1),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.white.withValues(alpha: 0.3),
+          blurRadius: 2,
+          offset: const Offset(-1, -1),
+        ),
+      ],
+    );
+  }
+
+  /// Glass morphism decoration for AppBar
+  /// Lighter, more transparent variant for top navigation
+  static BoxDecoration glassAppBarDecoration({
+    BorderRadius? borderRadius,
+  }) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.white.withValues(alpha: 0.25),
+          Colors.white.withValues(alpha: 0.15),
+        ],
+      ),
+      borderRadius: borderRadius,
+      border: Border(
+        bottom: BorderSide(
+          color: Colors.white.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: primaryPurple.withValues(alpha: 0.08),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
+  /// Glass morphism decoration for filter/sort bars
+  /// Balanced opacity for interactive elements
+  static BoxDecoration glassFilterBarDecoration({
+    BorderRadius? borderRadius,
+    Color? accentColor,
+  }) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withValues(alpha: 0.25),
+          (accentColor ?? Colors.white).withValues(alpha: 0.15),
+        ],
+      ),
+      borderRadius: borderRadius ?? BorderRadius.circular(16),
+      border: Border.all(
+        color: Colors.white.withValues(alpha: 0.4),
+        width: 1.5,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: (accentColor ?? primaryPurple).withValues(alpha: 0.12),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 }

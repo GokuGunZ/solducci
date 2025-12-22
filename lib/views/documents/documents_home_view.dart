@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/tag.dart';
@@ -10,6 +11,7 @@ import 'package:solducci/views/documents/completed_tasks_view.dart';
 import 'package:solducci/views/documents/tag_management_view.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/widgets/documents/tag_form_dialog.dart';
+import 'package:solducci/theme/todo_theme.dart';
 
 /// Main documents/todo home view with swipe-based navigation
 /// Shows: All Tasks | Tag Views | Completed Tasks
@@ -69,6 +71,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent, // CRITICAL: Allow background gradient to show through
       body: StreamBuilder<List<TodoDocument>>(
         stream: _documentService.getTodoDocumentsStream(),
         builder: (context, docSnapshot) {
@@ -155,10 +158,87 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateTaskDialog,
-        backgroundColor: Colors.purple[700],
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.purple[700]!.withValues(alpha: 0.3),
+                  Colors.purple[900]!.withValues(alpha: 0.15),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.purple[400]!.withValues(alpha: 0.6),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple[700]!.withValues(alpha: 0.5),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.purple[300]!.withValues(alpha: 0.4),
+                  blurRadius: 3,
+                  offset: const Offset(-2, -2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _showCreateTaskDialog,
+                borderRadius: BorderRadius.circular(16),
+                splashColor: Colors.white.withValues(alpha: 0.3),
+                highlightColor: Colors.white.withValues(alpha: 0.2),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Radial gradient effect behind icon
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.white.withValues(alpha: 0.4),
+                              Colors.white.withValues(alpha: 0.0),
+                            ],
+                            stops: const [0.0, 1.0],
+                          ),
+                        ),
+                      ),
+                      // Icon with enhanced visibility
+                      const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 32,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -330,92 +410,89 @@ class _PageViewContentState extends State<_PageViewContent> {
 
     final totalPages = 2 + _tags.length; // All Tasks + Tags + Completed
 
-    return Column(
+    return Stack(
       children: [
-        // AppBar at the top
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              stops: const [0.0, 0.9, 0.95, 1.0],
-              colors: [
-                Colors.purple.withValues(alpha: 0.0),
-                Colors.purple.withValues(alpha: 0.1),
-                Colors.purple.withValues(alpha: 0.20),
-                Colors.purple.withValues(alpha: 0.35),
-              ],
-            ),
-            border: Border(
-              bottom: BorderSide(color: Colors.purple[700]!, width: 2),
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Back button, title and tag management button
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      // Back button
-                      IconButton(
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: Colors.purple[700],
+        // Custom layered background (fixed, doesn't move with swipe)
+        Positioned.fill(
+          child: TodoTheme.customBackgroundGradient,
+        ),
+        // Main content
+        Column(
+          children: [
+            // AppBar at the top with glass morphism
+            ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: TodoTheme.glassAppBarDecoration(),
+                  child: SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Back button, title and tag management button
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              // Back button
+                              IconButton(
+                                icon: Icon(
+                                  Icons.arrow_back,
+                                  color: Colors.purple[700],
+                                ),
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'ToDo Lists',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple[700],
+                                ),
+                              ),
+                              const Spacer(),
+                              // Toggle button for showing all properties
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _showAllTaskPropertiesNotifier,
+                                builder: (context, showAll, child) {
+                                  return IconButton(
+                                    icon: Icon(
+                                      showAll ? Icons.edit_off : Icons.edit,
+                                      color: Colors.purple[700],
+                                    ),
+                                    onPressed: () {
+                                      _showAllTaskPropertiesNotifier.value = !_showAllTaskPropertiesNotifier.value;
+                                    },
+                                    tooltip: showAll
+                                        ? 'Nascondi proprietà vuote'
+                                        : 'Mostra tutte le proprietà',
+                                  );
+                                },
+                              ),
+                              TextButton.icon(
+                                icon: Icon(Icons.label, color: Colors.purple[700]),
+                                label: Text(
+                                  'Tag',
+                                  style: TextStyle(color: Colors.purple[700]),
+                                ),
+                                onPressed: widget.onNavigateToTagManagement,
+                              ),
+                            ],
+                          ),
                         ),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'ToDo Lists',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple[700],
-                        ),
-                      ),
-                      const Spacer(),
-                      // Toggle button for showing all properties
-                      ValueListenableBuilder<bool>(
-                        valueListenable: _showAllTaskPropertiesNotifier,
-                        builder: (context, showAll, child) {
-                          return IconButton(
-                            icon: Icon(
-                              showAll ? Icons.edit_off : Icons.edit,
-                              color: Colors.purple[700],
-                            ),
-                            onPressed: () {
-                              _showAllTaskPropertiesNotifier.value = !_showAllTaskPropertiesNotifier.value;
-                            },
-                            tooltip: showAll
-                                ? 'Nascondi proprietà vuote'
-                                : 'Mostra tutte le proprietà',
-                          );
-                        },
-                      ),
-                      TextButton.icon(
-                        icon: Icon(Icons.label, color: Colors.purple[700]),
-                        label: Text(
-                          'Tag',
-                          style: TextStyle(color: Colors.purple[700]),
-                        ),
-                        onPressed: widget.onNavigateToTagManagement,
-                      ),
-                    ],
+                        // Page indicators
+                        _buildPageIndicator(totalPages, _tags),
+                        const SizedBox(height: 6),
+                      ],
+                    ),
                   ),
                 ),
-                // Page indicators
-                _buildPageIndicator(totalPages, _tags),
-                const SizedBox(height: 6),
-              ],
+              ),
             ),
-          ),
-        ),
 
         // PageView below the AppBar
         Expanded(
@@ -432,12 +509,14 @@ class _PageViewContentState extends State<_PageViewContent> {
               }
               return false;
             },
-            child: PageView.builder(
-              key: ValueKey('main_page_view_$_refreshKey'),
-              controller: widget.pageController,
-              onPageChanged: _onPageChanged,
-              itemCount: totalPages,
-              itemBuilder: (context, index) {
+            child: Container(
+              color: Colors.transparent, // CRITICAL: Prevent PageView default background
+              child: PageView.builder(
+                key: ValueKey('main_page_view_$_refreshKey'),
+                controller: widget.pageController,
+                onPageChanged: _onPageChanged,
+                itemCount: totalPages,
+                itemBuilder: (context, index) {
                 // Page 0: Completed Tasks (first)
                 if (index == 0) {
                   return CompletedTasksView(
@@ -469,8 +548,11 @@ class _PageViewContentState extends State<_PageViewContent> {
                   showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
                 );
               },
+              ),
             ),
           ),
+        ),
+          ],
         ),
       ],
     );
@@ -548,26 +630,80 @@ class _PageViewContentState extends State<_PageViewContent> {
           vertical: isActive ? 6 : 0,
         ),
         decoration: BoxDecoration(
-          color: isActive ? dotColor : Colors.transparent,
+          gradient: isActive
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    dotColor.withValues(alpha: 0.7),
+                    dotColor.withValues(alpha: 0.5),
+                  ],
+                )
+              : null,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: dotColor.withValues(alpha: 0.5),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Icon inside circle
-            Container(
-              width: isActive ? 24 : 32,
-              height: isActive ? 24 : 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isActive
-                    ? Colors.white.withValues(alpha: 0.3)
-                    : dotColor,
-              ),
-              child: Icon(
-                icon ?? Icons.list,
-                color: Colors.white,
-                size: isActive ? 14 : 18,
+            // Icon inside glass circle
+            ClipOval(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  width: isActive ? 24 : 32,
+                  height: isActive ? 24 : 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isActive
+                          ? [
+                              Colors.white.withValues(alpha: 0.4),
+                              Colors.white.withValues(alpha: 0.2),
+                            ]
+                          : [
+                              dotColor.withValues(alpha: 0.8),
+                              dotColor.withValues(alpha: 0.6),
+                            ],
+                    ),
+                    border: Border.all(
+                      color: isActive
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : Color.lerp(dotColor, Colors.white, 0.3)!.withValues(alpha: 0.7),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: dotColor.withValues(alpha: isActive ? 0.3 : 0.5),
+                        blurRadius: isActive ? 6 : 8,
+                        offset: Offset(0, isActive ? 2 : 3),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    icon ?? Icons.list,
+                    color: Colors.white,
+                    size: isActive ? 14 : 18,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
@@ -580,6 +716,13 @@ class _PageViewContentState extends State<_PageViewContent> {
                   fontSize: 12,
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black26,
+                      blurRadius: 3,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -596,22 +739,50 @@ class _PageViewContentState extends State<_PageViewContent> {
         // Reload tags after creating a new one
         _loadTags();
       },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.purple[700],
-          boxShadow: [
-            BoxShadow(
-              color: Colors.purple.withAlpha(100),
-              blurRadius: 3,
-              spreadRadius: 0.5,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.purple[700]!.withValues(alpha: 0.8),
+                  Colors.purple[900]!.withValues(alpha: 0.6),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.purple[400]!.withValues(alpha: 0.6),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple.withValues(alpha: 0.4),
+                  blurRadius: 6,
+                  spreadRadius: 0.5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
+            child: const Icon(
+              Icons.add,
+              color: Colors.white,
+              size: 14,
+              shadows: [
+                Shadow(
+                  color: Colors.black26,
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
         ),
-        child: const Icon(Icons.add, color: Colors.white, size: 14),
       ),
     );
   }

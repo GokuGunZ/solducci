@@ -8,6 +8,8 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/views/documents/task_tile_design_preview.dart';
 import 'package:solducci/views/documents/filter_sort_ui_preview.dart';
 import 'package:solducci/views/documents/dropdown_selector_preview.dart';
+import 'package:solducci/views/showcase/background_showcase_page.dart';
+import 'package:solducci/views/showcase/glass_morphism_showcase_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Profile page with user info, settings, and links to additional features
@@ -373,6 +375,38 @@ class _ProfilePageState extends State<ProfilePage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const DropdownSelectorPreview(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  _buildListTile(
+                    context: context,
+                    icon: Icons.gradient,
+                    title: 'Background Showcase',
+                    subtitle: 'Esplora e personalizza sfondi alternativi',
+                    color: Colors.deepOrange,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BackgroundShowcasePage(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  _buildListTile(
+                    context: context,
+                    icon: Icons.blur_on,
+                    title: 'Glass Morphism Showcase',
+                    subtitle: 'Test effetti vetro e trasparenza',
+                    color: Colors.cyan,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const GlassMorphismShowcasePage(),
                         ),
                       );
                     },

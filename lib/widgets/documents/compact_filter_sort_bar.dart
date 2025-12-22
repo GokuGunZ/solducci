@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
@@ -59,172 +60,156 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
         children: [
           // Filter container - single line with icon and chips
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.purple.withValues(alpha: 0.08),
-                    Colors.blue.withValues(alpha: 0.05)
-                  ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: TodoTheme.glassFilterBarDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    accentColor: Colors.purple,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.filter_alt,
+                          size: 18, color: TodoTheme.primaryPurple),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _buildFilterChip(
+                              context: context,
+                              icon: Icons.flag,
+                              label: _getPriorityLabels(_internalConfig.priorities),
+                              color: _internalConfig.priorities.isEmpty
+                                  ? null
+                                  : Colors.deepPurple,
+                              onTap: () => _showPriorityFilter(context),
+                            ),
+                            _buildFilterChip(
+                              context: context,
+                              icon: Icons.check_circle,
+                              label: _getStatusLabels(_internalConfig.statuses),
+                              color: _internalConfig.statuses.isEmpty
+                                  ? null
+                                  : Colors.blue,
+                              onTap: () => _showStatusFilter(context),
+                            ),
+                            _buildFilterChip(
+                              context: context,
+                              icon: Icons.straighten,
+                              label: _getSizeLabels(_internalConfig.sizes),
+                              color: _internalConfig.sizes.isEmpty
+                                  ? null
+                                  : Colors.orange,
+                              onTap: () => _showSizeFilter(context),
+                            ),
+                            _buildFilterChip(
+                              context: context,
+                              icon: Icons.calendar_today,
+                              label: _internalConfig.dateFilter?.label,
+                              color: _internalConfig.dateFilter == null
+                                  ? null
+                                  : Colors.teal,
+                              onTap: () => _showDateFilter(context),
+                            ),
+                            _buildFilterChip(
+                              context: context,
+                              icon: Icons.label,
+                              label: _internalConfig.tagIds.isEmpty
+                                  ? null
+                                  : '${_internalConfig.tagIds.length}',
+                              color: _internalConfig.tagIds.isEmpty
+                                  ? null
+                                  : Colors.green,
+                              onTap: () => _showTagFilter(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: Colors.purple.withValues(alpha: 0.25), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.purple.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.filter_alt,
-                      size: 18, color: TodoTheme.primaryPurple),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _buildFilterChip(
-                          context: context,
-                          icon: Icons.flag,
-                          label: _getPriorityLabels(_internalConfig.priorities),
-                          color: _internalConfig.priorities.isEmpty
-                              ? null
-                              : Colors.deepPurple,
-                          onTap: () => _showPriorityFilter(context),
-                        ),
-                        _buildFilterChip(
-                          context: context,
-                          icon: Icons.check_circle,
-                          label: _getStatusLabels(_internalConfig.statuses),
-                          color: _internalConfig.statuses.isEmpty
-                              ? null
-                              : Colors.blue,
-                          onTap: () => _showStatusFilter(context),
-                        ),
-                        _buildFilterChip(
-                          context: context,
-                          icon: Icons.straighten,
-                          label: _getSizeLabels(_internalConfig.sizes),
-                          color: _internalConfig.sizes.isEmpty
-                              ? null
-                              : Colors.orange,
-                          onTap: () => _showSizeFilter(context),
-                        ),
-                        _buildFilterChip(
-                          context: context,
-                          icon: Icons.calendar_today,
-                          label: _internalConfig.dateFilter?.label,
-                          color: _internalConfig.dateFilter == null
-                              ? null
-                              : Colors.teal,
-                          onTap: () => _showDateFilter(context),
-                        ),
-                        _buildFilterChip(
-                          context: context,
-                          icon: Icons.label,
-                          label: _internalConfig.tagIds.isEmpty
-                              ? null
-                              : '${_internalConfig.tagIds.length}',
-                          color: _internalConfig.tagIds.isEmpty
-                              ? null
-                              : Colors.green,
-                          onTap: () => _showTagFilter(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
           const SizedBox(width: 8),
           // Sort container - single line with icon and chips (aligned right)
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.green.withValues(alpha: 0.08),
-                    Colors.teal.withValues(alpha: 0.05)
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: Colors.green.withValues(alpha: 0.25), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: TodoTheme.glassFilterBarDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    accentColor: Colors.green,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Clear sort button on the left if active
-                  if (_internalConfig.sortBy != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: InkWell(
-                        onTap: _clearSort,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.1),
+                  child: Row(
+                    children: [
+                      // Clear sort button on the left if active
+                      if (_internalConfig.sortBy != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: InkWell(
+                            onTap: _clearSort,
                             borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 12,
+                                color: Colors.red,
+                              ),
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 12,
-                            color: Colors.red,
-                          ),
+                        ),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.end, // Align chips to the right
+                          children: [
+                            _buildSortChip(
+                              icon: Icons.calendar_today,
+                              label: 'Data',
+                              value: TaskSortOption.dueDate,
+                              onTap: () => _toggleSort(TaskSortOption.dueDate),
+                            ),
+                            _buildSortChip(
+                              icon: Icons.priority_high,
+                              label: 'Priorità',
+                              value: TaskSortOption.priority,
+                              onTap: () => _toggleSort(TaskSortOption.priority),
+                            ),
+                            _buildSortChip(
+                              icon: Icons.straighten,
+                              label: 'Dimensione',
+                              value: TaskSortOption.size,
+                              onTap: () => _toggleSort(TaskSortOption.size),
+                            ),
+                            _buildSortChip(
+                              icon: Icons.sort_by_alpha,
+                              label: 'Nome',
+                              value: TaskSortOption.title,
+                              onTap: () => _toggleSort(TaskSortOption.title),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      alignment: WrapAlignment.end, // Align chips to the right
-                      children: [
-                        _buildSortChip(
-                          icon: Icons.calendar_today,
-                          label: 'Data',
-                          value: TaskSortOption.dueDate,
-                          onTap: () => _toggleSort(TaskSortOption.dueDate),
-                        ),
-                        _buildSortChip(
-                          icon: Icons.priority_high,
-                          label: 'Priorità',
-                          value: TaskSortOption.priority,
-                          onTap: () => _toggleSort(TaskSortOption.priority),
-                        ),
-                        _buildSortChip(
-                          icon: Icons.straighten,
-                          label: 'Dimensione',
-                          value: TaskSortOption.size,
-                          onTap: () => _toggleSort(TaskSortOption.size),
-                        ),
-                        _buildSortChip(
-                          icon: Icons.sort_by_alpha,
-                          label: 'Nome',
-                          value: TaskSortOption.title,
-                          onTap: () => _toggleSort(TaskSortOption.title),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.sort, size: 18, color: Colors.green),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.sort, size: 18, color: Colors.green),
-                ],
+                ),
               ),
             ),
           ),
