@@ -11,6 +11,7 @@ import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/widgets/documents/task_creation_row.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
+import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/theme/todo_theme.dart';
 
 /// Task detail page with inline editing and seamless UI
@@ -24,7 +25,7 @@ class TaskDetailPage extends StatefulWidget {
   final Task task;
   final TodoDocument document;
   final ValueNotifier<bool>?
-      showAllPropertiesNotifier; // Shared with parent view
+  showAllPropertiesNotifier; // Shared with parent view
 
   const TaskDetailPage({
     super.key,
@@ -58,6 +59,14 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   // Local toggle if not provided by parent
   late ValueNotifier<bool> _localShowAllPropertiesNotifier;
 
+  // Local toggle for subtasks properties
+  final ValueNotifier<bool> _showAllSubtaskPropertiesNotifier = ValueNotifier(
+    false,
+  );
+
+  // Task notifier for reactive updates
+  AlwaysNotifyValueNotifier<Task>? _taskNotifier;
+
   @override
   void initState() {
     super.initState();
@@ -71,15 +80,32 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     _localShowAllPropertiesNotifier =
         widget.showAllPropertiesNotifier ?? ValueNotifier<bool>(false);
 
+    // Get or create task notifier and listen for updates
+    final stateManager = TaskStateManager();
+    _taskNotifier = stateManager.getOrCreateTaskNotifier(
+      widget.task.id,
+      widget.task,
+    );
+    _taskNotifier!.addListener(_onTaskUpdated);
+
     _loadTaskData();
+  }
+
+  void _onTaskUpdated() {
+    if (!mounted) return;
+    setState(() {
+      // Task updated, rebuild to show new subtasks
+    });
   }
 
   @override
   void dispose() {
+    _taskNotifier?.removeListener(_onTaskUpdated);
     _titleController.dispose();
     _descriptionController.dispose();
     _titleFocusNode.dispose();
     _descriptionFocusNode.dispose();
+    _showAllSubtaskPropertiesNotifier.dispose();
 
     // Only dispose if we created it locally
     if (widget.showAllPropertiesNotifier == null) {
@@ -164,9 +190,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         await _taskService.updateTask(widget.task);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
         _titleController.text = widget.task.title;
       }
@@ -197,14 +223,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
 
     if (hasChanged) {
       try {
-        widget.task.description =
-            newDescription.isEmpty ? null : newDescription;
+        widget.task.description = newDescription.isEmpty
+            ? null
+            : newDescription;
         await _taskService.updateTask(widget.task);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
         _descriptionController.text = widget.task.description ?? '';
       }
@@ -234,9 +261,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Errore: $e')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Errore: $e')));
             }
           }
         },
@@ -261,9 +288,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Errore: $e')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Errore: $e')));
             }
           }
         },
@@ -288,9 +315,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Errore: $e')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Errore: $e')));
             }
           }
         },
@@ -344,9 +371,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
       }
     }
@@ -365,16 +392,16 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ricorrenza rimossa')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Ricorrenza rimossa')));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
       }
     }
   }
@@ -405,15 +432,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             setState(() {}); // Rebuild tags section
 
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Tag aggiornati')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Tag aggiornati')));
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Errore: $e')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Errore: $e')));
             }
           }
         },
@@ -428,12 +455,11 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     return Stack(
       children: [
         // Background gradient - covers entire screen
-        Positioned.fill(
-          child: TodoTheme.customBackgroundGradient,
-        ),
+        Positioned.fill(child: TodoTheme.customBackgroundGradient),
         // Scaffold on top
         Scaffold(
-          backgroundColor: Colors.transparent, // CRITICAL: Allow background gradient to show through
+          backgroundColor: Colors
+              .transparent, // CRITICAL: Allow background gradient to show through
           extendBodyBehindAppBar: true, // Extend body behind AppBar
           appBar: _buildEditableAppBar(),
           body: SafeArea(
@@ -539,9 +565,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       flexibleSpace: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: TodoTheme.glassAppBarDecoration(),
-          ),
+          child: Container(decoration: TodoTheme.glassAppBarDecoration()),
         ),
       ),
       backgroundColor: Colors.transparent,
@@ -593,59 +617,40 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   }
 
   Widget _buildPropertiesSection() {
-    // Check which properties have values
-    final hasPriority = widget.task.priority != null;
-    final hasDueDate = widget.task.dueDate != null;
-    final hasSize = widget.task.tShirtSize != null;
-    final hasRecurrence = _recurrence != null;
-
-    return ValueListenableBuilder<bool>(
-      valueListenable: _localShowAllPropertiesNotifier,
-      builder: (context, showAll, child) {
-        // Determine which properties to show
-        final shouldShowPriority = showAll || hasPriority;
-        final shouldShowDueDate = showAll || hasDueDate;
-        final shouldShowSize = showAll || hasSize;
-        final shouldShowRecurrence = showAll || hasRecurrence;
-
-        return Center(
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              if (shouldShowPriority)
-                _buildPropertyChip(
-                  icon: Icons.flag_outlined,
-                  color: widget.task.priority?.color ?? Colors.grey[400]!,
-                  label: widget.task.priority?.label,
-                  onTap: _showPriorityPicker,
-                ),
-              if (shouldShowDueDate)
-                _buildPropertyChip(
-                  icon: Icons.calendar_today_outlined,
-                  color: widget.task.dueDate != null
-                      ? (widget.task.isOverdue ? Colors.red : Colors.blue)
-                      : Colors.grey[400]!,
-                  label: widget.task.dueDate != null
-                      ? DateFormat('dd/MM').format(widget.task.dueDate!)
-                      : null,
-                  onTap: _showDueDatePicker,
-                ),
-              if (shouldShowSize)
-                _buildPropertyChip(
-                  icon: Icons.straighten,
-                  color: widget.task.tShirtSize != null
-                      ? TodoTheme.primaryPurple
-                      : Colors.grey[400]!,
-                  label: widget.task.tShirtSize?.label,
-                  onTap: _showSizePicker,
-                ),
-              if (shouldShowRecurrence) _buildRecurrenceChip(),
-            ],
+    // Always show all properties in the top section (ignoring the toggle)
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          _buildPropertyChip(
+            icon: Icons.flag_outlined,
+            color: widget.task.priority?.color ?? Colors.black,
+            label: widget.task.priority?.label,
+            onTap: _showPriorityPicker,
           ),
-        );
-      },
+          _buildPropertyChip(
+            icon: Icons.calendar_today_outlined,
+            color: widget.task.dueDate != null
+                ? (widget.task.isOverdue ? Colors.red : Colors.blue)
+                : Colors.black,
+            label: widget.task.dueDate != null
+                ? DateFormat('dd/MM').format(widget.task.dueDate!)
+                : null,
+            onTap: _showDueDatePicker,
+          ),
+          _buildPropertyChip(
+            icon: Icons.straighten,
+            color: widget.task.tShirtSize != null
+                ? TodoTheme.primaryPurple
+                : Colors.black,
+            label: widget.task.tShirtSize?.label,
+            onTap: _showSizePicker,
+          ),
+          _buildRecurrenceChip(),
+        ],
+      ),
     );
   }
 
@@ -655,9 +660,24 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     String? label,
     required VoidCallback onTap,
   }) {
+    // Check if property is set (has a label)
+    final isSet = label != null;
+
+    // Use grey background for unset properties, colored for set ones
+    final chipColor = isSet ? color : Colors.grey[400]!;
+    final iconColor = isSet ? color : Colors.black;
+
     // Get lighter version of color for border
-    final borderColor = Color.lerp(color, Colors.white, 0.3)!.withValues(alpha: 0.7);
-    final highlightColor = Color.lerp(color, Colors.white, 0.5)!.withValues(alpha: 0.5);
+    final borderColor = Color.lerp(
+      chipColor,
+      Colors.white,
+      0.3,
+    )!.withValues(alpha: 0.7);
+    final highlightColor = Color.lerp(
+      chipColor,
+      Colors.white,
+      0.5,
+    )!.withValues(alpha: 0.5);
 
     return InkWell(
       onTap: onTap,
@@ -673,18 +693,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  color.withValues(alpha: 0.25),
+                  chipColor.withValues(alpha: 0.25),
                   Colors.white.withValues(alpha: 0.15),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: borderColor,
-                width: 1.5,
-              ),
+              border: Border.all(color: borderColor, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.3),
+                  color: chipColor.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -701,7 +718,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 Icon(
                   icon,
                   size: 20,
-                  color: color,
+                  color: iconColor,
                   shadows: const [
                     Shadow(
                       color: Colors.black12,
@@ -717,7 +734,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: color,
+                      color: iconColor,
                       shadows: const [
                         Shadow(
                           color: Colors.black12,
@@ -740,12 +757,26 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     final hasRecurrence = _recurrence != null;
     final isEnabled = _recurrence?.isEnabled ?? true;
 
-    final iconColor = hasRecurrence
+    // Chip background color: grey if not set, orange/grey if set
+    final chipColor = hasRecurrence
         ? (isEnabled ? Colors.orange : Colors.grey[600]!)
         : Colors.grey[400]!;
 
-    final borderColor = Color.lerp(iconColor, Colors.white, 0.3)!.withValues(alpha: 0.7);
-    final highlightColor = Color.lerp(iconColor, Colors.white, 0.5)!.withValues(alpha: 0.5);
+    // Icon color: black if not set, same as chip color if set
+    final iconColor = hasRecurrence
+        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
+        : Colors.black;
+
+    final borderColor = Color.lerp(
+      chipColor,
+      Colors.white,
+      0.3,
+    )!.withValues(alpha: 0.7);
+    final highlightColor = Color.lerp(
+      chipColor,
+      Colors.white,
+      0.5,
+    )!.withValues(alpha: 0.5);
 
     return InkWell(
       onTap: _showRecurrencePicker,
@@ -762,18 +793,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  iconColor.withValues(alpha: 0.25),
+                  chipColor.withValues(alpha: 0.25),
                   Colors.white.withValues(alpha: 0.15),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: borderColor,
-                width: 1.5,
-              ),
+              border: Border.all(color: borderColor, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: iconColor.withValues(alpha: 0.3),
+                  color: chipColor.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -914,7 +942,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   ),
                 ),
                 child: Icon(
-                  Icons.add,
+                  Icons.new_label_outlined,
                   size: 20,
                   color: TodoTheme.primaryPurple,
                 ),
@@ -999,23 +1027,52 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   }
 
   Widget _buildSubtasksSection() {
-    // Use subtasks from the task object (loaded via tree structure)
-    final hasSubtasks = widget.task.subtasks != null && widget.task.subtasks!.isNotEmpty;
+    // Use subtasks from the task notifier (reactive updates)
+    final currentTask = _taskNotifier?.value ?? widget.task;
+    final hasSubtasks =
+        currentTask.subtasks != null && currentTask.subtasks!.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header
+        // Section header with toggle button
         if (hasSubtasks || _isCreatingSubtask)
           Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Text(
-              'Subtask',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
+            padding: const EdgeInsets.only(left: 4, bottom: 12, right: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Subtask',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                // Toggle button for showing all properties
+                ValueListenableBuilder<bool>(
+                  valueListenable: _showAllSubtaskPropertiesNotifier,
+                  builder: (context, showAll, child) {
+                    return IconButton(
+                      icon: Icon(
+                        showAll ? Icons.edit_off : Icons.edit,
+                        color: TodoTheme.primaryPurple,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        _showAllSubtaskPropertiesNotifier.value =
+                            !_showAllSubtaskPropertiesNotifier.value;
+                      },
+                      tooltip: showAll
+                          ? 'Nascondi proprietà vuote'
+                          : 'Mostra tutte le proprietà',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
 
@@ -1024,7 +1081,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           TaskCreationRow(
             key: ValueKey('subtask_creation_${widget.task.id}'),
             document: widget.document,
-            showAllPropertiesNotifier: _localShowAllPropertiesNotifier,
+            showAllPropertiesNotifier: _showAllSubtaskPropertiesNotifier,
             parentTaskId: widget.task.id,
             onCancel: () {
               setState(() {
@@ -1035,22 +1092,24 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               setState(() {
                 _isCreatingSubtask = false;
               });
-              // Subtasks will auto-update via stream
+              // Subtasks will auto-update via notifier listener
             },
           ),
 
         // Subtasks list
         if (hasSubtasks)
-          ...(widget.task.subtasks!.map((subtask) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: TaskListItem(
-                  key: ValueKey('subtask_${subtask.id}'),
-                  task: subtask,
-                  document: widget.document,
-                  depth: 1,
-                  showAllPropertiesNotifier: _localShowAllPropertiesNotifier,
-                ),
-              ))),
+          ...(currentTask.subtasks!.map(
+            (subtask) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TaskListItem(
+                key: ValueKey('subtask_${subtask.id}'),
+                task: subtask,
+                document: widget.document,
+                depth: 1,
+                showAllPropertiesNotifier: _showAllSubtaskPropertiesNotifier,
+              ),
+            ),
+          )),
       ],
     );
   }

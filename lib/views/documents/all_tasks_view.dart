@@ -88,6 +88,10 @@ class _AllTasksViewState extends State<AllTasksView>
 
   Future<void> _refreshTasks() async {
     try {
+      // CRITICAL: Add small delay to ensure DB write is fully committed
+      // Supabase might have eventual consistency or connection pooling delays
+      await Future.delayed(const Duration(milliseconds: 100));
+
       // Fetch fresh data directly from Supabase
       final tasks = await _taskService.fetchTasksForDocument(widget.document.id);
       print('✅ Fetched ${tasks.length} tasks');
@@ -247,6 +251,7 @@ class _AnimatedTaskListBuilder extends StatefulWidget {
 class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   List<Task> _displayedTasks = [];
+  List<Task>? _rawTasks; // Cache raw unfiltered data for re-filtering
   bool _isFirstLoad = true;
   StreamSubscription<List<Task>>? _streamSubscription;
 
@@ -257,38 +262,93 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   }
 
   @override
+  void didUpdateWidget(_AnimatedTaskListBuilder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Detect filter or sort config changes
+    if (widget.filterConfig != oldWidget.filterConfig) {
+      print('🔄 Filter config changed, re-applying filters');
+      print('   Old config: priorities=${oldWidget.filterConfig.priorities.length}, '
+            'statuses=${oldWidget.filterConfig.statuses.length}, '
+            'sortBy=${oldWidget.filterConfig.sortBy}');
+      print('   New config: priorities=${widget.filterConfig.priorities.length}, '
+            'statuses=${widget.filterConfig.statuses.length}, '
+            'sortBy=${widget.filterConfig.sortBy}');
+
+      // Re-apply filters to cached raw data with isFilterChange=true
+      // This ensures batch update instead of incremental changes
+      if (_rawTasks != null) {
+        _applyFiltersToRawData(_rawTasks!, isFilterChange: true);
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _streamSubscription?.cancel();
+    _rawTasks = null; // Clear cache
     super.dispose();
   }
 
   void _onNewData(List<Task> allTasks) {
-    print('📥 Stream received ${allTasks.length} tasks');
+    print('📦 _onNewData received ${allTasks.length} tasks');
+    _rawTasks = allTasks; // Cache raw data for re-filtering
+    _applyFiltersToRawData(allTasks);
+  }
+
+  void _applyFiltersToRawData(List<Task> allTasks, {bool isFilterChange = false}) {
+    print('🔍 Applying filters to ${allTasks.length} tasks (isFilterChange: $isFilterChange)');
+    print('   Filter config: priorities=${widget.filterConfig.priorities}, '
+          'statuses=${widget.filterConfig.statuses}, '
+          'sizes=${widget.filterConfig.sizes}, '
+          'dateFilter=${widget.filterConfig.dateFilter}, '
+          'sortBy=${widget.filterConfig.sortBy}');
 
     var tasks = allTasks
         .where((t) => t.status != TaskStatus.completed)
         .toList();
 
+    print('   After completion filter: ${tasks.length} tasks');
+
     if (widget.filterConfig.tagIds.isNotEmpty) {
+      print('   Applying async filter (tags: ${widget.filterConfig.tagIds.length})');
       tasks.applyFilterSortAsync(widget.filterConfig).then((filteredTasks) {
-        _updateDisplayedTasks(filteredTasks);
+        print('   Async filter result: ${filteredTasks.length} tasks');
+        _updateDisplayedTasks(filteredTasks, isFilterChange: isFilterChange);
       });
     } else {
       tasks = tasks.applyFilterSort(widget.filterConfig);
-      _updateDisplayedTasks(tasks);
+      print('   After sync filter+sort: ${tasks.length} tasks');
+      _updateDisplayedTasks(tasks, isFilterChange: isFilterChange);
     }
   }
 
-  void _updateDisplayedTasks(List<Task> newTasks) {
+  void _updateDisplayedTasks(List<Task> newTasks, {bool isFilterChange = false}) {
     if (_isFirstLoad) {
       setState(() {
         _displayedTasks = newTasks;
         _isFirstLoad = false;
       });
-      print('📋 First load: ${newTasks.length} tasks');
       return;
     }
 
+    // CRITICAL FIX: When filter/sort changes, do batch update without incremental animations
+    // This prevents the "one task at a time" removal issue and handles reordering
+    if (isFilterChange) {
+      print('📋 Batch update for filter/sort change: ${_displayedTasks.length} → ${newTasks.length} tasks');
+      setState(() {
+        _displayedTasks = newTasks;
+      });
+
+      // Update all task notifiers recursively
+      final stateManager = TaskStateManager();
+      for (final task in newTasks) {
+        stateManager.updateTaskRecursively(task);
+      }
+      return;
+    }
+
+    // Existing incremental logic for stream updates (single task add/remove)
     // Granular diff - find exact changes
     final newTaskIds = newTasks.map((t) => t.id).toList();
     final oldTaskIds = _displayedTasks.map((t) => t.id).toList();
@@ -299,9 +359,18 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
         final taskId = newTasks[i].id;
         if (!oldTaskIds.contains(taskId)) {
           // New task - insert with animation
-          print('✨ INSERT at index $i: $taskId');
           _displayedTasks.insert(i, newTasks[i]);
           _listKey.currentState?.insertItem(i, duration: const Duration(milliseconds: 400));
+
+          // CRITICAL: Ensure all OTHER tasks have updated notifiers too
+          // (the new task will get its notifier in initState)
+          final stateManager = TaskStateManager();
+          for (final task in newTasks) {
+            if (task.id != taskId) {
+              stateManager.updateTask(task);
+            }
+          }
+
           return; // Handle one change at a time
         }
       }
@@ -311,8 +380,7 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     for (int i = _displayedTasks.length - 1; i >= 0; i--) {
       final taskId = _displayedTasks[i].id;
       if (!newTaskIds.contains(taskId)) {
-        print('🗑️ REMOVE at index $i: $taskId');
-        final removedTask = _displayedTasks.removeAt(i);
+        _displayedTasks.removeAt(i);
         _listKey.currentState?.removeItem(
           i,
           (context, animation) => SizeTransition(
@@ -328,8 +396,13 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
       }
     }
 
-    // No structural changes - check for updates
-    print('📝 No structural changes');
+    // No structural changes - but we still need to update task notifiers!
+    // CRITICAL: Recursively update all task notifiers (including subtasks)
+    // This ensures the entire task tree is synchronized with DB data
+    final stateManager = TaskStateManager();
+    for (final newTask in newTasks) {
+      stateManager.updateTaskRecursively(newTask);
+    }
   }
 
   @override

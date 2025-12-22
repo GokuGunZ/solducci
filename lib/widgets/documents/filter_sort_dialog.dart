@@ -81,6 +81,46 @@ class FilterSortConfig {
     if (showOverdueOnly) count++;
     return count;
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! FilterSortConfig) return false;
+
+    return _setEquals(priorities, other.priorities) &&
+           _setEquals(statuses, other.statuses) &&
+           _setEquals(sizes, other.sizes) &&
+           _setEquals(tagIds, other.tagIds) &&
+           dateFilter == other.dateFilter &&
+           showOverdueOnly == other.showOverdueOnly &&
+           sortBy == other.sortBy &&
+           sortAscending == other.sortAscending;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      _setHashCode(priorities),
+      _setHashCode(statuses),
+      _setHashCode(sizes),
+      _setHashCode(tagIds),
+      dateFilter,
+      showOverdueOnly,
+      sortBy,
+      sortAscending,
+    );
+  }
+
+  // Helper methods for Set comparison
+  static bool _setEquals<T>(Set<T> a, Set<T> b) {
+    if (a.length != b.length) return false;
+    return a.containsAll(b);
+  }
+
+  static int _setHashCode<T>(Set<T> set) {
+    // Order-independent hash for sets
+    return set.fold(0, (hash, element) => hash ^ element.hashCode);
+  }
 }
 
 enum TaskSortOption {

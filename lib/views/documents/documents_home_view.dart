@@ -71,7 +71,8 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent, // CRITICAL: Allow background gradient to show through
+      backgroundColor: Colors
+          .transparent, // CRITICAL: Allow background gradient to show through
       body: StreamBuilder<List<TodoDocument>>(
         stream: _documentService.getTodoDocumentsStream(),
         builder: (context, docSnapshot) {
@@ -139,13 +140,14 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
             ), // Key stabile per evitare rebuild
             pageController: _pageController,
             document: _currentDocument!,
-            onPageChanged: (page, tags, refreshCallback, inlineCreationCallback) {
-              // Update state without triggering rebuild of StreamBuilder
-              _currentPage = page;
-              _currentTags = tags;
-              _onTaskCreated = refreshCallback;
-              _onStartInlineCreation = inlineCreationCallback;
-            },
+            onPageChanged:
+                (page, tags, refreshCallback, inlineCreationCallback) {
+                  // Update state without triggering rebuild of StreamBuilder
+                  _currentPage = page;
+                  _currentTags = tags;
+                  _onTaskCreated = refreshCallback;
+                  _onStartInlineCreation = inlineCreationCallback;
+                },
             onCreateTag: _showCreateTagDialog,
             onNavigateToTagManagement: () {
               Navigator.push(
@@ -159,7 +161,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
         },
       ),
       floatingActionButton: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(32),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: Container(
@@ -172,14 +174,14 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                   Colors.purple[900]!.withValues(alpha: 0.15),
                 ],
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(32),
               border: Border.all(
                 color: Colors.purple[400]!.withValues(alpha: 0.6),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple[700]!.withValues(alpha: 0.5),
+                  color: Colors.purple[500]!.withValues(alpha: 0.5),
                   blurRadius: 24,
                   spreadRadius: 2,
                   offset: const Offset(0, 8),
@@ -298,7 +300,12 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 class _PageViewContent extends StatefulWidget {
   final PageController pageController;
   final TodoDocument document;
-  final void Function(int page, List<Tag> tags, VoidCallback? refreshCallback, VoidCallback? inlineCreationCallback)
+  final void Function(
+    int page,
+    List<Tag> tags,
+    VoidCallback? refreshCallback,
+    VoidCallback? inlineCreationCallback,
+  )
   onPageChanged;
   final Future<void> Function() onCreateTag;
   final VoidCallback onNavigateToTagManagement;
@@ -324,7 +331,9 @@ class _PageViewContentState extends State<_PageViewContent> {
       1; // Start at "Tutte" page (matches PageController initialPage)
 
   // ValueNotifier for efficient property visibility updates
-  final ValueNotifier<bool> _showAllTaskPropertiesNotifier = ValueNotifier(false);
+  final ValueNotifier<bool> _showAllTaskPropertiesNotifier = ValueNotifier(
+    false,
+  );
 
   // Refresh key to force rebuild of pages
   int _refreshKey = 0;
@@ -357,7 +366,12 @@ class _PageViewContentState extends State<_PageViewContent> {
         // Notify parent about initial tags load after the frame is built
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback, _startInlineCreationCallback);
+            widget.onPageChanged(
+              _currentPage,
+              _tags,
+              _getRefreshCallback,
+              _startInlineCreationCallback,
+            );
           }
         });
       }
@@ -370,7 +384,12 @@ class _PageViewContentState extends State<_PageViewContent> {
         // Notify parent even on error after the frame is built
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            widget.onPageChanged(_currentPage, _tags, _getRefreshCallback, _startInlineCreationCallback);
+            widget.onPageChanged(
+              _currentPage,
+              _tags,
+              _getRefreshCallback,
+              _startInlineCreationCallback,
+            );
           }
         });
       }
@@ -399,7 +418,12 @@ class _PageViewContentState extends State<_PageViewContent> {
       _currentPage = page;
     });
     // Notify parent about page change
-    widget.onPageChanged(page, _tags, _getRefreshCallback, _startInlineCreationCallback);
+    widget.onPageChanged(
+      page,
+      _tags,
+      _getRefreshCallback,
+      _startInlineCreationCallback,
+    );
   }
 
   @override
@@ -413,9 +437,7 @@ class _PageViewContentState extends State<_PageViewContent> {
     return Stack(
       children: [
         // Custom layered background (fixed, doesn't move with swipe)
-        Positioned.fill(
-          child: TodoTheme.customBackgroundGradient,
-        ),
+        Positioned.fill(child: TodoTheme.customBackgroundGradient),
         // Main content
         Column(
           children: [
@@ -465,7 +487,8 @@ class _PageViewContentState extends State<_PageViewContent> {
                                       color: Colors.purple[700],
                                     ),
                                     onPressed: () {
-                                      _showAllTaskPropertiesNotifier.value = !_showAllTaskPropertiesNotifier.value;
+                                      _showAllTaskPropertiesNotifier.value =
+                                          !_showAllTaskPropertiesNotifier.value;
                                     },
                                     tooltip: showAll
                                         ? 'Nascondi proprietà vuote'
@@ -474,7 +497,10 @@ class _PageViewContentState extends State<_PageViewContent> {
                                 },
                               ),
                               TextButton.icon(
-                                icon: Icon(Icons.label, color: Colors.purple[700]),
+                                icon: Icon(
+                                  Icons.label,
+                                  color: Colors.purple[700],
+                                ),
                                 label: Text(
                                   'Tag',
                                   style: TextStyle(color: Colors.purple[700]),
@@ -494,64 +520,68 @@ class _PageViewContentState extends State<_PageViewContent> {
               ),
             ),
 
-        // PageView below the AppBar
-        Expanded(
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              // Detect overscroll at the end (after last tag)
-              if (notification is ScrollUpdateNotification) {
-                final metrics = notification.metrics;
-                // Check if we're at the last page and trying to scroll further
-                if (metrics.pixels > metrics.maxScrollExtent + 50) {
-                  // User is trying to swipe beyond the last page
-                  _handleSwipeBeyondLastPage();
-                }
-              }
-              return false;
-            },
-            child: Container(
-              color: Colors.transparent, // CRITICAL: Prevent PageView default background
-              child: PageView.builder(
-                key: ValueKey('main_page_view_$_refreshKey'),
-                controller: widget.pageController,
-                onPageChanged: _onPageChanged,
-                itemCount: totalPages,
-                itemBuilder: (context, index) {
-                // Page 0: Completed Tasks (first)
-                if (index == 0) {
-                  return CompletedTasksView(
-                    key: ValueKey('completed_$_refreshKey'),
-                    document: widget.document,
-                    showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
-                  );
-                }
+            // PageView below the AppBar
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // Detect overscroll at the end (after last tag)
+                  if (notification is ScrollUpdateNotification) {
+                    final metrics = notification.metrics;
+                    // Check if we're at the last page and trying to scroll further
+                    if (metrics.pixels > metrics.maxScrollExtent + 50) {
+                      // User is trying to swipe beyond the last page
+                      _handleSwipeBeyondLastPage();
+                    }
+                  }
+                  return false;
+                },
+                child: Container(
+                  color: Colors
+                      .transparent, // CRITICAL: Prevent PageView default background
+                  child: PageView.builder(
+                    key: ValueKey('main_page_view_$_refreshKey'),
+                    controller: widget.pageController,
+                    onPageChanged: _onPageChanged,
+                    itemCount: totalPages,
+                    itemBuilder: (context, index) {
+                      // Page 0: Completed Tasks (first)
+                      if (index == 0) {
+                        return CompletedTasksView(
+                          key: ValueKey('completed_$_refreshKey'),
+                          document: widget.document,
+                          showAllPropertiesNotifier:
+                              _showAllTaskPropertiesNotifier,
+                        );
+                      }
 
-                // Page 1: All Tasks (second)
-                if (index == 1) {
-                  return AllTasksView(
-                    key: ValueKey('all_tasks_$_refreshKey'),
-                    document: widget.document,
-                    showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
-                    onInlineCreationCallbackChanged: (callback) {
-                      _startInlineCreationCallback = callback;
+                      // Page 1: All Tasks (second)
+                      if (index == 1) {
+                        return AllTasksView(
+                          key: ValueKey('all_tasks_$_refreshKey'),
+                          document: widget.document,
+                          showAllPropertiesNotifier:
+                              _showAllTaskPropertiesNotifier,
+                          onInlineCreationCallbackChanged: (callback) {
+                            _startInlineCreationCallback = callback;
+                          },
+                          availableTags: _tags,
+                        );
+                      }
+
+                      // Pages 2 to N+1: Tag Views
+                      final tag = _tags[index - 2];
+                      return TagView(
+                        key: ValueKey('tag_${tag.id}_$_refreshKey'),
+                        document: widget.document,
+                        tag: tag,
+                        showAllPropertiesNotifier:
+                            _showAllTaskPropertiesNotifier,
+                      );
                     },
-                    availableTags: _tags,
-                  );
-                }
-
-                // Pages 2 to N+1: Tag Views
-                final tag = _tags[index - 2];
-                return TagView(
-                  key: ValueKey('tag_${tag.id}_$_refreshKey'),
-                  document: widget.document,
-                  tag: tag,
-                  showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
-                );
-              },
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
           ],
         ),
       ],
@@ -680,7 +710,11 @@ class _PageViewContentState extends State<_PageViewContent> {
                     border: Border.all(
                       color: isActive
                           ? Colors.white.withValues(alpha: 0.7)
-                          : Color.lerp(dotColor, Colors.white, 0.3)!.withValues(alpha: 0.7),
+                          : Color.lerp(
+                              dotColor,
+                              Colors.white,
+                              0.3,
+                            )!.withValues(alpha: 0.7),
                       width: 1.5,
                     ),
                     boxShadow: [

@@ -59,7 +59,17 @@ class TaskService {
           .eq('document_id', documentId)
           .order('position');
 
-      return await _buildTaskTree(response);
+      print('📦 Raw DB response: ${response.length} tasks');
+      print('   Task IDs: ${response.map((t) => (t['id'] as String).substring(0, 8)).join(", ")}');
+
+      final rootTasks = await _buildTaskTree(response);
+
+      print('🌳 Built tree: ${rootTasks.length} root tasks');
+      for (final root in rootTasks) {
+        print('   Root: ${root.id.substring(0, 8)} with ${root.subtasks?.length ?? 0} subtasks');
+      }
+
+      return rootTasks;
     } catch (e) {
       print('❌ Error fetching tasks: $e');
       return [];
@@ -353,25 +363,13 @@ class TaskService {
       _stateManager.getOrCreateTaskNotifier(createdTask.id, createdTask);
       print('🔔 Notifier created for task: ${createdTask.id}');
 
-      // If this is a subtask, update the parent to show the new subtask immediately
-      if (createdTask.parentTaskId != null) {
-        print('📌 Subtask created, fetching parent WITH subtasks to update');
-        final parentTask = await getTaskWithSubtasks(createdTask.parentTaskId!);
-        if (parentTask != null) {
-          print('🔔 Parent task fetched: ${parentTask.id} with ${parentTask.subtasks?.length ?? 0} subtasks');
-          print('   Subtask IDs: ${parentTask.subtasks?.map((t) => t.id.substring(0, 8)).join(", ")}');
-
-          // Update parent task notifier to trigger rebuild with new subtask
-          // AlwaysNotifyValueNotifier will force rebuild even with same object reference
-          _stateManager.updateTask(parentTask);
-          print('🔔 Parent task notifier updated');
-        }
-      } else {
-        // Only notify list change for top-level tasks
-        // Subtasks don't need list refresh since they appear inside parent
-        _stateManager.notifyListChange(createdTask.documentId);
-        print('🔔 List change notified - triggering refresh');
-      }
+      // CRITICAL FIX: ALWAYS trigger list refresh, even for subtasks
+      // The manual fetch in all_tasks_view will call _buildTaskTree()
+      // which rebuilds the ENTIRE hierarchy from scratch, ensuring
+      // parent tasks have updated subtasks lists
+      print('📌 Triggering list refresh to rebuild hierarchy');
+      _stateManager.notifyListChange(createdTask.documentId);
+      print('🔔 List change notified - all_tasks_view will refresh and rebuild tree');
 
       return createdTask;
     } catch (e) {
@@ -870,6 +868,7 @@ class TaskService {
 
   /// Build task tree structure from flat list
   /// Returns only root tasks with subtasks populated recursively
+  /// CRITICAL: Uses deep copy to avoid shared references between notifiers
   Future<List<Task>> _buildTaskTree(List<Map<String, dynamic>> data) async {
     if (data.isEmpty) return [];
 
@@ -902,7 +901,9 @@ class TaskService {
       }
     }
 
-    return rootTasks;
+    // CRITICAL FIX: Deep copy the entire tree to avoid shared references
+    // This ensures each notifier gets its own independent task objects
+    return rootTasks.map((root) => _deepCopyTask(root)).toList();
   }
 
   /// Parse list of task maps to Task objects (flat, no hierarchy)

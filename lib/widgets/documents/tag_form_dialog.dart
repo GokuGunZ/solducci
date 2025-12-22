@@ -1,3 +1,4 @@
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/tag_service.dart';
@@ -202,24 +203,35 @@ class _TagFormDialogState extends State<TagFormDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      backgroundColor: Colors.transparent,
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
-        child: Scaffold(
-          appBar: TodoAppBar(
-            title: widget.tag == null ? 'Nuovo Tag' : 'Modifica Tag',
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              color: TodoTheme.primaryPurple,
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              decoration: TodoTheme.glassDecoration(
+                opacity: 0.05,
+                borderOpacity: 0.5,
+              ),
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: TodoAppBar(
+                  title: widget.tag == null ? 'Nuovo Tag' : 'Modifica Tag',
+                  leading: IconButton(
+                    icon: const Icon(Icons.close),
+                    color: TodoTheme.primaryPurple,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                   // Name field
                   TextFormField(
                     controller: _nameController,
@@ -351,41 +363,54 @@ class _TagFormDialogState extends State<TagFormDialog> {
                     onChanged: (value) => setState(() => _useAdvancedStates = value),
                     activeColor: TodoTheme.primaryPurple,
                   ),
-                ],
-              ),
-            ),
-          ),
-          bottomNavigationBar: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border(
-                top: BorderSide(color: Colors.grey[300]!, width: 1),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _isLoading ? null : () => Navigator.pop(context),
-                  child: const Text('Annulla'),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _saveTag,
-                  style: TodoTheme.elevatedButtonStyle,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(widget.tag == null ? 'Crea' : 'Salva'),
+                bottomNavigationBar: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.1),
+                        Colors.white.withValues(alpha: 0.05),
+                      ],
+                    ),
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _isLoading ? null : () => Navigator.pop(context),
+                        child: const Text('Annulla'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _saveTag,
+                        style: TodoTheme.elevatedButtonStyle,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(widget.tag == null ? 'Crea' : 'Salva'),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
         ),

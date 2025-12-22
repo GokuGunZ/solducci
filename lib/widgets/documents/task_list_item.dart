@@ -11,6 +11,7 @@ import 'package:solducci/widgets/documents/task_creation_row.dart';
 import 'package:solducci/views/documents/task_detail_page.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
+import 'package:solducci/widgets/documents/_subtask_animated_list.dart';
 import 'package:solducci/theme/todo_theme.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 
@@ -51,135 +52,32 @@ class _TaskListItemState extends State<TaskListItem> {
   Recurrence? _recurrence;
   bool _isTogglingComplete = false; // Track if toggle is in progress
   bool _isCreatingSubtask = false;
-  final GlobalKey<AnimatedListState> _subtasksListKey = GlobalKey<AnimatedListState>();
-  List<Task> _displayedSubtasks = [];
+
+  // Task notifier for granular updates
   AlwaysNotifyValueNotifier<Task>? _taskNotifier;
 
   @override
   void initState() {
     super.initState();
     _checkRecurrence();
-    // Initialize displayed subtasks - CRITICAL: Create a copy to avoid shared references
-    _displayedSubtasks = List<Task>.from(widget.task.subtasks ?? []);
 
-    // Listen to task notifier for updates (especially for subtasks)
+    // Get or create task notifier for this task
     final stateManager = TaskStateManager();
     _taskNotifier = stateManager.getOrCreateTaskNotifier(widget.task.id, widget.task);
-    _taskNotifier!.addListener(_onTaskUpdated);
   }
 
   @override
   void dispose() {
-    _taskNotifier?.removeListener(_onTaskUpdated);
     super.dispose();
-  }
-
-  void _onTaskUpdated() {
-    print('🔔 Task notifier updated for: ${widget.task.id.substring(0, 8)}');
-    print('   New subtasks count: ${_taskNotifier!.value.subtasks?.length ?? 0}');
-    print('   Subtask IDs: ${_taskNotifier!.value.subtasks?.map((t) => t.id.substring(0, 8)).join(", ")}');
-
-    // Update displayed subtasks when notifier changes
-    // CRITICAL: Create a copy to avoid shared references
-    _updateDisplayedSubtasks(List<Task>.from(_taskNotifier!.value.subtasks ?? []));
   }
 
   @override
   void didUpdateWidget(TaskListItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    print('📱 didUpdateWidget called for task: ${widget.task.id.substring(0, 8)}');
-    print('   Old subtasks: ${oldWidget.task.subtasks?.length ?? 0}');
-    print('   New subtasks: ${widget.task.subtasks?.length ?? 0}');
-    print('   Same task ID: ${oldWidget.task.id == widget.task.id}');
 
-    // Re-check recurrence when the widget updates (e.g., after task changes)
+    // Re-check recurrence when the widget updates
     if (oldWidget.task.id == widget.task.id) {
       _checkRecurrence();
-
-      // IMPORTANT: Don't use widget.task.subtasks directly!
-      // The widget.task might have stale data. Instead, we should listen
-      // to the ValueNotifier updates, but didUpdateWidget is triggered
-      // by the parent widget rebuilding, not by ValueNotifier changes.
-      // So we need a different approach.
-
-      // For now, log and update if subtasks count changed
-      if ((oldWidget.task.subtasks?.length ?? 0) != (widget.task.subtasks?.length ?? 0)) {
-        print('   📋 Subtask count changed, updating displayed subtasks');
-        // CRITICAL: Create a copy to avoid shared references
-        _updateDisplayedSubtasks(List<Task>.from(widget.task.subtasks ?? []));
-      }
-    }
-  }
-
-  /// Update displayed subtasks with animation (similar to main task list)
-  ///
-  /// CRITICAL: This method MUST receive a copy of the subtasks list, not a reference!
-  /// If `newSubtasks` is the same reference as the Task's subtasks field, modifying
-  /// `_displayedSubtasks` will modify the Task object, causing data corruption.
-  ///
-  /// Always call with: `List<Task>.from(task.subtasks ?? [])`
-  void _updateDisplayedSubtasks(List<Task> newSubtasks) {
-    // Find insertions
-    final newSubtaskIds = newSubtasks.map((t) => t.id).toList();
-    final oldSubtaskIds = _displayedSubtasks.map((t) => t.id).toList();
-
-    for (int i = 0; i < newSubtasks.length; i++) {
-      if (i >= _displayedSubtasks.length || newSubtasks[i].id != _displayedSubtasks[i].id) {
-        final taskId = newSubtasks[i].id;
-        if (!oldSubtaskIds.contains(taskId)) {
-          print('✨ INSERT subtask at index $i: $taskId');
-          print('   Current displayed count: ${_displayedSubtasks.length}');
-          print('   AnimatedList state exists: ${_subtasksListKey.currentState != null}');
-
-          // First update the displayed list
-          _displayedSubtasks.insert(i, newSubtasks[i]);
-
-          // Wait a frame before inserting into AnimatedList to ensure state is updated
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && _subtasksListKey.currentState != null) {
-              _subtasksListKey.currentState!.insertItem(
-                i,
-                duration: const Duration(milliseconds: 400),
-              );
-              print('   Inserted into AnimatedList at index $i');
-            }
-          });
-
-          // Force rebuild to update the AnimatedList's initialItemCount
-          setState(() {});
-
-          return; // Handle one change at a time
-        }
-      }
-    }
-
-    // Find deletions
-    for (int i = _displayedSubtasks.length - 1; i >= 0; i--) {
-      final taskId = _displayedSubtasks[i].id;
-      if (!newSubtaskIds.contains(taskId)) {
-        print('🗑️ REMOVE subtask at index $i: $taskId');
-
-        // Remove from displayed list
-        _displayedSubtasks.removeAt(i);
-
-        // Remove from AnimatedList
-        _subtasksListKey.currentState?.removeItem(
-          i,
-          (context, animation) => SizeTransition(
-            sizeFactor: animation,
-            child: FadeTransition(
-              opacity: animation,
-              child: Container(),
-            ),
-          ),
-          duration: const Duration(milliseconds: 300),
-        );
-
-        // Force rebuild
-        setState(() {});
-
-        return;
-      }
     }
   }
 
@@ -328,63 +226,28 @@ class _TaskListItemState extends State<TaskListItem> {
                       ),
                     ),
 
-                    // Subtasks (expandable) - Using AnimatedList for smooth animations
-                    if (_isExpanded &&
-                        (_displayedSubtasks.isNotEmpty || _isCreatingSubtask))
-                      AnimatedList(
-                        key: _subtasksListKey,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        initialItemCount: _displayedSubtasks.length + (_isCreatingSubtask ? 1 : 0),
-                        itemBuilder: (context, index, animation) {
-                          // Show creation row as first item if creating subtask
-                          if (_isCreatingSubtask && index == 0) {
-                            return TaskCreationRow(
-                              key: ValueKey(
-                                'subtask_creation_${widget.task.id}',
-                              ),
-                              document: widget.document!,
-                              showAllPropertiesNotifier:
-                                  widget.showAllPropertiesNotifier,
-                              parentTaskId: widget.task.id,
-                              onCancel: () {
-                                setState(() {
-                                  _isCreatingSubtask = false;
-                                });
-                              },
-                              onTaskCreated: () {
-                                setState(() {
-                                  _isCreatingSubtask = false;
-                                });
-                                // Parent task will update via TaskStateManager
-                              },
-                            );
-                          }
-
-                          // Adjust index if creation row is present
-                          final subtaskIndex = _isCreatingSubtask ? index - 1 : index;
-                          final subtask = _displayedSubtasks[subtaskIndex];
-
-                          // Animate new subtasks
-                          return SizeTransition(
-                            sizeFactor: animation,
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: TaskListItem(
-                                key: ValueKey('task_${subtask.id}'),
-                                task: subtask,
-                                document: widget.document,
-                                depth: widget.depth + 1,
-                                onTap: null,
-                                showAllPropertiesNotifier:
-                                    widget.showAllPropertiesNotifier,
-                                preloadedTags: widget.taskTagsMap?[subtask.id],
-                                taskTagsMap: widget.taskTagsMap,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                    // Subtasks (expandable) - NEW: Managed by dedicated SubtaskAnimatedList widget
+                    SubtaskAnimatedList(
+                      key: ValueKey('subtasks_${widget.task.id}'),
+                      parentTaskId: widget.task.id,
+                      parentNotifier: _taskNotifier!,
+                      document: widget.document!,
+                      depth: widget.depth,
+                      showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                      taskTagsMap: widget.taskTagsMap,
+                      isExpanded: _isExpanded,
+                      isCreatingSubtask: _isCreatingSubtask,
+                      onCancelCreation: () {
+                        setState(() {
+                          _isCreatingSubtask = false;
+                        });
+                      },
+                      onSubtaskCreated: () {
+                        setState(() {
+                          _isCreatingSubtask = false;
+                        });
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -711,14 +574,21 @@ class _TaskListItemState extends State<TaskListItem> {
     String? label,
     required VoidCallback onTap,
   }) {
+    // Check if property is set (has a label)
+    final isSet = label != null;
+
+    // Use grey background for unset properties, colored for set ones
+    final chipColor = isSet ? color : Colors.grey[400]!;
+    final iconColor = isSet ? color : Colors.black;
+
     // Get a lighter version of the color for the border
     final borderColor = Color.lerp(
-      color,
+      chipColor,
       Colors.white,
       0.3,
     )!.withValues(alpha: 0.7);
     final highlightColor = Color.lerp(
-      color,
+      chipColor,
       Colors.white,
       0.5,
     )!.withValues(alpha: 0.5);
@@ -733,7 +603,7 @@ class _TaskListItemState extends State<TaskListItem> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              color.withValues(alpha: 0.25),
+              chipColor.withValues(alpha: 0.25),
               Colors.white.withValues(alpha: 0.15),
             ],
           ),
@@ -741,7 +611,7 @@ class _TaskListItemState extends State<TaskListItem> {
           border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.3),
+              color: chipColor.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -758,7 +628,7 @@ class _TaskListItemState extends State<TaskListItem> {
             Icon(
               icon,
               size: 16,
-              color: color,
+              color: iconColor,
               shadows: const [
                 Shadow(
                   color: Colors.black12,
@@ -774,7 +644,7 @@ class _TaskListItemState extends State<TaskListItem> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: color,
+                  color: iconColor,
                   shadows: const [
                     Shadow(
                       color: Colors.black12,
@@ -796,19 +666,24 @@ class _TaskListItemState extends State<TaskListItem> {
     final hasRecurrence = _recurrence != null;
     final isEnabled = _recurrence?.isEnabled ?? true;
 
-    // Determine color based on enabled state
-    final iconColor = hasRecurrence
+    // Chip background color: grey if not set, orange/grey if set
+    final chipColor = hasRecurrence
         ? (isEnabled ? Colors.orange : Colors.grey[600]!)
         : Colors.grey[400]!;
 
+    // Icon color: black if not set, same as chip color if set
+    final iconColor = hasRecurrence
+        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
+        : Colors.black;
+
     // Get a lighter version of the color for the border
     final borderColor = Color.lerp(
-      iconColor,
+      chipColor,
       Colors.white,
       0.3,
     )!.withValues(alpha: 0.7);
     final highlightColor = Color.lerp(
-      iconColor,
+      chipColor,
       Colors.white,
       0.5,
     )!.withValues(alpha: 0.5);
@@ -824,7 +699,7 @@ class _TaskListItemState extends State<TaskListItem> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              iconColor.withValues(alpha: 0.25),
+              chipColor.withValues(alpha: 0.25),
               Colors.white.withValues(alpha: 0.15),
             ],
           ),
@@ -832,7 +707,7 @@ class _TaskListItemState extends State<TaskListItem> {
           border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: iconColor.withValues(alpha: 0.3),
+              color: chipColor.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1284,21 +1159,21 @@ class _TaskTitleState extends State<_TaskTitle> {
   @override
   Widget build(BuildContext context) {
     if (_isEditingTitle) {
-      return TextField(
-        controller: _titleController,
-        focusNode: _titleFocusNode,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 8,
+      return Container(
+        color: Colors.transparent,
+        padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+        child: TextField(
+          controller: _titleController,
+          focusNode: _titleFocusNode,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
           ),
-          filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.9),
+          onSubmitted: (_) => _saveTitleEdit(),
+          onTapOutside: (_) => _saveTitleEdit(),
         ),
-        onSubmitted: (_) => _saveTitleEdit(),
-        onTapOutside: (_) => _saveTitleEdit(),
       );
     }
 
@@ -1396,27 +1271,20 @@ class _TaskDescriptionState extends State<_TaskDescription> {
         (widget.task.description != null &&
             widget.task.description!.isNotEmpty)) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 4.0, right: 8.0),
+        padding: const EdgeInsets.only(bottom: 4.0, right: 8.0, left: 4.0),
         child: _isEditingDescription
             ? TextField(
                 controller: _descriptionController,
                 focusNode: _descriptionFocusNode,
                 style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                maxLines: 3,
+                maxLines: null,
+                minLines: 1,
                 decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
                   hintText: 'Aggiungi descrizione...',
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.9),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.check, size: 20),
-                    onPressed: _saveDescriptionEdit,
-                    tooltip: 'Salva',
-                  ),
+                  hintStyle: TextStyle(color: Colors.grey[400]),
                 ),
                 onSubmitted: (_) => _saveDescriptionEdit(),
                 onTapOutside: (_) => _saveDescriptionEdit(),
@@ -1425,7 +1293,6 @@ class _TaskDescriptionState extends State<_TaskDescription> {
                 onTap: _startDescriptionEdit,
                 child: Container(
                   color: Colors.transparent,
-                  padding: const EdgeInsets.all(4.0),
                   child: Text(
                     widget.task.description!,
                     style: TextStyle(fontSize: 13, color: Colors.grey[700]),

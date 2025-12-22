@@ -2,16 +2,22 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:solducci/models/task.dart';
 
-/// Custom ValueNotifier that ALWAYS notifies listeners, even if value seems equal
-/// This is critical for Flutter to detect task changes
-class AlwaysNotifyValueNotifier<T> extends ValueNotifier<T> {
-  AlwaysNotifyValueNotifier(super.value);
+/// Custom notifier that ALWAYS notifies listeners and ALWAYS updates value
+/// Uses ChangeNotifier instead of ValueNotifier to avoid equality check issues
+class AlwaysNotifyValueNotifier<T> extends ChangeNotifier implements ValueListenable<T> {
+  T _value;
+
+  AlwaysNotifyValueNotifier(this._value);
 
   @override
+  T get value => _value;
+
   set value(T newValue) {
-    // Force notification by always calling notifyListeners
-    super.value = newValue;
-    notifyListeners(); // Force rebuild even if value appears same
+    // CRITICAL: Always update _value, never skip based on equality
+    _value = newValue;
+
+    // Always notify, regardless of whether value changed
+    notifyListeners();
   }
 }
 
@@ -46,30 +52,35 @@ class TaskStateManager {
 
   /// Update a specific task (triggers only that task's rebuild)
   void updateTask(Task task) {
-    print('🔄 TaskStateManager.updateTask called for: ${task.id.substring(0, 8)}');
-    print('   Subtasks count: ${task.subtasks?.length ?? 0}');
-    print('   Subtask IDs: ${task.subtasks?.map((t) => t.id.substring(0, 8)).join(", ")}');
-
     if (_taskNotifiers.containsKey(task.id)) {
-      // Update the notifier - AlwaysNotifyValueNotifier will force rebuild
       _taskNotifiers[task.id]!.value = task;
-
-      // Verify it was set correctly
-      final storedValue = _taskNotifiers[task.id]!.value;
-      print('   ✓ Notifier value updated');
-      print('   ✓ Stored subtasks count: ${storedValue.subtasks?.length ?? 0}');
-      print('   ✓ Stored subtask IDs: ${storedValue.subtasks?.map((t) => t.id.substring(0, 8)).join(", ")}');
     } else {
       _taskNotifiers[task.id] = AlwaysNotifyValueNotifier(task);
-      print('   ✓ Created new notifier');
     }
+  }
+
+  /// Recursively update a task and all its subtasks
+  /// CRITICAL: Updates subtasks FIRST, then parent (bottom-up)
+  /// This ensures parent notifiers have updated subtask lists when they notify listeners
+  void updateTaskRecursively(Task task, {int depth = 0}) {
+    // CRITICAL FIX: Create a COPY of the subtasks list BEFORE iterating
+    // This prevents the list from being modified during iteration
+    final subtasksCopy = task.subtasks != null ? List<Task>.from(task.subtasks!) : null;
+
+    // CRITICAL FIX: Update subtasks FIRST (bottom-up approach)
+    // This ensures when parent notifier fires, subtasks are already updated
+    if (subtasksCopy != null && subtasksCopy.isNotEmpty) {
+      for (final subtask in subtasksCopy) {
+        updateTaskRecursively(subtask, depth: depth + 1);
+      }
+    }
+
+    // THEN update this task (after children are done)
+    updateTask(task);
   }
 
   /// Notify that the task list structure has changed (add/remove/reorder)
   void notifyListChange(String documentId) {
-    print(
-      '📋 TaskStateManager: Broadcasting list change for document $documentId',
-    );
     if (!_listChangesController.isClosed) {
       _listChangesController.add(documentId);
     }

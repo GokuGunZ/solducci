@@ -307,17 +307,17 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
             Icon(
               icon,
               size: 16,
-              color: hasActiveFilter ? color : Colors.grey[600],
+              color: hasActiveFilter ? Colors.black : Colors.grey[600],
             ),
             if (hasActiveFilter) ...[
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   label,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: color,
+                    color: Colors.black,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -372,7 +372,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
             Icon(
               icon,
               size: 16,
-              color: isActive ? Colors.green : Colors.grey[600],
+              color: isActive ? Colors.black : Colors.grey[600],
             ),
             if (isActive) ...[
               const SizedBox(width: 4),
@@ -381,14 +381,14 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(width: 3),
               Icon(
                 ascending ? Icons.arrow_upward : Icons.arrow_downward,
                 size: 12,
-                color: Colors.green,
+                color: Colors.black,
               ),
             ],
           ],
