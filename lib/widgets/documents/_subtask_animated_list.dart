@@ -25,7 +25,7 @@ class SubtaskAnimatedList extends StatefulWidget {
   final bool isExpanded;
   final bool isCreatingSubtask;
   final VoidCallback onCancelCreation;
-  final VoidCallback onSubtaskCreated;
+  final Future<void> Function() onSubtaskCreated;
 
   const SubtaskAnimatedList({
     super.key,

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:animated_reorderable_list/animated_reorderable_list.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
+import 'package:solducci/service/task_order_persistence_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/views/documents/task_detail_page.dart';
@@ -46,6 +48,7 @@ class _AllTasksViewState extends State<AllTasksView>
 
   final _taskService = TaskService();
   final _stateManager = TaskStateManager();
+  final _orderPersistenceService = TaskOrderPersistenceService();
   late Stream<List<Task>> _taskStream;
   StreamSubscription? _listChangesSubscription;
   final _taskStreamController = StreamController<List<Task>>.broadcast();
@@ -61,17 +64,28 @@ class _AllTasksViewState extends State<AllTasksView>
   void initState() {
     super.initState();
     _initStream();
+    _checkForCustomOrder();
 
     // Listen to list changes (add/remove/reorder) to manually fetch and emit new data
     _listChangesSubscription = _stateManager.listChanges
         .where((docId) => docId == widget.document.id)
         .listen((_) async {
-      print('🔄 List change detected, refreshing tasks');
+      print('🔔 LISTENER: List change detected for document ${widget.document.id}');
+      print('🔄 LISTENER: Calling _refreshTasks()');
       await _refreshTasks();
+      print('🔔 LISTENER: _refreshTasks() completed');
     });
 
     // Pass the inline creation callback to parent
     widget.onInlineCreationCallbackChanged?.call(startInlineCreation);
+  }
+
+  /// Check if there's a saved custom order (for loading the order, NOT activating reorder mode)
+  /// Reorder mode is only activated when user starts dragging
+  void _checkForCustomOrder() async {
+    // No need to activate reorder mode on load
+    // The custom order will be loaded and applied in _applyFiltersToRawData
+    // Reorder mode activates only when user actually drags a task
   }
 
   void _initStream() async {
@@ -86,26 +100,59 @@ class _AllTasksViewState extends State<AllTasksView>
     await _refreshTasks();
   }
 
+  bool _isRefreshing = false; // Flag to prevent concurrent refreshes
+
   Future<void> _refreshTasks() async {
+    // Prevent concurrent refresh calls
+    if (_isRefreshing) {
+      print('⚠️ Already refreshing, skipping duplicate call');
+      return;
+    }
+
+    _isRefreshing = true;
+    print('🔄 _refreshTasks() START');
     try {
-      // CRITICAL: Add small delay to ensure DB write is fully committed
-      // Supabase might have eventual consistency or connection pooling delays
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Small delay to ensure DB write is fully committed
+      print('⏳ Waiting 300ms for DB commit...');
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // Fetch fresh data directly from Supabase
+      print('📡 Fetching tasks from database...');
       final tasks = await _taskService.fetchTasksForDocument(widget.document.id);
-      print('✅ Fetched ${tasks.length} tasks');
+      print('✅ Fetched ${tasks.length} tasks from DB');
+      print('   Task IDs: ${tasks.map((t) => t.id.substring(0, 8)).join(", ")}');
 
       // Emit through our controller - StreamBuilder will rebuild WITHOUT setState
       if (!_taskStreamController.isClosed) {
+        print('📤 Emitting ${tasks.length} tasks to stream');
         _taskStreamController.add(tasks);
+        print('✅ Tasks emitted successfully');
+      } else {
+        print('⚠️ Stream controller is CLOSED, cannot emit tasks!');
       }
     } catch (e) {
       print('❌ Error fetching tasks: $e');
       if (!_taskStreamController.isClosed) {
         _taskStreamController.addError(e);
       }
+    } finally {
+      _isRefreshing = false;
     }
+    print('🔄 _refreshTasks() END');
+  }
+
+  /// Handle manual reordering via drag-and-drop
+  void _handleManualReorder(List<Task> newOrder) async {
+    print('🔄 Manual reorder detected');
+
+    // Persist custom order locally (no UI update needed, list already reordered)
+    final taskIds = newOrder.map((task) => task.id).toList();
+    await _orderPersistenceService.saveCustomOrder(
+      documentId: widget.document.id,
+      taskIds: taskIds,
+    );
+
+    print('✅ Custom order saved: ${taskIds.length} tasks');
   }
 
   @override
@@ -146,13 +193,22 @@ class _AllTasksViewState extends State<AllTasksView>
               // No setState - just update the notifier!
               _isCreatingTaskNotifier.value = false;
             },
-            onTaskCreated: () {
-              // Simply close the creation row immediately
-              // The task has been created in Supabase, it will appear when stream updates
-              print('✅ Task created, closing creation row');
+            onTaskCreated: () async {
+              print('🎯 onTaskCreated callback START');
+
+              // Force immediate refresh to show the new task BEFORE closing the row
+              // This ensures the new task appears even if the listener hasn't fired yet
+              print('🔄 Forcing immediate refresh after task creation');
+              await _refreshTasks();
+
+              // Close the creation row AFTER refresh completes
+              print('✅ Refresh complete, closing creation row');
               _isCreatingTaskNotifier.value = false;
+
+              print('🎯 onTaskCreated callback END');
             },
             onShowTaskDetails: _showTaskDetails,
+            onManualReorder: _handleManualReorder,
           ),
         ),
       ],
@@ -187,8 +243,9 @@ class _TaskListSection extends StatelessWidget {
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
-  final VoidCallback onTaskCreated;
+  final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
+  final void Function(List<Task> newOrder)? onManualReorder;
 
   const _TaskListSection({
     required this.taskStream,
@@ -199,15 +256,21 @@ class _TaskListSection extends StatelessWidget {
     required this.onCancelCreation,
     required this.onTaskCreated,
     required this.onShowTaskDetails,
+    this.onManualReorder,
   });
 
   @override
   Widget build(BuildContext context) {
+    print('🏗️ [1] _TaskListSection.build() called');
     // Listen to filter changes - only this widget rebuilds!
     return ValueListenableBuilder<FilterSortConfig>(
       valueListenable: filterConfigNotifier,
       builder: (context, filterConfig, _) {
+        print('🏗️ [2] ValueListenableBuilder.builder() for filter - sortBy: ${filterConfig.sortBy}, hasFilters: ${filterConfig.hasFilters}');
         return _AnimatedTaskListBuilder(
+          // Use a constant key to preserve state when filterConfig changes
+          // This prevents the widget from being recreated and losing _isFirstLoad state
+          key: ValueKey('animated_task_list_builder_${document.id}'),
           taskStream: taskStream,
           filterConfig: filterConfig,
           document: document,
@@ -216,6 +279,7 @@ class _TaskListSection extends StatelessWidget {
           onCancelCreation: onCancelCreation,
           onTaskCreated: onTaskCreated,
           onShowTaskDetails: onShowTaskDetails,
+          onManualReorder: onManualReorder,
         );
       },
     );
@@ -230,10 +294,12 @@ class _AnimatedTaskListBuilder extends StatefulWidget {
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
-  final VoidCallback onTaskCreated;
+  final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
+  final void Function(List<Task> newOrder)? onManualReorder; // Callback for drag-and-drop reorder
 
   const _AnimatedTaskListBuilder({
+    super.key,
     required this.taskStream,
     required this.filterConfig,
     required this.document,
@@ -242,6 +308,7 @@ class _AnimatedTaskListBuilder extends StatefulWidget {
     required this.onCancelCreation,
     required this.onTaskCreated,
     required this.onShowTaskDetails,
+    this.onManualReorder,
   });
 
   @override
@@ -249,7 +316,7 @@ class _AnimatedTaskListBuilder extends StatefulWidget {
 }
 
 class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  late GlobalKey<AnimatedListState> _listKey; // Kept constant for AnimatedReorderableListView
   List<Task> _displayedTasks = [];
   List<Task>? _rawTasks; // Cache raw unfiltered data for re-filtering
   bool _isFirstLoad = true;
@@ -258,6 +325,8 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   @override
   void initState() {
     super.initState();
+    print('🎬 [INIT] _AnimatedTaskListBuilderState.initState() - Creating new instance!');
+    _listKey = GlobalKey<AnimatedListState>(); // Initialize GlobalKey
     _streamSubscription = widget.taskStream?.listen(_onNewData);
   }
 
@@ -267,7 +336,11 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
 
     // Detect filter or sort config changes
     if (widget.filterConfig != oldWidget.filterConfig) {
-      print('🔄 Filter config changed, re-applying filters');
+      final filterChanged = _hasFilterChanged(oldWidget.filterConfig, widget.filterConfig);
+      final sortChanged = _hasSortChanged(oldWidget.filterConfig, widget.filterConfig);
+
+      print('🔄 Filter config changed');
+      print('   Filter changed: $filterChanged, Sort changed: $sortChanged');
       print('   Old config: priorities=${oldWidget.filterConfig.priorities.length}, '
             'statuses=${oldWidget.filterConfig.statuses.length}, '
             'sortBy=${oldWidget.filterConfig.sortBy}');
@@ -275,12 +348,31 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
             'statuses=${widget.filterConfig.statuses.length}, '
             'sortBy=${widget.filterConfig.sortBy}');
 
-      // Re-apply filters to cached raw data with isFilterChange=true
-      // This ensures batch update instead of incremental changes
+      // Re-apply filters to cached raw data
       if (_rawTasks != null) {
-        _applyFiltersToRawData(_rawTasks!, isFilterChange: true);
+        _applyFiltersToRawData(
+          _rawTasks!,
+          isFilterChange: filterChanged,
+          isSortOnlyChange: sortChanged && !filterChanged,
+        );
       }
     }
+  }
+
+  /// Detects if filter configuration changed (excluding sort)
+  bool _hasFilterChanged(FilterSortConfig old, FilterSortConfig newConfig) {
+    return old.priorities != newConfig.priorities ||
+           old.statuses != newConfig.statuses ||
+           old.sizes != newConfig.sizes ||
+           old.tagIds != newConfig.tagIds ||
+           old.dateFilter != newConfig.dateFilter ||
+           old.showOverdueOnly != newConfig.showOverdueOnly;
+  }
+
+  /// Detects if only sort configuration changed
+  bool _hasSortChanged(FilterSortConfig old, FilterSortConfig newConfig) {
+    return old.sortBy != newConfig.sortBy ||
+           old.sortAscending != newConfig.sortAscending;
   }
 
   @override
@@ -296,8 +388,13 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     _applyFiltersToRawData(allTasks);
   }
 
-  void _applyFiltersToRawData(List<Task> allTasks, {bool isFilterChange = false}) {
-    print('🔍 Applying filters to ${allTasks.length} tasks (isFilterChange: $isFilterChange)');
+  void _applyFiltersToRawData(
+    List<Task> allTasks, {
+    bool isFilterChange = false,
+    bool isSortOnlyChange = false,
+  }) async {
+    print('🔍 Applying filters to ${allTasks.length} tasks');
+    print('   isFilterChange: $isFilterChange, isSortOnlyChange: $isSortOnlyChange');
     print('   Filter config: priorities=${widget.filterConfig.priorities}, '
           'statuses=${widget.filterConfig.statuses}, '
           'sizes=${widget.filterConfig.sizes}, '
@@ -310,32 +407,62 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
 
     print('   After completion filter: ${tasks.length} tasks');
 
+    // Apply filters and sorting
     if (widget.filterConfig.tagIds.isNotEmpty) {
       print('   Applying async filter (tags: ${widget.filterConfig.tagIds.length})');
-      tasks.applyFilterSortAsync(widget.filterConfig).then((filteredTasks) {
-        print('   Async filter result: ${filteredTasks.length} tasks');
-        _updateDisplayedTasks(filteredTasks, isFilterChange: isFilterChange);
-      });
+      tasks = await tasks.applyFilterSortAsync(widget.filterConfig);
+      print('   Async filter result: ${tasks.length} tasks');
     } else {
       tasks = tasks.applyFilterSort(widget.filterConfig);
       print('   After sync filter+sort: ${tasks.length} tasks');
-      _updateDisplayedTasks(tasks, isFilterChange: isFilterChange);
     }
+
+    // Apply custom order if selected
+    if (widget.filterConfig.sortBy == TaskSortOption.custom) {
+      final orderPersistenceService = TaskOrderPersistenceService();
+      final savedOrder = await orderPersistenceService.loadCustomOrder(widget.document.id);
+
+      if (savedOrder != null && savedOrder.isNotEmpty) {
+        tasks = tasks.applyCustomOrder(savedOrder);
+        print('   Applied custom order: ${savedOrder.length} task IDs');
+      } else {
+        print('   No custom order found, using default order');
+      }
+    }
+
+    _updateDisplayedTasks(
+      tasks,
+      isFilterChange: isFilterChange,
+      isSortOnlyChange: isSortOnlyChange,
+    );
   }
 
-  void _updateDisplayedTasks(List<Task> newTasks, {bool isFilterChange = false}) {
+  void _updateDisplayedTasks(
+    List<Task> newTasks, {
+    bool isFilterChange = false,
+    bool isSortOnlyChange = false,
+  }) {
     if (_isFirstLoad) {
+      print('🎯 [FIRST LOAD] Setting _isFirstLoad = false, tasks=${newTasks.length}');
       setState(() {
         _displayedTasks = newTasks;
         _isFirstLoad = false;
       });
+      print('✅ [FIRST LOAD] First load complete, _isFirstLoad=$_isFirstLoad');
       return;
     }
 
-    // CRITICAL FIX: When filter/sort changes, do batch update without incremental animations
-    // This prevents the "one task at a time" removal issue and handles reordering
+    // SORT-ONLY CHANGE: Animate reorder with AnimatedSwitcher
+    if (isSortOnlyChange && !isFilterChange) {
+      print('🔄 Animating reorder: ${_displayedTasks.length} tasks');
+      _animateReorder(newTasks);
+      return;
+    }
+
+    // FILTER CHANGE: Batch update without incremental animations
+    // This prevents the "one task at a time" removal issue
     if (isFilterChange) {
-      print('📋 Batch update for filter/sort change: ${_displayedTasks.length} → ${newTasks.length} tasks');
+      print('📋 Batch update for filter change: ${_displayedTasks.length} → ${newTasks.length} tasks');
       setState(() {
         _displayedTasks = newTasks;
       });
@@ -405,12 +532,36 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     }
   }
 
+  /// Animates reorder by updating the list and letting AnimatedReorderableListView handle it
+  /// Similar to TagView approach - update list with setState but WITHOUT recreating keys
+  void _animateReorder(List<Task> newTasks) {
+    print('🎬 Smooth reorder animation: ${_displayedTasks.length} → ${newTasks.length} tasks');
+
+    // Update the list with setState - this triggers rebuild but AnimatedReorderableListView
+    // detects the change and animates items from old position to new position
+    // CRITICAL: We do NOT recreate _listKey, keeping the same AnimatedList instance
+    setState(() {
+      _displayedTasks = newTasks;
+    });
+
+    // Update task notifiers AFTER build completes to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final stateManager = TaskStateManager();
+      for (final task in newTasks) {
+        stateManager.updateTaskRecursively(task);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    print('🏗️ [3] _AnimatedTaskListBuilderState.build() - _isFirstLoad=$_isFirstLoad, tasks=${_displayedTasks.length}');
     if (_isFirstLoad) {
+      print('⚠️ [3a] _isFirstLoad==true → Showing CircularProgressIndicator!');
       return const Center(child: CircularProgressIndicator());
     }
 
+    print('✅ [3b] _isFirstLoad==false → Building _TaskListContent');
     return _TaskListContent(
       listKey: _listKey,
       tasks: _displayedTasks,
@@ -421,6 +572,7 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
       onCancelCreation: widget.onCancelCreation,
       onTaskCreated: widget.onTaskCreated,
       onShowTaskDetails: widget.onShowTaskDetails,
+      onManualReorder: widget.onManualReorder,
     );
   }
 }
@@ -434,8 +586,9 @@ class _TaskListContent extends StatelessWidget {
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
-  final VoidCallback onTaskCreated;
+  final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
+  final void Function(List<Task> newOrder)? onManualReorder;
 
   const _TaskListContent({
     required this.listKey,
@@ -447,42 +600,38 @@ class _TaskListContent extends StatelessWidget {
     required this.onCancelCreation,
     required this.onTaskCreated,
     required this.onShowTaskDetails,
+    this.onManualReorder,
   });
 
   @override
   Widget build(BuildContext context) {
-    final taskService = TaskService();
+    print('🏗️ [4] _TaskListContent.build() - tasks=${tasks.length}');
 
-    // Preload tags for all visible tasks
-    return FutureBuilder<Map<String, List<Tag>>>(
-      future: taskService.getEffectiveTagsForTasksWithSubtasks(tasks),
-      builder: (context, tagsSnapshot) {
-        if (tagsSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    // CRITICAL FIX: Tags are already preloaded in TaskStateManager
+    // We don't need to fetch them again here - that was causing the CircularProgressIndicator!
+    // Just use an empty map for now - tags will be loaded by TaskListItem if needed
+    final taskTagsMap = <String, List<Tag>>{};
 
-        final taskTagsMap = tagsSnapshot.data ?? {};
-
-        return _TaskList(
-          listKey: listKey,
-          tasks: tasks,
-          filterConfig: filterConfig,
-          document: document,
-          showAllPropertiesNotifier: showAllPropertiesNotifier,
-          isCreatingTaskNotifier: isCreatingTaskNotifier,
-          onCancelCreation: onCancelCreation,
-          onTaskCreated: onTaskCreated,
-          onShowTaskDetails: onShowTaskDetails,
-          taskTagsMap: taskTagsMap,
-        );
-      },
+    print('✅ [4a] Building _TaskList with ${tasks.length} tasks');
+    return _TaskList(
+      listKey: listKey,
+      tasks: tasks,
+      filterConfig: filterConfig,
+      document: document,
+      showAllPropertiesNotifier: showAllPropertiesNotifier,
+      isCreatingTaskNotifier: isCreatingTaskNotifier,
+      onCancelCreation: onCancelCreation,
+      onTaskCreated: onTaskCreated,
+      onShowTaskDetails: onShowTaskDetails,
+      taskTagsMap: taskTagsMap,
+      onManualReorder: onManualReorder,
     );
   }
 }
 
-/// Final widget that renders the actual list using AnimatedList
+/// Final widget that renders the actual list using AnimatedReorderableListView
 /// Uses ValueListenableBuilder to rebuild ONLY when creation state changes
-class _TaskList extends StatelessWidget {
+class _TaskList extends StatefulWidget {
   final GlobalKey<AnimatedListState> listKey;
   final List<Task> tasks;
   final FilterSortConfig filterConfig;
@@ -490,9 +639,10 @@ class _TaskList extends StatelessWidget {
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
-  final VoidCallback onTaskCreated;
+  final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
   final Map<String, List<Tag>> taskTagsMap;
+  final void Function(List<Task> newOrder)? onManualReorder;
 
   const _TaskList({
     required this.listKey,
@@ -505,22 +655,47 @@ class _TaskList extends StatelessWidget {
     required this.onTaskCreated,
     required this.onShowTaskDetails,
     required this.taskTagsMap,
+    this.onManualReorder,
   });
 
   @override
+  State<_TaskList> createState() => _TaskListState();
+}
+
+class _TaskListState extends State<_TaskList> {
+  // Local copy of tasks for immediate reordering without waiting for parent rebuild
+  late List<Task> _displayedTasks;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedTasks = widget.tasks;
+  }
+
+  @override
+  void didUpdateWidget(_TaskList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update local tasks when parent provides new task list
+    // AnimatedReorderableListView will automatically detect changes and animate
+    _displayedTasks = widget.tasks;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    print('🏗️ [5] _TaskListState.build() - _displayedTasks.length=${_displayedTasks.length}');
     // Listen to creation state changes - only rebuilds when creating/canceling
     return ValueListenableBuilder<bool>(
-      valueListenable: isCreatingTaskNotifier,
+      valueListenable: widget.isCreatingTaskNotifier,
       builder: (context, isCreatingTask, _) {
+        print('🏗️ [6] ValueListenableBuilder.builder() for isCreatingTask - value=$isCreatingTask');
         // Empty state
-        if (tasks.isEmpty && !isCreatingTask) {
+        if (_displayedTasks.isEmpty && !isCreatingTask) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  filterConfig.hasFilters
+                  widget.filterConfig.hasFilters
                       ? Icons.filter_alt_off
                       : Icons.check_circle_outline,
                   size: 64,
@@ -528,14 +703,14 @@ class _TaskList extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  filterConfig.hasFilters
+                  widget.filterConfig.hasFilters
                       ? 'Nessuna task trovata'
                       : 'Nessuna task',
                   style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  filterConfig.hasFilters
+                  widget.filterConfig.hasFilters
                       ? 'Prova a cambiare i filtri'
                       : 'Aggiungi la tua prima task!',
                   style: TextStyle(color: Colors.grey[500]),
@@ -545,51 +720,168 @@ class _TaskList extends StatelessWidget {
           );
         }
 
-        // AnimatedList for smooth insertions/deletions
+        // Use AnimatedReorderableListView for smooth tile-sliding animations
+        // Items slide from old position → new position when sorting changes
+        // Also supports manual drag-and-drop reordering with long-press
+        return Column(
+          children: [
+            // Inline task creation row (appears at top when creating)
+            if (isCreatingTask)
+              TaskCreationRow(
+                document: widget.document,
+                onCancel: widget.onCancelCreation,
+                onTaskCreated: widget.onTaskCreated,
+              ),
+
+            // Task list
+            Expanded(
+              child: AnimatedReorderableListView<Task>(
+          items: _displayedTasks,
+          padding: const EdgeInsets.all(8),
+          // Comparator to identify same items across list updates
+          isSameItem: (a, b) => a.id == b.id,
+          // Disable insert/remove animations (we only want reorder sliding)
+          insertDuration: const Duration(milliseconds: 0),
+          removeDuration: const Duration(milliseconds: 0),
+          // Empty transitions for insert/remove
+          enterTransition: const [],
+          exitTransition: const [],
+          // Enable default drag handles with long-press activation
+          // This allows Dismissible swipes to work while long-press triggers reorder
+          buildDefaultDragHandles: false,
+          longPressDraggable: true,
+          // Custom proxy decorator to fix Material widget error during drag
+          proxyDecorator: (child, index, animation) {
+            return Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(8),
+              child: child,
+            );
+          },
+          // Handle manual reordering via drag-and-drop
+          onReorder: (oldIndex, newIndex) {
+            // Immediately update local state for smooth reordering
+            setState(() {
+              final task = _displayedTasks.removeAt(oldIndex);
+              _displayedTasks.insert(newIndex, task);
+            });
+
+            // Notify parent to switch to custom sort and persist order
+            widget.onManualReorder?.call(_displayedTasks);
+          },
+          // Item builder - no animation parameter in this API
+          itemBuilder: (context, index) {
+            final task = _displayedTasks[index];
+
+            // Always wrap with ReorderableDragStartListener for drag-and-drop
+            // Long-press activates drag, swipe still works for Dismissible
+            return ReorderableDragStartListener(
+              key: ValueKey('task_${task.id}'),
+              index: index,
+              child: _HighlightedGranularTaskItem(
+                key: ValueKey('highlighted_${task.id}'),
+                task: task,
+                document: widget.document,
+                onShowTaskDetails: widget.onShowTaskDetails,
+                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                taskTagsMap: widget.taskTagsMap,
+              ),
+            );
+          },
+        ),
+              ),
+            ],
+          );
+      },
+    );
+  }
+}
+
+/// Wrapper widget that adds a highlight effect when the task item is repositioned
+/// This provides visual feedback when items are reordered via sorting or drag-and-drop
+class _HighlightedGranularTaskItem extends StatefulWidget {
+  final Task task;
+  final TodoDocument document;
+  final void Function(BuildContext, Task) onShowTaskDetails;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
+  final Map<String, List<Tag>> taskTagsMap;
+
+  const _HighlightedGranularTaskItem({
+    super.key,
+    required this.task,
+    required this.document,
+    required this.onShowTaskDetails,
+    this.showAllPropertiesNotifier,
+    required this.taskTagsMap,
+  });
+
+  @override
+  State<_HighlightedGranularTaskItem> createState() => _HighlightedGranularTaskItemState();
+}
+
+class _HighlightedGranularTaskItemState extends State<_HighlightedGranularTaskItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _highlightController;
+  late Animation<double> _highlightAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Setup highlight animation controller
+    _highlightController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _highlightAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _highlightController, curve: Curves.easeInOut),
+    );
+
+    // Trigger highlight animation on init (when item appears during reorder)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _highlightController.forward().then((_) => _highlightController.reverse());
+    });
+  }
+
+  @override
+  void dispose() {
+    _highlightController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _highlightAnimation,
+      builder: (context, child) {
+        // Calculate highlight opacity (fade in, then fade out)
+        final highlightOpacity = _highlightAnimation.value <= 0.5
+            ? _highlightAnimation.value * 2  // 0.0 -> 1.0 in first half
+            : (1.0 - _highlightAnimation.value) * 2;  // 1.0 -> 0.0 in second half
+
         return Container(
-          color: Colors.transparent,
-          child: AnimatedList(
-            key: listKey,
-            padding: const EdgeInsets.all(8),
-            initialItemCount: tasks.length + (isCreatingTask ? 1 : 0),
-            itemBuilder: (context, index, animation) {
-              // Show creation row at the top
-              if (isCreatingTask && index == 0) {
-                return TaskCreationRow(
-                  key: const ValueKey('task_creation'),
-                  document: document,
-                  showAllPropertiesNotifier: showAllPropertiesNotifier,
-                  onCancel: onCancelCreation,
-                  onTaskCreated: onTaskCreated,
-                );
-              }
-
-              final taskIndex = isCreatingTask ? index - 1 : index;
-              if (taskIndex < 0 || taskIndex >= tasks.length) {
-                return const SizedBox.shrink();
-              }
-
-              final task = tasks[taskIndex];
-
-              // Animate new items
-              return SizeTransition(
-                sizeFactor: animation,
-                child: FadeTransition(
-                  opacity: animation,
-                  child: _GranularTaskListItem(
-                    key: ValueKey('task_${task.id}'),
-                    task: task,
-                    document: document,
-                    onShowTaskDetails: onShowTaskDetails,
-                    showAllPropertiesNotifier: showAllPropertiesNotifier,
-                    taskTagsMap: taskTagsMap,
-                  ),
-                ),
-              );
-            },
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16), // Match TaskListItem borderRadius
+            boxShadow: highlightOpacity > 0.05 ? [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: highlightOpacity * 0.3),
+                blurRadius: 12 * highlightOpacity,
+                spreadRadius: 2 * highlightOpacity,
+              ),
+            ] : null,
           ),
+          child: child,
         );
       },
+      child: _GranularTaskListItem(
+        task: widget.task,
+        document: widget.document,
+        onShowTaskDetails: widget.onShowTaskDetails,
+        showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+        taskTagsMap: widget.taskTagsMap,
+        dismissibleEnabled: true,
+      ),
     );
   }
 }
@@ -606,6 +898,7 @@ class _GranularTaskListItem extends StatefulWidget {
   final void Function(BuildContext, Task) onShowTaskDetails;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final Map<String, List<Tag>> taskTagsMap;
+  final bool dismissibleEnabled;
 
   const _GranularTaskListItem({
     super.key,
@@ -614,14 +907,18 @@ class _GranularTaskListItem extends StatefulWidget {
     required this.onShowTaskDetails,
     this.showAllPropertiesNotifier,
     required this.taskTagsMap,
+    this.dismissibleEnabled = true,
   });
 
   @override
   State<_GranularTaskListItem> createState() => _GranularTaskListItemState();
 }
 
-class _GranularTaskListItemState extends State<_GranularTaskListItem> {
+class _GranularTaskListItemState extends State<_GranularTaskListItem>
+    with SingleTickerProviderStateMixin {
   late final AlwaysNotifyValueNotifier<Task> _taskNotifier;
+  late AnimationController _highlightController;
+  late Animation<double> _highlightAnimation;
 
   @override
   void initState() {
@@ -629,6 +926,27 @@ class _GranularTaskListItemState extends State<_GranularTaskListItem> {
     // Initialize notifier ONCE - never call this again in build()!
     final stateManager = TaskStateManager();
     _taskNotifier = stateManager.getOrCreateTaskNotifier(widget.task.id, widget.task);
+
+    // Setup highlight animation controller
+    _highlightController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _highlightAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _highlightController, curve: Curves.easeInOut),
+    );
+
+    // Trigger highlight animation on init (when item appears during reorder)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _highlightController.forward().then((_) => _highlightController.reverse());
+    });
+  }
+
+  @override
+  void dispose() {
+    _highlightController.dispose();
+    super.dispose();
   }
 
   @override
@@ -637,13 +955,37 @@ class _GranularTaskListItemState extends State<_GranularTaskListItem> {
     return ValueListenableBuilder<Task>(
       valueListenable: _taskNotifier,
       builder: (context, updatedTask, _) {
-        return TaskListItem(
-          task: updatedTask,
-          document: widget.document,
-          onTap: () => widget.onShowTaskDetails(context, updatedTask),
-          showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-          preloadedTags: widget.taskTagsMap[updatedTask.id],
-          taskTagsMap: widget.taskTagsMap,
+        return AnimatedBuilder(
+          animation: _highlightAnimation,
+          builder: (context, child) {
+            // Calculate highlight opacity (fade in, then fade out)
+            final highlightOpacity = _highlightAnimation.value <= 0.5
+                ? _highlightAnimation.value * 2  // 0.0 -> 1.0 in first half
+                : (1.0 - _highlightAnimation.value) * 2;  // 1.0 -> 0.0 in second half
+
+            return Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: highlightOpacity > 0.05 ? [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(highlightOpacity * 0.3),
+                    blurRadius: 12 * highlightOpacity,
+                    spreadRadius: 2 * highlightOpacity,
+                  ),
+                ] : null,
+              ),
+              child: child,
+            );
+          },
+          child: TaskListItem(
+            task: updatedTask,
+            document: widget.document,
+            onTap: () => widget.onShowTaskDetails(context, updatedTask),
+            showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+            preloadedTags: widget.taskTagsMap[updatedTask.id],
+            taskTagsMap: widget.taskTagsMap,
+            dismissibleEnabled: widget.dismissibleEnabled,
+          ),
         );
       },
     );

@@ -1088,7 +1088,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 _isCreatingSubtask = false;
               });
             },
-            onTaskCreated: () {
+            onTaskCreated: () async {
               setState(() {
                 _isCreatingSubtask = false;
               });

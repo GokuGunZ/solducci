@@ -128,7 +128,8 @@ enum TaskSortOption {
   priority('Priorità'),
   size('Dimensione'),
   title('Titolo'),
-  createdAt('Data creazione');
+  createdAt('Data creazione'),
+  custom('Ordine personalizzato'); // Manual drag-and-drop order
 
   final String label;
   const TaskSortOption(this.label);

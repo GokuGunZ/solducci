@@ -243,10 +243,17 @@ extension TaskFilterSort on List<Task> {
   }
 
   /// Sort the task list recursively (includes subtasks)
+  ///
+  /// For custom sort, use [applyCustomOrder] instead with the saved order
   List<Task> applySorting(FilterSortConfig config) {
     // If no sorting option selected, return as-is
     if (config.sortBy == null) {
       return this;
+    }
+
+    // Custom sort is handled separately via applyCustomOrder
+    if (config.sortBy == TaskSortOption.custom) {
+      return this; // Return as-is, order should already be applied
     }
 
     // Helper function to recursively sort a task and its subtasks
@@ -270,6 +277,43 @@ extension TaskFilterSort on List<Task> {
 
     // Recursively sort subtasks for each task
     return sorted.map((task) => sortTaskAndSubtasks(task)).toList();
+  }
+
+  /// Apply custom order based on saved task IDs order
+  ///
+  /// Tasks not in the saved order will be appended at the end in their original order
+  List<Task> applyCustomOrder(List<String> taskIdsOrder) {
+    if (taskIdsOrder.isEmpty) {
+      return this;
+    }
+
+    // Create a map for quick lookup by task ID
+    final taskMap = <String, Task>{};
+    for (final task in this) {
+      taskMap[task.id] = task;
+    }
+
+    // Build ordered list based on saved order
+    final ordered = <Task>[];
+    final processedIds = <String>{};
+
+    // First, add tasks in the saved order
+    for (final taskId in taskIdsOrder) {
+      final task = taskMap[taskId];
+      if (task != null) {
+        ordered.add(task);
+        processedIds.add(taskId);
+      }
+    }
+
+    // Then, add any tasks not in the saved order (new tasks)
+    for (final task in this) {
+      if (!processedIds.contains(task.id)) {
+        ordered.add(task);
+      }
+    }
+
+    return ordered;
   }
 
   /// Compare two tasks for sorting (null values always go to end)
@@ -324,6 +368,12 @@ extension TaskFilterSort on List<Task> {
 
       case TaskSortOption.createdAt:
         comparison = a.createdAt.compareTo(b.createdAt);
+        break;
+
+      case TaskSortOption.custom:
+        // Custom sort should not use this comparison method
+        // Use applyCustomOrder instead
+        comparison = 0;
         break;
     }
 

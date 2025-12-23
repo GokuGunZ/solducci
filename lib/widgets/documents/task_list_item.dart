@@ -29,6 +29,7 @@ class TaskListItem extends StatefulWidget {
   preloadedTags; // Optional: preloaded tags to avoid async loading
   final Map<String, List<Tag>>?
   taskTagsMap; // Optional: map of all task tags (for subtasks)
+  final bool dismissibleEnabled; // Control whether swipe-to-dismiss is enabled
 
   const TaskListItem({
     super.key,
@@ -40,6 +41,7 @@ class TaskListItem extends StatefulWidget {
     this.showAllPropertiesNotifier,
     this.preloadedTags,
     this.taskTagsMap,
+    this.dismissibleEnabled = true,
   });
 
   @override
@@ -95,21 +97,8 @@ class _TaskListItemState extends State<TaskListItem> {
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: Key(widget.task.id),
-      background: _buildDeleteBackground(),
-      secondaryBackground: _buildDuplicateBackground(),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.endToStart) {
-          // Duplicate
-          await _duplicateTask();
-          return false;
-        } else {
-          // Delete
-          return await _showDeleteConfirmation();
-        }
-      },
-      child: Container(
+    // Build the main content widget
+    final contentWidget = Container(
         color: Colors.transparent, // CRITICAL: Prevent white background
         margin: EdgeInsets.only(
           left: (widget.depth * 16.0),
@@ -242,7 +231,7 @@ class _TaskListItemState extends State<TaskListItem> {
                           _isCreatingSubtask = false;
                         });
                       },
-                      onSubtaskCreated: () {
+                      onSubtaskCreated: () async {
                         setState(() {
                           _isCreatingSubtask = false;
                         });
@@ -254,8 +243,30 @@ class _TaskListItemState extends State<TaskListItem> {
             ),
           ),
         ),
-      ),
-    );
+      );
+
+    // Conditionally wrap with Dismissible based on dismissibleEnabled flag
+    if (widget.dismissibleEnabled) {
+      return Dismissible(
+        key: Key(widget.task.id),
+        background: _buildDeleteBackground(),
+        secondaryBackground: _buildDuplicateBackground(),
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.endToStart) {
+            // Duplicate
+            await _duplicateTask();
+            return false;
+          } else {
+            // Delete
+            return await _showDeleteConfirmation();
+          }
+        },
+        child: contentWidget,
+      );
+    } else {
+      // In reorder mode: no dismissible, just the content
+      return contentWidget;
+    }
   }
 
   Widget? _buildTrailingActions() {

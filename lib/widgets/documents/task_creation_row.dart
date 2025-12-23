@@ -16,7 +16,7 @@ class TaskCreationRow extends StatefulWidget {
   final TodoDocument document;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final VoidCallback onCancel;
-  final VoidCallback onTaskCreated;
+  final Future<void> Function() onTaskCreated;
   final String? parentTaskId;
 
   const TaskCreationRow({
@@ -123,7 +123,7 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task creata')),
         );
-        widget.onTaskCreated();
+        await widget.onTaskCreated();
       }
     } catch (e) {
       if (mounted) {
