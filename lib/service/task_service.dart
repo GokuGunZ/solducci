@@ -5,6 +5,7 @@ import 'package:solducci/models/task_completion.dart';
 import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
+import 'package:solducci/core/logging/app_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for managing tasks with hierarchical structure and recurrence logic
@@ -25,7 +26,7 @@ class TaskService {
   Stream<List<Task>> getTasksForDocument(String documentId) {
     // Supabase stream watches for INSERT, UPDATE, DELETE on the tasks table
     // Note: Make sure realtime is enabled on your Supabase table!
-    print('🔌 Setting up stream for document: $documentId');
+    AppLogger.debug('Setting up stream for document: $documentId');
     return _supabase
         .from('tasks')
         .stream(primaryKey: ['id']) // Track by primary key
@@ -33,9 +34,9 @@ class TaskService {
         .order('position')
         .asyncMap((data) async {
           // Build tree structure - this runs on every stream emission
-          print('📊 TaskService: Received ${data.length} tasks from Supabase stream for document $documentId');
+          AppLogger.debug('TaskService: Received ${data.length} tasks from Supabase stream for document $documentId');
           final taskIds = data.map((t) => (t['id'] as String).substring(0, 8)).join(', ');
-          print('   Stream task IDs: $taskIds');
+          AppLogger.debug('Stream task IDs: $taskIds');
           return await _buildTaskTree(data);
         }).asBroadcastStream(); // Allow multiple listeners
   }
@@ -59,19 +60,19 @@ class TaskService {
           .eq('document_id', documentId)
           .order('position');
 
-      print('📦 Raw DB response: ${response.length} tasks');
-      print('   Task IDs: ${response.map((t) => (t['id'] as String).substring(0, 8)).join(", ")}');
+      AppLogger.debug('📦 Raw DB response: ${response.length} tasks');
+      AppLogger.debug('   Task IDs: ${response.map((t) => (t['id'] as String).substring(0, 8)).join(", ")}');
 
       final rootTasks = await _buildTaskTree(response);
 
-      print('🌳 Built tree: ${rootTasks.length} root tasks');
+      AppLogger.debug('🌳 Built tree: ${rootTasks.length} root tasks');
       for (final root in rootTasks) {
-        print('   Root: ${root.id.substring(0, 8)} with ${root.subtasks?.length ?? 0} subtasks');
+        AppLogger.debug('   Root: ${root.id.substring(0, 8)} with ${root.subtasks?.length ?? 0} subtasks');
       }
 
       return rootTasks;
     } catch (e) {
-      print('❌ Error fetching tasks: $e');
+      AppLogger.error('❌ Error fetching tasks: $e');
       return [];
     }
   }
@@ -152,7 +153,7 @@ class TaskService {
       // This ensures the subtasks list is a new independent list
       return _deepCopyTask(foundTask);
     } catch (e) {
-      print('❌ Error fetching task with subtasks: $e');
+      AppLogger.error('❌ Error fetching task with subtasks: $e');
       return null;
     }
   }
@@ -342,7 +343,7 @@ class TaskService {
       }
 
       final dataToInsert = task.toInsertMap();
-      print('📝 Inserting task with document_id: ${dataToInsert['document_id']}');
+      AppLogger.debug('📝 Inserting task with document_id: ${dataToInsert['document_id']}');
 
       final response = await _supabase
           .from('tasks')
@@ -351,8 +352,8 @@ class TaskService {
           .single();
 
       final createdTask = Task.fromMap(response);
-      print('✅ Task created: ${createdTask.id} - ${createdTask.title} at ${DateTime.now()}');
-      print('   Document ID: ${createdTask.documentId}');
+      AppLogger.info('✅ Task created: ${createdTask.id} - ${createdTask.title} at ${DateTime.now()}');
+      AppLogger.debug('   Document ID: ${createdTask.documentId}');
 
       // Assign tags if provided
       if (tagIds != null && tagIds.isNotEmpty) {
@@ -361,15 +362,15 @@ class TaskService {
 
       // Create notifier for immediate optimistic update
       _stateManager.getOrCreateTaskNotifier(createdTask.id, createdTask);
-      print('🔔 Notifier created for task: ${createdTask.id}');
+      AppLogger.debug('🔔 Notifier created for task: ${createdTask.id}');
 
       // CRITICAL FIX: ALWAYS trigger list refresh, even for subtasks
       // The manual fetch in all_tasks_view will call _buildTaskTree()
       // which rebuilds the ENTIRE hierarchy from scratch, ensuring
       // parent tasks have updated subtasks lists
-      print('📌 Triggering list refresh to rebuild hierarchy');
+      AppLogger.debug('📌 Triggering list refresh to rebuild hierarchy');
       _stateManager.notifyListChange(createdTask.documentId);
-      print('🔔 List change notified - all_tasks_view will refresh and rebuild tree');
+      AppLogger.debug('🔔 List change notified - all_tasks_view will refresh and rebuild tree');
 
       return createdTask;
     } catch (e) {

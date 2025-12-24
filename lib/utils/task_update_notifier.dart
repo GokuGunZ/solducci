@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:solducci/core/logging/app_logger.dart';
 
 /// Singleton notifier for task updates
 /// Used to trigger UI updates when tasks are modified locally
@@ -17,7 +18,7 @@ class TaskUpdateNotifier {
   /// Notify that a task in this document has been updated
   void notifyTaskUpdate(String documentId) {
     if (!_controller.isClosed) {
-      print('📢 TaskUpdateNotifier: Broadcasting update for document $documentId');
+      AppLogger.debug('📢 TaskUpdateNotifier: Broadcasting update for document $documentId');
       _controller.add(documentId);
     }
   }

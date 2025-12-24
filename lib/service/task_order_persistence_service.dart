@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solducci/core/logging/app_logger.dart';
 
 /// Service per persistere l'ordine personalizzato delle task per documento
 /// Salva solo localmente (non sincronizzato su Supabase)
@@ -29,7 +30,7 @@ class TaskOrderPersistenceService {
       await prefs.setString(key, jsonString);
     } catch (e) {
       // Ignora errori di salvataggio - l'ordine custom è opzionale
-      print('Error saving custom task order: $e');
+      AppLogger.debug('Error saving custom task order: $e');
     }
   }
 
@@ -62,7 +63,7 @@ class TaskOrderPersistenceService {
       return taskIds.cast<String>();
     } catch (e) {
       // In caso di errore, ritorna null (fallback a default sort)
-      print('Error loading custom task order: $e');
+      AppLogger.debug('Error loading custom task order: $e');
       return null;
     }
   }
@@ -74,7 +75,7 @@ class TaskOrderPersistenceService {
       final key = _getKey(documentId);
       await prefs.remove(key);
     } catch (e) {
-      print('Error clearing custom task order: $e');
+      AppLogger.debug('Error clearing custom task order: $e');
     }
   }
 
@@ -91,7 +92,7 @@ class TaskOrderPersistenceService {
         }
       }
     } catch (e) {
-      print('Error clearing all custom task orders: $e');
+      AppLogger.debug('Error clearing all custom task orders: $e');
     }
   }
 

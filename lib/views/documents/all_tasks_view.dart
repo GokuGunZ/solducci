@@ -7,12 +7,13 @@ import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/service/task_order_persistence_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
+import 'package:solducci/utils/task_filter_sort.dart';
+import 'package:solducci/core/logging/app_logger.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/views/documents/task_detail_page.dart';
 import 'package:solducci/widgets/documents/task_creation_row.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
 import 'package:solducci/widgets/documents/compact_filter_sort_bar.dart';
-import 'package:solducci/utils/task_filter_sort.dart';
 
 /// View showing all tasks (pending + in progress + assigned) for a document
 ///
@@ -70,10 +71,10 @@ class _AllTasksViewState extends State<AllTasksView>
     _listChangesSubscription = _stateManager.listChanges
         .where((docId) => docId == widget.document.id)
         .listen((_) async {
-      print('🔔 LISTENER: List change detected for document ${widget.document.id}');
-      print('🔄 LISTENER: Calling _refreshTasks()');
+      AppLogger.debug('🔔 LISTENER: List change detected for document ${widget.document.id}');
+      AppLogger.debug('🔄 LISTENER: Calling _refreshTasks()');
       await _refreshTasks();
-      print('🔔 LISTENER: _refreshTasks() completed');
+      AppLogger.debug('🔔 LISTENER: _refreshTasks() completed');
     });
 
     // Pass the inline creation callback to parent
@@ -91,7 +92,7 @@ class _AllTasksViewState extends State<AllTasksView>
   void _initStream() async {
     // Don't use Supabase realtime stream - it's unreliable and causes conflicts
     // Instead, use manual fetch with our own controller
-    print('🎬 Initializing task stream for document ${widget.document.id}');
+    AppLogger.debug('🎬 Initializing task stream for document ${widget.document.id}');
 
     // Use our controller's stream for the UI
     _taskStream = _taskStreamController.stream;
@@ -105,45 +106,45 @@ class _AllTasksViewState extends State<AllTasksView>
   Future<void> _refreshTasks() async {
     // Prevent concurrent refresh calls
     if (_isRefreshing) {
-      print('⚠️ Already refreshing, skipping duplicate call');
+      AppLogger.debug('⚠️ Already refreshing, skipping duplicate call');
       return;
     }
 
     _isRefreshing = true;
-    print('🔄 _refreshTasks() START');
+    AppLogger.debug('🔄 _refreshTasks() START');
     try {
       // Small delay to ensure DB write is fully committed
-      print('⏳ Waiting 300ms for DB commit...');
+      AppLogger.debug('⏳ Waiting 300ms for DB commit...');
       await Future.delayed(const Duration(milliseconds: 300));
 
       // Fetch fresh data directly from Supabase
-      print('📡 Fetching tasks from database...');
+      AppLogger.debug('📡 Fetching tasks from database...');
       final tasks = await _taskService.fetchTasksForDocument(widget.document.id);
-      print('✅ Fetched ${tasks.length} tasks from DB');
-      print('   Task IDs: ${tasks.map((t) => t.id.substring(0, 8)).join(", ")}');
+      AppLogger.debug('✅ Fetched ${tasks.length} tasks from DB');
+      AppLogger.debug('   Task IDs: ${tasks.map((t) => t.id.substring(0, 8)).join(", ")}');
 
       // Emit through our controller - StreamBuilder will rebuild WITHOUT setState
       if (!_taskStreamController.isClosed) {
-        print('📤 Emitting ${tasks.length} tasks to stream');
+        AppLogger.debug('📤 Emitting ${tasks.length} tasks to stream');
         _taskStreamController.add(tasks);
-        print('✅ Tasks emitted successfully');
+        AppLogger.debug('✅ Tasks emitted successfully');
       } else {
-        print('⚠️ Stream controller is CLOSED, cannot emit tasks!');
+        AppLogger.debug('⚠️ Stream controller is CLOSED, cannot emit tasks!');
       }
     } catch (e) {
-      print('❌ Error fetching tasks: $e');
+      AppLogger.debug('❌ Error fetching tasks: $e');
       if (!_taskStreamController.isClosed) {
         _taskStreamController.addError(e);
       }
     } finally {
       _isRefreshing = false;
     }
-    print('🔄 _refreshTasks() END');
+    AppLogger.debug('🔄 _refreshTasks() END');
   }
 
   /// Handle manual reordering via drag-and-drop
   void _handleManualReorder(List<Task> newOrder) async {
-    print('🔄 Manual reorder detected');
+    AppLogger.debug('🔄 Manual reorder detected');
 
     // Persist custom order locally (no UI update needed, list already reordered)
     final taskIds = newOrder.map((task) => task.id).toList();
@@ -152,7 +153,7 @@ class _AllTasksViewState extends State<AllTasksView>
       taskIds: taskIds,
     );
 
-    print('✅ Custom order saved: ${taskIds.length} tasks');
+    AppLogger.debug('✅ Custom order saved: ${taskIds.length} tasks');
   }
 
   @override
@@ -194,18 +195,18 @@ class _AllTasksViewState extends State<AllTasksView>
               _isCreatingTaskNotifier.value = false;
             },
             onTaskCreated: () async {
-              print('🎯 onTaskCreated callback START');
+              AppLogger.debug('🎯 onTaskCreated callback START');
 
               // Force immediate refresh to show the new task BEFORE closing the row
               // This ensures the new task appears even if the listener hasn't fired yet
-              print('🔄 Forcing immediate refresh after task creation');
+              AppLogger.debug('🔄 Forcing immediate refresh after task creation');
               await _refreshTasks();
 
               // Close the creation row AFTER refresh completes
-              print('✅ Refresh complete, closing creation row');
+              AppLogger.debug('✅ Refresh complete, closing creation row');
               _isCreatingTaskNotifier.value = false;
 
-              print('🎯 onTaskCreated callback END');
+              AppLogger.debug('🎯 onTaskCreated callback END');
             },
             onShowTaskDetails: _showTaskDetails,
             onManualReorder: _handleManualReorder,
@@ -261,12 +262,12 @@ class _TaskListSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🏗️ [1] _TaskListSection.build() called');
+    AppLogger.debug('🏗️ [1] _TaskListSection.build() called');
     // Listen to filter changes - only this widget rebuilds!
     return ValueListenableBuilder<FilterSortConfig>(
       valueListenable: filterConfigNotifier,
       builder: (context, filterConfig, _) {
-        print('🏗️ [2] ValueListenableBuilder.builder() for filter - sortBy: ${filterConfig.sortBy}, hasFilters: ${filterConfig.hasFilters}');
+        AppLogger.debug('🏗️ [2] ValueListenableBuilder.builder() for filter - sortBy: ${filterConfig.sortBy}, hasFilters: ${filterConfig.hasFilters}');
         return _AnimatedTaskListBuilder(
           // Use a constant key to preserve state when filterConfig changes
           // This prevents the widget from being recreated and losing _isFirstLoad state
@@ -325,7 +326,7 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   @override
   void initState() {
     super.initState();
-    print('🎬 [INIT] _AnimatedTaskListBuilderState.initState() - Creating new instance!');
+    AppLogger.debug('🎬 [INIT] _AnimatedTaskListBuilderState.initState() - Creating new instance!');
     _listKey = GlobalKey<AnimatedListState>(); // Initialize GlobalKey
     _streamSubscription = widget.taskStream?.listen(_onNewData);
   }
@@ -339,12 +340,12 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
       final filterChanged = _hasFilterChanged(oldWidget.filterConfig, widget.filterConfig);
       final sortChanged = _hasSortChanged(oldWidget.filterConfig, widget.filterConfig);
 
-      print('🔄 Filter config changed');
-      print('   Filter changed: $filterChanged, Sort changed: $sortChanged');
-      print('   Old config: priorities=${oldWidget.filterConfig.priorities.length}, '
+      AppLogger.debug('🔄 Filter config changed');
+      AppLogger.debug('   Filter changed: $filterChanged, Sort changed: $sortChanged');
+      AppLogger.debug('   Old config: priorities=${oldWidget.filterConfig.priorities.length}, '
             'statuses=${oldWidget.filterConfig.statuses.length}, '
             'sortBy=${oldWidget.filterConfig.sortBy}');
-      print('   New config: priorities=${widget.filterConfig.priorities.length}, '
+      AppLogger.debug('   New config: priorities=${widget.filterConfig.priorities.length}, '
             'statuses=${widget.filterConfig.statuses.length}, '
             'sortBy=${widget.filterConfig.sortBy}');
 
@@ -383,7 +384,7 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   }
 
   void _onNewData(List<Task> allTasks) {
-    print('📦 _onNewData received ${allTasks.length} tasks');
+    AppLogger.debug('📦 _onNewData received ${allTasks.length} tasks');
     _rawTasks = allTasks; // Cache raw data for re-filtering
     _applyFiltersToRawData(allTasks);
   }
@@ -393,9 +394,9 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     bool isFilterChange = false,
     bool isSortOnlyChange = false,
   }) async {
-    print('🔍 Applying filters to ${allTasks.length} tasks');
-    print('   isFilterChange: $isFilterChange, isSortOnlyChange: $isSortOnlyChange');
-    print('   Filter config: priorities=${widget.filterConfig.priorities}, '
+    AppLogger.debug('🔍 Applying filters to ${allTasks.length} tasks');
+    AppLogger.debug('   isFilterChange: $isFilterChange, isSortOnlyChange: $isSortOnlyChange');
+    AppLogger.debug('   Filter config: priorities=${widget.filterConfig.priorities}, '
           'statuses=${widget.filterConfig.statuses}, '
           'sizes=${widget.filterConfig.sizes}, '
           'dateFilter=${widget.filterConfig.dateFilter}, '
@@ -405,16 +406,16 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
         .where((t) => t.status != TaskStatus.completed)
         .toList();
 
-    print('   After completion filter: ${tasks.length} tasks');
+    AppLogger.debug('   After completion filter: ${tasks.length} tasks');
 
     // Apply filters and sorting
     if (widget.filterConfig.tagIds.isNotEmpty) {
-      print('   Applying async filter (tags: ${widget.filterConfig.tagIds.length})');
+      AppLogger.debug('   Applying async filter (tags: ${widget.filterConfig.tagIds.length})');
       tasks = await tasks.applyFilterSortAsync(widget.filterConfig);
-      print('   Async filter result: ${tasks.length} tasks');
+      AppLogger.debug('   Async filter result: ${tasks.length} tasks');
     } else {
       tasks = tasks.applyFilterSort(widget.filterConfig);
-      print('   After sync filter+sort: ${tasks.length} tasks');
+      AppLogger.debug('   After sync filter+sort: ${tasks.length} tasks');
     }
 
     // Apply custom order if selected
@@ -424,9 +425,9 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
 
       if (savedOrder != null && savedOrder.isNotEmpty) {
         tasks = tasks.applyCustomOrder(savedOrder);
-        print('   Applied custom order: ${savedOrder.length} task IDs');
+        AppLogger.debug('   Applied custom order: ${savedOrder.length} task IDs');
       } else {
-        print('   No custom order found, using default order');
+        AppLogger.debug('   No custom order found, using default order');
       }
     }
 
@@ -443,18 +444,18 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     bool isSortOnlyChange = false,
   }) {
     if (_isFirstLoad) {
-      print('🎯 [FIRST LOAD] Setting _isFirstLoad = false, tasks=${newTasks.length}');
+      AppLogger.debug('🎯 [FIRST LOAD] Setting _isFirstLoad = false, tasks=${newTasks.length}');
       setState(() {
         _displayedTasks = newTasks;
         _isFirstLoad = false;
       });
-      print('✅ [FIRST LOAD] First load complete, _isFirstLoad=$_isFirstLoad');
+      AppLogger.debug('✅ [FIRST LOAD] First load complete, _isFirstLoad=$_isFirstLoad');
       return;
     }
 
     // SORT-ONLY CHANGE: Animate reorder with AnimatedSwitcher
     if (isSortOnlyChange && !isFilterChange) {
-      print('🔄 Animating reorder: ${_displayedTasks.length} tasks');
+      AppLogger.debug('🔄 Animating reorder: ${_displayedTasks.length} tasks');
       _animateReorder(newTasks);
       return;
     }
@@ -462,7 +463,7 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     // FILTER CHANGE: Batch update without incremental animations
     // This prevents the "one task at a time" removal issue
     if (isFilterChange) {
-      print('📋 Batch update for filter change: ${_displayedTasks.length} → ${newTasks.length} tasks');
+      AppLogger.debug('📋 Batch update for filter change: ${_displayedTasks.length} → ${newTasks.length} tasks');
       setState(() {
         _displayedTasks = newTasks;
       });
@@ -535,7 +536,7 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   /// Animates reorder by updating the list and letting AnimatedReorderableListView handle it
   /// Similar to TagView approach - update list with setState but WITHOUT recreating keys
   void _animateReorder(List<Task> newTasks) {
-    print('🎬 Smooth reorder animation: ${_displayedTasks.length} → ${newTasks.length} tasks');
+    AppLogger.debug('🎬 Smooth reorder animation: ${_displayedTasks.length} → ${newTasks.length} tasks');
 
     // Update the list with setState - this triggers rebuild but AnimatedReorderableListView
     // detects the change and animates items from old position to new position
@@ -555,13 +556,13 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
 
   @override
   Widget build(BuildContext context) {
-    print('🏗️ [3] _AnimatedTaskListBuilderState.build() - _isFirstLoad=$_isFirstLoad, tasks=${_displayedTasks.length}');
+    AppLogger.debug('🏗️ [3] _AnimatedTaskListBuilderState.build() - _isFirstLoad=$_isFirstLoad, tasks=${_displayedTasks.length}');
     if (_isFirstLoad) {
-      print('⚠️ [3a] _isFirstLoad==true → Showing CircularProgressIndicator!');
+      AppLogger.debug('⚠️ [3a] _isFirstLoad==true → Showing CircularProgressIndicator!');
       return const Center(child: CircularProgressIndicator());
     }
 
-    print('✅ [3b] _isFirstLoad==false → Building _TaskListContent');
+    AppLogger.debug('✅ [3b] _isFirstLoad==false → Building _TaskListContent');
     return _TaskListContent(
       listKey: _listKey,
       tasks: _displayedTasks,
@@ -605,14 +606,14 @@ class _TaskListContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🏗️ [4] _TaskListContent.build() - tasks=${tasks.length}');
+    AppLogger.debug('🏗️ [4] _TaskListContent.build() - tasks=${tasks.length}');
 
     // CRITICAL FIX: Tags are already preloaded in TaskStateManager
     // We don't need to fetch them again here - that was causing the CircularProgressIndicator!
     // Just use an empty map for now - tags will be loaded by TaskListItem if needed
     final taskTagsMap = <String, List<Tag>>{};
 
-    print('✅ [4a] Building _TaskList with ${tasks.length} tasks');
+    AppLogger.debug('✅ [4a] Building _TaskList with ${tasks.length} tasks');
     return _TaskList(
       listKey: listKey,
       tasks: tasks,
@@ -682,12 +683,12 @@ class _TaskListState extends State<_TaskList> {
 
   @override
   Widget build(BuildContext context) {
-    print('🏗️ [5] _TaskListState.build() - _displayedTasks.length=${_displayedTasks.length}');
+    AppLogger.debug('🏗️ [5] _TaskListState.build() - _displayedTasks.length=${_displayedTasks.length}');
     // Listen to creation state changes - only rebuilds when creating/canceling
     return ValueListenableBuilder<bool>(
       valueListenable: widget.isCreatingTaskNotifier,
       builder: (context, isCreatingTask, _) {
-        print('🏗️ [6] ValueListenableBuilder.builder() for isCreatingTask - value=$isCreatingTask');
+        AppLogger.debug('🏗️ [6] ValueListenableBuilder.builder() for isCreatingTask - value=$isCreatingTask');
         // Empty state
         if (_displayedTasks.isEmpty && !isCreatingTask) {
           return Center(
