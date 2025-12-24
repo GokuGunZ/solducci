@@ -9,6 +9,7 @@ import 'package:solducci/service/task/task_tag_service.dart';
 import 'package:solducci/service/task/task_completion_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/blocs/task_list/task_list_bloc.dart';
+import 'package:solducci/blocs/tag/tag_bloc.dart';
 import 'package:solducci/core/logging/app_logger.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
 import 'package:solducci/domain/repositories/task_completion_repository.dart';
@@ -82,8 +83,14 @@ Future<void> setupServiceLocator() async {
     ),
   );
 
+  getIt.registerFactory<TagBloc>(
+    () => TagBloc(
+      taskService: getIt<TaskService>(),
+    ),
+  );
+
   AppLogger.info('Service locator setup complete');
-  AppLogger.debug('Registered services: 7, repositories: 3, specialized task services: 3, BLoCs: 1');
+  AppLogger.debug('Registered services: 7, repositories: 3, specialized task services: 3, BLoCs: 2');
 }
 
 /// Reset service locator (for testing)
