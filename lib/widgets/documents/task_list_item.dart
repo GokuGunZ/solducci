@@ -17,6 +17,7 @@ import 'package:solducci/widgets/documents/task_list_item/task_item_callbacks.da
 import 'package:solducci/widgets/documents/task_list_item/components/task_checkbox.dart';
 import 'package:solducci/widgets/documents/task_list_item/components/task_properties_bar.dart';
 import 'package:solducci/widgets/documents/task_list_item/components/task_swipe_actions.dart';
+import 'package:solducci/widgets/documents/task_list_item/handlers/task_completion_handler.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
 ///
@@ -79,6 +80,7 @@ class TaskListItem extends StatefulWidget {
 class _TaskListItemState extends State<TaskListItem> {
   bool _isExpanded = false;
   final _taskService = TaskService();
+  late final _completionHandler = TaskCompletionHandler(taskService: _taskService);
   Recurrence? _recurrence;
   bool _isTogglingComplete = false; // Track if toggle is in progress
   bool _isCreatingSubtask = false;
@@ -669,110 +671,41 @@ class _TaskListItemState extends State<TaskListItem> {
   Future<void> _toggleComplete() async {
     if (_isTogglingComplete) return; // Prevent double-tap
 
-    final wasCompleted = widget.task.isCompleted;
-
     // Set toggling state for immediate visual feedback
     setState(() {
       _isTogglingComplete = true;
     });
 
-    // Show immediate feedback
+    // Use handler for completion logic
+    await _completionHandler.toggleComplete(
+      context: context,
+      task: widget.task,
+      isMounted: () => mounted,
+    );
+
+    // Reset toggling state
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(wasCompleted ? 'Task ripristinata' : 'Task completata'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
-
-    // Update database
-    try {
-      if (wasCompleted) {
-        await _taskService.uncompleteTask(widget.task.id);
-      } else {
-        await _taskService.completeTask(widget.task.id);
-      }
-
-      // Stream will update automatically from DB
-      if (mounted) {
-        // No need to trigger refresh - stream handles it
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
-      }
-    } finally {
-      // Reset toggling state
-      if (mounted) {
-        setState(() {
-          _isTogglingComplete = false;
-        });
-      }
+      setState(() {
+        _isTogglingComplete = false;
+      });
     }
   }
 
   Future<bool> _showDeleteConfirmation() async {
-    final result = await showDialog<bool>(
+    return await _completionHandler.deleteTask(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Elimina task'),
-        content: Text('Vuoi davvero eliminare "${widget.task.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annulla'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Elimina'),
-          ),
-        ],
-      ),
+      taskId: widget.task.id,
+      taskTitle: widget.task.title,
+      isMounted: () => mounted,
     );
-
-    if (result == true) {
-      try {
-        await _taskService.deleteTask(widget.task.id);
-        // Stream will update automatically
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Task eliminata')));
-        }
-        return true;
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
-        }
-        return false;
-      }
-    }
-
-    return false;
   }
 
   Future<void> _duplicateTask() async {
-    try {
-      await _taskService.duplicateTask(widget.task.id);
-      // Stream will update automatically
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Task duplicata')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
-      }
-    }
+    await _completionHandler.duplicateTask(
+      context: context,
+      taskId: widget.task.id,
+      isMounted: () => mounted,
+    );
   }
 
   void _showTaskDetails(BuildContext context) {
