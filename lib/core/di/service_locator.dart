@@ -8,6 +8,7 @@ import 'package:solducci/service/task/task_hierarchy_service.dart';
 import 'package:solducci/service/task/task_tag_service.dart';
 import 'package:solducci/service/task/task_completion_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
+import 'package:solducci/blocs/task_list/task_list_bloc.dart';
 import 'package:solducci/core/logging/app_logger.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
 import 'package:solducci/domain/repositories/task_completion_repository.dart';
@@ -71,8 +72,18 @@ Future<void> setupServiceLocator() async {
     () => TaskOrderPersistenceService(),
   );
 
+  // BLoCs (Factory pattern - new instance per use)
+  // NOTE: BLoCs are NOT singletons - each view gets its own instance
+  getIt.registerFactory<TaskListBloc>(
+    () => TaskListBloc(
+      taskService: getIt<TaskService>(),
+      stateManager: getIt<TaskStateManager>(),
+      orderPersistenceService: getIt<TaskOrderPersistenceService>(),
+    ),
+  );
+
   AppLogger.info('Service locator setup complete');
-  AppLogger.debug('Registered services: 7, repositories: 3, specialized task services: 3');
+  AppLogger.debug('Registered services: 7, repositories: 3, specialized task services: 3, BLoCs: 1');
 }
 
 /// Reset service locator (for testing)
