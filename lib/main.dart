@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:solducci/routes/app_router.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/core/di/service_locator.dart';
+import 'package:solducci/core/logging/app_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -41,6 +43,9 @@ void main() async {
     }
 
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+
+    // Setup dependency injection
+    await setupServiceLocator();
 
     // Initialize ContextManager if user is already logged in
     final session = Supabase.instance.client.auth.currentSession;
