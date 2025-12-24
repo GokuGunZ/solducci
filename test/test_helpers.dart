@@ -8,6 +8,7 @@ import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/service/task_order_persistence_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
+import 'package:solducci/domain/repositories/task_repository.dart';
 
 /// Mock services for testing
 class MockTaskService extends Mock implements TaskService {}
@@ -16,11 +17,15 @@ class MockTagService extends Mock implements TagService {}
 class MockRecurrenceService extends Mock implements RecurrenceService {}
 class MockTaskOrderPersistenceService extends Mock implements TaskOrderPersistenceService {}
 class MockTaskStateManager extends Mock implements TaskStateManager {}
+class MockTaskRepository extends Mock implements TaskRepository {}
 
 /// Setup test service locator with mocks
 void setupTestServiceLocator() {
   // Reset GetIt instance
   getIt.reset();
+
+  // Register mock repositories
+  getIt.registerLazySingleton<TaskRepository>(() => MockTaskRepository());
 
   // Register mock services
   getIt.registerLazySingleton<TaskService>(() => MockTaskService());
