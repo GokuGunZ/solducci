@@ -16,6 +16,7 @@ import 'package:solducci/widgets/documents/task_list_item/task_item_config.dart'
 import 'package:solducci/widgets/documents/task_list_item/task_item_callbacks.dart';
 import 'package:solducci/widgets/documents/task_list_item/components/task_checkbox.dart';
 import 'package:solducci/widgets/documents/task_list_item/components/task_properties_bar.dart';
+import 'package:solducci/widgets/documents/task_list_item/components/task_swipe_actions.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
 ///
@@ -295,28 +296,14 @@ class _TaskListItemState extends State<TaskListItem> {
         ),
       );
 
-    // Conditionally wrap with Dismissible based on dismissibleEnabled flag
-    if (_dismissibleEnabled) {
-      return Dismissible(
-        key: Key(widget.task.id),
-        background: _buildDeleteBackground(),
-        secondaryBackground: _buildDuplicateBackground(),
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.endToStart) {
-            // Duplicate
-            await _duplicateTask();
-            return false;
-          } else {
-            // Delete
-            return await _showDeleteConfirmation();
-          }
-        },
-        child: contentWidget,
-      );
-    } else {
-      // In reorder mode: no dismissible, just the content
-      return contentWidget;
-    }
+    // Wrap with swipe actions
+    return TaskSwipeActions(
+      task: widget.task,
+      enabled: _dismissibleEnabled,
+      onDelete: _showDeleteConfirmation,
+      onDuplicate: _duplicateTask,
+      child: contentWidget,
+    );
   }
 
   Widget? _buildTrailingActions() {
@@ -488,25 +475,8 @@ class _TaskListItemState extends State<TaskListItem> {
     });
   }
 
-  Widget _buildDeleteBackground() {
-    return Container(
-      color: Colors.red,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.only(left: 20),
-      child: const Icon(Icons.delete, color: Colors.white),
-    );
-  }
-
-  Widget _buildDuplicateBackground() {
-    return Container(
-      color: Colors.blue,
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.only(right: 20),
-      child: const Icon(Icons.content_copy, color: Colors.white),
-    );
-  }
-
-  // ========== NEW QUICK-EDIT METHODS ==========
+  // ========== WIDGET BUILDING METHODS ==========
+  // NOTE: Swipe action backgrounds extracted to TaskSwipeActions component
 
   /// Improved checkbox with hierarchy indicator
   Widget _buildCheckbox() {
