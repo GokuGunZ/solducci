@@ -253,6 +253,13 @@ class _GranularSubtaskListItemState extends State<_GranularSubtaskListItem> {
   }
 
   @override
+  void dispose() {
+    // CRITICAL: Dispose the subtask notifier to trigger reference counting cleanup
+    _subtaskNotifier.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Only this widget rebuilds when the subtask changes!
     return ValueListenableBuilder<Task>(

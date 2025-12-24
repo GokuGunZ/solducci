@@ -525,11 +525,27 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     }
 
     // No structural changes - but we still need to update task notifiers!
-    // CRITICAL: Recursively update all task notifiers (including subtasks)
-    // This ensures the entire task tree is synchronized with DB data
+    // OPTIMIZED: Only update tasks that actually changed (prevents unnecessary rebuilds)
     final stateManager = TaskStateManager();
+    final changedTaskIds = <String>{};
+
     for (final newTask in newTasks) {
-      stateManager.updateTaskRecursively(newTask);
+      // Check if task exists and has changed
+      final existingValue = stateManager.getTaskValue(newTask.id);
+      if (existingValue == null || existingValue != newTask) {
+        // Task is new or changed - update it
+        stateManager.updateTask(newTask);
+        changedTaskIds.add(newTask.id);
+      }
+    }
+
+    // Only recursively update subtasks of changed parents
+    for (final taskId in changedTaskIds) {
+      final task = newTasks.firstWhere((t) => t.id == taskId);
+      if (task.subtasks != null && task.subtasks!.isNotEmpty) {
+        // Update subtasks recursively only for changed parents
+        stateManager.updateTaskRecursively(task);
+      }
     }
   }
 
@@ -546,10 +562,25 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
     });
 
     // Update task notifiers AFTER build completes to avoid setState during build
+    // OPTIMIZED: Only update changed tasks to prevent unnecessary rebuilds
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final stateManager = TaskStateManager();
+      final changedTaskIds = <String>{};
+
       for (final task in newTasks) {
-        stateManager.updateTaskRecursively(task);
+        final existingValue = stateManager.getTaskValue(task.id);
+        if (existingValue == null || existingValue != task) {
+          stateManager.updateTask(task);
+          changedTaskIds.add(task.id);
+        }
+      }
+
+      // Only recursively update subtasks of changed parents
+      for (final taskId in changedTaskIds) {
+        final task = newTasks.firstWhere((t) => t.id == taskId);
+        if (task.subtasks != null && task.subtasks!.isNotEmpty) {
+          stateManager.updateTaskRecursively(task);
+        }
       }
     });
   }

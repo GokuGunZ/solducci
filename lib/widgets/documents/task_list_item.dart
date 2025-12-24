@@ -70,6 +70,9 @@ class _TaskListItemState extends State<TaskListItem> {
 
   @override
   void dispose() {
+    // CRITICAL: Dispose the task notifier to trigger reference counting cleanup
+    // This prevents memory leaks by removing the notifier when the widget is destroyed
+    _taskNotifier?.dispose();
     super.dispose();
   }
 

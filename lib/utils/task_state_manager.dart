@@ -21,8 +21,34 @@ class AlwaysNotifyValueNotifier<T> extends ChangeNotifier implements ValueListen
   }
 }
 
+/// Reference-counted notifier that automatically cleans up when the last reference is removed
+/// Wraps AlwaysNotifyValueNotifier with automatic memory management
+class _ReferenceCountedNotifier<T> extends AlwaysNotifyValueNotifier<T> {
+  final String taskId;
+  final VoidCallback onLastReferenceRemoved;
+
+  _ReferenceCountedNotifier(
+    T value,
+    this.taskId,
+    this.onLastReferenceRemoved,
+  ) : super(value);
+
+  @override
+  void dispose() {
+    // When this notifier is disposed, notify the TaskStateManager
+    onLastReferenceRemoved();
+    super.dispose();
+  }
+}
+
 /// Manager for individual task state using ValueNotifiers
 /// Enables granular rebuilds - only the affected task rebuilds, not the entire list
+///
+/// Memory Management:
+/// - Uses reference counting to automatically clean up notifiers
+/// - Each call to getOrCreateTaskNotifier() increments the reference count
+/// - Widgets should dispose their notifiers to decrement the count
+/// - When reference count reaches 0, the notifier is automatically removed
 class TaskStateManager {
   static final TaskStateManager _instance = TaskStateManager._internal();
   factory TaskStateManager() => _instance;
@@ -31,23 +57,54 @@ class TaskStateManager {
   // Map of task ID -> ValueNotifier for granular updates
   final Map<String, AlwaysNotifyValueNotifier<Task>> _taskNotifiers = {};
 
+  // Map of task ID -> reference count for automatic cleanup
+  final Map<String, int> _referenceCount = {};
+
   // Stream controller for task list changes (add/remove/reorder)
   final _listChangesController = StreamController<String>.broadcast();
 
   /// Stream of document IDs that have list-level changes (add/remove/reorder)
   Stream<String> get listChanges => _listChangesController.stream;
 
-  /// Get or create a ValueNotifier for a specific task
-  /// CRITICAL: Only call this ONCE per task to avoid overwriting updates
+  /// Get or create a ValueNotifier for a specific task with automatic reference counting
+  ///
+  /// Each call increments the reference count. When the notifier is disposed,
+  /// the count is decremented. When it reaches 0, the notifier is automatically removed.
+  ///
+  /// IMPORTANT: Widgets MUST dispose the returned notifier to avoid memory leaks.
   AlwaysNotifyValueNotifier<Task> getOrCreateTaskNotifier(
     String taskId,
     Task initialTask,
   ) {
     if (!_taskNotifiers.containsKey(taskId)) {
-      _taskNotifiers[taskId] = AlwaysNotifyValueNotifier(initialTask);
+      // Create new reference-counted notifier
+      _taskNotifiers[taskId] = _ReferenceCountedNotifier(
+        initialTask,
+        taskId,
+        () => _decrementReference(taskId),
+      );
+      _referenceCount[taskId] = 0;
     }
+
+    // Increment reference count
+    _referenceCount[taskId] = (_referenceCount[taskId] ?? 0) + 1;
+
     // Do NOT update here - only create if missing
     return _taskNotifiers[taskId]!;
+  }
+
+  /// Decrement reference count and cleanup if no more references
+  void _decrementReference(String taskId) {
+    final count = _referenceCount[taskId] ?? 0;
+
+    if (count <= 1) {
+      // Last reference being removed - cleanup
+      _taskNotifiers.remove(taskId);
+      _referenceCount.remove(taskId);
+    } else {
+      // Still have other references
+      _referenceCount[taskId] = count - 1;
+    }
   }
 
   /// Update a specific task (triggers only that task's rebuild)
@@ -86,11 +143,24 @@ class TaskStateManager {
     }
   }
 
-  /// Remove a task notifier (cleanup)
+  /// Remove a task notifier (manual cleanup - usually not needed with reference counting)
   void removeTask(String taskId) {
     final notifier = _taskNotifiers.remove(taskId);
+    _referenceCount.remove(taskId);
     notifier?.dispose();
   }
+
+  /// Get current notifier count (for debugging/testing)
+  int get notifierCount => _taskNotifiers.length;
+
+  /// Get reference count for a specific task (for debugging/testing)
+  int? getReferenceCount(String taskId) => _referenceCount[taskId];
+
+  /// Check if a task exists in the notifier map
+  bool hasNotifier(String taskId) => _taskNotifiers.containsKey(taskId);
+
+  /// Get the current task value if the notifier exists (for comparison)
+  Task? getTaskValue(String taskId) => _taskNotifiers[taskId]?.value;
 
   /// Dispose all notifiers
   void dispose() {
@@ -98,6 +168,7 @@ class TaskStateManager {
       notifier.dispose();
     }
     _taskNotifiers.clear();
+    _referenceCount.clear();
     _listChangesController.close();
   }
 }
