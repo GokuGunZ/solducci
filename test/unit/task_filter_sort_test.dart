@@ -12,36 +12,83 @@ void main() {
     late List<Task> testTasks;
 
     setUp(() {
+      // CRITICAL FIX: Use Task() constructor directly with unique IDs
+      // Previous bug: Task.create() sets id='' causing all tasks to share same ID
+      // This caused map collisions in filtering logic where all tasks overwrote each other
+      final now = DateTime.now();
+
       // Create a set of test tasks with various properties
       testTasks = [
-        Task.create(
+        Task(
+          id: 'task-1',
           documentId: 'doc-1',
           title: 'High priority task',
-        )..priority = TaskPriority.high,
-        Task.create(
+          status: TaskStatus.pending,
+          priority: TaskPriority.high,
+          position: 0,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Task(
+          id: 'task-2',
           documentId: 'doc-1',
           title: 'Low priority task',
-        )..priority = TaskPriority.low,
-        Task.create(
+          status: TaskStatus.pending,
+          priority: TaskPriority.low,
+          position: 1,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Task(
+          id: 'task-3',
           documentId: 'doc-1',
           title: 'Urgent task',
-        )..priority = TaskPriority.urgent,
-        Task.create(
+          status: TaskStatus.pending,
+          priority: TaskPriority.urgent,
+          position: 2,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Task(
+          id: 'task-4',
           documentId: 'doc-1',
           title: 'Task with due date',
-        )..dueDate = DateTime.now().add(const Duration(days: 1)),
-        Task.create(
+          status: TaskStatus.pending,
+          dueDate: DateTime.now().add(const Duration(days: 1)),
+          position: 3,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Task(
+          id: 'task-5',
           documentId: 'doc-1',
           title: 'Overdue task',
-        )..dueDate = DateTime.now().subtract(const Duration(days: 1)),
-        Task.create(
+          status: TaskStatus.pending,
+          dueDate: DateTime.now().subtract(const Duration(days: 1)),
+          position: 4,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Task(
+          id: 'task-6',
           documentId: 'doc-1',
           title: 'Small task',
-        )..tShirtSize = TShirtSize.s,
-        Task.create(
+          status: TaskStatus.pending,
+          tShirtSize: TShirtSize.s,
+          position: 5,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Task(
+          id: 'task-7',
           documentId: 'doc-1',
           title: 'Large task',
-        )..tShirtSize = TShirtSize.xl,
+          status: TaskStatus.pending,
+          tShirtSize: TShirtSize.xl,
+          position: 6,
+          createdAt: now,
+          updatedAt: now,
+        ),
       ];
     });
 

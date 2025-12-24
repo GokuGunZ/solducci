@@ -1,4 +1,5 @@
 import 'package:solducci/models/task.dart';
+import 'package:solducci/models/tag.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
 import 'package:solducci/service/task_service.dart';
 
@@ -64,6 +65,13 @@ extension TaskFilterSort on List<Task> {
     final matchingTasks = <String>{}; // Track matching task IDs
     final tasksToInclude = <String>{}; // Tasks to include in final result
 
+    // OPTIMIZATION: Batch load all tags ONCE if tag filtering is needed
+    // This eliminates N+1 query problem (was: 1 query per task, now: 1 query total)
+    Map<String, List<Tag>>? taskTagsMap;
+    if (config.tagIds.isNotEmpty) {
+      taskTagsMap = await taskService.getEffectiveTagsForTasksWithSubtasks(this);
+    }
+
     // Flatten the task tree to include all subtasks
     final allTasks = _flattenTaskTree();
 
@@ -106,9 +114,9 @@ extension TaskFilterSort on List<Task> {
         matches = matches && task.isOverdue;
       }
 
-      // Filter by tags (requires async operation to load task tags)
-      if (config.tagIds.isNotEmpty) {
-        final taskTags = await taskService.getEffectiveTags(task.id);
+      // Filter by tags (OPTIMIZED: lookup from preloaded map, no query per task)
+      if (config.tagIds.isNotEmpty && taskTagsMap != null) {
+        final taskTags = taskTagsMap[task.id] ?? [];
         final taskTagIds = taskTags.map((t) => t.id).toSet();
         matches = matches &&
                   taskTagIds.any((tagId) => config.tagIds.contains(tagId));
