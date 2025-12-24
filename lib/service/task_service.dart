@@ -2,8 +2,10 @@ import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/models/recurrence.dart';
 import 'package:solducci/models/task_completion.dart';
-import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
+import 'package:solducci/service/task/task_hierarchy_service.dart';
+import 'package:solducci/service/task/task_tag_service.dart';
+import 'package:solducci/service/task/task_completion_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/core/logging/app_logger.dart';
 import 'package:solducci/core/di/service_locator.dart';
@@ -22,14 +24,19 @@ class TaskService {
 
   final _supabase = Supabase.instance.client;
   late final TaskRepository _repository;
-  final _tagService = TagService();
+  late final TaskHierarchyService _hierarchyService;
+  late final TaskTagService _tagService;
+  late final TaskCompletionService _completionService;
   final _recurrenceService = RecurrenceService();
   final _stateManager = TaskStateManager();
 
-  /// Initialize the service with repository from service locator
+  /// Initialize the service with repository and specialized services from service locator
   void initialize() {
     _repository = getIt<TaskRepository>();
-    AppLogger.debug('TaskService initialized with repository');
+    _hierarchyService = getIt<TaskHierarchyService>();
+    _tagService = getIt<TaskTagService>();
+    _completionService = getIt<TaskCompletionService>();
+    AppLogger.debug('TaskService initialized with repository and specialized services');
   }
 
   /// Get real-time stream of tasks for a document with tree structure
@@ -85,123 +92,30 @@ class TaskService {
 
   /// Get a task by ID WITH all its subtasks properly loaded (recursive)
   /// This is the correct method to use when you need the full task tree
+  /// Delegates to TaskHierarchyService
   Future<Task?> getTaskWithSubtasks(String taskId) async {
-    try {
-      return await _repository.getWithSubtasks(taskId);
-    } catch (e) {
-      AppLogger.error('❌ Error fetching task with subtasks: $e');
-      return null;
-    }
+    return await _hierarchyService.getTaskWithSubtasks(taskId);
   }
 
-  /// Get tags for a specific task
+  /// Get tags for a specific task - Delegates to TaskTagService
   Future<List<Tag>> getTaskTags(String taskId) async {
-    try {
-      final response = await _supabase
-          .from('task_tags')
-          .select('tag_id')
-          .eq('task_id', taskId);
-
-      final tagIds = response.map((row) => row['tag_id'] as String).toList();
-
-      final tags = <Tag>[];
-      for (final tagId in tagIds) {
-        final tag = await _tagService.getTagById(tagId);
-        if (tag != null) tags.add(tag);
-      }
-
-      return tags;
-    } catch (e) {
-      return [];
-    }
+    return await _tagService.getTaskTags(taskId);
   }
 
   /// Get effective tags for a task (own tags + inherited from parent)
+  /// Delegates to TaskTagService
   Future<List<Tag>> getEffectiveTags(String taskId) async {
-    final task = await getTaskById(taskId);
-    if (task == null) return [];
-
-    final allTags = <String, Tag>{}; // Use map to avoid duplicates
-
-    // Get task's own tags
-    final ownTags = await getTaskTags(taskId);
-    for (final tag in ownTags) {
-      allTags[tag.id] = tag;
-    }
-
-    // Get inherited tags from parent
-    if (task.parentTaskId != null) {
-      final parentTags = await getEffectiveTags(task.parentTaskId!);
-      for (final tag in parentTags) {
-        allTags[tag.id] = tag;
-      }
-    }
-
-    return allTags.values.toList();
+    return await _tagService.getEffectiveTags(taskId, taskFetcher: getTaskById);
   }
 
-  /// Get effective tags for multiple tasks in batch (optimized)
-  /// Returns a map of taskId to List of Tag
+  /// Get effective tags for multiple tasks in batch - Delegates to TaskTagService
   Future<Map<String, List<Tag>>> getEffectiveTagsForTasks(List<String> taskIds) async {
-    if (taskIds.isEmpty) return {};
-
-    final result = <String, List<Tag>>{};
-
-    // Batch load all task-tag relationships
-    final taskTagsResponse = await _supabase
-        .from('task_tags')
-        .select('task_id, tag_id')
-        .inFilter('task_id', taskIds);
-
-    // Group by task_id
-    final taskTagMap = <String, List<String>>{};
-    for (final row in taskTagsResponse) {
-      final taskId = row['task_id'] as String;
-      final tagId = row['tag_id'] as String;
-      taskTagMap.putIfAbsent(taskId, () => []).add(tagId);
-    }
-
-    // Get all unique tag IDs
-    final allTagIds = taskTagMap.values.expand((ids) => ids).toSet();
-
-    // Batch load all tags
-    final tagMap = <String, Tag>{};
-    for (final tagId in allTagIds) {
-      final tag = await _tagService.getTagById(tagId);
-      if (tag != null) tagMap[tagId] = tag;
-    }
-
-    // Build result map
-    for (final taskId in taskIds) {
-      final tagIds = taskTagMap[taskId] ?? [];
-      final tags = tagIds.map((id) => tagMap[id]).whereType<Tag>().toList();
-      result[taskId] = tags;
-    }
-
-    return result;
+    return await _tagService.getEffectiveTagsForTasks(taskIds);
   }
 
-  /// Get effective tags for tasks including all subtasks (recursive)
-  /// Returns a map of taskId to List of Tag for all tasks and their descendants
+  /// Get effective tags for tasks with subtasks - Delegates to TaskTagService
   Future<Map<String, List<Tag>>> getEffectiveTagsForTasksWithSubtasks(List<Task> tasks) async {
-    // Collect all task IDs including subtasks recursively
-    final allTaskIds = <String>{};
-
-    void collectTaskIds(Task task) {
-      allTaskIds.add(task.id);
-      if (task.subtasks != null) {
-        for (final subtask in task.subtasks!) {
-          collectTaskIds(subtask);
-        }
-      }
-    }
-
-    for (final task in tasks) {
-      collectTaskIds(task);
-    }
-
-    // Use the existing batch loading method
-    return await getEffectiveTagsForTasks(allTaskIds.toList());
+    return await _tagService.getEffectiveTagsForTasksWithSubtasks(tasks);
   }
 
   /// Get effective recurrence for a task (own recurrence > parent recurrence > tag recurrence)
@@ -271,9 +185,12 @@ class TaskService {
     try {
       // Business logic: Prevent circular reference in hierarchy
       if (task.parentTaskId != null) {
-        final descendants = await getDescendantTasks(task.id);
-        final descendantIds = descendants.map((t) => t.id).toSet();
-        if (descendantIds.contains(task.parentTaskId)) {
+        final isValid = await _hierarchyService.validateParentChange(
+          task.id,
+          task.parentTaskId,
+          descendantsFetcher: getDescendantTasks,
+        );
+        if (!isValid) {
           throw Exception('Cannot set parent to a descendant task (circular reference)');
         }
       }
@@ -309,264 +226,59 @@ class TaskService {
     }
   }
 
-  /// Complete a task with recurrence handling
-  /// For recurring tasks: adds to history and resets
-  /// For non-recurring tasks: marks as completed
+  /// Complete a task - Delegates to TaskCompletionService
   Future<void> completeTask(String taskId, {String? notes}) async {
-    try {
-      final task = await getTaskById(taskId);
-      if (task == null) {
-        throw Exception('Task not found');
-      }
-
-      // Check if task has incomplete subtasks
-      final subtasks = await getChildTasks(taskId);
-      if (subtasks.isNotEmpty) {
-        final hasIncompleteSubtasks = subtasks.any((t) => t.status != TaskStatus.completed);
-        if (hasIncompleteSubtasks) {
-          throw Exception('Non puoi completare una task con subtask incomplete');
-        }
-      }
-
-      final recurrence = await getEffectiveRecurrence(taskId);
-
-      if (recurrence != null && recurrence.isActive) {
-        // Recurring task: add to history and reset with next due date
-        await _supabase.from('task_completions').insert({
-          'task_id': taskId,
-          'completed_at': DateTime.now().toIso8601String(),
-          'notes': notes,
-        });
-
-        // Calculate next occurrence
-        final nextOccurrence = recurrence.getNextOccurrence(DateTime.now());
-
-        // Reset task to pending with updated due date
-        final updateData = {
-          'status': TaskStatus.pending.value,
-          'completed_at': null,
-          'updated_at': DateTime.now().toIso8601String(),
-        };
-
-        // Update due date if next occurrence is available
-        if (nextOccurrence != null) {
-          updateData['due_date'] = nextOccurrence.toIso8601String();
-        }
-
-        await _supabase.from('tasks').update(updateData).eq('id', taskId);
-      } else {
-        // Non-recurring task: mark as completed
-        await _supabase.from('tasks').update({
-          'status': TaskStatus.completed.value,
-          'completed_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', taskId);
-      }
-
-      // Check if parent should be auto-completed
-      if (task.parentTaskId != null) {
-        await _checkParentCompletion(task.parentTaskId!);
-      }
-
-      // No notification needed - Supabase stream will emit UPDATE
-      // Task will be filtered out from AllTasksView automatically
-    } catch (e) {
-      rethrow;
-    }
+    await _completionService.completeTask(
+      taskId,
+      notes: notes,
+      taskFetcher: getTaskById,
+      childrenFetcher: getChildTasks,
+      recurrenceFetcher: getEffectiveRecurrence,
+      parentCompletionChecker: _checkParentCompletion,
+    );
   }
 
-  /// Uncomplete a task (set back to pending)
+  /// Uncomplete a task - Delegates to TaskCompletionService
   Future<void> uncompleteTask(String taskId) async {
-    try {
-      final task = await getTaskById(taskId);
-
-      await _supabase.from('tasks').update({
-        'status': TaskStatus.pending.value,
-        'completed_at': null,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', taskId);
-
-      // If this task has a completed parent, uncomplete it too
-      if (task?.parentTaskId != null) {
-        final parent = await getTaskById(task!.parentTaskId!);
-        if (parent != null && parent.status == TaskStatus.completed) {
-          await uncompleteTask(parent.id); // Recursive uncomplete
-        }
-      }
-
-      // No notification needed - Supabase stream will emit UPDATE
-      // Task will be filtered back into AllTasksView automatically
-    } catch (e) {
-      rethrow;
-    }
+    await _completionService.uncompleteTask(
+      taskId,
+      taskFetcher: getTaskById,
+      uncompleteParent: uncompleteTask,
+    );
   }
 
-  /// Check if parent task should be auto-completed
-  /// If all subtasks are completed, complete the parent
+  /// Check if parent task should be auto-completed - Delegates to TaskCompletionService
   Future<void> _checkParentCompletion(String parentId) async {
-    final parent = await getTaskById(parentId);
-    if (parent == null) return;
-
-    final subtasks = await getChildTasks(parentId);
-    if (subtasks.isEmpty) return;
-
-    final allCompleted = subtasks.every((t) => t.status == TaskStatus.completed);
-
-    if (allCompleted && parent.status != TaskStatus.completed) {
-      await completeTask(parentId);
-    }
+    await _completionService.checkParentCompletion(
+      parentId,
+      taskFetcher: getTaskById,
+      childrenFetcher: getChildTasks,
+      completeParent: completeTask,
+    );
   }
 
-  /// Assign tags to a task
+  /// Assign tags to a task - Delegates to TaskTagService
   Future<void> assignTags(String taskId, List<String> tagIds) async {
-    try {
-      // Remove existing tags
-      await _supabase
-          .from('task_tags')
-          .delete()
-          .eq('task_id', taskId);
-
-      // Add new tags
-      if (tagIds.isNotEmpty) {
-        final entries = tagIds.map((tagId) => {
-          'task_id': taskId,
-          'tag_id': tagId,
-        }).toList();
-
-        await _supabase.from('task_tags').insert(entries);
-      }
-
-      // CRITICAL: Tags changed, need to trigger UI rebuild
-      // Refetch task and notify state manager
-      // The task itself doesn't change, but the UI needs to know tags changed
-      final updatedTask = await getTaskById(taskId);
-      if (updatedTask != null) {
-        _stateManager.updateTask(updatedTask);
-      }
-    } catch (e) {
-      rethrow;
-    }
+    await _tagService.assignTags(taskId, tagIds, taskFetcher: getTaskById);
   }
 
-  /// Add a single tag to a task
+  /// Add a single tag to a task - Delegates to TaskTagService
   Future<void> addTag(String taskId, String tagId) async {
-    try {
-      await _supabase.from('task_tags').insert({
-        'task_id': taskId,
-        'tag_id': tagId,
-      });
-
-      // CRITICAL: Tag added, trigger UI rebuild
-      final updatedTask = await getTaskById(taskId);
-      if (updatedTask != null) {
-        _stateManager.updateTask(updatedTask);
-      }
-    } catch (e) {
-      rethrow;
-    }
+    await _tagService.addTag(taskId, tagId, taskFetcher: getTaskById);
   }
 
-  /// Remove a single tag from a task
+  /// Remove a single tag from a task - Delegates to TaskTagService
   Future<void> removeTag(String taskId, String tagId) async {
-    try {
-      await _supabase
-          .from('task_tags')
-          .delete()
-          .eq('task_id', taskId)
-          .eq('tag_id', tagId);
-
-      // CRITICAL: Tag removed, trigger UI rebuild
-      final updatedTask = await getTaskById(taskId);
-      if (updatedTask != null) {
-        _stateManager.updateTask(updatedTask);
-      }
-    } catch (e) {
-      rethrow;
-    }
+    await _tagService.removeTag(taskId, tagId, taskFetcher: getTaskById);
   }
 
-  /// Get all tasks with a specific tag (with subtasks included in tree)
+  /// Get all tasks with a specific tag - Delegates to TaskTagService
   Future<List<Task>> getTasksByTag(String tagId, {bool includeCompleted = false}) async {
-    try {
-      // Get all tasks with this tag
-      var query = _supabase
-          .from('tasks')
-          .select('*, task_tags!inner(tag_id)')
-          .eq('task_tags.tag_id', tagId);
-
-      if (!includeCompleted) {
-        query = query.neq('status', TaskStatus.completed.value);
-      }
-
-      final response = await query.order('position');
-      final tasksWithTag = _parseTasks(response);
-
-      // For each task with tag, get all its descendants (subtasks)
-      final allTasks = <Task>[];
-      final processedIds = <String>{};
-
-      for (final task in tasksWithTag) {
-        if (!processedIds.contains(task.id)) {
-          // Load the full task tree starting from this task
-          final taskWithSubtasks = await _loadTaskWithSubtasks(
-            task.id,
-            includeCompleted: includeCompleted,
-          );
-          if (taskWithSubtasks != null) {
-            allTasks.add(taskWithSubtasks);
-            processedIds.add(taskWithSubtasks.id);
-            // Mark all descendants as processed
-            _markDescendantsAsProcessed(taskWithSubtasks, processedIds);
-          }
-        }
-      }
-
-      return allTasks;
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// Helper to load a task with all its subtasks
-  Future<Task?> _loadTaskWithSubtasks(String taskId, {bool includeCompleted = false}) async {
-    final task = await getTaskById(taskId);
-    if (task == null) return null;
-
-    // Load subtasks
-    final subtasks = await getChildTasks(taskId);
-
-    if (subtasks.isNotEmpty) {
-      final filteredSubtasks = <Task>[];
-      for (final subtask in subtasks) {
-        // Filter by completion status
-        if (!includeCompleted && subtask.status == TaskStatus.completed) {
-          continue;
-        }
-
-        // Recursively load subtask's children
-        final subtaskWithChildren = await _loadTaskWithSubtasks(
-          subtask.id,
-          includeCompleted: includeCompleted,
-        );
-        if (subtaskWithChildren != null) {
-          filteredSubtasks.add(subtaskWithChildren);
-        }
-      }
-
-      task.subtasks = filteredSubtasks.isEmpty ? null : filteredSubtasks;
-    }
-
-    return task;
-  }
-
-  /// Helper to mark all descendants as processed
-  void _markDescendantsAsProcessed(Task task, Set<String> processedIds) {
-    if (task.subtasks != null) {
-      for (final subtask in task.subtasks!) {
-        processedIds.add(subtask.id);
-        _markDescendantsAsProcessed(subtask, processedIds);
-      }
-    }
+    return await _tagService.getTasksByTag(
+      tagId,
+      includeCompleted: includeCompleted,
+      childrenFetcher: getChildTasks,
+    );
   }
 
   /// Get child tasks (immediate children only)
@@ -580,11 +292,12 @@ class TaskService {
 
       return _parseTasks(response);
     } catch (e) {
+      AppLogger.error('Error fetching child tasks: $e');
       return [];
     }
   }
 
-  /// Get all descendant tasks (children, grandchildren, etc.)
+  /// Get all descendant tasks (children, grandchildren, etc.) recursively
   Future<List<Task>> getDescendantTasks(String taskId) async {
     final descendants = <Task>[];
     final children = await getChildTasks(taskId);
@@ -598,19 +311,9 @@ class TaskService {
     return descendants;
   }
 
-  /// Get completion history for a recurring task
+  /// Get completion history for a recurring task - Delegates to TaskCompletionService
   Future<List<TaskCompletion>> getCompletionHistory(String taskId) async {
-    try {
-      final response = await _supabase
-          .from('task_completions')
-          .select()
-          .eq('task_id', taskId)
-          .order('completed_at', ascending: false);
-
-      return response.map((map) => TaskCompletion.fromMap(map)).toList();
-    } catch (e) {
-      return [];
-    }
+    return await _completionService.getCompletionHistory(taskId);
   }
 
   /// Duplicate a task (with option to duplicate subtasks)

@@ -4,6 +4,9 @@ import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/service/task_order_persistence_service.dart';
+import 'package:solducci/service/task/task_hierarchy_service.dart';
+import 'package:solducci/service/task/task_tag_service.dart';
+import 'package:solducci/service/task/task_completion_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/core/logging/app_logger.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
@@ -34,6 +37,17 @@ Future<void> setupServiceLocator() async {
   // Repositories (Data access layer)
   getIt.registerLazySingleton<TaskRepository>(() => SupabaseTaskRepository());
 
+  // Specialized Task Services
+  getIt.registerLazySingleton<TaskHierarchyService>(
+    () => TaskHierarchyService(getIt<TaskRepository>()),
+  );
+  getIt.registerLazySingleton<TaskTagService>(
+    () => TaskTagService(getIt<TaskHierarchyService>(), getIt<TaskStateManager>()),
+  );
+  getIt.registerLazySingleton<TaskCompletionService>(
+    () => TaskCompletionService(),
+  );
+
   // Services (Singleton pattern - one instance shared across app)
   getIt.registerLazySingleton<TaskService>(() => TaskService());
   getIt.registerLazySingleton<DocumentService>(() => DocumentService());
@@ -44,7 +58,7 @@ Future<void> setupServiceLocator() async {
   );
 
   AppLogger.info('Service locator setup complete');
-  AppLogger.debug('Registered services: 6, repositories: 1');
+  AppLogger.debug('Registered services: 7, repositories: 1, specialized task services: 3');
 }
 
 /// Reset service locator (for testing)
