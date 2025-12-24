@@ -15,6 +15,7 @@ import 'package:solducci/theme/todo_theme.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/widgets/documents/task_list_item/task_item_config.dart';
 import 'package:solducci/widgets/documents/task_list_item/task_item_callbacks.dart';
+import 'package:solducci/widgets/documents/task_list_item/components/task_checkbox.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
 ///
@@ -500,35 +501,11 @@ class _TaskListItemState extends State<TaskListItem> {
 
   /// Improved checkbox with hierarchy indicator
   Widget _buildCheckbox() {
-    final hasSubtasks = widget.task.hasSubtasks;
-    final isParent = _depth == 0 && hasSubtasks;
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Background circle for parent tasks
-        if (isParent)
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: TodoTheme.primaryPurple.withAlpha(50),
-                width: 2,
-              ),
-            ),
-          ),
-        // Checkbox
-        Checkbox(
-          value: _isTogglingComplete
-              ? !widget.task.isCompleted
-              : widget.task.isCompleted,
-          onChanged: _isTogglingComplete ? null : (_) => _toggleComplete(),
-          activeColor: Colors.green,
-          shape: isParent ? const CircleBorder() : null,
-        ),
-      ],
+    return TaskCheckbox(
+      task: widget.task,
+      isToggling: _isTogglingComplete,
+      onToggle: (_) => _toggleComplete(),
+      depth: _depth,
     );
   }
 
