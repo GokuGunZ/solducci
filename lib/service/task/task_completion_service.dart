@@ -1,8 +1,8 @@
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/task_completion.dart';
 import 'package:solducci/models/recurrence.dart';
+import 'package:solducci/domain/repositories/task_completion_repository.dart';
 import 'package:solducci/core/logging/app_logger.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service responsible for task completion operations
 ///
@@ -10,8 +10,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// completion history, parent auto-completion, and subtask validation.
 /// Focuses exclusively on completion-related business logic,
 /// following the Single Responsibility Principle.
+///
+/// Refactored to use dependency injection for testability.
 class TaskCompletionService {
-  final _supabase = Supabase.instance.client;
+  final TaskCompletionRepository _repository;
+
+  TaskCompletionService(this._repository);
 
   /// Complete a task with recurrence handling
   ///
@@ -47,38 +51,30 @@ class TaskCompletionService {
       }
 
       final recurrence = await recurrenceFetcher(taskId);
+      final completedAt = DateTime.now();
 
       if (recurrence != null && recurrence.isActive) {
         // Recurring task: add to history and reset with next due date
-        await _supabase.from('task_completions').insert({
-          'task_id': taskId,
-          'completed_at': DateTime.now().toIso8601String(),
-          'notes': notes,
-        });
+        await _repository.insertCompletion(
+          taskId: taskId,
+          completedAt: completedAt,
+          notes: notes,
+        );
 
         // Calculate next occurrence
-        final nextOccurrence = recurrence.getNextOccurrence(DateTime.now());
+        final nextOccurrence = recurrence.getNextOccurrence(completedAt);
 
         // Reset task to pending with updated due date
-        final updateData = {
-          'status': TaskStatus.pending.value,
-          'completed_at': null,
-          'updated_at': DateTime.now().toIso8601String(),
-        };
-
-        // Update due date if next occurrence is available
-        if (nextOccurrence != null) {
-          updateData['due_date'] = nextOccurrence.toIso8601String();
-        }
-
-        await _supabase.from('tasks').update(updateData).eq('id', taskId);
+        await _repository.resetRecurringTask(
+          taskId: taskId,
+          nextDueDate: nextOccurrence,
+        );
       } else {
         // Non-recurring task: mark as completed
-        await _supabase.from('tasks').update({
-          'status': TaskStatus.completed.value,
-          'completed_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', taskId);
+        await _repository.markTaskCompleted(
+          taskId: taskId,
+          completedAt: completedAt,
+        );
       }
 
       // Check if parent should be auto-completed
@@ -107,11 +103,7 @@ class TaskCompletionService {
     try {
       final task = await taskFetcher(taskId);
 
-      await _supabase.from('tasks').update({
-        'status': TaskStatus.pending.value,
-        'completed_at': null,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', taskId);
+      await _repository.markTaskPending(taskId: taskId);
 
       // If this task has a completed parent, uncomplete it too
       if (task?.parentTaskId != null) {
@@ -159,13 +151,7 @@ class TaskCompletionService {
   /// Get completion history for a recurring task
   Future<List<TaskCompletion>> getCompletionHistory(String taskId) async {
     try {
-      final response = await _supabase
-          .from('task_completions')
-          .select()
-          .eq('task_id', taskId)
-          .order('completed_at', ascending: false);
-
-      return response.map((map) => TaskCompletion.fromMap(map)).toList();
+      return await _repository.getCompletionHistory(taskId);
     } catch (e) {
       AppLogger.error('Error fetching completion history: $e');
       return [];
