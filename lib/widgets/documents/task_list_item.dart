@@ -103,9 +103,18 @@ class _TaskListItemState extends State<TaskListItem> {
 
   @override
   void dispose() {
-    // CRITICAL: Dispose the task notifier to trigger reference counting cleanup
-    // This prevents memory leaks by removing the notifier when the widget is destroyed
-    _taskNotifier?.dispose();
+    // CRITICAL FIX: Do NOT dispose _taskNotifier here!
+    //
+    // The TaskStateManager uses reference counting, but there's a design flaw:
+    // - getOrCreateTaskNotifier() increments count and returns THE SAME notifier
+    // - Multiple widgets (TaskListItem + SubtaskAnimatedList) share the notifier
+    // - If we dispose here, SubtaskAnimatedList may still have an active listener
+    // - This causes: "A _ReferenceCountedNotifier<Task> was used after being disposed"
+    //
+    // The notifier will be cleaned up when SubtaskAnimatedList.dispose() is called
+    // and removes its listener. The reference counting will then trigger cleanup.
+    //
+    // TODO: Refactor TaskStateManager to use proxy wrappers for proper ref counting
     super.dispose();
   }
 
