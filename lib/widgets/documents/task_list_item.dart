@@ -7,30 +7,38 @@ import 'package:solducci/models/tag.dart';
 import 'package:solducci/models/recurrence.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
-import 'package:solducci/widgets/documents/task_creation_row.dart';
 import 'package:solducci/views/documents/task_detail_page.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 import 'package:solducci/widgets/documents/_subtask_animated_list.dart';
 import 'package:solducci/theme/todo_theme.dart';
 import 'package:solducci/utils/task_state_manager.dart';
+import 'package:solducci/widgets/documents/task_list_item/task_item_config.dart';
+import 'package:solducci/widgets/documents/task_list_item/task_item_callbacks.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
+///
+/// This widget supports both the old parameter-based constructor
+/// and the new config-based constructor for better maintainability.
 class TaskListItem extends StatefulWidget {
   final Task task;
-  final TodoDocument? document; // Optional: needed for creating subtasks
-  final VoidCallback? onTap;
-  @Deprecated('No longer needed - stream updates automatically')
-  final VoidCallback? onTaskChanged; // Deprecated: Supabase stream updates automatically
-  final int depth; // For indentation of subtasks
-  final ValueNotifier<bool>?
-  showAllPropertiesNotifier; // Global toggle from parent
-  final List<Tag>?
-  preloadedTags; // Optional: preloaded tags to avoid async loading
-  final Map<String, List<Tag>>?
-  taskTagsMap; // Optional: map of all task tags (for subtasks)
-  final bool dismissibleEnabled; // Control whether swipe-to-dismiss is enabled
+  final TaskItemConfig config;
+  final TaskItemCallbacks? callbacks;
 
+  // Legacy fields for backward compatibility (will be removed in Phase 7)
+  final TodoDocument? document; // Use config.document instead
+  final VoidCallback? onTap; // Use callbacks.onTap instead
+  @Deprecated('No longer needed - stream updates automatically')
+  final VoidCallback? onTaskChanged; // Use TaskStateManager instead
+  final int depth; // Use config.depth instead
+  final ValueNotifier<bool>? showAllPropertiesNotifier; // Use config.showAllPropertiesNotifier instead
+  final List<Tag>? preloadedTags; // Use config.preloadedTags instead
+  final Map<String, List<Tag>>? taskTagsMap; // Use config.taskTagsMap instead
+  final bool dismissibleEnabled; // Use config.dismissibleEnabled instead
+
+  /// Legacy constructor for backward compatibility (default)
+  ///
+  /// This constructor will be migrated in Phase 7. For new code, use TaskListItem.withConfig().
   const TaskListItem({
     super.key,
     required this.task,
@@ -42,7 +50,25 @@ class TaskListItem extends StatefulWidget {
     this.preloadedTags,
     this.taskTagsMap,
     this.dismissibleEnabled = true,
-  });
+  })  : config = const TaskItemConfig(),
+        callbacks = null;
+
+  /// New constructor using config objects (recommended for new code)
+  ///
+  /// Use this constructor for cleaner code with fewer parameters.
+  const TaskListItem.withConfig({
+    super.key,
+    required this.task,
+    required this.config,
+    this.callbacks,
+  })  : document = null,
+        onTap = null,
+        onTaskChanged = null,
+        depth = 0,
+        showAllPropertiesNotifier = null,
+        preloadedTags = null,
+        taskTagsMap = null,
+        dismissibleEnabled = true;
 
   @override
   State<TaskListItem> createState() => _TaskListItemState();
@@ -98,26 +124,37 @@ class _TaskListItemState extends State<TaskListItem> {
     }
   }
 
+  // Backward-compatible getters that work with both old and new constructors
+  TodoDocument? get _document => widget.config.document ?? widget.document;
+  int get _depth => widget.config.depth != 0 ? widget.config.depth : widget.depth;
+  ValueNotifier<bool>? get _showAllPropertiesNotifier =>
+      widget.config.showAllPropertiesNotifier ?? widget.showAllPropertiesNotifier;
+  List<Tag>? get _preloadedTags => widget.config.preloadedTags ?? widget.preloadedTags;
+  Map<String, List<Tag>>? get _taskTagsMap => widget.config.taskTagsMap ?? widget.taskTagsMap;
+  bool get _dismissibleEnabled =>
+      widget.config.dismissibleEnabled && widget.dismissibleEnabled;
+  VoidCallback? get _onTap => widget.callbacks?.onTap ?? widget.onTap;
+
   @override
   Widget build(BuildContext context) {
     // Build the main content widget
     final contentWidget = Container(
         color: Colors.transparent, // CRITICAL: Prevent white background
         margin: EdgeInsets.only(
-          left: (widget.depth * 16.0),
-          top: widget.depth > 0 ? 5.0 : 2.0,
-          bottom: widget.depth > 0 ? 5.0 : 2.0,
-          right: widget.depth > 0 ? 2.0 : 0.0,
+          left: (_depth * 16.0),
+          top: _depth > 0 ? 5.0 : 2.0,
+          bottom: _depth > 0 ? 5.0 : 2.0,
+          right: _depth > 0 ? 2.0 : 0.0,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(widget.depth > 0 ? 12 : 16),
+          borderRadius: BorderRadius.circular(_depth > 0 ? 12 : 16),
           child: BackdropFilter(
             filter: ImageFilter.blur(
               sigmaX: 15,
               sigmaY: 15,
             ), // Increased blur for stronger glass effect
             child: Container(
-              decoration: widget.depth > 0
+              decoration: _depth > 0
                   ? TodoTheme.glassDecoration(
                       opacity:
                           0.03, // Subtasks VERY transparent for true glass effect
@@ -155,7 +192,7 @@ class _TaskListItemState extends State<TaskListItem> {
                     ),
               child: Padding(
                 // Reduce padding for subtasks
-                padding: EdgeInsets.all(widget.depth > 0 ? 0.0 : 6.0),
+                padding: EdgeInsets.all(_depth > 0 ? 0.0 : 6.0),
                 child: Column(
                   children: [
                     InkWell(
@@ -166,8 +203,8 @@ class _TaskListItemState extends State<TaskListItem> {
                       child: Padding(
                         // Reduce padding for subtasks
                         padding: EdgeInsets.only(
-                          top: widget.depth > 0 ? 6.0 : 4.0,
-                          right: widget.depth > 0 ? 0.0 : 6.0,
+                          top: _depth > 0 ? 6.0 : 4.0,
+                          right: _depth > 0 ? 0.0 : 6.0,
                           left: 6.0,
                         ),
                         child: Column(
@@ -194,7 +231,7 @@ class _TaskListItemState extends State<TaskListItem> {
                                         task: widget.task,
                                       ),
                                       // Description (inline editable) - Hidden for subtasks
-                                      if (widget.depth == 0)
+                                      if (_depth == 0)
                                         _TaskDescription(
                                           key: ValueKey(
                                             'desc_${widget.task.id}',
@@ -223,10 +260,10 @@ class _TaskListItemState extends State<TaskListItem> {
                       key: ValueKey('subtasks_${widget.task.id}'),
                       parentTaskId: widget.task.id,
                       parentNotifier: _taskNotifier!,
-                      document: widget.document!,
-                      depth: widget.depth,
-                      showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-                      taskTagsMap: widget.taskTagsMap,
+                      document: _document!,
+                      depth: _depth,
+                      showAllPropertiesNotifier: _showAllPropertiesNotifier,
+                      taskTagsMap: _taskTagsMap,
                       isExpanded: _isExpanded,
                       isCreatingSubtask: _isCreatingSubtask,
                       onCancelCreation: () {
@@ -249,7 +286,7 @@ class _TaskListItemState extends State<TaskListItem> {
       );
 
     // Conditionally wrap with Dismissible based on dismissibleEnabled flag
-    if (widget.dismissibleEnabled) {
+    if (_dismissibleEnabled) {
       return Dismissible(
         key: Key(widget.task.id),
         background: _buildDeleteBackground(),
@@ -281,7 +318,7 @@ class _TaskListItemState extends State<TaskListItem> {
         _TaskTagsRow(
           key: ValueKey('tags_${widget.task.id}'),
           taskId: widget.task.id,
-          preloadedTags: widget.preloadedTags,
+          preloadedTags: _preloadedTags,
           compact: true, // Compact mode for trailing
         ),
         // Spacing between tags and subtask button (if tags present)
@@ -289,7 +326,7 @@ class _TaskListItemState extends State<TaskListItem> {
         // Subtask button or chip
         if (!widget.task.hasSubtasks)
           Padding(
-            padding: EdgeInsets.only(right: widget.depth > 0 ? 15.0 : 0.0),
+            padding: EdgeInsets.only(right: _depth > 0 ? 15.0 : 0.0),
             child: IconButton(
               icon: const Icon(Icons.add_circle_outline, size: 20),
               onPressed: _showAddSubtaskDialog,
@@ -312,8 +349,8 @@ class _TaskListItemState extends State<TaskListItem> {
 
     return Padding(
       padding: EdgeInsets.only(
-        right: widget.depth > 0 ? 20.0 : 0.0,
-        bottom: widget.depth > 0 ? 6.0 : 0.0,
+        right: _depth > 0 ? 20.0 : 0.0,
+        bottom: _depth > 0 ? 6.0 : 0.0,
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -426,7 +463,7 @@ class _TaskListItemState extends State<TaskListItem> {
   }
 
   void _showAddSubtaskDialog() {
-    if (widget.document == null) {
+    if (_document == null) {
       // Cannot create subtask without document
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Impossibile creare sub-task')),
@@ -464,7 +501,7 @@ class _TaskListItemState extends State<TaskListItem> {
   /// Improved checkbox with hierarchy indicator
   Widget _buildCheckbox() {
     final hasSubtasks = widget.task.hasSubtasks;
-    final isParent = widget.depth == 0 && hasSubtasks;
+    final isParent = _depth == 0 && hasSubtasks;
 
     return Stack(
       alignment: Alignment.center,
@@ -503,7 +540,7 @@ class _TaskListItemState extends State<TaskListItem> {
     final hasSize = widget.task.tShirtSize != null;
 
     // If no notifier provided, use default behavior (show filled only)
-    if (widget.showAllPropertiesNotifier == null) {
+    if (_showAllPropertiesNotifier == null) {
       return _buildPropertyIconsContent(
         false,
         hasPriority,
@@ -514,7 +551,7 @@ class _TaskListItemState extends State<TaskListItem> {
 
     // Use ValueListenableBuilder to only rebuild this section
     return ValueListenableBuilder<bool>(
-      valueListenable: widget.showAllPropertiesNotifier!,
+      valueListenable: _showAllPropertiesNotifier!,
       builder: (context, showAll, child) {
         return _buildPropertyIconsContent(
           showAll,
@@ -1075,17 +1112,17 @@ class _TaskListItemState extends State<TaskListItem> {
   void _showTaskDetails(BuildContext context) {
     // If onTap is provided, use it (for parent compatibility)
     // Otherwise, open TaskDetailPage for this task
-    if (widget.onTap != null) {
-      widget.onTap!();
-    } else if (widget.document != null) {
+    if (_onTap != null) {
+      _onTap!();
+    } else if (_document != null) {
       // Open TaskDetailPage for this specific task
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => TaskDetailPage(
-            document: widget.document!,
+            document: _document!,
             task: widget.task,
-            showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+            showAllPropertiesNotifier: _showAllPropertiesNotifier,
           ),
         ),
       );
