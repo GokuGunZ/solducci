@@ -6,10 +6,14 @@ import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/core/logging/app_logger.dart';
+import 'package:solducci/core/di/service_locator.dart';
+import 'package:solducci/domain/repositories/task_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for managing tasks with hierarchical structure and recurrence logic
-/// Handles CRUD operations, tree building, task completion, and inheritance
+/// Handles business logic for tasks including tag management, recurrence,
+/// completion logic, and state management.
+/// Uses TaskRepository for data access.
 class TaskService {
   // Singleton pattern
   static final TaskService _instance = TaskService._internal();
@@ -17,55 +21,37 @@ class TaskService {
   TaskService._internal();
 
   final _supabase = Supabase.instance.client;
+  late final TaskRepository _repository;
   final _tagService = TagService();
   final _recurrenceService = RecurrenceService();
   final _stateManager = TaskStateManager();
 
+  /// Initialize the service with repository from service locator
+  void initialize() {
+    _repository = getIt<TaskRepository>();
+    AppLogger.debug('TaskService initialized with repository');
+  }
+
   /// Get real-time stream of tasks for a document with tree structure
-  /// Uses Supabase realtime with proper configuration
+  /// Uses repository's watchAll method which handles realtime updates
   Stream<List<Task>> getTasksForDocument(String documentId) {
-    // Supabase stream watches for INSERT, UPDATE, DELETE on the tasks table
-    // Note: Make sure realtime is enabled on your Supabase table!
     AppLogger.debug('Setting up stream for document: $documentId');
-    return _supabase
-        .from('tasks')
-        .stream(primaryKey: ['id']) // Track by primary key
-        .eq('document_id', documentId)
-        .order('position')
-        .asyncMap((data) async {
-          // Build tree structure - this runs on every stream emission
-          AppLogger.debug('TaskService: Received ${data.length} tasks from Supabase stream for document $documentId');
-          final taskIds = data.map((t) => (t['id'] as String).substring(0, 8)).join(', ');
-          AppLogger.debug('Stream task IDs: $taskIds');
-          return await _buildTaskTree(data);
-        }).asBroadcastStream(); // Allow multiple listeners
+    return _repository.watchAll(documentId: documentId).asBroadcastStream();
   }
 
   /// Get flat list of tasks (without hierarchy structure)
+  /// Note: This now returns tasks with hierarchy. If flat list is truly needed,
+  /// consider adding a separate method to flatten the tree.
   Stream<List<Task>> getFlatTasksForDocument(String documentId) {
-    return _supabase
-        .from('tasks')
-        .stream(primaryKey: ['id'])
-        .eq('document_id', documentId)
-        .order('position')
-        .map((data) => _parseTasks(data));
+    return _repository.watchAll(documentId: documentId);
   }
 
   /// Get tasks as a Future (one-time fetch) - useful for manual refresh
   Future<List<Task>> fetchTasksForDocument(String documentId) async {
     try {
-      final response = await _supabase
-          .from('tasks')
-          .select()
-          .eq('document_id', documentId)
-          .order('position');
+      final rootTasks = await _repository.getAll(documentId: documentId);
 
-      AppLogger.debug('📦 Raw DB response: ${response.length} tasks');
-      AppLogger.debug('   Task IDs: ${response.map((t) => (t['id'] as String).substring(0, 8)).join(", ")}');
-
-      final rootTasks = await _buildTaskTree(response);
-
-      AppLogger.debug('🌳 Built tree: ${rootTasks.length} root tasks');
+      AppLogger.debug('🌳 Fetched tree: ${rootTasks.length} root tasks');
       for (final root in rootTasks) {
         AppLogger.debug('   Root: ${root.id.substring(0, 8)} with ${root.subtasks?.length ?? 0} subtasks');
       }
@@ -80,15 +66,9 @@ class TaskService {
   /// Get tasks filtered by status
   Future<List<Task>> getTasksByStatus(String documentId, TaskStatus status) async {
     try {
-      final response = await _supabase
-          .from('tasks')
-          .select()
-          .eq('document_id', documentId)
-          .eq('status', status.value)
-          .order('position');
-
-      return await _buildTaskTree(response);
+      return await _repository.getByStatus(documentId, status);
     } catch (e) {
+      AppLogger.error('Error fetching tasks by status: $e');
       return [];
     }
   }
@@ -96,16 +76,9 @@ class TaskService {
   /// Get a single task by ID
   Future<Task?> getTaskById(String taskId) async {
     try {
-      final response = await _supabase
-          .from('tasks')
-          .select()
-          .eq('id', taskId)
-          .maybeSingle();
-
-      if (response == null) return null;
-
-      return Task.fromMap(response);
+      return await _repository.getById(taskId);
     } catch (e) {
+      AppLogger.error('Error fetching task by ID: $e');
       return null;
     }
   }
@@ -114,70 +87,11 @@ class TaskService {
   /// This is the correct method to use when you need the full task tree
   Future<Task?> getTaskWithSubtasks(String taskId) async {
     try {
-      // First get the task to check if it exists
-      final taskResponse = await _supabase
-          .from('tasks')
-          .select()
-          .eq('id', taskId)
-          .maybeSingle();
-
-      if (taskResponse == null) return null;
-
-      // Get ALL descendants recursively by fetching the entire document's tasks
-      // and then building the tree (this ensures we get all nested levels)
-      final documentId = taskResponse['document_id'] as String;
-      final allTasksResponse = await _supabase
-          .from('tasks')
-          .select()
-          .eq('document_id', documentId);
-
-      // Build the complete tree
-      final allTasks = await _buildTaskTree(allTasksResponse);
-
-      // Find the specific task in the tree (it now has all subtasks populated)
-      Task? findTask(List<Task> tasks, String id) {
-        for (final task in tasks) {
-          if (task.id == id) return task;
-          if (task.subtasks != null) {
-            final found = findTask(task.subtasks!, id);
-            if (found != null) return found;
-          }
-        }
-        return null;
-      }
-
-      final foundTask = findTask(allTasks, taskId);
-      if (foundTask == null) return null;
-
-      // CRITICAL: Create a deep copy to avoid shared references
-      // This ensures the subtasks list is a new independent list
-      return _deepCopyTask(foundTask);
+      return await _repository.getWithSubtasks(taskId);
     } catch (e) {
       AppLogger.error('❌ Error fetching task with subtasks: $e');
       return null;
     }
-  }
-
-  /// Create a deep copy of a task with all its subtasks
-  /// This is critical to avoid shared references between different notifiers
-  Task _deepCopyTask(Task task) {
-    return Task(
-      id: task.id,
-      documentId: task.documentId,
-      title: task.title,
-      description: task.description,
-      status: task.status,
-      priority: task.priority,
-      dueDate: task.dueDate,
-      completedAt: task.completedAt,
-      position: task.position,
-      parentTaskId: task.parentTaskId,
-      tShirtSize: task.tShirtSize,
-      createdAt: task.createdAt,
-      updatedAt: task.updatedAt,
-      // CRITICAL: Create a new list with deep copies of subtasks
-      subtasks: task.subtasks?.map((subtask) => _deepCopyTask(subtask)).toList(),
-    );
   }
 
   /// Get tags for a specific task
@@ -318,18 +232,7 @@ class TaskService {
   /// Create a new task
   Future<Task> createTask(Task task, {List<String>? tagIds}) async {
     try {
-      // Verify document exists
-      final documentCheck = await _supabase
-          .from('documents')
-          .select('id')
-          .eq('id', task.documentId)
-          .maybeSingle();
-
-      if (documentCheck == null) {
-        throw Exception('Document not found');
-      }
-
-      // Verify parent task exists if specified
+      // Business logic: Verify parent task exists and handle completion status
       if (task.parentTaskId != null) {
         final parent = await getTaskById(task.parentTaskId!);
         if (parent == null) {
@@ -342,35 +245,20 @@ class TaskService {
         }
       }
 
-      final dataToInsert = task.toInsertMap();
-      AppLogger.debug('📝 Inserting task with document_id: ${dataToInsert['document_id']}');
+      // Use repository for data access
+      final createdTask = await _repository.create(task);
 
-      final response = await _supabase
-          .from('tasks')
-          .insert(dataToInsert)
-          .select()
-          .single();
+      AppLogger.info('✅ Task created: ${createdTask.id} - ${createdTask.title}');
 
-      final createdTask = Task.fromMap(response);
-      AppLogger.info('✅ Task created: ${createdTask.id} - ${createdTask.title} at ${DateTime.now()}');
-      AppLogger.debug('   Document ID: ${createdTask.documentId}');
-
-      // Assign tags if provided
+      // Business logic: Assign tags if provided
       if (tagIds != null && tagIds.isNotEmpty) {
         await assignTags(createdTask.id, tagIds);
       }
 
-      // Create notifier for immediate optimistic update
+      // Business logic: State management
       _stateManager.getOrCreateTaskNotifier(createdTask.id, createdTask);
-      AppLogger.debug('🔔 Notifier created for task: ${createdTask.id}');
-
-      // CRITICAL FIX: ALWAYS trigger list refresh, even for subtasks
-      // The manual fetch in all_tasks_view will call _buildTaskTree()
-      // which rebuilds the ENTIRE hierarchy from scratch, ensuring
-      // parent tasks have updated subtasks lists
-      AppLogger.debug('📌 Triggering list refresh to rebuild hierarchy');
       _stateManager.notifyListChange(createdTask.documentId);
-      AppLogger.debug('🔔 List change notified - all_tasks_view will refresh and rebuild tree');
+      AppLogger.debug('🔔 State updated for task: ${createdTask.id}');
 
       return createdTask;
     } catch (e) {
@@ -381,7 +269,7 @@ class TaskService {
   /// Update an existing task
   Future<void> updateTask(Task task) async {
     try {
-      // Prevent circular reference in hierarchy
+      // Business logic: Prevent circular reference in hierarchy
       if (task.parentTaskId != null) {
         final descendants = await getDescendantTasks(task.id);
         final descendantIds = descendants.map((t) => t.id).toSet();
@@ -390,26 +278,17 @@ class TaskService {
         }
       }
 
-      final dataToUpdate = task.toUpdateMap();
+      // Use repository for data access
+      final updatedTask = await _repository.update(task);
 
-      await _supabase
-          .from('tasks')
-          .update(dataToUpdate)
-          .eq('id', task.id);
+      // Business logic: State management
+      _stateManager.updateTask(updatedTask);
 
-      // CRITICAL: Refetch task from DB to get the updated state
-      // This ensures we have the latest data from Supabase
-      final updatedTask = await getTaskById(task.id);
-      if (updatedTask != null) {
-        // Update individual task state (granular rebuild)
-        _stateManager.updateTask(updatedTask);
-
-        // If this is a subtask, also update parent to refresh subtasks list
-        if (updatedTask.parentTaskId != null) {
-          final parentTask = await getTaskById(updatedTask.parentTaskId!);
-          if (parentTask != null) {
-            _stateManager.updateTask(parentTask);
-          }
+      // If this is a subtask, also update parent to refresh subtasks list
+      if (updatedTask.parentTaskId != null) {
+        final parentTask = await getTaskById(updatedTask.parentTaskId!);
+        if (parentTask != null) {
+          _stateManager.updateTask(parentTask);
         }
       }
     } catch (e) {
@@ -420,10 +299,8 @@ class TaskService {
   /// Delete a task (cascades to subtasks and task_tags via DB constraints)
   Future<void> deleteTask(String taskId) async {
     try {
-      await _supabase
-          .from('tasks')
-          .delete()
-          .eq('id', taskId);
+      // Use repository for data access
+      await _repository.delete(taskId);
 
       // No need to notify - Supabase stream will automatically emit DELETE
       // and the UI will update via StreamBuilder
@@ -867,53 +744,15 @@ class TaskService {
     }
   }
 
-  /// Build task tree structure from flat list
-  /// Returns only root tasks with subtasks populated recursively
-  /// CRITICAL: Uses deep copy to avoid shared references between notifiers
-  Future<List<Task>> _buildTaskTree(List<Map<String, dynamic>> data) async {
-    if (data.isEmpty) return [];
-
-    // Parse all tasks
-    final allTasks = _parseTasks(data);
-
-    // Create a map for quick lookup
-    final taskMap = <String, Task>{};
-    for (final task in allTasks) {
-      taskMap[task.id] = task;
-    }
-
-    // Build tree by assigning children to parents
-    final rootTasks = <Task>[];
-
-    for (final task in allTasks) {
-      if (task.parentTaskId == null) {
-        // Root task
-        rootTasks.add(task);
-      } else {
-        // Child task - add to parent's subtasks
-        final parent = taskMap[task.parentTaskId];
-        if (parent != null) {
-          parent.subtasks ??= [];
-          parent.subtasks!.add(task);
-        } else {
-          // Parent not found, treat as root (orphaned)
-          rootTasks.add(task);
-        }
-      }
-    }
-
-    // CRITICAL FIX: Deep copy the entire tree to avoid shared references
-    // This ensures each notifier gets its own independent task objects
-    return rootTasks.map((root) => _deepCopyTask(root)).toList();
-  }
-
   /// Parse list of task maps to Task objects (flat, no hierarchy)
+  /// Still used by methods that directly query task_tags and other related tables
   List<Task> _parseTasks(List<Map<String, dynamic>> data) {
     final tasks = <Task>[];
     for (final map in data) {
       try {
         tasks.add(Task.fromMap(map));
       } catch (e) {
+        AppLogger.warning('Failed to parse task', e);
         // Skip tasks that fail to parse
       }
     }
