@@ -1,10 +1,9 @@
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
-import 'package:solducci/service/tag_service.dart';
+import 'package:solducci/domain/repositories/task_tag_repository.dart';
 import 'package:solducci/service/task/task_hierarchy_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/core/logging/app_logger.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service responsible for task-tag relationship operations
 ///
@@ -12,29 +11,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// and tag-based queries. Focuses exclusively on the relationship
 /// between tasks and tags, following the Single Responsibility Principle.
 class TaskTagService {
-  final _supabase = Supabase.instance.client;
-  final _tagService = TagService();
+  final TaskTagRepository _repository;
   final TaskHierarchyService _hierarchyService;
   final TaskStateManager _stateManager;
 
-  TaskTagService(this._hierarchyService, this._stateManager);
+  TaskTagService(
+    this._repository,
+    this._hierarchyService,
+    this._stateManager,
+  );
 
   /// Get tags for a specific task (own tags only, no inheritance)
   Future<List<Tag>> getTaskTags(String taskId) async {
     try {
-      final response = await _supabase
-          .from('task_tags')
-          .select('tag_id')
-          .eq('task_id', taskId);
-
-      final tagIds = response.map((row) => row['tag_id'] as String).toList();
-
-      final tags = <Tag>[];
-      for (final tagId in tagIds) {
-        final tag = await _tagService.getTagById(tagId);
-        if (tag != null) tags.add(tag);
-      }
-
+      final tagIds = await _repository.getTaskTagIds(taskId);
+      final tags = await _repository.getTagsByIds(tagIds);
       return tags;
     } catch (e) {
       AppLogger.error('Error fetching task tags: $e');
@@ -82,27 +73,18 @@ class TaskTagService {
     final result = <String, List<Tag>>{};
 
     // Batch load all task-tag relationships
-    final taskTagsResponse = await _supabase
-        .from('task_tags')
-        .select('task_id, tag_id')
-        .inFilter('task_id', taskIds);
-
-    // Group by task_id
-    final taskTagMap = <String, List<String>>{};
-    for (final row in taskTagsResponse) {
-      final taskId = row['task_id'] as String;
-      final tagId = row['tag_id'] as String;
-      taskTagMap.putIfAbsent(taskId, () => []).add(tagId);
-    }
+    final taskTagMap = await _repository.getTaskTagsForTasks(taskIds);
 
     // Get all unique tag IDs
     final allTagIds = taskTagMap.values.expand((ids) => ids).toSet();
 
     // Batch load all tags
     final tagMap = <String, Tag>{};
-    for (final tagId in allTagIds) {
-      final tag = await _tagService.getTagById(tagId);
-      if (tag != null) tagMap[tagId] = tag;
+    if (allTagIds.isNotEmpty) {
+      final tags = await _repository.getTagsByIds(allTagIds.toList());
+      for (final tag in tags) {
+        tagMap[tag.id] = tag;
+      }
     }
 
     // Build result map
@@ -147,21 +129,7 @@ class TaskTagService {
     required Future<Task?> Function(String) taskFetcher,
   }) async {
     try {
-      // Remove existing tags
-      await _supabase
-          .from('task_tags')
-          .delete()
-          .eq('task_id', taskId);
-
-      // Add new tags
-      if (tagIds.isNotEmpty) {
-        final entries = tagIds.map((tagId) => {
-          'task_id': taskId,
-          'tag_id': tagId,
-        }).toList();
-
-        await _supabase.from('task_tags').insert(entries);
-      }
+      await _repository.assignTags(taskId, tagIds);
 
       // CRITICAL: Tags changed, need to trigger UI rebuild
       // Refetch task and notify state manager
@@ -184,10 +152,7 @@ class TaskTagService {
     required Future<Task?> Function(String) taskFetcher,
   }) async {
     try {
-      await _supabase.from('task_tags').insert({
-        'task_id': taskId,
-        'tag_id': tagId,
-      });
+      await _repository.addTag(taskId, tagId);
 
       // CRITICAL: Tag added, trigger UI rebuild
       final updatedTask = await taskFetcher(taskId);
@@ -209,11 +174,7 @@ class TaskTagService {
     required Future<Task?> Function(String) taskFetcher,
   }) async {
     try {
-      await _supabase
-          .from('task_tags')
-          .delete()
-          .eq('task_id', taskId)
-          .eq('tag_id', tagId);
+      await _repository.removeTag(taskId, tagId);
 
       // CRITICAL: Tag removed, trigger UI rebuild
       final updatedTask = await taskFetcher(taskId);
@@ -235,18 +196,11 @@ class TaskTagService {
     required Future<List<Task>> Function(String) childrenFetcher,
   }) async {
     try {
-      // Get all tasks with this tag
-      var query = _supabase
-          .from('tasks')
-          .select('*, task_tags!inner(tag_id)')
-          .eq('task_tags.tag_id', tagId);
-
-      if (!includeCompleted) {
-        query = query.neq('status', TaskStatus.completed.value);
-      }
-
-      final response = await query.order('position');
-      final tasksWithTag = _parseTasks(response);
+      // Get all tasks with this tag from repository
+      final tasksWithTag = await _repository.getTasksByTag(
+        tagId,
+        includeCompleted: includeCompleted,
+      );
 
       // For each task with tag, get all its descendants (subtasks)
       final allTasks = <Task>[];
@@ -274,19 +228,5 @@ class TaskTagService {
       AppLogger.error('Error fetching tasks by tag: $e');
       return [];
     }
-  }
-
-  /// Parse list of task maps to Task objects (flat, no hierarchy)
-  List<Task> _parseTasks(List<Map<String, dynamic>> data) {
-    final tasks = <Task>[];
-    for (final map in data) {
-      try {
-        tasks.add(Task.fromMap(map));
-      } catch (e) {
-        AppLogger.warning('Failed to parse task', e);
-        // Skip tasks that fail to parse
-      }
-    }
-    return tasks;
   }
 }
