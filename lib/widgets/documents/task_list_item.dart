@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/tag.dart';
@@ -16,6 +15,7 @@ import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/widgets/documents/task_list_item/task_item_config.dart';
 import 'package:solducci/widgets/documents/task_list_item/task_item_callbacks.dart';
 import 'package:solducci/widgets/documents/task_list_item/components/task_checkbox.dart';
+import 'package:solducci/widgets/documents/task_list_item/components/task_properties_bar.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
 ///
@@ -249,7 +249,16 @@ class _TaskListItemState extends State<TaskListItem> {
                               ],
                             ),
                             // Property icons row (always visible)
-                            _buildPropertyIconsRow(),
+                            TaskPropertiesBar(
+                              task: widget.task,
+                              recurrence: _recurrence,
+                              showAllPropertiesNotifier: _showAllPropertiesNotifier,
+                              onPriorityTap: _showPriorityPicker,
+                              onDueDateTap: _showDueDatePicker,
+                              onSizeTap: _showSizePicker,
+                              onRecurrenceTap: _showRecurrencePicker,
+                              onRecurrenceRemove: _removeRecurrence,
+                            ),
                             // Tags removed from here - now shown in trailing actions
                           ],
                         ),
@@ -509,299 +518,9 @@ class _TaskListItemState extends State<TaskListItem> {
     );
   }
 
-  /// Build property icons row (conditionally visible based on toggle)
-  Widget _buildPropertyIconsRow() {
-    // Check which properties have values
-    final hasPriority = widget.task.priority != null;
-    final hasDueDate = widget.task.dueDate != null;
-    final hasSize = widget.task.tShirtSize != null;
-
-    // If no notifier provided, use default behavior (show filled only)
-    if (_showAllPropertiesNotifier == null) {
-      return _buildPropertyIconsContent(
-        false,
-        hasPriority,
-        hasDueDate,
-        hasSize,
-      );
-    }
-
-    // Use ValueListenableBuilder to only rebuild this section
-    return ValueListenableBuilder<bool>(
-      valueListenable: _showAllPropertiesNotifier!,
-      builder: (context, showAll, child) {
-        return _buildPropertyIconsContent(
-          showAll,
-          hasPriority,
-          hasDueDate,
-          hasSize,
-        );
-      },
-    );
-  }
-
-  /// Build the actual property icons content
-  Widget _buildPropertyIconsContent(
-    bool showAll,
-    bool hasPriority,
-    bool hasDueDate,
-    bool hasSize,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6.0, left: 48.0, right: 8.0),
-      child: Row(
-        children: [
-          // Show filled properties or all properties if toggle is on
-          if (showAll || hasPriority) ...[
-            _buildPropertyIcon(
-              icon: Icons.flag_outlined,
-              color: widget.task.priority?.color ?? Colors.grey[400]!,
-              label: widget.task.priority?.label,
-              onTap: _showPriorityPicker,
-            ),
-            const SizedBox(width: 8),
-          ],
-          if (showAll || hasDueDate) ...[
-            _buildPropertyIcon(
-              icon: Icons.calendar_today_outlined,
-              color: widget.task.dueDate != null
-                  ? (widget.task.isOverdue ? Colors.red : Colors.blue)
-                  : Colors.grey[400]!,
-              label: widget.task.dueDate != null
-                  ? DateFormat('dd/MM').format(widget.task.dueDate!)
-                  : null,
-              onTap: _showDueDatePicker,
-            ),
-            const SizedBox(width: 8),
-          ],
-          if (showAll || hasSize) ...[
-            _buildPropertyIcon(
-              icon: Icons.straighten,
-              color: widget.task.tShirtSize != null
-                  ? TodoTheme.primaryPurple
-                  : Colors.grey[400]!,
-              label: widget.task.tShirtSize?.label,
-              onTap: _showSizePicker,
-            ),
-            const SizedBox(width: 8),
-          ],
-          if (showAll || _recurrence != null) ...[
-            _buildRecurrenceIcon(),
-            const SizedBox(width: 8),
-          ],
-          // Tag icon removed - now handled by _TaskTagsRow
-        ],
-      ),
-    );
-  }
-
-  /// Build a single property icon with glassmorphic styling
-  Widget _buildPropertyIcon({
-    required IconData icon,
-    required Color color,
-    String? label,
-    required VoidCallback onTap,
-  }) {
-    // Check if property is set (has a label)
-    final isSet = label != null;
-
-    // Use grey background for unset properties, colored for set ones
-    final chipColor = isSet ? color : Colors.grey[400]!;
-    final iconColor = isSet ? color : Colors.black;
-
-    // Get a lighter version of the color for the border
-    final borderColor = Color.lerp(
-      chipColor,
-      Colors.white,
-      0.3,
-    )!.withValues(alpha: 0.7);
-    final highlightColor = Color.lerp(
-      chipColor,
-      Colors.white,
-      0.5,
-    )!.withValues(alpha: 0.5);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              chipColor.withValues(alpha: 0.25),
-              Colors.white.withValues(alpha: 0.15),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: chipColor.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-            BoxShadow(
-              color: highlightColor,
-              blurRadius: 1,
-              offset: const Offset(-1, -1),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: iconColor,
-              shadows: const [
-                Shadow(
-                  color: Colors.black12,
-                  blurRadius: 2,
-                  offset: Offset(0, 1),
-                ),
-              ],
-            ),
-            if (label != null) ...[
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: iconColor,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black12,
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build recurrence icon with visual feedback and removal option
-  Widget _buildRecurrenceIcon() {
-    final hasRecurrence = _recurrence != null;
-    final isEnabled = _recurrence?.isEnabled ?? true;
-
-    // Chip background color: grey if not set, orange/grey if set
-    final chipColor = hasRecurrence
-        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
-        : Colors.grey[400]!;
-
-    // Icon color: black if not set, same as chip color if set
-    final iconColor = hasRecurrence
-        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
-        : Colors.black;
-
-    // Get a lighter version of the color for the border
-    final borderColor = Color.lerp(
-      chipColor,
-      Colors.white,
-      0.3,
-    )!.withValues(alpha: 0.7);
-    final highlightColor = Color.lerp(
-      chipColor,
-      Colors.white,
-      0.5,
-    )!.withValues(alpha: 0.5);
-
-    return InkWell(
-      onTap: _showRecurrencePicker,
-      onLongPress: !hasRecurrence ? null : _removeRecurrence,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              chipColor.withValues(alpha: 0.25),
-              Colors.white.withValues(alpha: 0.15),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: chipColor.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-            BoxShadow(
-              color: highlightColor,
-              blurRadius: 1,
-              offset: const Offset(-1, -1),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.repeat,
-              size: 16,
-              color: iconColor,
-              shadows: const [
-                Shadow(
-                  color: Colors.black12,
-                  blurRadius: 2,
-                  offset: Offset(0, 1),
-                ),
-              ],
-            ),
-            if (hasRecurrence) ...[
-              const SizedBox(width: 4),
-              Text(
-                'Ric.',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: iconColor,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black12,
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 2),
-              InkWell(
-                onTap: _removeRecurrence,
-                child: Icon(
-                  Icons.close,
-                  size: 14,
-                  color: Colors.red,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black12,
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   // ========== QUICK-EDIT METHODS FOR PROPERTIES ==========
+  // NOTE: Property rendering methods (_buildPropertyIconsRow, _buildPropertyIcon, etc.)
+  // have been extracted to TaskPropertiesBar component
 
   Future<void> _showPriorityPicker() async {
     await showQuickEditBottomSheet(
