@@ -20,6 +20,7 @@ import 'package:solducci/widgets/documents/task_list_item/components/task_swipe_
 import 'package:solducci/widgets/documents/task_list_item/components/task_title.dart';
 import 'package:solducci/widgets/documents/task_list_item/components/task_description.dart';
 import 'package:solducci/widgets/documents/task_list_item/components/task_tags_row.dart';
+import 'package:solducci/widgets/documents/task_list_item/components/drag_handle.dart';
 import 'package:solducci/widgets/documents/task_list_item/handlers/task_completion_handler.dart';
 
 /// Widget for displaying a task in a list with checkbox, dismissible actions, and expandable subtasks
@@ -211,6 +212,11 @@ class _TaskListItemState extends State<TaskListItem> {
                 padding: EdgeInsets.all(_depth > 0 ? 0.0 : 6.0),
                 child: Column(
                   children: [
+                    // iOS-style drag handle (only for root-level tasks)
+                    DragHandle(
+                      visible: _depth == 0,
+                      widthFraction: 0.15,
+                    ),
                     InkWell(
                       onTap: () => _showTaskDetails(context),
                       splashColor: Colors.transparent,
