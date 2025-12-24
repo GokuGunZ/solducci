@@ -1,14 +1,15 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:animated_reorderable_list/animated_reorderable_list.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
-import 'package:solducci/service/task_service.dart';
 import 'package:solducci/service/task_order_persistence_service.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/utils/task_filter_sort.dart';
 import 'package:solducci/core/logging/app_logger.dart';
+import 'package:solducci/blocs/task_list/task_list_bloc_export.dart';
+import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/widgets/documents/task_list_item.dart';
 import 'package:solducci/views/documents/task_detail_page.dart';
 import 'package:solducci/widgets/documents/task_creation_row.dart';
@@ -24,7 +25,7 @@ import 'package:solducci/widgets/documents/compact_filter_sort_bar.dart';
 /// - Filter UI updates instantly without affecting task rendering
 /// - Each task wrapped in _GranularTaskListItem with ValueListenableBuilder
 /// - Result: Maximum performance, minimal unnecessary rebuilds
-class AllTasksView extends StatefulWidget {
+class AllTasksView extends StatelessWidget {
   final TodoDocument document;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final void Function(VoidCallback?)? onInlineCreationCallbackChanged;
@@ -39,108 +40,58 @@ class AllTasksView extends StatefulWidget {
   });
 
   @override
-  State<AllTasksView> createState() => _AllTasksViewState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) {
+        final bloc = getIt<TaskListBloc>();
+        bloc.add(TaskListLoadRequested(document.id));
+        return bloc;
+      },
+      child: _AllTasksViewContent(
+        document: document,
+        showAllPropertiesNotifier: showAllPropertiesNotifier,
+        onInlineCreationCallbackChanged: onInlineCreationCallbackChanged,
+        availableTags: availableTags,
+      ),
+    );
+  }
 }
 
-class _AllTasksViewState extends State<AllTasksView>
+// New wrapper widget for content
+class _AllTasksViewContent extends StatefulWidget {
+  final TodoDocument document;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
+  final void Function(VoidCallback?)? onInlineCreationCallbackChanged;
+  final List<Tag>? availableTags;
+
+  const _AllTasksViewContent({
+    required this.document,
+    this.showAllPropertiesNotifier,
+    this.onInlineCreationCallbackChanged,
+    this.availableTags,
+  });
+
+  @override
+  State<_AllTasksViewContent> createState() => _AllTasksViewContentState();
+}
+
+class _AllTasksViewContentState extends State<_AllTasksViewContent>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  final _taskService = TaskService();
-  final _stateManager = TaskStateManager();
   final _orderPersistenceService = TaskOrderPersistenceService();
-  late Stream<List<Task>> _taskStream;
-  StreamSubscription? _listChangesSubscription;
-  final _taskStreamController = StreamController<List<Task>>.broadcast();
-
-  // Use ValueNotifier for granular rebuilds
-  final ValueNotifier<FilterSortConfig> _filterConfigNotifier =
-      ValueNotifier(const FilterSortConfig());
-
-  // ValueNotifier for task creation state (prevents full list rebuild)
-  final ValueNotifier<bool> _isCreatingTaskNotifier = ValueNotifier(false);
 
   @override
   void initState() {
     super.initState();
-    _initStream();
-    _checkForCustomOrder();
-
-    // Listen to list changes (add/remove/reorder) to manually fetch and emit new data
-    _listChangesSubscription = _stateManager.listChanges
-        .where((docId) => docId == widget.document.id)
-        .listen((_) async {
-      AppLogger.debug('🔔 LISTENER: List change detected for document ${widget.document.id}');
-      AppLogger.debug('🔄 LISTENER: Calling _refreshTasks()');
-      await _refreshTasks();
-      AppLogger.debug('🔔 LISTENER: _refreshTasks() completed');
-    });
+    // Stream management removed - BLoC handles data loading
 
     // Pass the inline creation callback to parent
     widget.onInlineCreationCallbackChanged?.call(startInlineCreation);
   }
 
-  /// Check if there's a saved custom order (for loading the order, NOT activating reorder mode)
-  /// Reorder mode is only activated when user starts dragging
-  void _checkForCustomOrder() async {
-    // No need to activate reorder mode on load
-    // The custom order will be loaded and applied in _applyFiltersToRawData
-    // Reorder mode activates only when user actually drags a task
-  }
-
-  void _initStream() async {
-    // Don't use Supabase realtime stream - it's unreliable and causes conflicts
-    // Instead, use manual fetch with our own controller
-    AppLogger.debug('🎬 Initializing task stream for document ${widget.document.id}');
-
-    // Use our controller's stream for the UI
-    _taskStream = _taskStreamController.stream;
-
-    // Initial data fetch
-    await _refreshTasks();
-  }
-
-  bool _isRefreshing = false; // Flag to prevent concurrent refreshes
-
-  Future<void> _refreshTasks() async {
-    // Prevent concurrent refresh calls
-    if (_isRefreshing) {
-      AppLogger.debug('⚠️ Already refreshing, skipping duplicate call');
-      return;
-    }
-
-    _isRefreshing = true;
-    AppLogger.debug('🔄 _refreshTasks() START');
-    try {
-      // Small delay to ensure DB write is fully committed
-      AppLogger.debug('⏳ Waiting 300ms for DB commit...');
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Fetch fresh data directly from Supabase
-      AppLogger.debug('📡 Fetching tasks from database...');
-      final tasks = await _taskService.fetchTasksForDocument(widget.document.id);
-      AppLogger.debug('✅ Fetched ${tasks.length} tasks from DB');
-      AppLogger.debug('   Task IDs: ${tasks.map((t) => t.id.substring(0, 8)).join(", ")}');
-
-      // Emit through our controller - StreamBuilder will rebuild WITHOUT setState
-      if (!_taskStreamController.isClosed) {
-        AppLogger.debug('📤 Emitting ${tasks.length} tasks to stream');
-        _taskStreamController.add(tasks);
-        AppLogger.debug('✅ Tasks emitted successfully');
-      } else {
-        AppLogger.debug('⚠️ Stream controller is CLOSED, cannot emit tasks!');
-      }
-    } catch (e) {
-      AppLogger.debug('❌ Error fetching tasks: $e');
-      if (!_taskStreamController.isClosed) {
-        _taskStreamController.addError(e);
-      }
-    } finally {
-      _isRefreshing = false;
-    }
-    AppLogger.debug('🔄 _refreshTasks() END');
-  }
+  // Stream management methods removed - BLoC handles all data loading and refreshing
 
   /// Handle manual reordering via drag-and-drop
   void _handleManualReorder(List<Task> newOrder) async {
@@ -158,10 +109,7 @@ class _AllTasksViewState extends State<AllTasksView>
 
   @override
   void dispose() {
-    _listChangesSubscription?.cancel();
-    _taskStreamController.close();
-    _filterConfigNotifier.dispose();
-    _isCreatingTaskNotifier.dispose();
+    // BLoC handles all cleanup automatically
     super.dispose();
   }
 
@@ -171,40 +119,44 @@ class _AllTasksViewState extends State<AllTasksView>
 
     return Column(
       children: [
-        // Filter bar - rebuilds instantly and independently
-        CompactFilterSortBar(
-          key: const ValueKey('compact_filter_sort_bar'),
-          filterConfig: _filterConfigNotifier.value,
-          onFilterChanged: (newConfig) {
-            // Update only the notifier - no setState!
-            _filterConfigNotifier.value = newConfig;
+        // Filter bar - reads from BLoC state
+        BlocBuilder<TaskListBloc, TaskListState>(
+          builder: (context, state) {
+            final filterConfig = state is TaskListLoaded
+                ? state.filterConfig
+                : const FilterSortConfig();
+
+            return CompactFilterSortBar(
+              key: const ValueKey('compact_filter_sort_bar'),
+              filterConfig: filterConfig,
+              onFilterChanged: (newConfig) {
+                // Dispatch filter change event to BLoC
+                context.read<TaskListBloc>().add(TaskListFilterChanged(newConfig));
+              },
+              availableTags: widget.availableTags,
+            );
           },
-          availableTags: widget.availableTags,
         ),
 
         // Task list section - rebuilds independently when filter changes
         Expanded(
           child: _TaskListSection(
-            taskStream: _taskStream,
-            filterConfigNotifier: _filterConfigNotifier,
             document: widget.document,
             showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-            isCreatingTaskNotifier: _isCreatingTaskNotifier,
             onCancelCreation: () {
-              // No setState - just update the notifier!
-              _isCreatingTaskNotifier.value = false;
+              // Dispatch event to BLoC to cancel creation
+              context.read<TaskListBloc>().add(const TaskListTaskCreationCompleted());
             },
             onTaskCreated: () async {
               AppLogger.debug('🎯 onTaskCreated callback START');
 
-              // Force immediate refresh to show the new task BEFORE closing the row
-              // This ensures the new task appears even if the listener hasn't fired yet
-              AppLogger.debug('🔄 Forcing immediate refresh after task creation');
-              await _refreshTasks();
+              // Dispatch refresh event to BLoC to reload tasks
+              AppLogger.debug('🔄 Dispatching TaskListRefreshRequested to BLoC');
+              context.read<TaskListBloc>().add(const TaskListRefreshRequested());
 
-              // Close the creation row AFTER refresh completes
-              AppLogger.debug('✅ Refresh complete, closing creation row');
-              _isCreatingTaskNotifier.value = false;
+              // Close the creation row via BLoC
+              AppLogger.debug('✅ Dispatching TaskListTaskCreationCompleted');
+              context.read<TaskListBloc>().add(const TaskListTaskCreationCompleted());
 
               AppLogger.debug('🎯 onTaskCreated callback END');
             },
@@ -217,9 +169,8 @@ class _AllTasksViewState extends State<AllTasksView>
   }
 
   void startInlineCreation() {
-    // No setState - just update the notifier!
-    // This prevents full list rebuild, only the creation row appears
-    _isCreatingTaskNotifier.value = true;
+    // Dispatch event to BLoC to start task creation
+    context.read<TaskListBloc>().add(const TaskListTaskCreationStarted());
   }
 
   void _showTaskDetails(BuildContext context, Task task) {
@@ -236,24 +187,18 @@ class _AllTasksViewState extends State<AllTasksView>
   }
 }
 
-/// Separate widget for task list that rebuilds independently from filter UI
+/// Separate widget for task list that reads filter config from BLoC
 class _TaskListSection extends StatelessWidget {
-  final Stream<List<Task>>? taskStream;
-  final ValueNotifier<FilterSortConfig> filterConfigNotifier;
   final TodoDocument document;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
-  final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
   final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
   final void Function(List<Task> newOrder)? onManualReorder;
 
   const _TaskListSection({
-    required this.taskStream,
-    required this.filterConfigNotifier,
     required this.document,
     this.showAllPropertiesNotifier,
-    required this.isCreatingTaskNotifier,
     required this.onCancelCreation,
     required this.onTaskCreated,
     required this.onShowTaskDetails,
@@ -263,20 +208,28 @@ class _TaskListSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     AppLogger.debug('🏗️ [1] _TaskListSection.build() called');
-    // Listen to filter changes - only this widget rebuilds!
-    return ValueListenableBuilder<FilterSortConfig>(
-      valueListenable: filterConfigNotifier,
-      builder: (context, filterConfig, _) {
-        AppLogger.debug('🏗️ [2] ValueListenableBuilder.builder() for filter - sortBy: ${filterConfig.sortBy}, hasFilters: ${filterConfig.hasFilters}');
+    // Read filter config from BLoC state
+    return BlocBuilder<TaskListBloc, TaskListState>(
+      buildWhen: (previous, current) {
+        // Only rebuild when filter config changes
+        if (previous is TaskListLoaded && current is TaskListLoaded) {
+          return previous.filterConfig != current.filterConfig;
+        }
+        return true;
+      },
+      builder: (context, state) {
+        final filterConfig = state is TaskListLoaded
+            ? state.filterConfig
+            : const FilterSortConfig();
+
+        AppLogger.debug('🏗️ [2] BlocBuilder for filter - sortBy: ${filterConfig.sortBy}, hasFilters: ${filterConfig.hasFilters}');
         return _AnimatedTaskListBuilder(
           // Use a constant key to preserve state when filterConfig changes
           // This prevents the widget from being recreated and losing _isFirstLoad state
           key: ValueKey('animated_task_list_builder_${document.id}'),
-          taskStream: taskStream,
           filterConfig: filterConfig,
           document: document,
           showAllPropertiesNotifier: showAllPropertiesNotifier,
-          isCreatingTaskNotifier: isCreatingTaskNotifier,
           onCancelCreation: onCancelCreation,
           onTaskCreated: onTaskCreated,
           onShowTaskDetails: onShowTaskDetails,
@@ -287,13 +240,11 @@ class _TaskListSection extends StatelessWidget {
   }
 }
 
-/// StatefulWidget that manages AnimatedList and stream synchronization
+/// StatefulWidget that manages AnimatedList and BLoC state synchronization
 class _AnimatedTaskListBuilder extends StatefulWidget {
-  final Stream<List<Task>>? taskStream;
   final FilterSortConfig filterConfig;
   final TodoDocument document;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
-  final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
   final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
@@ -301,11 +252,9 @@ class _AnimatedTaskListBuilder extends StatefulWidget {
 
   const _AnimatedTaskListBuilder({
     super.key,
-    required this.taskStream,
     required this.filterConfig,
     required this.document,
     this.showAllPropertiesNotifier,
-    required this.isCreatingTaskNotifier,
     required this.onCancelCreation,
     required this.onTaskCreated,
     required this.onShowTaskDetails,
@@ -321,14 +270,13 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   List<Task> _displayedTasks = [];
   List<Task>? _rawTasks; // Cache raw unfiltered data for re-filtering
   bool _isFirstLoad = true;
-  StreamSubscription<List<Task>>? _streamSubscription;
 
   @override
   void initState() {
     super.initState();
     AppLogger.debug('🎬 [INIT] _AnimatedTaskListBuilderState.initState() - Creating new instance!');
     _listKey = GlobalKey<AnimatedListState>(); // Initialize GlobalKey
-    _streamSubscription = widget.taskStream?.listen(_onNewData);
+    // Stream subscription replaced with BLocListener in build method
   }
 
   @override
@@ -378,7 +326,7 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
 
   @override
   void dispose() {
-    _streamSubscription?.cancel();
+    // Stream subscription removed - BLoC handles cleanup automatically
     _rawTasks = null; // Clear cache
     super.dispose();
   }
@@ -588,23 +536,59 @@ class _AnimatedTaskListBuilderState extends State<_AnimatedTaskListBuilder> {
   @override
   Widget build(BuildContext context) {
     AppLogger.debug('🏗️ [3] _AnimatedTaskListBuilderState.build() - _isFirstLoad=$_isFirstLoad, tasks=${_displayedTasks.length}');
-    if (_isFirstLoad) {
-      AppLogger.debug('⚠️ [3a] _isFirstLoad==true → Showing CircularProgressIndicator!');
-      return const Center(child: CircularProgressIndicator());
-    }
 
-    AppLogger.debug('✅ [3b] _isFirstLoad==false → Building _TaskListContent');
-    return _TaskListContent(
-      listKey: _listKey,
-      tasks: _displayedTasks,
-      filterConfig: widget.filterConfig,
-      document: widget.document,
-      showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-      isCreatingTaskNotifier: widget.isCreatingTaskNotifier,
-      onCancelCreation: widget.onCancelCreation,
-      onTaskCreated: widget.onTaskCreated,
-      onShowTaskDetails: widget.onShowTaskDetails,
-      onManualReorder: widget.onManualReorder,
+    // Use BlocListener to listen for state changes (replaces stream subscription)
+    return BlocListener<TaskListBloc, TaskListState>(
+      listener: (context, state) {
+        // When BLoC emits TaskListLoaded, update displayed tasks
+        if (state is TaskListLoaded) {
+          _onNewData(state.tasks);
+        }
+      },
+      child: BlocBuilder<TaskListBloc, TaskListState>(
+        builder: (context, state) {
+          return switch (state) {
+            TaskListInitial() => const SizedBox.shrink(),
+
+            TaskListLoading() => const Center(
+              child: CircularProgressIndicator(),
+            ),
+
+            TaskListError(:final message) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text('Error loading tasks'),
+                  const SizedBox(height: 8),
+                  Text(message, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => context.read<TaskListBloc>()
+                        .add(const TaskListRefreshRequested()),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+
+            TaskListLoaded() => _isFirstLoad
+              ? const Center(child: CircularProgressIndicator())
+              : _TaskListContent(
+                  listKey: _listKey,
+                  tasks: _displayedTasks,
+                  filterConfig: widget.filterConfig,
+                  document: widget.document,
+                  showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                  onCancelCreation: widget.onCancelCreation,
+                  onTaskCreated: widget.onTaskCreated,
+                  onShowTaskDetails: widget.onShowTaskDetails,
+                  onManualReorder: widget.onManualReorder,
+                ),
+          };
+        },
+      ),
     );
   }
 }
@@ -616,7 +600,6 @@ class _TaskListContent extends StatelessWidget {
   final FilterSortConfig filterConfig;
   final TodoDocument document;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
-  final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
   final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
@@ -628,7 +611,6 @@ class _TaskListContent extends StatelessWidget {
     required this.filterConfig,
     required this.document,
     this.showAllPropertiesNotifier,
-    required this.isCreatingTaskNotifier,
     required this.onCancelCreation,
     required this.onTaskCreated,
     required this.onShowTaskDetails,
@@ -651,7 +633,6 @@ class _TaskListContent extends StatelessWidget {
       filterConfig: filterConfig,
       document: document,
       showAllPropertiesNotifier: showAllPropertiesNotifier,
-      isCreatingTaskNotifier: isCreatingTaskNotifier,
       onCancelCreation: onCancelCreation,
       onTaskCreated: onTaskCreated,
       onShowTaskDetails: onShowTaskDetails,
@@ -662,14 +643,13 @@ class _TaskListContent extends StatelessWidget {
 }
 
 /// Final widget that renders the actual list using AnimatedReorderableListView
-/// Uses ValueListenableBuilder to rebuild ONLY when creation state changes
+/// Reads creation state from BLoC to rebuild when creation state changes
 class _TaskList extends StatefulWidget {
   final GlobalKey<AnimatedListState> listKey;
   final List<Task> tasks;
   final FilterSortConfig filterConfig;
   final TodoDocument document;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
-  final ValueNotifier<bool> isCreatingTaskNotifier;
   final VoidCallback onCancelCreation;
   final Future<void> Function() onTaskCreated;
   final void Function(BuildContext, Task) onShowTaskDetails;
@@ -682,7 +662,6 @@ class _TaskList extends StatefulWidget {
     required this.filterConfig,
     required this.document,
     this.showAllPropertiesNotifier,
-    required this.isCreatingTaskNotifier,
     required this.onCancelCreation,
     required this.onTaskCreated,
     required this.onShowTaskDetails,
@@ -715,11 +694,18 @@ class _TaskListState extends State<_TaskList> {
   @override
   Widget build(BuildContext context) {
     AppLogger.debug('🏗️ [5] _TaskListState.build() - _displayedTasks.length=${_displayedTasks.length}');
-    // Listen to creation state changes - only rebuilds when creating/canceling
-    return ValueListenableBuilder<bool>(
-      valueListenable: widget.isCreatingTaskNotifier,
-      builder: (context, isCreatingTask, _) {
-        AppLogger.debug('🏗️ [6] ValueListenableBuilder.builder() for isCreatingTask - value=$isCreatingTask');
+    // Read creation state from BLoC - only rebuilds when creation state changes
+    return BlocBuilder<TaskListBloc, TaskListState>(
+      buildWhen: (previous, current) {
+        // Only rebuild when isCreatingTask changes
+        if (previous is TaskListLoaded && current is TaskListLoaded) {
+          return previous.isCreatingTask != current.isCreatingTask;
+        }
+        return true;
+      },
+      builder: (context, state) {
+        final isCreatingTask = state is TaskListLoaded ? state.isCreatingTask : false;
+        AppLogger.debug('🏗️ [6] BlocBuilder for isCreatingTask - value=$isCreatingTask');
         // Empty state
         if (_displayedTasks.isEmpty && !isCreatingTask) {
           return Center(
