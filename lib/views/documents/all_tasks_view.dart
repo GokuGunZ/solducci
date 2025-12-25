@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:animated_reorderable_list/animated_reorderable_list.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
@@ -751,62 +750,50 @@ class _TaskListState extends State<_TaskList> {
                 onTaskCreated: widget.onTaskCreated,
               ),
 
-            // Task list
+            // Task list with animated transitions when sorting changes
             Expanded(
-              child: AnimatedReorderableListView<Task>(
-          items: _displayedTasks,
-          padding: const EdgeInsets.all(8),
-          // Comparator to identify same items across list updates
-          isSameItem: (a, b) => a.id == b.id,
-          // Disable insert/remove animations (we only want reorder sliding)
-          insertDuration: const Duration(milliseconds: 0),
-          removeDuration: const Duration(milliseconds: 0),
-          // Empty transitions for insert/remove
-          enterTransition: const [],
-          exitTransition: const [],
-          // Enable default drag handles with long-press activation
-          // This allows Dismissible swipes to work while long-press triggers reorder
-          buildDefaultDragHandles: false,
-          longPressDraggable: true,
-          // Custom proxy decorator to fix Material widget error during drag
-          proxyDecorator: (child, index, animation) {
-            return Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(8),
-              child: child,
-            );
-          },
-          // Handle manual reordering via drag-and-drop
-          onReorder: (oldIndex, newIndex) {
-            // Immediately update local state for smooth reordering
-            setState(() {
-              final task = _displayedTasks.removeAt(oldIndex);
-              _displayedTasks.insert(newIndex, task);
-            });
-
-            // Notify parent to switch to custom sort and persist order
-            widget.onManualReorder?.call(_displayedTasks);
-          },
-          // Item builder - no animation parameter in this API
-          itemBuilder: (context, index) {
-            final task = _displayedTasks[index];
-
-            // Always wrap with ReorderableDragStartListener for drag-and-drop
-            // Long-press activates drag, swipe still works for Dismissible
-            return ReorderableDragStartListener(
-              key: ValueKey('task_${task.id}'),
-              index: index,
-              child: _HighlightedGranularTaskItem(
-                key: ValueKey('highlighted_${task.id}'),
-                task: task,
-                document: widget.document,
-                onShowTaskDetails: widget.onShowTaskDetails,
-                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
-                taskTagsMap: widget.taskTagsMap,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: ReorderableListView.builder(
+                  key: ValueKey(_displayedTasks.map((t) => t.id).join(',')),
+                  padding: const EdgeInsets.all(8),
+                  buildDefaultDragHandles: false,
+                  proxyDecorator: (child, index, animation) {
+                    return Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(8),
+                      child: child,
+                    );
+                  },
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) {
+                        newIndex -= 1;
+                      }
+                      final task = _displayedTasks.removeAt(oldIndex);
+                      _displayedTasks.insert(newIndex, task);
+                    });
+                    widget.onManualReorder?.call(_displayedTasks);
+                  },
+                  itemCount: _displayedTasks.length,
+                  itemBuilder: (context, index) {
+                    final task = _displayedTasks[index];
+                    return ReorderableDragStartListener(
+                      key: ValueKey('task_${task.id}'),
+                      index: index,
+                      child: _HighlightedGranularTaskItem(
+                        key: ValueKey('highlighted_${task.id}'),
+                        task: task,
+                        document: widget.document,
+                        onShowTaskDetails: widget.onShowTaskDetails,
+                        showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                        taskTagsMap: widget.taskTagsMap,
+                        reorderIndex: index,
+                      ),
+                    );
+                  },
+                ),
               ),
-            );
-          },
-        ),
               ),
             ],
           );
@@ -823,6 +810,7 @@ class _HighlightedGranularTaskItem extends StatefulWidget {
   final void Function(BuildContext, Task) onShowTaskDetails;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final Map<String, List<Tag>> taskTagsMap;
+  final int reorderIndex;
 
   const _HighlightedGranularTaskItem({
     super.key,
@@ -831,6 +819,7 @@ class _HighlightedGranularTaskItem extends StatefulWidget {
     required this.onShowTaskDetails,
     this.showAllPropertiesNotifier,
     required this.taskTagsMap,
+    required this.reorderIndex,
   });
 
   @override
@@ -899,6 +888,7 @@ class _HighlightedGranularTaskItemState extends State<_HighlightedGranularTaskIt
         showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
         taskTagsMap: widget.taskTagsMap,
         dismissibleEnabled: true,
+        reorderIndex: widget.reorderIndex,
       ),
     );
   }
@@ -917,6 +907,7 @@ class _GranularTaskListItem extends StatefulWidget {
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final Map<String, List<Tag>> taskTagsMap;
   final bool dismissibleEnabled;
+  final int reorderIndex;
 
   const _GranularTaskListItem({
     super.key,
@@ -926,6 +917,7 @@ class _GranularTaskListItem extends StatefulWidget {
     this.showAllPropertiesNotifier,
     required this.taskTagsMap,
     this.dismissibleEnabled = true,
+    required this.reorderIndex,
   });
 
   @override
@@ -1003,6 +995,7 @@ class _GranularTaskListItemState extends State<_GranularTaskListItem>
             preloadedTags: widget.taskTagsMap[updatedTask.id],
             taskTagsMap: widget.taskTagsMap,
             dismissibleEnabled: widget.dismissibleEnabled,
+            reorderIndex: widget.reorderIndex,
           ),
         );
       },

@@ -42,6 +42,7 @@ class TaskListItem extends StatefulWidget {
   final List<Tag>? preloadedTags; // Use config.preloadedTags instead
   final Map<String, List<Tag>>? taskTagsMap; // Use config.taskTagsMap instead
   final bool dismissibleEnabled; // Use config.dismissibleEnabled instead
+  final int? reorderIndex; // Index for drag-on-tap functionality
 
   /// Legacy constructor for backward compatibility (default)
   ///
@@ -57,6 +58,7 @@ class TaskListItem extends StatefulWidget {
     this.preloadedTags,
     this.taskTagsMap,
     this.dismissibleEnabled = true,
+    this.reorderIndex,
   })  : config = const TaskItemConfig(),
         callbacks = null;
 
@@ -75,7 +77,8 @@ class TaskListItem extends StatefulWidget {
         showAllPropertiesNotifier = null,
         preloadedTags = null,
         taskTagsMap = null,
-        dismissibleEnabled = true;
+        dismissibleEnabled = true,
+        reorderIndex = null;
 
   @override
   State<TaskListItem> createState() => _TaskListItemState();
@@ -216,6 +219,7 @@ class _TaskListItemState extends State<TaskListItem> {
                     DragHandle(
                       visible: _depth == 0,
                       widthFraction: 0.15,
+                      index: widget.reorderIndex,
                     ),
                     InkWell(
                       onTap: () => _showTaskDetails(context),

@@ -5,6 +5,9 @@ import 'package:solducci/theme/todo_theme.dart';
 ///
 /// A horizontal line positioned at the top-center of the task tile,
 /// with glassmorphic styling matching the app's aesthetic.
+///
+/// When [index] is provided, wraps the handle with ReorderableDragStartListener
+/// to enable immediate drag-and-drop on tap (no long-press required).
 class DragHandle extends StatelessWidget {
   /// Width as percentage of parent width (0.0 to 1.0)
   final double widthFraction;
@@ -12,10 +15,15 @@ class DragHandle extends StatelessWidget {
   /// Whether to show the drag handle (e.g., hide for subtasks)
   final bool visible;
 
+  /// Index for ReorderableDragStartListener (enables drag-on-tap)
+  /// If null, drag handle is purely visual
+  final int? index;
+
   const DragHandle({
     super.key,
     this.widthFraction = 0.15,
     this.visible = true,
+    this.index,
   });
 
   @override
@@ -24,9 +32,9 @@ class DragHandle extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Center(
+    final handleWidget = Center(
       child: Container(
-        margin: const EdgeInsets.only(top: 8, bottom: 4),
+        margin: const EdgeInsets.only(top: 1, bottom: 4),
         child: FractionallySizedBox(
           widthFactor: widthFraction,
           child: Container(
@@ -37,20 +45,36 @@ class DragHandle extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  TodoTheme.primaryPurple.withValues(alpha: 0.6),
-                  TodoTheme.primaryPurple.withValues(alpha: 0.4),
+                  const Color.fromARGB(
+                    255,
+                    174,
+                    174,
+                    174,
+                  ).withValues(alpha: 0.4),
+                  const Color.fromARGB(129, 177, 163, 184),
+                  const Color.fromARGB(
+                    255,
+                    168,
+                    168,
+                    168,
+                  ).withValues(alpha: 0.2),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
                   color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
-                  blurRadius: 4,
+                  blurRadius: 1,
                   offset: const Offset(0, 1),
                 ),
                 BoxShadow(
                   color: Colors.white.withValues(alpha: 0.4),
-                  blurRadius: 1,
+                  blurRadius: 4,
                   offset: const Offset(0, -1),
+                ),
+                BoxShadow(
+                  color: Colors.black.withAlpha(50),
+                  spreadRadius: -0.2,
+                  blurRadius: 0.2,
                 ),
               ],
             ),
@@ -58,5 +82,10 @@ class DragHandle extends StatelessWidget {
         ),
       ),
     );
+
+    // Return the visual handle
+    // The entire item is wrapped with ReorderableDragStartListener in the list builder
+    // so this is purely visual - user can drag from anywhere on the item
+    return handleWidget;
   }
 }

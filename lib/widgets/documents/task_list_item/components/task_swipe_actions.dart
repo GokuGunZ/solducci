@@ -30,6 +30,7 @@ class TaskSwipeActions extends StatelessWidget {
 
     return Dismissible(
       key: Key('dismissible_${task.id}'),
+      direction: DismissDirection.horizontal, // Only respond to horizontal swipes
       background: _buildDeleteBackground(),
       secondaryBackground: _buildDuplicateBackground(),
       confirmDismiss: (direction) async {
