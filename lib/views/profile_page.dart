@@ -280,15 +280,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     badge: 'Prossimamente',
                   ),
 
-                  _buildListTile(
-                    context: context,
-                    icon: Icons.checklist_outlined,
-                    title: 'ToDo List',
-                    subtitle: 'Gestisci task, progetti e promemoria',
-                    color: Colors.purple,
-                    onTap: () => context.push('/notes'),
-                  ),
-
                   const SizedBox(height: 24),
 
                   // Settings Section
