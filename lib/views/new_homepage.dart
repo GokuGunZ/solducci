@@ -10,6 +10,7 @@ import 'package:solducci/service/group_service.dart';
 import 'package:solducci/widgets/expense_list_item.dart';
 import 'package:solducci/widgets/context_switcher.dart';
 import 'package:solducci/utils/category_helpers.dart';
+import 'package:solducci/views/shell_with_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NewHomepage extends StatefulWidget {
@@ -742,7 +743,8 @@ class _NewHomepageState extends State<NewHomepage> {
               ),
               TextButton.icon(
                 onPressed: () {
-                  context.go('/expenses');
+                  // Navigate to Spese tab (index 1) in ShellWithNav
+                  ShellWithNav.navigateToTab(context, 1);
                 },
                 icon: const Icon(Icons.arrow_forward),
                 label: const Text('Vedi Tutte'),

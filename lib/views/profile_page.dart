@@ -69,7 +69,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _editNickname() async {
-    final controller = TextEditingController(text: _userProfile?.nickname ?? '');
+    final controller = TextEditingController(
+      text: _userProfile?.nickname ?? '',
+    );
 
     final newNickname = await showDialog<String>(
       context: context,
@@ -97,20 +99,22 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
 
-    if (newNickname != null && newNickname.isNotEmpty && newNickname != _userProfile?.nickname) {
+    if (newNickname != null &&
+        newNickname.isNotEmpty &&
+        newNickname != _userProfile?.nickname) {
       try {
         await _profileService.updateNickname(newNickname);
         await _loadProfileData(); // Reload to show updated nickname
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nickname aggiornato!')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Nickname aggiornato!')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
       }
     }
@@ -121,10 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = Supabase.instance.client.auth.currentUser;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profilo'),
-        elevation: 2,
-      ),
+      appBar: AppBar(title: const Text('Profilo'), elevation: 2),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -150,15 +151,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                       width: 100,
                                       height: 100,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          Text(
-                                        _userProfile?.initials ?? '?',
-                                        style: TextStyle(
-                                          fontSize: 40,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.purple[700],
-                                        ),
-                                      ),
+                                      errorBuilder:
+                                          (context, error, stackTrace) => Text(
+                                            _userProfile?.initials ?? '?',
+                                            style: TextStyle(
+                                              fontSize: 40,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.purple[700],
+                                            ),
+                                          ),
                                     ),
                                   )
                                 : Text(
@@ -222,33 +223,43 @@ class _ProfilePageState extends State<ProfilePage> {
                     Card(
                       elevation: 2,
                       child: ListTile(
-                        leading: const Icon(Icons.info_outline, color: Colors.grey),
+                        leading: const Icon(
+                          Icons.info_outline,
+                          color: Colors.grey,
+                        ),
                         title: const Text('Nessun gruppo'),
                         subtitle: const Text(
-                            'Crea un gruppo per condividere spese con altri'),
+                          'Crea un gruppo per condividere spese con altri',
+                        ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () => context.push('/groups/create'),
                       ),
                     )
                   else
-                    ..._userGroups.map((group) => Card(
-                          elevation: 2,
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.blue.withValues(alpha: 0.2),
-                              child: const Icon(Icons.group, color: Colors.blue),
-                            ),
-                            title: Text(group.name),
-                            subtitle: Text(
-                              group.description ?? '${group.memberCount ?? 0} membri',
-                            ),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              context.push('/groups/${group.id}');
-                            },
+                    ..._userGroups.map(
+                      (group) => Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue.withValues(alpha: 0.2),
+                            child: const Icon(Icons.group, color: Colors.blue),
                           ),
-                        )),
+                          title: Text(group.name),
+                          subtitle: Text(
+                            group.description ??
+                                '${group.memberCount ?? 0} membri',
+                          ),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                          ),
+                          onTap: () {
+                            context.push('/groups/${group.id}');
+                          },
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 16),
 
@@ -278,15 +289,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.blue,
                     onTap: () => context.push('/personal-expenses'),
                     badge: 'Prossimamente',
-                  ),
-
-                  _buildListTile(
-                    context: context,
-                    icon: Icons.checklist_outlined,
-                    title: 'ToDo List',
-                    subtitle: 'Gestisci task, progetti e promemoria',
-                    color: Colors.purple,
-                    onTap: () => context.push('/notes'),
                   ),
 
                   const SizedBox(height: 24),
@@ -349,13 +351,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     context: context,
                     icon: Icons.info_outline,
                     title: 'Info App',
-                    subtitle: 'Versione 1.0.0',
+                    subtitle: 'Versione 1.0.1',
                     color: Colors.grey,
                     onTap: () {
                       showAboutDialog(
                         context: context,
                         applicationName: 'Solducci',
-                        applicationVersion: '1.0.0',
+                        applicationVersion: '1.0.1',
                         applicationIcon: Icon(
                           Icons.account_balance_wallet,
                           size: 50,
@@ -445,7 +447,7 @@ class _ProfilePageState extends State<ProfilePage> {
       'set',
       'ott',
       'nov',
-      'dic'
+      'dic',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
