@@ -5,6 +5,7 @@ import 'package:solducci/models/group.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:async/async.dart';
 
 class ExpenseService {
   // Singleton pattern
@@ -77,25 +78,92 @@ class ExpenseService {
 
     if (context.isPersonal) {
       // Personal context: show only user's personal expenses (no group)
-      return _supabase
-          .from('expenses')
-          .stream(primaryKey: ['id'])
-          .eq('user_id', userId)
-          .map((data) {
-            // Filter out group expenses client-side
-            final filtered = data.where((row) => row['group_id'] == null).toList();
-            return _parseExpenses(filtered);
-          });
+      return _personalExpensesStream(userId);
+    } else if (context.isView) {
+      // View context: show expenses from multiple groups (+ optional personal)
+      if (context.includesPersonal) {
+        // Merge group expenses + personal expenses
+        return _mergeStreams([
+          _groupExpensesStream(context.groupIds),
+          _personalExpensesStream(userId),
+        ]);
+      } else {
+        // Only group expenses
+        return _groupExpensesStream(context.groupIds);
+      }
     } else {
-      // Group context: show expenses for this group
-      return _supabase
-          .from('expenses')
-          .stream(primaryKey: ['id'])
-          .eq('group_id', context.groupId!)
-          .map((data) {
-            return _parseExpenses(data);
-          });
+      // Single group context (+ optional personal if toggle enabled)
+      if (context.includesPersonal) {
+        // Merge single group + personal expenses
+        return _mergeStreams([
+          _groupExpensesStream([context.groupId!]),
+          _personalExpensesStream(userId),
+        ]);
+      } else {
+        // Only single group expenses
+        return _groupExpensesStream([context.groupId!]);
+      }
     }
+  }
+
+  /// Stream for personal expenses only (no group_id)
+  Stream<List<Expense>> _personalExpensesStream(String userId) {
+    return _supabase
+        .from('expenses')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .map((data) {
+          // Filter out group expenses client-side
+          final filtered = data.where((row) => row['group_id'] == null).toList();
+          return _parseExpenses(filtered);
+        });
+  }
+
+  /// Stream for expenses from one or more groups
+  Stream<List<Expense>> _groupExpensesStream(List<String> groupIds) {
+    if (groupIds.isEmpty) {
+      return Stream.value([]);
+    }
+
+    // Supabase .inFilter() handles multiple IDs
+    return _supabase
+        .from('expenses')
+        .stream(primaryKey: ['id'])
+        .inFilter('group_id', groupIds)
+        .map((data) => _parseExpenses(data));
+  }
+
+  /// Merge multiple expense streams into one, removing duplicates and sorting
+  Stream<List<Expense>> _mergeStreams(List<Stream<List<Expense>>> streams) {
+    if (streams.isEmpty) {
+      return Stream.value([]);
+    }
+
+    if (streams.length == 1) {
+      return streams.first;
+    }
+
+    // Use StreamZip to combine streams
+    return StreamZip(streams).map((results) {
+      final merged = <Expense>[];
+
+      // Flatten all lists
+      for (final list in results) {
+        merged.addAll(list);
+      }
+
+      // Remove duplicates by ID (shouldn't happen, but for safety)
+      final uniqueById = <int, Expense>{};
+      for (final expense in merged) {
+        uniqueById[expense.id] = expense;
+      }
+
+      // Sort by date descending
+      final sorted = uniqueById.values.toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+
+      return sorted;
+    });
   }
 
   // Helper to parse expense list

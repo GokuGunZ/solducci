@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:solducci/routes/app_router.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/task_service.dart';
+import 'package:solducci/core/di/service_locator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize date formatting for Italian locale
+  await initializeDateFormatting('it_IT', null);
 
   try {
     // Try loading from dart-define first (production builds)
@@ -36,6 +43,12 @@ void main() async {
     }
 
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+
+    // Setup dependency injection
+    await setupServiceLocator();
+
+    // Initialize TaskService with repository
+    TaskService().initialize();
 
     // Initialize ContextManager if user is already logged in
     final session = Supabase.instance.client.auth.currentSession;
@@ -151,7 +164,18 @@ class SolducciApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.purple,
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.transparent, // CRITICAL: Allow background gradients to show through
       ),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('it', 'IT'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('it', 'IT'),
       routerConfig: AppRouter.router,
     );
   }

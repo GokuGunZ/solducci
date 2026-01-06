@@ -17,6 +17,8 @@ class _SignupPageState extends State<SignupPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   @override
   void dispose() {
@@ -136,16 +138,40 @@ class _SignupPageState extends State<SignupPage> {
             ),
             SizedBox(height: 50,),
             TextFormField(
-              decoration: InputDecoration(label: Text("Password"), suffixIcon: Icon(Icons.password)),
-              obscureText: true,
+              decoration: InputDecoration(
+                label: Text("Password"),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
+                ),
+              ),
+              obscureText: !_isPasswordVisible,
               enableSuggestions: false,
               autocorrect: false,
               controller: _passwordController,
             ),
             SizedBox(height: 50,),
             TextFormField(
-              decoration: InputDecoration(label: Text("Confirm Password"), suffixIcon: Icon(Icons.password)),
-              obscureText: true,
+              decoration: InputDecoration(
+                label: Text("Confirm Password"),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                    });
+                  },
+                ),
+              ),
+              obscureText: !_isConfirmPasswordVisible,
               enableSuggestions: false,
               autocorrect: false,
               controller: _confirmPasswordController,
