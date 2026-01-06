@@ -100,6 +100,12 @@ class Tag {
       'calendar': Icons.calendar_today,
       'clock': Icons.access_time,
       'list': Icons.list,
+      'lightbulb': Icons.lightbulb,
+      'computer': Icons.computer,
+      'phone': Icons.phone,
+      'email': Icons.email,
+      'cafe': Icons.local_cafe,
+      'hotel': Icons.hotel,
     };
 
     return iconMap[icon];

@@ -58,19 +58,37 @@ class NotesPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              // NEW: Button for new component-based implementation
               ElevatedButton.icon(
                 onPressed: () {
-                  context.push('/documents');
+                  context.push('/documents-v2');
                 },
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Apri ToDo Lists'),
+                icon: const Icon(Icons.science),
+                label: const Text('Apri ToDo Lists V2 (Nuovi Componenti)'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple[700],
+                  backgroundColor: Colors.deepPurple[700],
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
                     vertical: 16,
                   ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Original button
+              OutlinedButton.icon(
+                onPressed: () {
+                  context.push('/documents');
+                },
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Apri ToDo Lists (Originale)'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.purple[700],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  side: BorderSide(color: Colors.purple[700]!, width: 2),
                 ),
               ),
               const SizedBox(height: 16),

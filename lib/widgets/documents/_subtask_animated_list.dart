@@ -26,6 +26,7 @@ class SubtaskAnimatedList extends StatefulWidget {
   final bool isCreatingSubtask;
   final VoidCallback onCancelCreation;
   final Future<void> Function() onSubtaskCreated;
+  final Future<void> Function()? onSubtaskDeleted;
 
   const SubtaskAnimatedList({
     super.key,
@@ -39,6 +40,7 @@ class SubtaskAnimatedList extends StatefulWidget {
     required this.isCreatingSubtask,
     required this.onCancelCreation,
     required this.onSubtaskCreated,
+    this.onSubtaskDeleted,
   });
 
   @override
@@ -210,6 +212,7 @@ class _SubtaskAnimatedListState extends State<SubtaskAnimatedList> {
                 depth: widget.depth + 1,
                 showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
                 taskTagsMap: widget.taskTagsMap,
+                onSubtaskDeleted: widget.onSubtaskDeleted,
               ),
             ),
           );
@@ -227,6 +230,7 @@ class _GranularSubtaskListItem extends StatefulWidget {
   final int depth;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final Map<String, List<Tag>>? taskTagsMap;
+  final Future<void> Function()? onSubtaskDeleted;
 
   const _GranularSubtaskListItem({
     super.key,
@@ -235,6 +239,7 @@ class _GranularSubtaskListItem extends StatefulWidget {
     required this.depth,
     this.showAllPropertiesNotifier,
     this.taskTagsMap,
+    this.onSubtaskDeleted,
   });
 
   @override
@@ -254,8 +259,11 @@ class _GranularSubtaskListItemState extends State<_GranularSubtaskListItem> {
 
   @override
   void dispose() {
-    // CRITICAL: Dispose the subtask notifier to trigger reference counting cleanup
-    _subtaskNotifier.dispose();
+    // Release our reference to the subtask notifier
+    // This decrements the reference count in TaskStateManager
+    // When the count reaches 0, the notifier will be automatically cleaned up
+    final stateManager = TaskStateManager();
+    stateManager.releaseTaskNotifier(widget.subtask.id);
     super.dispose();
   }
 
@@ -273,6 +281,7 @@ class _GranularSubtaskListItemState extends State<_GranularSubtaskListItem> {
           showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
           preloadedTags: widget.taskTagsMap?[updatedSubtask.id],
           taskTagsMap: widget.taskTagsMap,
+          onDeleted: widget.onSubtaskDeleted, // Refresh parent after subtask deletion
         );
       },
     );

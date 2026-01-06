@@ -13,13 +13,11 @@ class SupabaseTaskRepository implements TaskRepository {
   static const Duration _retryDelay = Duration(milliseconds: 500);
 
   SupabaseTaskRepository({SupabaseClient? supabase})
-      : _supabase = supabase ?? Supabase.instance.client;
+    : _supabase = supabase ?? Supabase.instance.client;
 
   @override
   Future<List<Task>> getAll({String? documentId}) async {
     try {
-      AppLogger.debug('Fetching all tasks${documentId != null ? " for document: $documentId" : ""}');
-
       PostgrestFilterBuilder query = _supabase.from('tasks').select();
 
       if (documentId != null) {
@@ -31,7 +29,6 @@ class SupabaseTaskRepository implements TaskRepository {
       final allTasks = _parseTasks(response);
       final rootTasks = await _buildTaskTree(allTasks);
 
-      AppLogger.debug('Fetched ${rootTasks.length} root tasks');
       return rootTasks;
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error fetching tasks', e, stackTrace);
@@ -52,8 +49,6 @@ class SupabaseTaskRepository implements TaskRepository {
     try {
       _validateTaskId(id);
 
-      AppLogger.debug('Fetching task by ID: ${id.substring(0, 8)}...');
-
       final response = await _executeWithRetry(
         () => _supabase.from('tasks').select().eq('id', id).maybeSingle(),
       );
@@ -64,7 +59,6 @@ class SupabaseTaskRepository implements TaskRepository {
       }
 
       final task = Task.fromMap(response);
-      AppLogger.debug('Task fetched: ${task.title}');
       return task;
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error fetching task by ID', e, stackTrace);
@@ -85,8 +79,6 @@ class SupabaseTaskRepository implements TaskRepository {
   Future<Task?> getWithSubtasks(String id) async {
     try {
       _validateTaskId(id);
-
-      AppLogger.debug('Fetching task with subtasks: ${id.substring(0, 8)}...');
 
       // First check if task exists
       final taskResponse = await _executeWithRetry(
@@ -120,10 +112,13 @@ class SupabaseTaskRepository implements TaskRepository {
 
       // Return a deep copy to avoid shared references
       final copy = _deepCopyTask(foundTask);
-      AppLogger.debug('Task with subtasks fetched: ${copy.title} (${copy.subtasks?.length ?? 0} subtasks)');
       return copy;
     } on PostgrestException catch (e, stackTrace) {
-      AppLogger.error('Database error fetching task with subtasks', e, stackTrace);
+      AppLogger.error(
+        'Database error fetching task with subtasks',
+        e,
+        stackTrace,
+      );
       throw NetworkException(
         'Failed to fetch task with subtasks from database',
         statusCode: e.code != null ? int.tryParse(e.code!) : null,
@@ -132,8 +127,16 @@ class SupabaseTaskRepository implements TaskRepository {
       );
     } catch (e, stackTrace) {
       if (e is RepositoryException) rethrow;
-      AppLogger.error('Unexpected error fetching task with subtasks', e, stackTrace);
-      throw RepositoryException('Failed to fetch task with subtasks', e, stackTrace);
+      AppLogger.error(
+        'Unexpected error fetching task with subtasks',
+        e,
+        stackTrace,
+      );
+      throw RepositoryException(
+        'Failed to fetch task with subtasks',
+        e,
+        stackTrace,
+      );
     }
   }
 
@@ -171,7 +174,9 @@ class SupabaseTaskRepository implements TaskRepository {
       );
 
       final createdTask = Task.fromMap(response);
-      AppLogger.info('Task created successfully: ${createdTask.id} - ${createdTask.title}');
+      AppLogger.info(
+        'Task created successfully: ${createdTask.id} - ${createdTask.title}',
+      );
       return createdTask;
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error creating task', e, stackTrace);
@@ -227,7 +232,12 @@ class SupabaseTaskRepository implements TaskRepository {
       final dataToUpdate = task.toUpdateMap();
 
       final response = await _executeWithRetry(
-        () => _supabase.from('tasks').update(dataToUpdate).eq('id', task.id).select().single(),
+        () => _supabase
+            .from('tasks')
+            .update(dataToUpdate)
+            .eq('id', task.id)
+            .select()
+            .single(),
       );
 
       final updatedTask = Task.fromMap(response);
@@ -301,16 +311,25 @@ class SupabaseTaskRepository implements TaskRepository {
       AppLogger.debug('Fetching ${ids.length} tasks by IDs');
 
       final response = await _executeWithRetry(
-        () => _supabase.from('tasks').select().inFilter('id', ids).order('position'),
+        () => _supabase
+            .from('tasks')
+            .select()
+            .inFilter('id', ids)
+            .order('position'),
       );
 
       final tasks = _parseTasks(response);
 
       // Sort to match the requested order
       final taskMap = {for (var task in tasks) task.id: task};
-      final orderedTasks = ids.map((id) => taskMap[id]).whereType<Task>().toList();
+      final orderedTasks = ids
+          .map((id) => taskMap[id])
+          .whereType<Task>()
+          .toList();
 
-      AppLogger.debug('Fetched ${orderedTasks.length} tasks out of ${ids.length} requested');
+      AppLogger.debug(
+        'Fetched ${orderedTasks.length} tasks out of ${ids.length} requested',
+      );
       return orderedTasks;
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error fetching tasks by IDs', e, stackTrace);
@@ -329,7 +348,9 @@ class SupabaseTaskRepository implements TaskRepository {
   @override
   Future<List<Task>> getByStatus(String documentId, TaskStatus status) async {
     try {
-      AppLogger.debug('Fetching tasks with status ${status.value} for document: $documentId');
+      AppLogger.debug(
+        'Fetching tasks with status ${status.value} for document: $documentId',
+      );
 
       final response = await _executeWithRetry(
         () => _supabase
@@ -343,7 +364,9 @@ class SupabaseTaskRepository implements TaskRepository {
       final allTasks = _parseTasks(response);
       final rootTasks = await _buildTaskTree(allTasks);
 
-      AppLogger.debug('Fetched ${rootTasks.length} tasks with status ${status.value}');
+      AppLogger.debug(
+        'Fetched ${rootTasks.length} tasks with status ${status.value}',
+      );
       return rootTasks;
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error fetching tasks by status', e, stackTrace);
@@ -354,7 +377,11 @@ class SupabaseTaskRepository implements TaskRepository {
         stackTrace: stackTrace,
       );
     } catch (e, stackTrace) {
-      AppLogger.error('Unexpected error fetching tasks by status', e, stackTrace);
+      AppLogger.error(
+        'Unexpected error fetching tasks by status',
+        e,
+        stackTrace,
+      );
       throw RepositoryException('Failed to fetch tasks', e, stackTrace);
     }
   }
@@ -362,7 +389,9 @@ class SupabaseTaskRepository implements TaskRepository {
   @override
   Stream<List<Task>> watchAll({String? documentId}) {
     try {
-      AppLogger.debug('Setting up realtime stream${documentId != null ? " for document: $documentId" : ""}');
+      AppLogger.debug(
+        'Setting up realtime stream${documentId != null ? " for document: $documentId" : ""}',
+      );
 
       // Build the stream query - type changes after .eq() so we use dynamic
       dynamic streamQuery = _supabase.from('tasks').stream(primaryKey: ['id']);
@@ -373,23 +402,33 @@ class SupabaseTaskRepository implements TaskRepository {
       }
 
       // Apply ordering and map the data
-      return (streamQuery.order('position') as Stream<List<Map<String, dynamic>>>).asyncMap((data) async {
-        try {
-          AppLogger.debug('Stream emitted ${data.length} tasks');
-          final allTasks = _parseTasks(data);
-          final rootTasks = await _buildTaskTree(allTasks);
-          return rootTasks;
-        } catch (e, stackTrace) {
-          AppLogger.error('Error processing stream data', e, stackTrace);
-          return <Task>[];
-        }
-      }).handleError((error, stackTrace) {
-        AppLogger.error('Stream error', error, stackTrace);
-        throw RepositoryException('Stream error occurred', error, stackTrace);
-      });
+      return (streamQuery.order('position')
+              as Stream<List<Map<String, dynamic>>>)
+          .asyncMap((data) async {
+            try {
+              final allTasks = _parseTasks(data);
+              final rootTasks = await _buildTaskTree(allTasks);
+              return rootTasks;
+            } catch (e, stackTrace) {
+              AppLogger.error('Error processing stream data', e, stackTrace);
+              return <Task>[];
+            }
+          })
+          .handleError((error, stackTrace) {
+            AppLogger.error('Stream error', error, stackTrace);
+            throw RepositoryException(
+              'Stream error occurred',
+              error,
+              stackTrace,
+            );
+          });
     } catch (e, stackTrace) {
       AppLogger.error('Error setting up stream', e, stackTrace);
-      throw RepositoryException('Failed to setup realtime stream', e, stackTrace);
+      throw RepositoryException(
+        'Failed to setup realtime stream',
+        e,
+        stackTrace,
+      );
     }
   }
 
@@ -412,14 +451,18 @@ class SupabaseTaskRepository implements TaskRepository {
         }
 
         // Check if we should retry
-        final shouldRetry = attempts < _maxRetries &&
+        final shouldRetry =
+            attempts < _maxRetries &&
             (e is PostgrestException || e.toString().contains('network'));
 
         if (!shouldRetry) {
           rethrow;
         }
 
-        AppLogger.warning('Operation failed (attempt $attempts/$_maxRetries), retrying...', e);
+        AppLogger.warning(
+          'Operation failed (attempt $attempts/$_maxRetries), retrying...',
+          e,
+        );
         await Future.delayed(_retryDelay * attempts);
       }
     }
@@ -465,7 +508,9 @@ class SupabaseTaskRepository implements TaskRepository {
           parent.subtasks!.add(task);
         } else {
           // Parent not found, treat as root (orphaned)
-          AppLogger.warning('Orphaned task found: ${task.id} (parent: ${task.parentTaskId})');
+          AppLogger.warning(
+            'Orphaned task found: ${task.id} (parent: ${task.parentTaskId})',
+          );
           rootTasks.add(task);
         }
       }
@@ -491,7 +536,9 @@ class SupabaseTaskRepository implements TaskRepository {
       tShirtSize: task.tShirtSize,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
-      subtasks: task.subtasks?.map((subtask) => _deepCopyTask(subtask)).toList(),
+      subtasks: task.subtasks
+          ?.map((subtask) => _deepCopyTask(subtask))
+          .toList(),
     );
   }
 
@@ -529,7 +576,11 @@ class SupabaseTaskRepository implements TaskRepository {
   /// Verify if a document exists
   Future<bool> _verifyDocumentExists(String documentId) async {
     final response = await _executeWithRetry(
-      () => _supabase.from('documents').select('id').eq('id', documentId).maybeSingle(),
+      () => _supabase
+          .from('documents')
+          .select('id')
+          .eq('id', documentId)
+          .maybeSingle(),
     );
     return response != null;
   }
@@ -565,10 +616,7 @@ class SupabaseTaskRepository implements TaskRepository {
     }
 
     if (errors.isNotEmpty) {
-      throw ValidationException(
-        'Task validation failed',
-        fieldErrors: errors,
-      );
+      throw ValidationException('Task validation failed', fieldErrors: errors);
     }
   }
 }

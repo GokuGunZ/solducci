@@ -13,6 +13,7 @@ import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/theme/todo_theme.dart';
+import 'package:solducci/widgets/common/glassmorphic_fab.dart';
 
 /// Task detail page with inline editing and seamless UI
 /// - Editable title in AppBar
@@ -494,66 +495,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               ),
             ),
           ),
-          floatingActionButton: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.purple[700]!.withValues(alpha: 0.3),
-                      Colors.purple[900]!.withValues(alpha: 0.15),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.purple[400]!.withValues(alpha: 0.6),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.purple[700]!.withValues(alpha: 0.5),
-                      blurRadius: 24,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
-                      color: Colors.purple[300]!.withValues(alpha: 0.4),
-                      blurRadius: 3,
-                      offset: const Offset(-2, -2),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _addSubtask,
-                    borderRadius: BorderRadius.circular(16),
-                    splashColor: Colors.white.withValues(alpha: 0.3),
-                    highlightColor: Colors.white.withValues(alpha: 0.2),
-                    child: Center(
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 24,
-                        shadows: const [
-                          Shadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          floatingActionButton: GlassmorphicFAB(
+            onPressed: _addSubtask,
+            primaryColor: Colors.purple,
+            size: 48,
           ),
         ), // Close Scaffold
       ], // Close Stack children

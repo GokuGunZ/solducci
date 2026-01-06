@@ -86,6 +86,7 @@ Future<void> setupServiceLocator() async {
   getIt.registerFactory<TagBloc>(
     () => TagBloc(
       taskService: getIt<TaskService>(),
+      stateManager: getIt<TaskStateManager>(),
     ),
   );
 

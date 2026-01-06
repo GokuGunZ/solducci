@@ -80,7 +80,7 @@ class ReorderableListConfig {
 ///   }
 /// }
 /// ```
-abstract class ReorderableListViewBase<T> extends StatefulWidget {
+abstract class ReorderableListViewBase<T extends Object> extends StatefulWidget {
   /// The list of items to display
   final List<T> items;
 
@@ -155,7 +155,7 @@ abstract class ReorderableListViewBase<T> extends StatefulWidget {
       _ReorderableListViewBaseState<T>();
 }
 
-class _ReorderableListViewBaseState<T>
+class _ReorderableListViewBaseState<T extends Object>
     extends State<ReorderableListViewBase<T>> {
   late List<T> _items;
 

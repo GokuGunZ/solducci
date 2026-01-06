@@ -36,25 +36,29 @@ class TagLoaded extends TagState {
   final List<Task> tasks;
   final List<Task> rawTasks; // Unfiltered tasks for re-filtering
   final FilterSortConfig filterConfig;
+  final bool isCreatingTask; // True when inline task creation is active
 
   const TagLoaded({
     required this.tasks,
     required this.rawTasks,
     this.filterConfig = const FilterSortConfig(),
+    this.isCreatingTask = false,
   });
 
   @override
-  List<Object?> get props => [tasks, rawTasks, filterConfig];
+  List<Object?> get props => [tasks, rawTasks, filterConfig, isCreatingTask];
 
   TagLoaded copyWith({
     List<Task>? tasks,
     List<Task>? rawTasks,
     FilterSortConfig? filterConfig,
+    bool? isCreatingTask,
   }) {
     return TagLoaded(
       tasks: tasks ?? this.tasks,
       rawTasks: rawTasks ?? this.rawTasks,
       filterConfig: filterConfig ?? this.filterConfig,
+      isCreatingTask: isCreatingTask ?? this.isCreatingTask,
     );
   }
 }

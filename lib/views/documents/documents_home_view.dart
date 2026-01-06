@@ -6,6 +6,7 @@ import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/tag_service.dart';
 import 'package:solducci/views/documents/all_tasks_view.dart';
+import 'package:solducci/views/documents/all_tasks_view_with_components_example.dart';
 import 'package:solducci/views/documents/tag_view.dart';
 import 'package:solducci/views/documents/completed_tasks_view.dart';
 import 'package:solducci/views/documents/tag_management_view.dart';
@@ -477,6 +478,28 @@ class _PageViewContentState extends State<_PageViewContent> {
                                 ),
                               ),
                               const Spacer(),
+                              // Button to view component example
+                              IconButton(
+                                icon: Icon(
+                                  Icons.science,
+                                  color: Colors.purple[700],
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          AllTasksViewWithComponentsExample(
+                                        document: widget.document,
+                                        showAllPropertiesNotifier:
+                                            _showAllTaskPropertiesNotifier,
+                                        availableTags: _tags,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'View con Componenti (Example)',
+                              ),
                               // Toggle button for showing all properties
                               ValueListenableBuilder<bool>(
                                 valueListenable: _showAllTaskPropertiesNotifier,

@@ -1,0 +1,421 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:solducci/models/document.dart';
+import 'package:solducci/models/task.dart';
+import 'package:solducci/models/tag.dart';
+import 'package:solducci/service/task_service.dart';
+import 'package:solducci/blocs/tag/tag_bloc_export.dart';
+import 'package:solducci/core/di/service_locator.dart';
+import 'package:solducci/widgets/documents/task_list_item.dart';
+import 'package:solducci/views/documents/task_detail_page.dart';
+import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
+import 'package:solducci/widgets/documents/compact_filter_sort_bar.dart';
+import 'package:solducci/widgets/documents/task_creation_row.dart';
+import 'package:solducci/utils/task_state_manager.dart';
+import 'package:solducci/core/components/animations/highlight_animation_mixin.dart';
+import 'package:solducci/core/logging/app_logger.dart';
+import 'package:animated_reorderable_list/animated_reorderable_list.dart';
+
+/// View showing tasks filtered by a specific tag
+///
+/// Architecture matches AllTasksView:
+/// - Single BlocBuilder for all state changes
+/// - Granular rebuild system with TaskStateManager
+/// - No Loading state on refresh (stays in Loaded)
+/// - Smooth inline animations for task creation
+class TagView extends StatelessWidget {
+  final TodoDocument document;
+  final Tag tag;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
+  final void Function(VoidCallback?)? onInlineCreationCallbackChanged;
+
+  const TagView({
+    super.key,
+    required this.document,
+    required this.tag,
+    this.showAllPropertiesNotifier,
+    this.onInlineCreationCallbackChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) {
+        final bloc = getIt<TagBloc>();
+        bloc.add(TagLoadRequested(
+          tagId: tag.id,
+          documentId: document.id,
+          includeCompleted: tag.showCompleted,
+        ));
+        return bloc;
+      },
+      child: _TagViewContent(
+        document: document,
+        tag: tag,
+        showAllPropertiesNotifier: showAllPropertiesNotifier,
+        onInlineCreationCallbackChanged: onInlineCreationCallbackChanged,
+      ),
+    );
+  }
+}
+
+class _TagViewContent extends StatefulWidget {
+  final TodoDocument document;
+  final Tag tag;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
+  final void Function(VoidCallback?)? onInlineCreationCallbackChanged;
+
+  const _TagViewContent({
+    required this.document,
+    required this.tag,
+    this.showAllPropertiesNotifier,
+    this.onInlineCreationCallbackChanged,
+  });
+
+  @override
+  State<_TagViewContent> createState() => _TagViewContentState();
+}
+
+class _TagViewContentState extends State<_TagViewContent>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  final _taskService = TaskService();
+  Map<String, List<Tag>> _taskTagsMap = {};
+
+  @override
+  void initState() {
+    super.initState();
+    AppLogger.debug('🏷️ TagView initialized with tag: ${widget.tag.name} (ID: "${widget.tag.id}")');
+    widget.onInlineCreationCallbackChanged?.call(startInlineCreation);
+  }
+
+  Future<void> _preloadTagsForTasks(List<Task> tasks) async {
+    if (tasks.isEmpty) return;
+    _taskTagsMap = await _taskService.getEffectiveTagsForTasksWithSubtasks(tasks);
+  }
+
+  void startInlineCreation() {
+    context.read<TagBloc>().add(const TagTaskCreationStarted());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    return Column(
+      children: [
+        // Filter bar (always visible, outside main BlocBuilder to avoid unnecessary rebuilds)
+        BlocBuilder<TagBloc, TagState>(
+          builder: (context, state) {
+            final filterConfig = state is TagLoaded
+                ? state.filterConfig
+                : const FilterSortConfig();
+
+            return CompactFilterSortBar(
+              key: const ValueKey('compact_filter_sort_bar'),
+              filterConfig: filterConfig,
+              onFilterChanged: (newConfig) {
+                context.read<TagBloc>().add(TagFilterChanged(newConfig));
+              },
+            );
+          },
+        ),
+
+        // Task list section
+        Expanded(
+          child: BlocBuilder<TagBloc, TagState>(
+            builder: (context, state) {
+              return switch (state) {
+                TagInitial() => const SizedBox.shrink(),
+
+                TagLoading() => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+
+                TagError(:final message) => _buildErrorState(context, message),
+
+                TagLoaded(:final tasks, :final filterConfig, :final isCreatingTask) =>
+                  _buildTaskList(
+                    context,
+                    tasks: tasks,
+                    filterConfig: filterConfig,
+                    isCreatingTask: isCreatingTask,
+                  ),
+              };
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const SizedBox(height: 16),
+          const Text('Errore nel caricamento'),
+          const SizedBox(height: 8),
+          Text(message, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => context.read<TagBloc>()
+                .add(const TagRefreshRequested()),
+            child: const Text('Riprova'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskList(
+    BuildContext context, {
+    required List<Task> tasks,
+    required FilterSortConfig filterConfig,
+    required bool isCreatingTask,
+  }) {
+    // Separate completed and non-completed tasks
+    final activeTasks = tasks
+        .where((t) => t.status != TaskStatus.completed)
+        .toList();
+    final completedTasks = tasks
+        .where((t) => t.status == TaskStatus.completed)
+        .toList();
+
+    // Empty state
+    if (tasks.isEmpty && !isCreatingTask) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              filterConfig.hasFilters
+                  ? Icons.filter_alt_off
+                  : Icons.label_outline,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              filterConfig.hasFilters
+                  ? 'Nessuna task trovata'
+                  : 'Nessuna task con questo tag',
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            ),
+            if (filterConfig.hasFilters) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Prova a cambiare i filtri',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  context.read<TagBloc>().add(
+                    const TagFilterChanged(FilterSortConfig()),
+                  );
+                },
+                icon: const Icon(Icons.clear),
+                label: const Text('Rimuovi filtri'),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Task list with inline creation
+    return Column(
+      children: [
+        // Inline task creation row (appears at top when creating)
+        if (isCreatingTask)
+          TaskCreationRow(
+            document: widget.document,
+            showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+            initialTags: widget.tag.id.isNotEmpty ? [widget.tag] : null,
+            onCancel: () {
+              context.read<TagBloc>().add(const TagTaskCreationCompleted());
+            },
+            onTaskCreated: () async {
+              AppLogger.debug('🎯 TagView: onTaskCreated callback START');
+              context.read<TagBloc>().add(const TagTaskCreationCompleted());
+              AppLogger.debug('🎯 TagView: onTaskCreated callback END');
+            },
+          ),
+
+        // Main task list with AnimatedReorderableListView
+        Expanded(
+          child: FutureBuilder<void>(
+            future: _preloadTagsForTasks(activeTasks),
+            builder: (context, tagsSnapshot) {
+              if (tagsSnapshot.connectionState == ConnectionState.waiting &&
+                  activeTasks.isNotEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              return RefreshIndicator(
+                onRefresh: () async {
+                  context.read<TagBloc>().add(const TagRefreshRequested());
+                },
+                child: AnimatedReorderableListView<Task>(
+                  items: activeTasks,
+                  padding: const EdgeInsets.all(8),
+                  isSameItem: (a, b) => a.id == b.id,
+                  insertDuration: const Duration(milliseconds: 400),
+                  removeDuration: const Duration(milliseconds: 300),
+                  buildDefaultDragHandles: false,
+                  onReorder: (oldIndex, newIndex) {
+                    // Do nothing - reordering not supported in tag view
+                  },
+                  itemBuilder: (context, index) {
+                    final task = activeTasks[index];
+                    return _GranularHighlightedTaskItem(
+                      key: ValueKey('task_${task.id}'),
+                      task: task,
+                      document: widget.document,
+                      showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                      onShowTaskDetails: _showTaskDetails,
+                      preloadedTags: _taskTagsMap[task.id],
+                      taskTagsMap: _taskTagsMap,
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+
+        // Completed tasks section
+        if (widget.tag.showCompleted && completedTasks.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, right: 8, top: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Completate',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                ...completedTasks.map((task) => TaskListItem(
+                      key: ValueKey('task_${task.id}'),
+                      task: task,
+                      document: widget.document,
+                      onTap: () => _showTaskDetails(context, task),
+                      showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+                      preloadedTags: _taskTagsMap[task.id],
+                      taskTagsMap: _taskTagsMap,
+                    )),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showTaskDetails(BuildContext context, Task task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskDetailPage(
+          document: widget.document,
+          task: task,
+          showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+        ),
+      ),
+    );
+  }
+}
+
+/// Granular task item with highlight animation
+/// Mirrors _GranularHighlightedTaskItem from AllTasksView
+class _GranularHighlightedTaskItem extends StatefulWidget {
+  final Task task;
+  final TodoDocument document;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
+  final void Function(BuildContext, Task) onShowTaskDetails;
+  final List<Tag>? preloadedTags;
+  final Map<String, List<Tag>> taskTagsMap;
+
+  const _GranularHighlightedTaskItem({
+    super.key,
+    required this.task,
+    required this.document,
+    this.showAllPropertiesNotifier,
+    required this.onShowTaskDetails,
+    this.preloadedTags,
+    required this.taskTagsMap,
+  });
+
+  @override
+  State<_GranularHighlightedTaskItem> createState() =>
+      _GranularHighlightedTaskItemState();
+}
+
+class _GranularHighlightedTaskItemState
+    extends State<_GranularHighlightedTaskItem>
+    with SingleTickerProviderStateMixin, HighlightAnimationMixin {
+  late final AlwaysNotifyValueNotifier<Task> _taskNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize granular rebuild notifier
+    final stateManager = TaskStateManager();
+    _taskNotifier = stateManager.getOrCreateTaskNotifier(
+      widget.task.id,
+      widget.task,
+    );
+
+    // Initialize highlight animation from mixin
+    initHighlightAnimation();
+    startHighlightAnimation();
+  }
+
+  @override
+  void dispose() {
+    disposeHighlightAnimation();
+
+    // Release reference to task notifier
+    final stateManager = TaskStateManager();
+    stateManager.releaseTaskNotifier(widget.task.id);
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Use granular rebuild with ValueListenableBuilder
+    return ValueListenableBuilder<Task>(
+      valueListenable: _taskNotifier,
+      builder: (context, updatedTask, _) {
+        // Wrap with highlight animation from mixin
+        return buildWithHighlight(
+          context,
+          child: TaskListItem(
+            task: updatedTask,
+            document: widget.document,
+            onTap: () => widget.onShowTaskDetails(context, updatedTask),
+            showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+            dismissibleEnabled: true,
+            preloadedTags: widget.preloadedTags,
+            taskTagsMap: widget.taskTagsMap,
+          ),
+        );
+      },
+    );
+  }
+}

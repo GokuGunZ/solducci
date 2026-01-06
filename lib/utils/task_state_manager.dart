@@ -107,6 +107,12 @@ class TaskStateManager {
     }
   }
 
+  /// Release a reference to a task notifier without disposing it
+  /// Use this when a widget no longer needs the notifier but other widgets might still use it
+  void releaseTaskNotifier(String taskId) {
+    _decrementReference(taskId);
+  }
+
   /// Update a specific task (triggers only that task's rebuild)
   void updateTask(Task task) {
     if (_taskNotifiers.containsKey(task.id)) {

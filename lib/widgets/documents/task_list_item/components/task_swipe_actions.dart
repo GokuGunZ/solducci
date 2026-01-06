@@ -12,6 +12,7 @@ class TaskSwipeActions extends StatelessWidget {
   final bool enabled;
   final Future<bool> Function() onDelete;
   final Future<void> Function() onDuplicate;
+  final Future<void> Function()? onDeleted; // Called after deletion completes
 
   const TaskSwipeActions({
     super.key,
@@ -20,6 +21,7 @@ class TaskSwipeActions extends StatelessWidget {
     required this.enabled,
     required this.onDelete,
     required this.onDuplicate,
+    this.onDeleted,
   });
 
   @override
@@ -41,6 +43,18 @@ class TaskSwipeActions extends StatelessWidget {
         } else {
           // Swipe right: Delete with confirmation
           return await onDelete();
+        }
+      },
+      onDismissed: (direction) {
+        // Task has been dismissed and deleted
+        // The actual deletion happened in confirmDismiss/onDelete
+        debugPrint('Task ${task.id} dismissed');
+
+        // Call the onDeleted callback if provided (e.g., to refresh parent task)
+        // Do NOT await - let it run in background to avoid blocking the dismiss
+        // The stream will update and remove the widget from the tree naturally
+        if (onDeleted != null) {
+          onDeleted!();
         }
       },
       child: child,

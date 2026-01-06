@@ -99,6 +99,13 @@ class SupabaseTaskTagRepository implements TaskTagRepository {
   @override
   Future<void> addTag(String taskId, String tagId) async {
     try {
+      AppLogger.debug('📌 Repository.addTag called with taskId="$taskId", tagId="$tagId"');
+
+      if (tagId.trim().isEmpty) {
+        AppLogger.error('⚠️ CRITICAL: Attempting to add tag with empty ID!');
+        throw ArgumentError('Tag ID cannot be empty');
+      }
+
       await _supabase.from('task_tags').insert({
         'task_id': taskId,
         'tag_id': tagId,

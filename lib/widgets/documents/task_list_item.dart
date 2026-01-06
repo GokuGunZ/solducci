@@ -43,6 +43,7 @@ class TaskListItem extends StatefulWidget {
   final Map<String, List<Tag>>? taskTagsMap; // Use config.taskTagsMap instead
   final bool dismissibleEnabled; // Use config.dismissibleEnabled instead
   final int? reorderIndex; // Index for drag-on-tap functionality
+  final Future<void> Function()? onDeleted; // Callback after task deletion (for subtask parent refresh)
 
   /// Legacy constructor for backward compatibility (default)
   ///
@@ -59,6 +60,7 @@ class TaskListItem extends StatefulWidget {
     this.taskTagsMap,
     this.dismissibleEnabled = true,
     this.reorderIndex,
+    this.onDeleted,
   })  : config = const TaskItemConfig(),
         callbacks = null;
 
@@ -78,7 +80,8 @@ class TaskListItem extends StatefulWidget {
         preloadedTags = null,
         taskTagsMap = null,
         dismissibleEnabled = true,
-        reorderIndex = null;
+        reorderIndex = null,
+        onDeleted = null;
 
   @override
   State<TaskListItem> createState() => _TaskListItemState();
@@ -307,9 +310,35 @@ class _TaskListItemState extends State<TaskListItem> {
                         });
                       },
                       onSubtaskCreated: () async {
+                        // Close the creation UI
                         setState(() {
                           _isCreatingSubtask = false;
                         });
+
+                        // Reload parent task from database to get updated subtasks
+                        try {
+                          final refreshedTask = await _taskService.getTaskWithSubtasks(widget.task.id);
+                          if (refreshedTask != null && mounted) {
+                            // Update the notifier with fresh data (including new subtask)
+                            final stateManager = TaskStateManager();
+                            stateManager.updateTaskRecursively(refreshedTask);
+                          }
+                        } catch (e) {
+                          debugPrint('Error reloading parent task after subtask creation: $e');
+                        }
+                      },
+                      onSubtaskDeleted: () async {
+                        // Reload parent task from database to get updated subtasks list
+                        try {
+                          final refreshedTask = await _taskService.getTaskWithSubtasks(widget.task.id);
+                          if (refreshedTask != null && mounted) {
+                            // Update the notifier with fresh data (without deleted subtask)
+                            final stateManager = TaskStateManager();
+                            stateManager.updateTaskRecursively(refreshedTask);
+                          }
+                        } catch (e) {
+                          debugPrint('Error reloading parent task after subtask deletion: $e');
+                        }
                       },
                     ),
                   ],
@@ -326,6 +355,7 @@ class _TaskListItemState extends State<TaskListItem> {
       enabled: _dismissibleEnabled,
       onDelete: _showDeleteConfirmation,
       onDuplicate: _duplicateTask,
+      onDeleted: widget.onDeleted,
       child: contentWidget,
     );
   }

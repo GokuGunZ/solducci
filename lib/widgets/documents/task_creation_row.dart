@@ -18,6 +18,7 @@ class TaskCreationRow extends StatefulWidget {
   final VoidCallback onCancel;
   final Future<void> Function() onTaskCreated;
   final String? parentTaskId;
+  final List<Tag>? initialTags; // Pre-selected tags
 
   const TaskCreationRow({
     super.key,
@@ -26,6 +27,7 @@ class TaskCreationRow extends StatefulWidget {
     required this.onCancel,
     required this.onTaskCreated,
     this.parentTaskId,
+    this.initialTags,
   });
 
   @override
@@ -49,6 +51,14 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
   void initState() {
     super.initState();
     _titleController = TextEditingController();
+    // Initialize with pre-selected tags if provided
+    if (widget.initialTags != null) {
+      debugPrint('📝 TaskCreationRow: Received ${widget.initialTags!.length} initial tags');
+      for (final tag in widget.initialTags!) {
+        debugPrint('   - Tag: ${tag.name} (ID: "${tag.id}")');
+      }
+      _selectedTags = List.from(widget.initialTags!);
+    }
     // Auto-focus the title field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _titleFocusNode.requestFocus();
@@ -78,7 +88,7 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
     });
 
     try {
-      final task = Task.create(
+      var task = Task.create(
         documentId: widget.document.id,
         title: title,
         priority: _priority,
@@ -89,7 +99,9 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
       // Set t-shirt size after creation (not in factory)
       task.tShirtSize = _tShirtSize;
 
-      await _taskService.createTask(task);
+      // CRITICAL: createTask returns the saved task with the database-generated ID
+      task = await _taskService.createTask(task);
+      debugPrint('✅ Task created with ID: ${task.id}');
 
       // Save recurrence if configured
       if (_recurrence != null) {
@@ -114,8 +126,21 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
 
       // Save tags if selected
       if (_selectedTags.isNotEmpty) {
+        debugPrint('💾 Saving ${_selectedTags.length} tags for task ${task.id}');
         for (final tag in _selectedTags) {
-          await _taskService.addTag(task.id, tag.id);
+          debugPrint('   - Attempting to save tag: ${tag.name} (ID: "${tag.id}")');
+          // Skip tags with empty/null IDs
+          if (tag.id.trim().isEmpty) {
+            debugPrint('   ⚠️ SKIPPED: Tag has empty ID');
+            continue;
+          }
+          try {
+            await _taskService.addTag(task.id, tag.id);
+            debugPrint('   ✅ Successfully saved tag');
+          } catch (e) {
+            debugPrint('   ❌ Error saving tag: $e');
+            rethrow;
+          }
         }
       }
 

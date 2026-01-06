@@ -196,16 +196,25 @@ class TaskService {
       }
 
       // Use repository for data access
-      final updatedTask = await _repository.update(task);
+      await _repository.update(task);
 
-      // Business logic: State management
-      _stateManager.updateTask(updatedTask);
+      // CRITICAL: Reload task WITH subtasks to avoid losing them
+      // The repository update only returns the task without subtasks
+      final taskWithSubtasks = await getTaskWithSubtasks(task.id);
+      if (taskWithSubtasks != null) {
+        // Business logic: State management - update recursively to include subtasks
+        _stateManager.updateTaskRecursively(taskWithSubtasks);
+
+        // CRITICAL: Notify list change so BLoC refreshes and filters/sort are reapplied
+        // This ensures filters/sort use updated task properties (priority, dueDate, etc)
+        _stateManager.notifyListChange(taskWithSubtasks.documentId);
+      }
 
       // If this is a subtask, also update parent to refresh subtasks list
-      if (updatedTask.parentTaskId != null) {
-        final parentTask = await getTaskById(updatedTask.parentTaskId!);
+      if (task.parentTaskId != null) {
+        final parentTask = await getTaskWithSubtasks(task.parentTaskId!);
         if (parentTask != null) {
-          _stateManager.updateTask(parentTask);
+          _stateManager.updateTaskRecursively(parentTask);
         }
       }
     } catch (e) {
@@ -216,11 +225,21 @@ class TaskService {
   /// Delete a task (cascades to subtasks and task_tags via DB constraints)
   Future<void> deleteTask(String taskId) async {
     try {
+      // Fetch task first to get documentId for notification
+      final task = await getTaskById(taskId);
+      final documentId = task?.documentId;
+
       // Use repository for data access
       await _repository.delete(taskId);
 
-      // No need to notify - Supabase stream will automatically emit DELETE
-      // and the UI will update via StreamBuilder
+      // CRITICAL: Notify list change so BLoC refreshes and removes from UI
+      // Without this, Dismissible will complain the widget is still in tree
+      if (documentId != null) {
+        _stateManager.notifyListChange(documentId);
+      }
+
+      // Also remove from state manager
+      _stateManager.removeTask(taskId);
     } catch (e) {
       rethrow;
     }
