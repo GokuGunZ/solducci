@@ -3,18 +3,28 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/tag.dart';
+import 'package:solducci/models/task.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/tag_service.dart';
+import 'package:solducci/theme/todo_theme.dart';
+import 'package:solducci/widgets/documents/tag_form_dialog.dart';
+import 'package:solducci/widgets/documents/task_form.dart';
+import 'package:solducci/views/documents/tag_management_view.dart';
+import 'package:solducci/widgets/common/glassmorphic_fab.dart';
+
+// NEW: Import new components
+import 'package:solducci/core/components/category_scroll_bar/controllers/category_scroll_bar_controller.dart';
 import 'package:solducci/views/documents/all_tasks_view.dart';
 import 'package:solducci/views/documents/tag_view.dart';
-import 'package:solducci/views/documents/completed_tasks_view.dart';
-import 'package:solducci/views/documents/tag_management_view.dart';
-import 'package:solducci/widgets/documents/task_form.dart';
-import 'package:solducci/widgets/documents/tag_form_dialog.dart';
-import 'package:solducci/theme/todo_theme.dart';
 
-/// Main documents/todo home view with swipe-based navigation
-/// Shows: All Tasks | Tag Views | Completed Tasks
+/// Main ToDo List view with tasks organized by tags
+///
+/// Features:
+/// - CategoryScrollBar for tag navigation
+/// - All Tasks view + individual tag views
+/// - Inline task creation with glassmorphic FAB
+/// - Tag management
+/// - Swipe navigation between views
 class DocumentsHomeView extends StatefulWidget {
   const DocumentsHomeView({super.key});
 
@@ -23,34 +33,117 @@ class DocumentsHomeView extends StatefulWidget {
 }
 
 class _DocumentsHomeViewState extends State<DocumentsHomeView> {
-  late final PageController _pageController;
   final _documentService = DocumentService();
+  final _tagService = TagService();
 
   TodoDocument? _currentDocument;
-  int _currentPage = 1; // Start at "Tutte" page
-  List<Tag> _currentTags = [];
-  VoidCallback? _onTaskCreated; // Callback to refresh current page
-  VoidCallback? _onStartInlineCreation; // Callback to start inline creation
+  List<Tag> _tags = [];
+  bool _isLoadingTags = true;
+  late CategoryScrollBarController<Task, Tag> _categoryController;
+  final ValueNotifier<bool> _showAllTaskPropertiesNotifier =
+      ValueNotifier<bool>(false);
+
+  StreamSubscription<List<Tag>>? _tagsSubscription;
+
+  // Refresh key to force rebuild of pages
+  int _refreshKey = 0;
+
+  // Callback for inline creation (set by AllTasksView)
+  VoidCallback? _onStartInlineCreation;
+
+  // Map of tag ID -> inline creation callback (set by TagView instances)
+  final Map<String, VoidCallback?> _tagViewCallbacks = {};
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      initialPage: 1, // Start at "Tutte" page instead of "Completate"
-      keepPage: true, // Mantiene la pagina corrente anche durante i rebuild
+    _initializeController();
+    _loadTags();
+  }
+
+  void _initializeController() {
+    _categoryController = CategoryScrollBarController<Task, Tag>(
+      pageController: PageController(initialPage: 0),
+      categories: _tags,
+      showAllCategory: true,
+      onCategoryChanged: (tag, index) {
+        debugPrint('Selected category: ${tag?.name ?? "All"}');
+      },
+      // Don't pass callback - we handle it manually in _buildAddTagButton
     );
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
+  Future<void> _loadTags() async {
+    setState(() => _isLoadingTags = true);
+
+    _tagsSubscription?.cancel();
+
+    // Create a completer to wait for first stream emission
+    final completer = Completer<void>();
+    bool isFirstEmission = true;
+
+    _tagsSubscription = _tagService.stream.listen(
+      (tags) {
+        if (mounted) {
+          setState(() {
+            _tags = tags;
+            _isLoadingTags = false;
+          });
+          _categoryController.updateCategories(tags);
+
+          // Complete on first emission
+          if (isFirstEmission) {
+            isFirstEmission = false;
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint('Error loading tags: $error');
+        if (mounted) {
+          setState(() => _isLoadingTags = false);
+        }
+        if (!completer.isCompleted) {
+          completer.completeError(error);
+        }
+      },
+    );
+
+    // Wait for first emission
+    return completer.future;
+  }
+
+  void _refreshCurrentPage() {
+    setState(() {
+      _refreshKey++;
+    });
+  }
+
+  Future<dynamic> _showCreateTagDialog() async {
+    return await showGeneralDialog<dynamic>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const TagFormDialog(tag: null);
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        );
+      },
+    );
   }
 
   Future<void> _createFirstDocument() async {
     try {
       final doc = TodoDocument.create(
-        userId: '', // Will be set by service
+        userId: '',
         title: 'My Tasks',
         description: 'Default todo list',
       );
@@ -69,19 +162,67 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   }
 
   @override
+  void dispose() {
+    _tagsSubscription?.cancel();
+    _categoryController.dispose();
+    _showAllTaskPropertiesNotifier.dispose();
+    super.dispose();
+  }
+
+  void _showCreateTaskDialog() {
+    if (_currentDocument == null) return;
+
+    final currentIndex = _categoryController.currentIndex;
+
+    // If we're on "All Tasks" page (index 0) and have inline creation callback, use it
+    if (currentIndex == 0 && _onStartInlineCreation != null) {
+      _onStartInlineCreation!();
+      return;
+    }
+
+    // If we're on a tag page (index > 0) and have inline creation callback for that tag, use it
+    if (currentIndex > 0 && currentIndex <= _tags.length) {
+      final tag = _tags[currentIndex - 1];
+      final tagCallback = _tagViewCallbacks[tag.id];
+      if (tagCallback != null) {
+        tagCallback();
+        return;
+      }
+    }
+
+    // Fallback: Get current tag if we're on a tag page
+    Tag? initialTag;
+    if (currentIndex > 0 && currentIndex <= _tags.length) {
+      // We're on a tag page (index 1-N are tags)
+      initialTag = _tags[currentIndex - 1];
+    }
+
+    // For tag pages without inline creation, open the full form with the tag pre-selected
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskForm(
+          document: _currentDocument!,
+          initialTags: initialTag != null ? [initialTag] : null,
+          onTaskSaved: _refreshCurrentPage,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors
-          .transparent, // CRITICAL: Allow background gradient to show through
+      backgroundColor: Colors.transparent,
       body: StreamBuilder<List<TodoDocument>>(
         stream: _documentService.getTodoDocumentsStream(),
         builder: (context, docSnapshot) {
-          // Loading state
+          // Loading
           if (docSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Error state
+          // Error
           if (docSnapshot.hasError) {
             return Center(
               child: Column(
@@ -95,491 +236,120 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
             );
           }
 
-          // No documents - show welcome screen
+          // No documents
           final documents = docSnapshot.data ?? [];
           if (documents.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.list_alt, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nessuna lista trovata',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Crea la tua prima lista di task',
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _createFirstDocument,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Crea Lista'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple[700],
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return _buildWelcomeScreen();
           }
 
-          // Set current document if not set
-          if (_currentDocument == null && documents.isNotEmpty) {
-            _currentDocument = documents.first;
+          // Get first document
+          _currentDocument ??= documents.first;
+
+          // Loading tags
+          if (_isLoadingTags) {
+            return const Center(child: CircularProgressIndicator());
           }
 
-          // Build main UI with CustomScrollView
-          return _PageViewContent(
-            key: const ValueKey(
-              'page_view_content',
-            ), // Key stabile per evitare rebuild
-            pageController: _pageController,
-            document: _currentDocument!,
-            onPageChanged:
-                (page, tags, refreshCallback, inlineCreationCallback) {
-                  // Update state without triggering rebuild of StreamBuilder
-                  _currentPage = page;
-                  _currentTags = tags;
-                  _onTaskCreated = refreshCallback;
-                  _onStartInlineCreation = inlineCreationCallback;
-                },
-            onCreateTag: _showCreateTagDialog,
-            onNavigateToTagManagement: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TagManagementView(),
-                ),
-              );
-            },
-          );
+          // Main UI with CategoryScrollBar
+          return _buildMainUI();
         },
       ),
-      floatingActionButton: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.purple[700]!.withValues(alpha: 0.3),
-                  Colors.purple[900]!.withValues(alpha: 0.15),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: Colors.purple[400]!.withValues(alpha: 0.6),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.purple[500]!.withValues(alpha: 0.5),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: Colors.purple[300]!.withValues(alpha: 0.4),
-                  blurRadius: 3,
-                  offset: const Offset(-2, -2),
-                ),
-              ],
+      floatingActionButton: GlassmorphicFAB(
+        onPressed: _showCreateTaskDialog,
+        primaryColor: Colors.purple,
+      ),
+    );
+  }
+
+  Widget _buildWelcomeScreen() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 120,
+              color: Colors.purple[300],
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _showCreateTaskDialog,
-                borderRadius: BorderRadius.circular(16),
-                splashColor: Colors.white.withValues(alpha: 0.3),
-                highlightColor: Colors.white.withValues(alpha: 0.2),
-                child: SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Radial gradient effect behind icon
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              Colors.white.withValues(alpha: 0.4),
-                              Colors.white.withValues(alpha: 0.0),
-                            ],
-                            stops: const [0.0, 1.0],
-                          ),
-                        ),
-                      ),
-                      // Icon with enhanced visibility
-                      const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 32,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+            const SizedBox(height: 32),
+            Text(
+              'Benvenuto in ToDo Lists!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple[700],
               ),
             ),
-          ),
+            const SizedBox(height: 16),
+            const Text(
+              'Questa versione usa i nuovi componenti riutilizzabili',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _createFirstDocument,
+              child: const Text('Crea la tua prima lista'),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _showCreateTagDialog() async {
-    await showGeneralDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return const TagFormDialog(tag: null);
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
-        );
-      },
-    );
-    // Tags will be automatically refreshed via stream in _PageViewContent
-  }
-
-  void _showCreateTaskDialog() {
-    if (_currentDocument == null) return;
-
-    // If we're on "All Tasks" page (index 1) and have inline creation callback, use it
-    if (_currentPage == 1 && _onStartInlineCreation != null) {
-      _onStartInlineCreation!();
-      return;
-    }
-
-    // Determine if we're on a tag page and get the corresponding tag
-    Tag? initialTag;
-    if (_currentPage >= 2 && _currentPage < 2 + _currentTags.length) {
-      // We're on a tag page (pages 2 to N+1)
-      initialTag = _currentTags[_currentPage - 2];
-    }
-
-    // For other pages (Completed, Tag views), use the full form
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TaskForm(
-          document: _currentDocument!,
-          initialTags: initialTag != null ? [initialTag] : null,
-          onTaskSaved: _onTaskCreated, // Trigger refresh after task creation
-        ),
-      ),
-    );
-  }
-}
-
-/// Stateful widget that holds the PageView and manages tags stream
-/// This separation prevents infinite rebuild loops
-class _PageViewContent extends StatefulWidget {
-  final PageController pageController;
-  final TodoDocument document;
-  final void Function(
-    int page,
-    List<Tag> tags,
-    VoidCallback? refreshCallback,
-    VoidCallback? inlineCreationCallback,
-  )
-  onPageChanged;
-  final Future<void> Function() onCreateTag;
-  final VoidCallback onNavigateToTagManagement;
-
-  const _PageViewContent({
-    super.key,
-    required this.pageController,
-    required this.document,
-    required this.onPageChanged,
-    required this.onCreateTag,
-    required this.onNavigateToTagManagement,
-  });
-
-  @override
-  State<_PageViewContent> createState() => _PageViewContentState();
-}
-
-class _PageViewContentState extends State<_PageViewContent> {
-  final _tagService = TagService();
-  List<Tag> _tags = [];
-  bool _isLoadingTags = true;
-  int _currentPage =
-      1; // Start at "Tutte" page (matches PageController initialPage)
-
-  // ValueNotifier for efficient property visibility updates
-  final ValueNotifier<bool> _showAllTaskPropertiesNotifier = ValueNotifier(
-    false,
-  );
-
-  // Refresh key to force rebuild of pages
-  int _refreshKey = 0;
-
-  // Callback to start inline creation (set by child view)
-  VoidCallback? _startInlineCreationCallback;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTags();
-  }
-
-  @override
-  void dispose() {
-    _showAllTaskPropertiesNotifier.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadTags() async {
-    try {
-      // Carica i tag una sola volta invece di usare lo stream
-      final tags = await _tagService.getRootTags();
-
-      if (mounted) {
-        setState(() {
-          _tags = tags;
-          _isLoadingTags = false;
-        });
-        // Notify parent about initial tags load after the frame is built
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            widget.onPageChanged(
-              _currentPage,
-              _tags,
-              _getRefreshCallback,
-              _startInlineCreationCallback,
-            );
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _tags = [];
-          _isLoadingTags = false;
-        });
-        // Notify parent even on error after the frame is built
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            widget.onPageChanged(
-              _currentPage,
-              _tags,
-              _getRefreshCallback,
-              _startInlineCreationCallback,
-            );
-          }
-        });
-      }
-    }
-  }
-
-  void _getRefreshCallback() {
-    // Increment key to force rebuild of current page
-    setState(() {
-      _refreshKey++;
-    });
-  }
-
-  @override
-  void didUpdateWidget(_PageViewContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // Se il documento è cambiato, reset alla prima pagina
-    if (oldWidget.document.id != widget.document.id) {
-      widget.pageController.jumpToPage(0);
-    }
-  }
-
-  void _onPageChanged(int page) {
-    setState(() {
-      _currentPage = page;
-    });
-    // Notify parent about page change
-    widget.onPageChanged(
-      page,
-      _tags,
-      _getRefreshCallback,
-      _startInlineCreationCallback,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoadingTags) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final totalPages = 2 + _tags.length; // All Tasks + Tags + Completed
-
+  Widget _buildMainUI() {
     return Stack(
       children: [
-        // Custom layered background (fixed, doesn't move with swipe)
+        // Background gradient (same as original)
         Positioned.fill(child: TodoTheme.customBackgroundGradient),
+
         // Main content
         Column(
           children: [
-            // AppBar at the top with glass morphism
-            ClipRRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  decoration: TodoTheme.glassAppBarDecoration(),
-                  child: SafeArea(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Back button, title and tag management button
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              // Back button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.arrow_back,
-                                  color: Colors.purple[700],
-                                ),
-                                onPressed: () => Navigator.of(context).pop(),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'ToDo Lists',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.purple[700],
-                                ),
-                              ),
-                              const Spacer(),
-                              // Toggle button for showing all properties
-                              ValueListenableBuilder<bool>(
-                                valueListenable: _showAllTaskPropertiesNotifier,
-                                builder: (context, showAll, child) {
-                                  return IconButton(
-                                    icon: Icon(
-                                      showAll ? Icons.edit_off : Icons.edit,
-                                      color: Colors.purple[700],
-                                    ),
-                                    onPressed: () {
-                                      _showAllTaskPropertiesNotifier.value =
-                                          !_showAllTaskPropertiesNotifier.value;
-                                    },
-                                    tooltip: showAll
-                                        ? 'Nascondi proprietà vuote'
-                                        : 'Mostra tutte le proprietà',
-                                  );
-                                },
-                              ),
-                              TextButton.icon(
-                                icon: Icon(
-                                  Icons.label,
-                                  color: Colors.purple[700],
-                                ),
-                                label: Text(
-                                  'Tag',
-                                  style: TextStyle(color: Colors.purple[700]),
-                                ),
-                                onPressed: widget.onNavigateToTagManagement,
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Page indicators
-                        _buildPageIndicator(totalPages, _tags),
-                        const SizedBox(height: 6),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            // AppBar with integrated page indicators (same as V1)
+            _buildAppBar(),
 
-            // PageView below the AppBar
+            // PageView with lists (using controller from CategoryScrollBar)
             Expanded(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  // Detect overscroll at the end (after last tag)
-                  if (notification is ScrollUpdateNotification) {
-                    final metrics = notification.metrics;
-                    // Check if we're at the last page and trying to scroll further
-                    if (metrics.pixels > metrics.maxScrollExtent + 50) {
-                      // User is trying to swipe beyond the last page
-                      _handleSwipeBeyondLastPage();
-                    }
+              child: PageView.builder(
+                key: ValueKey('page_view_$_refreshKey'),
+                controller: _categoryController.pageController,
+                onPageChanged: _categoryController.onPageChanged,
+                itemCount: _categoryController.totalPages,
+                itemBuilder: (context, index) {
+                  // Get category for this page
+                  final category = _categoryController.getCategoryAtIndex(
+                    index,
+                  );
+
+                  // All tasks
+                  if (category == null) {
+                    return AllTasksView(
+                      key: ValueKey(
+                        'all_tasks_${_currentDocument?.id}_$_refreshKey',
+                      ),
+                      document: _currentDocument!,
+                      showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
+                      availableTags: _tags,
+                      onInlineCreationCallbackChanged: (callback) {
+                        _onStartInlineCreation = callback;
+                      },
+                    );
                   }
-                  return false;
-                },
-                child: Container(
-                  color: Colors
-                      .transparent, // CRITICAL: Prevent PageView default background
-                  child: PageView.builder(
-                    key: ValueKey('main_page_view_$_refreshKey'),
-                    controller: widget.pageController,
-                    onPageChanged: _onPageChanged,
-                    itemCount: totalPages,
-                    itemBuilder: (context, index) {
-                      // Page 0: Completed Tasks (first)
-                      if (index == 0) {
-                        return CompletedTasksView(
-                          key: ValueKey('completed_$_refreshKey'),
-                          document: widget.document,
-                          showAllPropertiesNotifier:
-                              _showAllTaskPropertiesNotifier,
-                        );
-                      }
 
-                      // Page 1: All Tasks (second)
-                      if (index == 1) {
-                        return AllTasksView(
-                          key: ValueKey('all_tasks_$_refreshKey'),
-                          document: widget.document,
-                          showAllPropertiesNotifier:
-                              _showAllTaskPropertiesNotifier,
-                          onInlineCreationCallbackChanged: (callback) {
-                            _startInlineCreationCallback = callback;
-                          },
-                          availableTags: _tags,
-                        );
-                      }
-
-                      // Pages 2 to N+1: Tag Views
-                      final tag = _tags[index - 2];
-                      return TagView(
-                        key: ValueKey('tag_${tag.id}_$_refreshKey'),
-                        document: widget.document,
-                        tag: tag,
-                        showAllPropertiesNotifier:
-                            _showAllTaskPropertiesNotifier,
-                      );
+                  // Tag-specific view
+                  return TagView(
+                    key: ValueKey('tag_view_${category.id}_$_refreshKey'),
+                    document: _currentDocument!,
+                    tag: category,
+                    showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
+                    onInlineCreationCallbackChanged: (callback) {
+                      _tagViewCallbacks[category.id] = callback;
                     },
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],
@@ -588,50 +358,93 @@ class _PageViewContentState extends State<_PageViewContent> {
     );
   }
 
-  bool _isShowingDialog = false;
-
-  void _handleSwipeBeyondLastPage() {
-    // Prevent multiple dialogs from opening
-    if (_isShowingDialog) return;
-
-    final lastTagPage = 2 + _tags.length - 1;
-    // Only trigger if we're on the last tag page
-    if (_currentPage == lastTagPage) {
-      _isShowingDialog = true;
-      _showCreateTagDialogWithFade(context).then((_) {
-        _isShowingDialog = false;
-      });
-    }
-  }
-
-  Widget _buildPageIndicator(int totalPages, List<Tag> tags) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: SizedBox(
-        height: 56, // Fixed height to prevent vertical oscillation
-        child: Center(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildAppBar() {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: TodoTheme.glassAppBarDecoration(),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Completed indicator (page 0)
-                _buildDot(0, 'Completate', Icons.check_circle, null),
-
-                // All Tasks indicator (page 1)
-                _buildDot(1, 'Tutte', null, null),
-
-                // Tag indicators (pages 2 to N+1)
-                for (int i = 0; i < tags.length; i++)
-                  _buildDot(
-                    i + 2,
-                    tags[i].name,
-                    tags[i].iconData,
-                    tags[i].colorObject,
+                // Back button, title and toggle button
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-
-                // Add tag button (smaller, after tags)
-                _buildAddTagButton(),
+                  child: Row(
+                    children: [
+                      // Back button
+                      IconButton(
+                        icon: Icon(Icons.arrow_back, color: Colors.purple[700]),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 8),
+                      // Title with
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'ToDo Lists',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple[700],
+                            ),
+                          ),
+                          Text(
+                            'Nuovi Componenti',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.purple[400],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      // Toggle button for showing all properties
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _showAllTaskPropertiesNotifier,
+                        builder: (context, showAll, child) {
+                          return IconButton(
+                            icon: Icon(
+                              showAll ? Icons.edit_off : Icons.edit,
+                              color: Colors.purple[700],
+                            ),
+                            onPressed: () {
+                              _showAllTaskPropertiesNotifier.value = !showAll;
+                            },
+                            tooltip: showAll
+                                ? 'Nascondi proprietà vuote'
+                                : 'Mostra tutte le proprietà',
+                          );
+                        },
+                      ),
+                      // Tag management button
+                      TextButton.icon(
+                        icon: Icon(Icons.label, color: Colors.purple[700]),
+                        label: Text(
+                          'Tag',
+                          style: TextStyle(color: Colors.purple[700]),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TagManagementView(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                // Page indicators (integrated, same as V1)
+                _buildPageIndicator(),
+                const SizedBox(height: 6),
               ],
             ),
           ),
@@ -640,17 +453,51 @@ class _PageViewContentState extends State<_PageViewContent> {
     );
   }
 
+  Widget _buildPageIndicator() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SizedBox(
+        height: 56, // Fixed height to prevent vertical oscillation
+        child: Center(
+          child: ListenableBuilder(
+            listenable: _categoryController,
+            builder: (context, _) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // "Tutte" indicator (page 0)
+                    _buildDot(0, 'Tutte', null, null),
+
+                    // Tag indicators (pages 1 to N)
+                    for (int i = 0; i < _tags.length; i++)
+                      _buildDot(
+                        i + 1,
+                        _tags[i].name,
+                        _tags[i].iconData,
+                        _tags[i].colorObject,
+                      ),
+
+                    // Add tag button
+                    _buildAddTagButton(),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDot(int index, String label, IconData? icon, Color? color) {
-    final isActive = _currentPage == index;
+    final isActive = _categoryController.currentIndex == index;
     final dotColor = color ?? Colors.purple[700]!;
 
     return GestureDetector(
       onTap: () {
-        widget.pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        _categoryController.selectCategoryByIndex(index);
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -769,9 +616,34 @@ class _PageViewContentState extends State<_PageViewContent> {
   Widget _buildAddTagButton() {
     return GestureDetector(
       onTap: () async {
-        await widget.onCreateTag();
-        // Reload tags after creating a new one
-        _loadTags();
+        // Store current tag IDs before opening dialog
+        final tagIdsBefore = _tags.map((t) => t.id).toSet();
+
+        final result = await _showCreateTagDialog();
+
+        // If dialog returned true (success), reload tags and navigate
+        if (result == true && mounted) {
+          debugPrint('Tag created successfully, reloading tags...');
+
+          // Force reload tags (like AllTasksView does with TaskListRefreshRequested)
+          // This will wait for the stream to emit updated tags
+          await _loadTags();
+
+          debugPrint('Tags reloaded, searching for new tag...');
+
+          // Now find the new tag and navigate to it
+          try {
+            final newTag = _tags.firstWhere(
+              (t) => !tagIdsBefore.contains(t.id),
+            );
+            final newTagIndex =
+                _tags.indexOf(newTag) + 1; // +1 because index 0 is "All"
+            debugPrint('New tag found: ${newTag.name} at index $newTagIndex');
+            _categoryController.selectCategoryByIndex(newTagIndex);
+          } catch (e) {
+            debugPrint('New tag not found after reload: $e');
+          }
+        }
       },
       child: ClipOval(
         child: BackdropFilter(
@@ -819,37 +691,5 @@ class _PageViewContentState extends State<_PageViewContent> {
         ),
       ),
     );
-  }
-
-  Future<void> _showCreateTagDialogWithFade(BuildContext context) async {
-    final result = await showGeneralDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return const TagFormDialog(tag: null);
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
-        );
-      },
-    );
-
-    if (result == true) {
-      // Reload tags and navigate back to the last tag view
-      await _loadTags();
-      if (mounted && _tags.isNotEmpty) {
-        // Navigate to the newly created tag (last one before the add page)
-        widget.pageController.animateToPage(
-          2 + _tags.length - 1,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    }
   }
 }

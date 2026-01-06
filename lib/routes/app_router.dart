@@ -11,9 +11,7 @@ import 'package:solducci/views/balance_view.dart';
 import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
-import 'package:solducci/views/placeholders/notes_page.dart';
 import 'package:solducci/views/documents/documents_home_view.dart';
-import 'package:solducci/views/documents/documents_home_view_v2.dart';
 import 'package:solducci/views/groups/create_group_page.dart';
 import 'package:solducci/views/groups/group_detail_page.dart';
 import 'package:solducci/views/groups/invite_member_page.dart';
@@ -98,20 +96,10 @@ class AppRouter {
         path: '/personal-expenses',
         builder: (context, state) => const PersonalExpensesPage(),
       ),
+      // ToDo List Route
       GoRoute(
         path: '/notes',
-        builder: (context, state) => const NotesPage(),
-      ),
-
-      // Documents/ToDo Routes
-      GoRoute(
-        path: '/documents',
         builder: (context, state) => const DocumentsHomeView(),
-      ),
-      // Documents V2 - Using new components
-      GoRoute(
-        path: '/documents-v2',
-        builder: (context, state) => const DocumentsHomeViewV2(),
       ),
 
       // Group Management Routes

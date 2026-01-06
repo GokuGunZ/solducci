@@ -286,12 +286,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   _buildListTile(
                     context: context,
-                    icon: Icons.note_alt_outlined,
-                    title: 'Note & Liste',
-                    subtitle: 'Lista della spesa, dispensa, promemoria',
-                    color: Colors.orange,
+                    icon: Icons.checklist_outlined,
+                    title: 'ToDo List',
+                    subtitle: 'Gestisci task, progetti e promemoria',
+                    color: Colors.purple,
                     onTap: () => context.push('/notes'),
-                    badge: 'Prossimamente',
                   ),
 
                   const SizedBox(height: 24),
