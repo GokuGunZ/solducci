@@ -2,53 +2,51 @@ import 'package:equatable/equatable.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
 
-/// States for TaskListBloc
-///
-/// Represents the current state of the task list UI.
-/// Uses sealed class pattern for exhaustive pattern matching.
-sealed class TaskListState extends Equatable {
-  const TaskListState();
+/// States for UnifiedTaskListBloc
+sealed class UnifiedTaskListState extends Equatable {
+  const UnifiedTaskListState();
 
   @override
   List<Object?> get props => [];
 }
 
 /// Initial state before any data is loaded
-class TaskListInitial extends TaskListState {
+class TaskListInitial extends UnifiedTaskListState {
   const TaskListInitial();
 }
 
-/// Loading state while fetching tasks from repository
-class TaskListLoading extends TaskListState {
+/// Loading state while fetching tasks
+class TaskListLoading extends UnifiedTaskListState {
   const TaskListLoading();
 }
 
 /// Successfully loaded tasks
-///
-/// Contains the filtered/sorted task list and all UI state flags.
-/// This is the primary state that the UI renders.
-class TaskListLoaded extends TaskListState {
+class TaskListLoaded extends UnifiedTaskListState {
   /// Filtered and sorted tasks ready for display
   final List<Task> tasks;
+
+  /// Original unfiltered tasks (for efficient re-filtering)
+  final List<Task> rawTasks;
 
   /// Current filter and sort configuration
   final FilterSortConfig filterConfig;
 
-  /// Whether drag-and-drop reordering is enabled
-  final bool isReorderMode;
-
   /// Whether the inline task creation row is visible
   final bool isCreatingTask;
 
-  /// Original unfiltered tasks (for efficient re-filtering)
-  final List<Task> rawTasks;
+  /// Whether drag-and-drop reordering is enabled
+  final bool isReorderMode;
+
+  /// Whether this data source supports custom ordering
+  final bool supportsReordering;
 
   const TaskListLoaded({
     required this.tasks,
     required this.rawTasks,
     this.filterConfig = const FilterSortConfig(),
-    this.isReorderMode = false,
     this.isCreatingTask = false,
+    this.isReorderMode = false,
+    this.supportsReordering = false,
   });
 
   /// Create a copy with updated fields
@@ -56,15 +54,17 @@ class TaskListLoaded extends TaskListState {
     List<Task>? tasks,
     List<Task>? rawTasks,
     FilterSortConfig? filterConfig,
-    bool? isReorderMode,
     bool? isCreatingTask,
+    bool? isReorderMode,
+    bool? supportsReordering,
   }) {
     return TaskListLoaded(
       tasks: tasks ?? this.tasks,
       rawTasks: rawTasks ?? this.rawTasks,
       filterConfig: filterConfig ?? this.filterConfig,
-      isReorderMode: isReorderMode ?? this.isReorderMode,
       isCreatingTask: isCreatingTask ?? this.isCreatingTask,
+      isReorderMode: isReorderMode ?? this.isReorderMode,
+      supportsReordering: supportsReordering ?? this.supportsReordering,
     );
   }
 
@@ -73,13 +73,14 @@ class TaskListLoaded extends TaskListState {
         tasks,
         rawTasks,
         filterConfig,
-        isReorderMode,
         isCreatingTask,
+        isReorderMode,
+        supportsReordering,
       ];
 }
 
 /// Error state when task loading fails
-class TaskListError extends TaskListState {
+class TaskListError extends UnifiedTaskListState {
   final String message;
   final Object? error;
 

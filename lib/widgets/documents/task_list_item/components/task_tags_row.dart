@@ -3,6 +3,7 @@ import 'package:solducci/models/tag.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/theme/todo_theme.dart';
+import 'package:solducci/core/widgets/safe_tooltip.dart';
 
 /// Widget for displaying and managing task tags
 ///
@@ -137,8 +138,11 @@ class _TaskTagsRowState extends State<TaskTagsRow> {
 
             return GestureDetector(
               onTap: _showTagPicker,
-              child: Tooltip(
+              child: SafeTooltip(
                 message: tag.name,
+                waitDuration: const Duration(milliseconds: 800),
+                preferBelow: false,
+                enableFeedback: false,
                 child: Container(
                   width: 28,
                   height: 28,
