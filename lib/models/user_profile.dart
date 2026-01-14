@@ -1,6 +1,8 @@
+import 'package:solducci/core/cache/cacheable_model.dart';
+
 /// User profile model with nickname and avatar
 /// Corresponds to 'profiles' table in Supabase
-class UserProfile {
+class UserProfile implements CacheableModel<String> {
   final String id; // UUID from auth.users
   final String email;
   String nickname;
@@ -49,7 +51,21 @@ class UserProfile {
     };
   }
 
+  // ====================================================================
+  // CacheableModel Implementation
+  // ====================================================================
+
+  @override
+  String get cacheKey => id;
+
+  @override
+  DateTime? get lastModified => updatedAt;
+
+  @override
+  bool get shouldCache => true;
+
   /// Create a copy with modified fields
+  @override
   UserProfile copyWith({
     String? nickname,
     String? avatarUrl,

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/split_type.dart';
+import 'package:solducci/core/cache/cacheable_model.dart';
 
-class Expense {
+class Expense implements CacheableModel<int> {
   int id;
   String description;
   double amount;
@@ -37,6 +38,48 @@ class Expense {
 
   /// Check if expense is for a group
   bool get isGroup => groupId != null;
+
+  // ====================================================================
+  // CacheableModel Implementation
+  // ====================================================================
+
+  @override
+  int get cacheKey => id;
+
+  @override
+  DateTime? get lastModified => date;
+
+  @override
+  bool get shouldCache => true;
+
+  @override
+  Expense copyWith({
+    int? id,
+    String? description,
+    double? amount,
+    MoneyFlow? moneyFlow,
+    DateTime? date,
+    Tipologia? type,
+    String? userId,
+    String? groupId,
+    String? paidBy,
+    SplitType? splitType,
+    Map<String, double>? splitData,
+  }) {
+    return Expense(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      amount: amount ?? this.amount,
+      moneyFlow: moneyFlow ?? this.moneyFlow,
+      date: date ?? this.date,
+      type: type ?? this.type,
+      userId: userId ?? this.userId,
+      groupId: groupId ?? this.groupId,
+      paidBy: paidBy ?? this.paidBy,
+      splitType: splitType ?? this.splitType,
+      splitData: splitData ?? this.splitData,
+    );
+  }
 
   // map(entity) -> expense(model)
   factory Expense.fromMap(Map<String, dynamic> map) {

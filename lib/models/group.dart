@@ -1,6 +1,8 @@
+import 'package:solducci/core/cache/cacheable_model.dart';
+
 /// Expense group model (couple, roommates, etc.)
 /// Corresponds to 'groups' table in Supabase
-class ExpenseGroup {
+class ExpenseGroup implements CacheableModel<String> {
   final String id; // UUID
   String name;
   String? description;
@@ -65,7 +67,21 @@ class ExpenseGroup {
     };
   }
 
+  // ====================================================================
+  // CacheableModel Implementation
+  // ====================================================================
+
+  @override
+  String get cacheKey => id;
+
+  @override
+  DateTime? get lastModified => updatedAt;
+
+  @override
+  bool get shouldCache => true;
+
   /// Create a copy with modified fields
+  @override
   ExpenseGroup copyWith({
     String? name,
     String? description,
