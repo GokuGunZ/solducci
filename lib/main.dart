@@ -9,6 +9,7 @@ import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/core/cache/cache_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/group_service_cached.dart';
+import 'package:solducci/service/profile_service_cached.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Initialize caching framework
@@ -19,6 +20,7 @@ Future<void> _initializeCaching() async {
   // Services auto-register on first access (singletons)
   final expenseService = ExpenseServiceCached();
   final groupService = GroupServiceCached();
+  final profileService = ProfileServiceCached();
 
   // Setup cross-service invalidation rules
   // When expenses change, invalidate groups cache (might affect group balances)
@@ -31,6 +33,7 @@ Future<void> _initializeCaching() async {
   await Future.wait([
     expenseService.ensureInitialized(),
     groupService.ensureInitialized(),
+    profileService.ensureInitialized(),
   ]);
 
   // Debug diagnostics (only in debug mode)

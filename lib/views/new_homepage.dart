@@ -166,8 +166,8 @@ class _NewHomepageState extends State<NewHomepage> {
                       if (_contextManager.currentContext.isGroup)
                         SizedBox(height: 16),
 
-                      // Categories section
-                      _buildCategoriesSection(context),
+                      // Categories section with totals
+                      _buildCategoriesSection(context, expenses),
                     ],
                   ),
                 ),
@@ -307,7 +307,11 @@ class _NewHomepageState extends State<NewHomepage> {
   }
 
   // Build categories section with circular icons and + buttons
-  Widget _buildCategoriesSection(BuildContext context) {
+  // OPTIMIZATION: Shows totals per category using cached expenses
+  Widget _buildCategoriesSection(BuildContext context, List<Expense> expenses) {
+    // Calculate totals per category
+    final categoryTotals = _calculateCategoryTotals(expenses);
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -325,7 +329,8 @@ class _NewHomepageState extends State<NewHomepage> {
               runSpacing: 8,
               alignment: WrapAlignment.spaceEvenly,
               children: Tipologia.values.map((category) {
-                return _buildCategoryItem(context, category);
+                final total = categoryTotals[category] ?? 0.0;
+                return _buildCategoryItem(context, category, total);
               }).toList(),
             ),
           ],
@@ -334,8 +339,20 @@ class _NewHomepageState extends State<NewHomepage> {
     );
   }
 
-  // Build individual category item with circular icon and + button
-  Widget _buildCategoryItem(BuildContext context, Tipologia category) {
+  // Calculate totals per category from expenses list
+  Map<Tipologia, double> _calculateCategoryTotals(List<Expense> expenses) {
+    final totals = <Tipologia, double>{};
+
+    for (final expense in expenses) {
+      totals[expense.type] = (totals[expense.type] ?? 0.0) + expense.amount;
+    }
+
+    return totals;
+  }
+
+  // Build individual category item with circular icon, + button, and total
+  // OPTIMIZATION: Shows total amount for this category
+  Widget _buildCategoryItem(BuildContext context, Tipologia category, double total) {
     final categoryColor = CategoryHelpers.getCategoryColor(category);
     final categoryIcon = CategoryHelpers.getCategoryIcon(category);
 
@@ -386,12 +403,29 @@ class _NewHomepageState extends State<NewHomepage> {
           SizedBox(height: 4),
           SizedBox(
             width: 70,
-            child: Text(
-              category.label,
-              style: TextStyle(fontSize: 9),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              children: [
+                Text(
+                  category.label,
+                  style: TextStyle(fontSize: 9),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Show total if > 0
+                if (total > 0) ...[
+                  SizedBox(height: 2),
+                  Text(
+                    '€${total.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: categoryColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
