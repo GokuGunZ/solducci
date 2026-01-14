@@ -6,7 +6,39 @@ import 'package:solducci/routes/app_router.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/core/di/service_locator.dart';
+import 'package:solducci/core/cache/cache_manager.dart';
+import 'package:solducci/service/expense_service_cached.dart';
+import 'package:solducci/service/group_service_cached.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Initialize caching framework
+/// - Registers cached services in CacheManager
+/// - Sets up cross-service invalidation rules
+/// - Preloads critical data for faster app startup
+Future<void> _initializeCaching() async {
+  // Services auto-register on first access (singletons)
+  final expenseService = ExpenseServiceCached();
+  final groupService = GroupServiceCached();
+
+  // Setup cross-service invalidation rules
+  // When expenses change, invalidate groups cache (might affect group balances)
+  CacheManager.instance.registerInvalidationRule(
+    'expenses',
+    ['groups'],
+  );
+
+  // Preload critical data in parallel
+  await Future.wait([
+    expenseService.ensureInitialized(),
+    groupService.ensureInitialized(),
+  ]);
+
+  // Debug diagnostics (only in debug mode)
+  if (const bool.fromEnvironment('dart.vm.product') == false) {
+    debugPrint('✅ Caching framework initialized');
+    CacheManager.instance.printGlobalDiagnostics();
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +82,9 @@ void main() async {
     }
 
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+
+    // Initialize caching framework
+    await _initializeCaching();
 
     // Setup dependency injection
     await setupServiceLocator();
