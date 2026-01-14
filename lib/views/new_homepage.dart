@@ -10,7 +10,6 @@ import 'package:solducci/service/group_service.dart';
 import 'package:solducci/widgets/expense_list_item.dart';
 import 'package:solducci/widgets/context_switcher.dart';
 import 'package:solducci/utils/category_helpers.dart';
-import 'package:solducci/views/shell_with_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NewHomepage extends StatefulWidget {
