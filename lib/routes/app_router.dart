@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:solducci/views/expense_list.dart';
 import 'package:solducci/views/splash_screen.dart';
 import 'package:solducci/views/login_page.dart';
 import 'package:solducci/views/signup_page.dart';
@@ -60,6 +61,11 @@ class AppRouter {
 
       // Main App Shell with Bottom Navigation (single route with IndexedStack)
       GoRoute(path: '/home', builder: (context, state) => const ShellWithNav()),
+
+      GoRoute(
+        path: '/expense_list',
+        builder: (context, state) => const ExpenseList(),
+      ),
 
       // Dashboard Detail Routes (full screen with back button)
       GoRoute(

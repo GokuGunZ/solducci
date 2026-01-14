@@ -497,11 +497,7 @@ class _NewHomepageState extends State<NewHomepage> {
                 netBalance: 0.0,
                 balanceLabel: "Saldo in pareggio",
               );
-              return _buildDebtBalanceSection(
-                debtBalance,
-                names[0],
-                names[1],
-              );
+              return _buildDebtBalanceSection(debtBalance, names[0], names[1]);
             },
           );
         }
@@ -658,7 +654,9 @@ class _NewHomepageState extends State<NewHomepage> {
                         )
                       else
                         Icon(
-                          currentUserOwes ? Icons.arrow_forward : Icons.arrow_back,
+                          currentUserOwes
+                              ? Icons.arrow_forward
+                              : Icons.arrow_back,
                           color: currentUserOwes
                               ? Colors.orange[700]
                               : Colors.blue[700],
@@ -744,7 +742,7 @@ class _NewHomepageState extends State<NewHomepage> {
               TextButton.icon(
                 onPressed: () {
                   // Navigate to Spese tab (index 1) in ShellWithNav
-                  ShellWithNav.navigateToTab(context, 1);
+                  context.push("/expense_list");
                 },
                 icon: const Icon(Icons.arrow_forward),
                 label: const Text('Vedi Tutte'),
