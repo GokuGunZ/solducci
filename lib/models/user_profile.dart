@@ -1,13 +1,28 @@
+import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
+
+part 'user_profile.g.dart';
 
 /// User profile model with nickname and avatar
 /// Corresponds to 'profiles' table in Supabase
+@HiveType(typeId: 5)
 class UserProfile implements CacheableModel<String> {
+  @HiveField(0)
   final String id; // UUID from auth.users
+
+  @HiveField(1)
   final String email;
+
+  @HiveField(2)
   String nickname;
+
+  @HiveField(3)
   String? avatarUrl;
+
+  @HiveField(4)
   final DateTime createdAt;
+
+  @HiveField(5)
   DateTime updatedAt;
 
   UserProfile({

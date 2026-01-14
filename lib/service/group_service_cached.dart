@@ -1,27 +1,36 @@
 import 'package:solducci/models/group.dart';
 import 'package:solducci/models/group_invite.dart';
-import 'package:solducci/core/cache/cacheable_service.dart';
+import 'package:solducci/core/cache/persistent/persistent_cacheable_service.dart';
+import 'package:solducci/core/cache/persistent/persistent_cache_config.dart';
 import 'package:solducci/core/cache/cache_config.dart';
 import 'package:solducci/core/cache/cache_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Cached version of GroupService with in-memory caching
+/// Cached version of GroupService with persistent caching
 ///
 /// This service provides:
 /// - Cached group data and members
+/// - Persistent cache on disk (offline support)
 /// - Reduced queries for group details
 /// - Fast group name lookups for UI (e.g., expense list items)
 /// - Automatic cache updates on CRUD operations
-class GroupServiceCached extends CacheableService<ExpenseGroup, String> {
+/// - Background sync with server
+class GroupServiceCached extends PersistentCacheableService<ExpenseGroup, String> {
   // Singleton pattern
   static final GroupServiceCached _instance = GroupServiceCached._internal();
   factory GroupServiceCached() => _instance;
 
   GroupServiceCached._internal()
-      : super(config: CacheConfig.stable) {
+      : super(
+          config: CacheConfig.stable,
+          persistentConfig: PersistentCacheConfig.stable,
+        ) {
     // Register with global cache manager
     CacheManager.instance.register('groups', this);
   }
+
+  @override
+  String get boxName => 'groups_cache';
 
   final _supabase = Supabase.instance.client;
 

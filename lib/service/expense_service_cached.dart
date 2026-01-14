@@ -4,35 +4,44 @@ import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/group_service.dart';
-import 'package:solducci/core/cache/cacheable_service.dart';
+import 'package:solducci/core/cache/persistent/persistent_cacheable_service.dart';
+import 'package:solducci/core/cache/persistent/persistent_cache_config.dart';
 import 'package:solducci/core/cache/cache_config.dart';
 import 'package:solducci/core/cache/cache_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:async/async.dart';
 
-/// Cached version of ExpenseService with in-memory caching
+/// Cached version of ExpenseService with persistent caching
 ///
-/// This service extends CacheableService to provide:
+/// This service extends PersistentCacheableService to provide:
 /// - In-memory cache of expenses by ID
+/// - Persistent cache on disk (offline support)
 /// - Reduced database queries for repeated access
 /// - Bulk balance calculation using cached data
 /// - Automatic cache invalidation on CRUD operations
+/// - Background sync with server
 ///
 /// The service maintains backward compatibility with existing stream-based API
 /// while adding new cached getter methods for improved performance.
-class ExpenseServiceCached extends CacheableService<Expense, int> {
+class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
   // Singleton pattern
   static final ExpenseServiceCached _instance = ExpenseServiceCached._internal();
   factory ExpenseServiceCached() => _instance;
 
   ExpenseServiceCached._internal()
-      : super(config: CacheConfig.dynamic) {
+      : super(
+          config: CacheConfig.dynamic,
+          persistentConfig: PersistentCacheConfig.dynamic,
+        ) {
     // Register with global cache manager
     CacheManager.instance.register('expenses', this);
 
     // Setup invalidation rules: when expenses change, invalidate groups
     CacheManager.instance.registerInvalidationRule('expenses', ['groups']);
   }
+
+  @override
+  String get boxName => 'expenses_cache';
 
   final _supabase = Supabase.instance.client;
   final _contextManager = ContextManager();

@@ -3,20 +3,44 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/split_type.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
+import 'package:hive/hive.dart';
 
+part 'expense.g.dart';
+
+@HiveType(typeId: 1)
 class Expense implements CacheableModel<int> {
+  @HiveField(0)
   int id;
+
+  @HiveField(1)
   String description;
+
+  @HiveField(2)
   double amount;
+
+  @HiveField(3)
   MoneyFlow moneyFlow; // Legacy field - kept for backward compatibility
+
+  @HiveField(4)
   DateTime date;
+
+  @HiveField(5)
   Tipologia type;
+
+  @HiveField(6)
   String? userId; // User ID for personal expenses
 
   // NEW: Multi-user support
+  @HiveField(7)
   String? groupId; // Group ID for group expenses
+
+  @HiveField(8)
   String? paidBy; // UUID of user who paid
+
+  @HiveField(9)
   SplitType? splitType; // How expense is split
+
+  @HiveField(10)
   Map<String, double>? splitData; // Custom split amounts per user
 
   Expense({

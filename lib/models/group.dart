@@ -1,17 +1,35 @@
+import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
+
+part 'group.g.dart';
 
 /// Expense group model (couple, roommates, etc.)
 /// Corresponds to 'groups' table in Supabase
+@HiveType(typeId: 6)
 class ExpenseGroup implements CacheableModel<String> {
+  @HiveField(0)
   final String id; // UUID
+
+  @HiveField(1)
   String name;
+
+  @HiveField(2)
   String? description;
+
+  @HiveField(3)
   final String createdBy; // User ID
+
+  @HiveField(4)
   final DateTime createdAt;
+
+  @HiveField(5)
   DateTime updatedAt;
 
   // Denormalized data for UI (not stored in DB)
+  @HiveField(6)
   List<GroupMember>? members;
+
+  @HiveField(7)
   int? memberCount;
 
   ExpenseGroup({
@@ -117,16 +135,31 @@ class ExpenseGroup implements CacheableModel<String> {
 
 /// Member of an expense group
 /// Corresponds to 'group_members' table in Supabase
+@HiveType(typeId: 7)
 class GroupMember {
+  @HiveField(0)
   final String id; // UUID
+
+  @HiveField(1)
   final String groupId;
+
+  @HiveField(2)
   final String userId;
+
+  @HiveField(3)
   final GroupRole role;
+
+  @HiveField(4)
   final DateTime joinedAt;
 
   // Denormalized data for UI (from profiles table)
+  @HiveField(5)
   String? nickname;
+
+  @HiveField(6)
   String? email;
+
+  @HiveField(7)
   String? avatarUrl;
 
   GroupMember({
@@ -193,8 +226,12 @@ class GroupMember {
 }
 
 /// Role of a member in a group
+@HiveType(typeId: 8)
 enum GroupRole {
+  @HiveField(0)
   admin('admin'),
+
+  @HiveField(1)
   member('member');
 
   final String value;

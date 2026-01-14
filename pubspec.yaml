@@ -36,6 +36,11 @@ dependencies:
   uuid: ^4.3.3
   async: ^2.11.0
 
+  # Persistent Cache
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -45,6 +50,7 @@ dev_dependencies:
   # Testing
   mockito: ^5.4.4
   build_runner: ^2.4.13
+  hive_generator: ^2.0.1
   bloc_test: ^9.1.7
   golden_toolkit: ^0.15.0
 

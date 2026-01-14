@@ -1,16 +1,19 @@
-import 'package:solducci/core/cache/cacheable_service.dart';
+import 'package:solducci/core/cache/persistent/persistent_cacheable_service.dart';
+import 'package:solducci/core/cache/persistent/persistent_cache_config.dart';
 import 'package:solducci/core/cache/cache_config.dart';
 import 'package:solducci/core/cache/cache_manager.dart';
 import 'package:solducci/models/user_profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Cached version of ProfileService with performance optimizations
+/// Cached version of ProfileService with persistent caching
 ///
 /// Features:
 /// - Cache-first profile lookups (O(1) instead of query)
+/// - Persistent cache on disk (offline support)
 /// - Bulk profile fetching for group members
 /// - Automatic cache invalidation on updates
 /// - Stream integration with cache auto-population
+/// - Background sync with server
 ///
 /// Usage:
 /// ```dart
@@ -18,16 +21,22 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// final profile = await service.getCachedProfile(userId); // Fast!
 /// final profiles = await service.getCachedProfiles([id1, id2]); // Bulk!
 /// ```
-class ProfileServiceCached extends CacheableService<UserProfile, String> {
+class ProfileServiceCached extends PersistentCacheableService<UserProfile, String> {
   // Singleton pattern
   static final ProfileServiceCached _instance = ProfileServiceCached._internal();
   factory ProfileServiceCached() => _instance;
 
   ProfileServiceCached._internal()
-      : super(config: CacheConfig.stable) {
+      : super(
+          config: CacheConfig.stable,
+          persistentConfig: PersistentCacheConfig.stable,
+        ) {
     // Register with global cache manager
     CacheManager.instance.register('profiles', this);
   }
+
+  @override
+  String get boxName => 'profiles_cache';
 
   final _supabase = Supabase.instance.client;
 
