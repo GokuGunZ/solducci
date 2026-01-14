@@ -19,8 +19,12 @@ void main() async {
     const supabaseUrlFromDefine = String.fromEnvironment('SUPABASE_URL');
     const supabaseKeyFromDefine = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-    String? supabaseUrl = supabaseUrlFromDefine.isNotEmpty ? supabaseUrlFromDefine : null;
-    String? supabaseKey = supabaseKeyFromDefine.isNotEmpty ? supabaseKeyFromDefine : null;
+    String? supabaseUrl = supabaseUrlFromDefine.isNotEmpty
+        ? supabaseUrlFromDefine
+        : null;
+    String? supabaseKey = supabaseKeyFromDefine.isNotEmpty
+        ? supabaseKeyFromDefine
+        : null;
 
     // Fallback to .env file for local development (flutter run)
     if (supabaseUrl == null || supabaseKey == null) {
@@ -34,11 +38,14 @@ void main() async {
     }
 
     // Validate that we have the required credentials
-    if (supabaseUrl == null || supabaseKey == null || supabaseUrl.isEmpty || supabaseKey.isEmpty) {
+    if (supabaseUrl == null ||
+        supabaseKey == null ||
+        supabaseUrl.isEmpty ||
+        supabaseKey.isEmpty) {
       throw Exception(
         'Missing Supabase credentials.\n\n'
         'For local development: Create assets/dev/.env with SUPABASE_URL and SUPABASE_ANON_KEY\n'
-        'For production builds: Use --dart-define to pass credentials'
+        'For production builds: Use --dart-define to pass credentials',
       );
     }
 
@@ -99,11 +106,7 @@ class ErrorApp extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 80,
-                    color: Colors.red[700],
-                  ),
+                  Icon(Icons.error_outline, size: 80, color: Colors.red[700]),
                   const SizedBox(height: 24),
                   Text(
                     'Errore di Inizializzazione',
@@ -164,20 +167,17 @@ class SolducciApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.purple,
         useMaterial3: true,
-        scaffoldBackgroundColor: Colors.transparent, // CRITICAL: Allow background gradients to show through
+        scaffoldBackgroundColor: Colors
+            .white, // CRITICAL: Allow background gradients to show through
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('it', 'IT'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('it', 'IT'), Locale('en', 'US')],
       locale: const Locale('it', 'IT'),
       routerConfig: AppRouter.router,
     );
   }
 }
-
