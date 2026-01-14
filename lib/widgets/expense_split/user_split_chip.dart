@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:solducci/models/group.dart';
+import 'package:solducci/core/components/chips/expandable_chip.dart';
 
 /// Chip con importo editabile per divisione spesa
 ///
-/// Design inline: chip base + sezione importo side-by-side
-/// Completamente dinamico, si adatta al contenuto
+/// A domain-specific implementation of [ExpandableChip] for expense splitting.
+/// Uses the generic expandable chip pattern with expense-specific logic for
+/// amount input, validation, and action buttons.
+///
+/// ## Design
+/// - Base chip: Avatar + user name (always visible)
+/// - Expanded section: Amount input + action buttons (slides in when selected)
+/// - Completely dynamic, adapts to content
+///
+/// ## Features
+/// - Smooth slide-in/out animation
+/// - Amount validation and input formatting
+/// - Conditional action buttons (add remaining / reduce overflow)
+/// - Overflow detection and visual feedback
 class UserSplitChip extends StatefulWidget {
   final GroupMember member;
   final bool isSelected;
@@ -94,204 +107,163 @@ class _UserSplitChipState extends State<UserSplitChip> {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = widget.isSelected
-        ? Colors.blue.shade50
-        : Colors.grey.shade100;
+    return ExpandableChip<GroupMember>(
+      item: widget.member,
+      isSelected: widget.isSelected,
+      baseContentBuilder: _buildBaseContent,
+      expandedContentBuilder: _buildExpandedContent,
+      onSelectionChanged: (_) => _toggleSelection(),
+    );
+  }
 
-    final borderColor = widget.isSelected
-        ? Colors.blue.shade300
-        : Colors.grey.shade300;
-
+  /// Build the base chip content (avatar + name)
+  Widget _buildBaseContent(BuildContext context, GroupMember member) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Base chip
-        GestureDetector(
-          onTap: _toggleSelection,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              border: Border.all(
-                color: borderColor,
-                width: widget.isSelected ? 2 : 1,
-              ),
-              borderRadius: widget.isSelected
-                  ? const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      bottomLeft: Radius.circular(20),
-                    )
-                  : BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 14,
-                  backgroundColor: widget.isSelected
-                      ? Colors.blue.shade200
-                      : Colors.grey.shade300,
-                  child: Text(
-                    widget.member.initials,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: widget.isSelected
-                          ? Colors.blue.shade900
-                          : Colors.grey.shade700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  widget.member.nickname ?? widget.member.email ?? 'Unknown',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: widget.isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    color: widget.isSelected
-                        ? Colors.blue.shade900
-                        : Colors.grey.shade800,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: widget.isSelected
+              ? Colors.blue.shade200
+              : Colors.grey.shade300,
+          child: Text(
+            member.initials,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: widget.isSelected
+                  ? Colors.blue.shade900
+                  : Colors.grey.shade700,
             ),
           ),
         ),
-
-        // Money section (animated)
-        ClipRect(
-          child: AnimatedAlign(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            alignment: Alignment.centerLeft,
-            widthFactor: widget.isSelected ? 1.0 : 0.0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                border: Border(
-                  top: BorderSide(color: borderColor, width: 2),
-                  right: BorderSide(color: borderColor, width: 2),
-                  bottom: BorderSide(color: borderColor, width: 2),
-                ),
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Divider
-                  Container(
-                    width: 1,
-                    height: 24,
-                    color: Colors.grey.shade300,
-                    margin: const EdgeInsets.only(right: 6),
-                  ),
-
-                  // Amount field (intrinsic width)
-                  IntrinsicWidth(
-                    child: TextField(
-                      controller: _amountController,
-                      focusNode: _focusNode,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d*\.?\d{0,2}'),
-                        ),
-                      ],
-                      decoration: InputDecoration(
-                        suffix: Text(
-                          '€',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        hintText: '0.00',
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 4,
-                        ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                      ),
-                      onChanged: _handleAmountChange,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue.shade900,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-
-                  const SizedBox(width: 4),
-
-                  // Buttons
-                  if (_isOverflow && widget.amount > 0.01)
-                    GestureDetector(
-                      onTap: _handleReduceAmount,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade600,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.remove,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    )
-                  else if (_shouldShowAddButton)
-                    GestureDetector(
-                      onTap: widget.onAssignRemaining,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade600,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+        const SizedBox(width: 8),
+        Text(
+          member.nickname ?? member.email ?? 'Unknown',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: widget.isSelected
+                ? FontWeight.w600
+                : FontWeight.w500,
+            color: widget.isSelected
+                ? Colors.blue.shade900
+                : Colors.grey.shade800,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
       ],
+    );
+  }
+
+  /// Build the expanded content (amount input + buttons)
+  Widget _buildExpandedContent(BuildContext context, GroupMember member) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Amount field (intrinsic width)
+        IntrinsicWidth(
+          child: TextField(
+            controller: _amountController,
+            focusNode: _focusNode,
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(
+                RegExp(r'^\d*\.?\d{0,2}'),
+              ),
+            ],
+            decoration: InputDecoration(
+              suffix: Text(
+                '€',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              hintText: '0.00',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 4,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+            ),
+            onChanged: _handleAmountChange,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.blue.shade900,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+
+        const SizedBox(width: 4),
+
+        // Conditional action buttons
+        if (_isOverflow && widget.amount > 0.01)
+          _buildReduceButton()
+        else if (_shouldShowAddButton)
+          _buildAddButton(),
+      ],
+    );
+  }
+
+  /// Build reduce amount button (shown on overflow)
+  Widget _buildReduceButton() {
+    return GestureDetector(
+      onTap: _handleReduceAmount,
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: Colors.red.shade600,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.remove,
+          color: Colors.white,
+          size: 16,
+        ),
+      ),
+    );
+  }
+
+  /// Build add remaining button
+  Widget _buildAddButton() {
+    return GestureDetector(
+      onTap: widget.onAssignRemaining,
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: Colors.blue.shade600,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 16,
+        ),
+      ),
     );
   }
 }

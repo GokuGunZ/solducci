@@ -1,12 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/core/components/text/inline_toggle.dart';
 
 /// Toggle inline nel testo "equamente diviso tra"
 ///
-/// Comportamento:
+/// A domain-specific implementation of [InlineToggle] for expense splitting context.
+///
+/// ## Comportamento
 /// - Testo normale: "equamente diviso tra"
 /// - Quando disattivato: "~~equamente~~ diviso tra" (strikethrough)
 /// - Clickabile solo sulla parola "equamente"
 /// - Animazione di strikethrough (200ms)
+///
+/// ## Example
+/// ```dart
+/// EquallySplitToggle(
+///   isEqual: splitState.isEqualSplit,
+///   onToggle: () {
+///     splitState.toggleEqualSplit();
+///   },
+/// )
+/// ```
 class EquallySplitToggle extends StatelessWidget {
   final bool isEqual;
   final VoidCallback onToggle;
@@ -19,45 +32,17 @@ class EquallySplitToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        // "equamente" (clickable)
-        GestureDetector(
-          onTap: onToggle,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: isEqual ? Colors.blue.shade50 : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isEqual ? Colors.blue.shade700 : Colors.grey.shade500,
-                decoration: isEqual
-                    ? TextDecoration.none
-                    : TextDecoration.lineThrough,
-                decorationThickness: 2,
-              ),
-              child: const Text('Equamente'),
-            ),
-          ),
-        ),
-
-        // " diviso tra:" (non clickable)
-        Text(
-          ' diviso tra:',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey.shade700,
-          ),
-        ),
-      ],
+    return InlineToggle(
+      isActive: isEqual,
+      toggleText: 'Equamente',
+      remainingText: ' diviso tra:',
+      style: InlineToggleStyle(
+        activeColor: Colors.blue.shade700,
+        inactiveColor: Colors.grey.shade500,
+        activeBackgroundColor: Colors.blue.shade50,
+        inactiveBackgroundColor: Colors.transparent,
+      ),
+      onToggle: onToggle,
     );
   }
 }
