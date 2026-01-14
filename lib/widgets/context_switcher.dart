@@ -34,33 +34,28 @@ class ContextSwitcher extends StatelessWidget {
           child: InkWell(
             onTap: () => _showContextPicker(context),
             borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Icona contesto con colore distintivo
-                  Icon(
-                    currentContext.isPersonal
-                        ? Icons.person
-                        : currentContext.isView
-                        ? Icons.dashboard
-                        : Icons.group,
-                    size: 20,
-                    color: currentContext.isPersonal
-                        ? Colors.purple
-                        : currentContext.isView
-                        ? Colors.blue
-                        : Colors.green,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: _buildContextName(currentContext),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_drop_down, size: 20),
-                ],
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icona contesto con colore distintivo
+                Icon(
+                  currentContext.isPersonal
+                      ? Icons.person
+                      : currentContext.isView
+                      ? Icons.view_list_rounded
+                      : Icons.group,
+                  size: 20,
+                  color: currentContext.isPersonal
+                      ? Colors.purple
+                      : currentContext.isView
+                      ? Colors.blue
+                      : Colors.green,
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: _buildContextName(currentContext)),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_drop_down, size: 20),
+              ],
             ),
           ),
         );
@@ -73,8 +68,8 @@ class ContextSwitcher extends StatelessWidget {
     final baseName = currentContext.isPersonal
         ? 'Personale'
         : currentContext.isView
-            ? currentContext.view!.name
-            : currentContext.group!.name;
+        ? currentContext.view!.name
+        : currentContext.group!.name;
 
     // Se include personal, aggiungi icona viola
     if (currentContext.includesPersonal) {
@@ -83,19 +78,12 @@ class ContextSwitcher extends StatelessWidget {
           children: [
             TextSpan(
               text: baseName,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
             const TextSpan(text: ' '),
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
-              child: Icon(
-                Icons.person,
-                size: 18,
-                color: Colors.purple[600],
-              ),
+              child: Icon(Icons.person, size: 18, color: Colors.purple[600]),
             ),
           ],
         ),
@@ -106,10 +94,7 @@ class ContextSwitcher extends StatelessWidget {
     // Altrimenti solo testo normale
     return Text(
       baseName,
-      style: const TextStyle(
-        fontWeight: FontWeight.w600,
-        fontSize: 16,
-      ),
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
       overflow: TextOverflow.ellipsis,
     );
   }
@@ -126,9 +111,12 @@ class _ContextPickerModal extends StatefulWidget {
 class _ContextPickerModalState extends State<_ContextPickerModal> {
   // Multi-select per creare viste
   final Set<String> _selectedGroupIds = {};
-  final Set<String> _visuallyHighlightedGroupIds = {}; // Gruppi evidenziati da tap singolo su vista (visual only)
-  final Set<String> _selectedViewIds = {}; // Viste con tap singolo (visual only)
-  final Set<String> _fullySelectedViewIds = {}; // Viste con doppio tap (actual selection)
+  final Set<String> _visuallyHighlightedGroupIds =
+      {}; // Gruppi evidenziati da tap singolo su vista (visual only)
+  final Set<String> _selectedViewIds =
+      {}; // Viste con tap singolo (visual only)
+  final Set<String> _fullySelectedViewIds =
+      {}; // Viste con doppio tap (actual selection)
 
   // Controller per edit nome
   final TextEditingController _nameController = TextEditingController();
@@ -294,7 +282,8 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
       setState(() {
         _fullySelectedViewIds.add(id);
         _selectedViewIds.add(id);
-        _visuallyHighlightedGroupIds.clear(); // Clear gruppi evidenziati da tap singolo
+        _visuallyHighlightedGroupIds
+            .clear(); // Clear gruppi evidenziati da tap singolo
       });
     }
 
@@ -326,7 +315,9 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
     if (_selectedViewIds.length != 1) return false;
 
     final contextManager = ContextManager();
-    final view = contextManager.userViews.firstWhere((v) => v.id == _selectedViewIds.first);
+    final view = contextManager.userViews.firstWhere(
+      (v) => v.id == _selectedViewIds.first,
+    );
     return view.groupIds.contains(groupId);
   }
 
@@ -389,9 +380,9 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
       }
     }
   }
@@ -530,7 +521,8 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
     final contextManager = ContextManager();
 
     // Condizione per mostrare la bubble
-    final shouldShowBubble = _selectedGroupIds.length > 1 &&
+    final shouldShowBubble =
+        _selectedGroupIds.length > 1 &&
         _selectedViewIds.isEmpty &&
         contextManager.userViews.isEmpty &&
         _showBubble;
@@ -562,169 +554,186 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
 
               // Content
               Expanded(
-            child: ListenableBuilder(
-              listenable: contextManager,
-              builder: (context, child) {
-                final userGroups = contextManager.userGroups;
-                final userViews = contextManager.userViews;
+                child: ListenableBuilder(
+                  listenable: contextManager,
+                  builder: (context, child) {
+                    final userGroups = contextManager.userGroups;
+                    final userViews = contextManager.userViews;
 
-                return ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    // Chip Personale (align left con width dinamica)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: ContextChip(
-                        id: 'personal',
-                        label: 'Personale',
-                        type: ContextChipType.personal,
-                        isSelected:
-                            contextManager.currentContext.isPersonal &&
-                            !_isInMultiSelectMode,
-                        onTap: () =>
-                            _onChipTap('personal', ContextChipType.personal),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // LE TUE VISTE (prima dei gruppi)
-                    if (userViews.isNotEmpty) ...[
-                      Text(
-                        'LE TUE VISTE',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[600],
-                          letterSpacing: 1.2,
+                    return ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        // Chip Personale (align left con width dinamica)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ContextChip(
+                            id: 'personal',
+                            label: 'Personale',
+                            type: ContextChipType.personal,
+                            isSelected:
+                                contextManager.currentContext.isPersonal &&
+                                !_isInMultiSelectMode,
+                            onTap: () => _onChipTap(
+                              'personal',
+                              ContextChipType.personal,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
 
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: userViews.map((view) {
-                          final isSelected = _selectedViewIds.contains(view.id);
-                          final isRelated = _isViewRelated(view.id);
+                        const SizedBox(height: 24),
 
-                          return ContextChip(
-                            id: view.id,
-                            label: view.name,
-                            type: ContextChipType.view,
-                            isSelected: isSelected,
-                            isRelated: isRelated,
-                            isLightlySelected: _fullySelectedViewIds.contains(view.id),
-                            includesPersonal: view.includePersonal,
-                            onTap: () => _onChipTap(view.id, ContextChipType.view),
-                            onAddPersonalTap: () =>
-                                _toggleIncludePersonal(view.id),
-                          );
-                        }).toList(),
-                      ),
+                        // LE TUE VISTE (prima dei gruppi)
+                        if (userViews.isNotEmpty) ...[
+                          Text(
+                            'LE TUE VISTE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[600],
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
 
-                      const SizedBox(height: 24),
-                    ],
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: userViews.map((view) {
+                              final isSelected = _selectedViewIds.contains(
+                                view.id,
+                              );
+                              final isRelated = _isViewRelated(view.id);
 
-                    // I TUOI GRUPPI
-                    Text(
-                      'I TUOI GRUPPI',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[600],
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                              return ContextChip(
+                                id: view.id,
+                                label: view.name,
+                                type: ContextChipType.view,
+                                isSelected: isSelected,
+                                isRelated: isRelated,
+                                isLightlySelected: _fullySelectedViewIds
+                                    .contains(view.id),
+                                includesPersonal: view.includePersonal,
+                                onTap: () =>
+                                    _onChipTap(view.id, ContextChipType.view),
+                                onAddPersonalTap: () =>
+                                    _toggleIncludePersonal(view.id),
+                              );
+                            }).toList(),
+                          ),
 
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: userGroups.map((group) {
-                        final isInSelectedGroups = _selectedGroupIds.contains(group.id);
-                        final isVisuallyHighlighted = _visuallyHighlightedGroupIds.contains(group.id);
-                        final isRelated = _isGroupRelated(group.id);
-                        final includesPersonal = contextManager.getGroupIncludesPersonal(group.id);
+                          const SizedBox(height: 24),
+                        ],
 
-                        // Determina stato visualizzazione gruppi
-                        final bool isSelected;
-                        final bool isRelatedFinal;
-                        final bool isLightlySelected;
+                        // I TUOI GRUPPI
+                        Text(
+                          'I TUOI GRUPPI',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600],
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
 
-                        if (_fullySelectedViewIds.isNotEmpty && isInSelectedGroups) {
-                          // Gruppo derivato da viste con doppio tap: meno trasparente
-                          isSelected = false;
-                          isRelatedFinal = false;
-                          isLightlySelected = true;
-                        } else if (_selectedViewIds.isNotEmpty && isVisuallyHighlighted) {
-                          // Gruppo evidenziato da tap singolo su vista: molto trasparente (NON selezionato)
-                          isSelected = false;
-                          isRelatedFinal = true;
-                          isLightlySelected = false;
-                        } else {
-                          // Comportamento normale
-                          isSelected = isInSelectedGroups;
-                          isRelatedFinal = isRelated;
-                          isLightlySelected = false;
-                        }
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: userGroups.map((group) {
+                            final isInSelectedGroups = _selectedGroupIds
+                                .contains(group.id);
+                            final isVisuallyHighlighted =
+                                _visuallyHighlightedGroupIds.contains(group.id);
+                            final isRelated = _isGroupRelated(group.id);
+                            final includesPersonal = contextManager
+                                .getGroupIncludesPersonal(group.id);
 
-                        return ContextChip(
-                          id: group.id,
-                          label: group.name,
-                          type: ContextChipType.group,
-                          isSelected: isSelected,
-                          isRelated: isRelatedFinal,
-                          isLightlySelected: isLightlySelected,
-                          includesPersonal: includesPersonal,
-                          onTap: () =>
-                              _onChipTap(group.id, ContextChipType.group),
-                          onAddPersonalTap: () async {
-                            await contextManager.toggleIncludePersonalForGroup(group.id);
-                          },
-                        );
-                      }).toList(),
-                    ),
+                            // Determina stato visualizzazione gruppi
+                            final bool isSelected;
+                            final bool isRelatedFinal;
+                            final bool isLightlySelected;
 
-                    const SizedBox(height: 80), // Spazio per bottoni in basso
-                  ],
-                );
-              },
-            ),
-          ),
+                            if (_fullySelectedViewIds.isNotEmpty &&
+                                isInSelectedGroups) {
+                              // Gruppo derivato da viste con doppio tap: meno trasparente
+                              isSelected = false;
+                              isRelatedFinal = false;
+                              isLightlySelected = true;
+                            } else if (_selectedViewIds.isNotEmpty &&
+                                isVisuallyHighlighted) {
+                              // Gruppo evidenziato da tap singolo su vista: molto trasparente (NON selezionato)
+                              isSelected = false;
+                              isRelatedFinal = true;
+                              isLightlySelected = false;
+                            } else {
+                              // Comportamento normale
+                              isSelected = isInSelectedGroups;
+                              isRelatedFinal = isRelated;
+                              isLightlySelected = false;
+                            }
 
-          // Bottoni in basso (affiancati)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: Center(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/groups/create');
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Crea Gruppo'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+                            return ContextChip(
+                              id: group.id,
+                              label: group.name,
+                              type: ContextChipType.group,
+                              isSelected: isSelected,
+                              isRelated: isRelatedFinal,
+                              isLightlySelected: isLightlySelected,
+                              includesPersonal: includesPersonal,
+                              onTap: () =>
+                                  _onChipTap(group.id, ContextChipType.group),
+                              onAddPersonalTap: () async {
+                                await contextManager
+                                    .toggleIncludePersonalForGroup(group.id);
+                              },
+                            );
+                          }).toList(),
+                        ),
+
+                        const SizedBox(
+                          height: 80,
+                        ), // Spazio per bottoni in basso
+                      ],
+                    );
+                  },
                 ),
               ),
-            ),
+
+              // Bottoni in basso (affiancati)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.push('/groups/create');
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Crea Gruppo'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 24,
+                      ),
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
 
           // Bubble informativa (sopra il contenuto)
           if (shouldShowBubble)

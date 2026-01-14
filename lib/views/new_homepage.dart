@@ -98,6 +98,7 @@ class _NewHomepageState extends State<NewHomepage> {
     return Scaffold(
       appBar: AppBar(
         title: const ContextSwitcher(),
+        centerTitle: true,
         elevation: 2,
         actions: [
           IconButton(
