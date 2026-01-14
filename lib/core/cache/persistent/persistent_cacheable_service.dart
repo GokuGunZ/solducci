@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_service.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
@@ -225,9 +224,9 @@ abstract class PersistentCacheableService<M extends CacheableModel<K>, K>
     if (_persistentBox != null && _persistentBox!.isNotEmpty) {
       await _loadFromPersistentCache();
 
-      // Then sync in background
+      // Then sync in background (fire and forget)
       if (persistentConfig.enableSync) {
-        unawaited(_syncInBackground());
+        _syncInBackground(); // Intentionally not awaited
       }
       return;
     }
@@ -253,8 +252,8 @@ abstract class PersistentCacheableService<M extends CacheableModel<K>, K>
   Future<void> _syncInBackground() async {
     if (!persistentConfig.enableSync) return;
 
-    // Check network connectivity first
-    // TODO: Add connectivity check using connectivity_plus package
+    // Note: Network connectivity check could be added here using connectivity_plus
+    // For now, we rely on graceful error handling when network is unavailable
 
     try {
       print('🔄 Starting background sync for $boxName...');
@@ -357,9 +356,4 @@ abstract class PersistentCacheableService<M extends CacheableModel<K>, K>
     _metadataBox = null;
     print('🗑️ Deleted persistent cache boxes: $boxName');
   }
-}
-
-/// Helper to run unawaited futures
-void unawaited(Future<void> future) {
-  // Intentionally not awaited
 }

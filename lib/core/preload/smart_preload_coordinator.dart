@@ -41,11 +41,11 @@ class SmartPreloadCoordinator {
   factory SmartPreloadCoordinator() => _instance;
   SmartPreloadCoordinator._internal();
 
-  // Services
-  final _contextManager = ContextManager();
-  final _expenseService = ExpenseServiceCached();
-  final _groupService = GroupServiceCached();
-  final _profileService = ProfileServiceCached();
+  // Services (lazy-initialized to avoid circular dependency)
+  ContextManager? _contextManager;
+  ExpenseServiceCached? _expenseService;
+  GroupServiceCached? _groupService;
+  ProfileServiceCached? _profileService;
 
   // Priority queue for preload tasks (sorted by priority)
   final _PriorityQueue<PreloadTask> _queue = _PriorityQueue<PreloadTask>();
@@ -60,8 +60,14 @@ class SmartPreloadCoordinator {
   void initialize() {
     print('🧠 SmartPreloadCoordinator initialized');
 
+    // Initialize services (lazy initialization to avoid circular dependency)
+    _contextManager = ContextManager();
+    _expenseService = ExpenseServiceCached();
+    _groupService = GroupServiceCached();
+    _profileService = ProfileServiceCached();
+
     // Listen to context changes for automatic preloading
-    _contextManager.addListener(_onContextChanged);
+    _contextManager!.addListener(_onContextChanged);
   }
 
   // ====================================================================
@@ -70,7 +76,7 @@ class SmartPreloadCoordinator {
 
   /// Triggered automatically when user switches context
   Future<void> _onContextChanged() async {
-    final context = _contextManager.currentContext;
+    final context = _contextManager!.currentContext;
 
     print('🧠 Context changed: ${context.displayName}');
 
@@ -92,7 +98,7 @@ class SmartPreloadCoordinator {
       PreloadTask(
         id: 'personal_expenses',
         priority: PreloadPriority.high,
-        action: () => _expenseService.ensureInitialized(),
+        action: () => _expenseService!.ensureInitialized(),
         description: 'Personal expenses',
       ),
     );
@@ -108,7 +114,7 @@ class SmartPreloadCoordinator {
         id: 'group_$groupId',
         priority: PreloadPriority.high,
         action: () async {
-          await _groupService.ensureInitialized();
+          await _groupService!.ensureInitialized();
         },
         description: 'Group $groupId details',
       ),
@@ -119,7 +125,7 @@ class SmartPreloadCoordinator {
       PreloadTask(
         id: 'group_${groupId}_expenses',
         priority: PreloadPriority.high,
-        action: () => _expenseService.ensureInitialized(),
+        action: () => _expenseService!.ensureInitialized(),
         description: 'Group $groupId expenses',
       ),
     );
@@ -129,7 +135,7 @@ class SmartPreloadCoordinator {
       PreloadTask(
         id: 'profiles',
         priority: PreloadPriority.medium,
-        action: () => _profileService.ensureInitialized(),
+        action: () => _profileService!.ensureInitialized(),
         description: 'User profiles',
       ),
     );
@@ -146,9 +152,9 @@ class SmartPreloadCoordinator {
         priority: PreloadPriority.high,
         action: () async {
           await Future.wait([
-            _groupService.ensureInitialized(),
-            _expenseService.ensureInitialized(),
-            _profileService.ensureInitialized(),
+            _groupService!.ensureInitialized(),
+            _expenseService!.ensureInitialized(),
+            _profileService!.ensureInitialized(),
           ]);
         },
         description: 'View with ${groupIds.length} groups',
@@ -171,9 +177,9 @@ class SmartPreloadCoordinator {
         priority: PreloadPriority.high,
         action: () async {
           await Future.wait([
-            _expenseService.ensureInitialized(),
-            _groupService.ensureInitialized(),
-            _profileService.ensureInitialized(),
+            _expenseService!.ensureInitialized(),
+            _groupService!.ensureInitialized(),
+            _profileService!.ensureInitialized(),
           ]);
         },
         description: 'Expense List view',
@@ -191,9 +197,9 @@ class SmartPreloadCoordinator {
         priority: PreloadPriority.high,
         action: () async {
           await Future.wait([
-            _groupService.ensureInitialized(),
-            _expenseService.ensureInitialized(),
-            _profileService.ensureInitialized(),
+            _groupService!.ensureInitialized(),
+            _expenseService!.ensureInitialized(),
+            _profileService!.ensureInitialized(),
           ]);
         },
         description: 'Group Details $groupId',
@@ -271,7 +277,7 @@ class SmartPreloadCoordinator {
 
   /// Dispose and cleanup
   void dispose() {
-    _contextManager.removeListener(_onContextChanged);
+    _contextManager?.removeListener(_onContextChanged);
     _queue.clear();
     _activeTaskIds.clear();
   }
