@@ -12,6 +12,9 @@ import 'package:solducci/service/group_service.dart';
 import 'package:solducci/widgets/group_expense_fields.dart';
 import 'package:solducci/widgets/custom_split_editor.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:hive/hive.dart';
+
+part 'expense_form.g.dart';
 
 class ExpenseForm {
   final ExpenseService _expenseService = ExpenseService();
@@ -672,25 +675,40 @@ class _FieldWidgetState extends State<FieldWidget> {
   }
 }
 
+@HiveType(typeId: 2)
 enum MoneyFlow {
+  @HiveField(0)
   carlToPit('Carl-->Pit'),
+  @HiveField(1)
   pitToCarl('Pit-->Carl'),
+  @HiveField(2)
   carlDiv2('Carl-->/2'),
+  @HiveField(3)
   pitDiv2('Pit-->/2'),
+  @HiveField(4)
   carlucci('Carlucci'),
+  @HiveField(5)
   pit('Pitucci');
 
   final String label;
   const MoneyFlow(this.label);
 }
 
+@HiveType(typeId: 3)
 enum Tipologia {
+  @HiveField(0)
   affitto('Affitto'),
+  @HiveField(1)
   cibo('Cibo'),
+  @HiveField(2)
   utenze('Utenze'),
+  @HiveField(3)
   prodottiCasa('Prodotti Casa'),
+  @HiveField(4)
   ristorante('Ristorante'),
+  @HiveField(5)
   tempoLibero('Tempo Libero'),
+  @HiveField(6)
   altro('Altro');
 
   final String label;

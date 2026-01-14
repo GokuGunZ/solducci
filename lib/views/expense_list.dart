@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/expense_form.dart';
-import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/expense.dart';
-import 'package:solducci/widgets/expense_list_item.dart';
+import 'package:solducci/widgets/expense_list_item_optimized.dart';
 import 'package:solducci/widgets/context_switcher.dart';
 
 class ExpenseList extends StatefulWidget {
@@ -14,8 +14,11 @@ class ExpenseList extends StatefulWidget {
 }
 
 class _ExpenseListState extends State<ExpenseList> {
-  ExpenseService expenseService = ExpenseService();
+  final ExpenseServiceCached _expenseService = ExpenseServiceCached();
   final _contextManager = ContextManager();
+
+  // Cache for pre-calculated balances
+  Map<int, double> _balances = {};
 
   @override
   void initState() {
@@ -80,7 +83,7 @@ class _ExpenseListState extends State<ExpenseList> {
         elevation: 2,
       ),
       body: StreamBuilder<List<Expense>>(
-        stream: expenseService.stream,
+        stream: _expenseService.stream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -112,19 +115,33 @@ class _ExpenseListState extends State<ExpenseList> {
               ),
             );
           }
-          expenses.sort((a, b) {
-            if (a.date.isAfter(b.date)) {
-              return -1;
-            } else {
-              return 1;
-            }
-          });
 
-          return ListView.builder(
-            itemCount: expenses.length,
-            itemBuilder: (context, index) {
-              final expense = expenses[index];
-              return ExpenseListItem(expense: expense, dismissible: true);
+          // Sort expenses by date (newest first)
+          expenses.sort((a, b) => b.date.compareTo(a.date));
+
+          // OPTIMIZATION: Pre-calculate all balances in one bulk operation
+          // This replaces N individual queries with 1 bulk query
+          return FutureBuilder<Map<int, double>>(
+            future: _expenseService.calculateBulkUserBalances(expenses),
+            builder: (context, balanceSnapshot) {
+              // Show list with loading indicator for balances
+              if (!balanceSnapshot.hasData) {
+                _balances = {}; // Clear old balances
+              } else {
+                _balances = balanceSnapshot.data!;
+              }
+
+              return ListView.builder(
+                itemCount: expenses.length,
+                itemBuilder: (context, index) {
+                  final expense = expenses[index];
+                  return ExpenseListItemOptimized(
+                    expense: expense,
+                    dismissible: true,
+                    cachedBalance: _balances[expense.id],
+                  );
+                },
+              );
             },
           );
         },

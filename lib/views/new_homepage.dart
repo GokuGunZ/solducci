@@ -3,11 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/dashboard_data.dart';
-import 'package:solducci/service/expense_service.dart';
+import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/auth_service.dart';
-import 'package:solducci/service/group_service.dart';
-import 'package:solducci/widgets/expense_list_item.dart';
+import 'package:solducci/service/group_service_cached.dart';
+import 'package:solducci/widgets/expense_list_item_optimized.dart';
 import 'package:solducci/widgets/context_switcher.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,8 +20,11 @@ class NewHomepage extends StatefulWidget {
 }
 
 class _NewHomepageState extends State<NewHomepage> {
-  final ExpenseService _expenseService = ExpenseService();
+  final ExpenseServiceCached _expenseService = ExpenseServiceCached();
   final _contextManager = ContextManager();
+
+  // Cache for pre-calculated balances
+  Map<int, double> _balances = {};
 
   // Key to force rebuild of debt balance section
   int _debtBalanceRefreshKey = 0;
@@ -163,8 +166,8 @@ class _NewHomepageState extends State<NewHomepage> {
                       if (_contextManager.currentContext.isGroup)
                         SizedBox(height: 16),
 
-                      // Categories section
-                      _buildCategoriesSection(context),
+                      // Categories section with totals
+                      _buildCategoriesSection(context, expenses),
                     ],
                   ),
                 ),
@@ -304,7 +307,11 @@ class _NewHomepageState extends State<NewHomepage> {
   }
 
   // Build categories section with circular icons and + buttons
-  Widget _buildCategoriesSection(BuildContext context) {
+  // OPTIMIZATION: Shows totals per category using cached expenses
+  Widget _buildCategoriesSection(BuildContext context, List<Expense> expenses) {
+    // Calculate totals per category
+    final categoryTotals = _calculateCategoryTotals(expenses);
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -322,7 +329,8 @@ class _NewHomepageState extends State<NewHomepage> {
               runSpacing: 8,
               alignment: WrapAlignment.spaceEvenly,
               children: Tipologia.values.map((category) {
-                return _buildCategoryItem(context, category);
+                final total = categoryTotals[category] ?? 0.0;
+                return _buildCategoryItem(context, category, total);
               }).toList(),
             ),
           ],
@@ -331,8 +339,24 @@ class _NewHomepageState extends State<NewHomepage> {
     );
   }
 
-  // Build individual category item with circular icon and + button
-  Widget _buildCategoryItem(BuildContext context, Tipologia category) {
+  // Calculate totals per category from expenses list
+  Map<Tipologia, double> _calculateCategoryTotals(List<Expense> expenses) {
+    final totals = <Tipologia, double>{};
+
+    for (final expense in expenses) {
+      totals[expense.type] = (totals[expense.type] ?? 0.0) + expense.amount;
+    }
+
+    return totals;
+  }
+
+  // Build individual category item with circular icon, + button, and total
+  // OPTIMIZATION: Shows total amount for this category
+  Widget _buildCategoryItem(
+    BuildContext context,
+    Tipologia category,
+    double total,
+  ) {
     final categoryColor = CategoryHelpers.getCategoryColor(category);
     final categoryIcon = CategoryHelpers.getCategoryIcon(category);
 
@@ -383,12 +407,29 @@ class _NewHomepageState extends State<NewHomepage> {
           SizedBox(height: 4),
           SizedBox(
             width: 70,
-            child: Text(
-              category.label,
-              style: TextStyle(fontSize: 9),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              children: [
+                Text(
+                  category.label,
+                  style: TextStyle(fontSize: 9),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Show total if > 0
+                if (total > 0) ...[
+                  SizedBox(height: 2),
+                  Text(
+                    '€${total.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: categoryColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -456,15 +497,24 @@ class _NewHomepageState extends State<NewHomepage> {
     });
   }
 
-  // Build debt balance section (async version for group context)
+  // Build debt balance section (OPTIMIZED - no nested FutureBuilder!)
+  // Combines balance calculation + member names in ONE parallel query
   Widget _buildDebtBalanceSectionAsync({Key? key}) {
     final groupId = _contextManager.currentContext.groupId;
     if (groupId == null) return SizedBox.shrink();
 
-    return FutureBuilder<Map<String, double>>(
+    // OPTIMIZATION: Combine both futures in parallel using Future.wait
+    // This eliminates waterfall requests (balance → names)
+    final combinedFuture = Future.wait([
+      _expenseService.calculateGroupBalance(groupId),
+      _getUserNames(groupId),
+    ]);
+
+    return FutureBuilder<List<dynamic>>(
       key: key,
-      future: _expenseService.calculateGroupBalance(groupId),
+      future: combinedFuture,
       builder: (context, snapshot) {
+        // Single loading state for both queries
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Card(
             elevation: 3,
@@ -485,61 +535,43 @@ class _NewHomepageState extends State<NewHomepage> {
           return SizedBox.shrink();
         }
 
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          // No debts = balanced - fetch names for UI
-          return FutureBuilder<List<String>>(
-            future: _getUserNames(groupId),
-            builder: (context, nameSnapshot) {
-              final names = nameSnapshot.data ?? ['Tu', 'Altro membro'];
-              final debtBalance = DebtBalance(
-                carlOwes: 0.0,
-                pitOwes: 0.0,
-                netBalance: 0.0,
-                balanceLabel: "Saldo in pareggio",
-              );
-              return _buildDebtBalanceSection(debtBalance, names[0], names[1]);
-            },
+        if (!snapshot.hasData) {
+          return SizedBox.shrink();
+        }
+
+        // Extract data from combined result
+        final balances = snapshot.data![0] as Map<String, double>;
+        final names = snapshot.data![1] as List<String>;
+
+        final currentUserName = names[0];
+        final otherUserName = names[1];
+
+        // Handle balanced case
+        if (balances.isEmpty) {
+          final debtBalance = DebtBalance(
+            carlOwes: 0.0,
+            pitOwes: 0.0,
+            netBalance: 0.0,
+            balanceLabel: "Saldo in pareggio",
+          );
+          return _buildDebtBalanceSection(
+            debtBalance,
+            currentUserName,
+            otherUserName,
           );
         }
 
-        final balances = snapshot.data!;
+        // Normal case with debt
+        final debtBalance = DebtBalance.fromBalanceMap(
+          balances,
+          currentUserName,
+          otherUserName,
+        );
 
-        // Get user names from GroupService
-        return FutureBuilder<List<String>>(
-          future: _getUserNames(groupId),
-          builder: (context, nameSnapshot) {
-            if (nameSnapshot.connectionState == ConnectionState.waiting) {
-              return Card(
-                elevation: 3,
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(
-                    child: SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            final names = nameSnapshot.data ?? ['Tu', 'Altro membro'];
-            final currentUserName = names[0];
-            final otherUserName = names[1];
-
-            final debtBalance = DebtBalance.fromBalanceMap(
-              balances,
-              currentUserName,
-              otherUserName,
-            );
-
-            return _buildDebtBalanceSection(
-              debtBalance,
-              currentUserName,
-              otherUserName,
-            );
-          },
+        return _buildDebtBalanceSection(
+          debtBalance,
+          currentUserName,
+          otherUserName,
         );
       },
     );
@@ -553,7 +585,8 @@ class _NewHomepageState extends State<NewHomepage> {
       final currentUserId = supabase.auth.currentUser?.id;
       if (currentUserId == null) return ['Tu', 'Altro membro'];
 
-      final members = await GroupService().getGroupMembers(groupId);
+      // OPTIMIZATION: Use cached group members instead of fresh query
+      final members = await GroupServiceCached().getGroupMembers(groupId);
       if (members.isEmpty) return ['Tu', 'Altro membro'];
 
       // Find current user and other member
@@ -750,17 +783,30 @@ class _NewHomepageState extends State<NewHomepage> {
             ],
           ),
         ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: recentExpenses.length,
-          itemBuilder: (context, index) {
-            final expense = recentExpenses[index];
-            return ExpenseListItem(
-              expense: expense,
-              dismissible: true,
-              onDeleted: _refreshDebtBalance,
-              onUpdated: _refreshDebtBalance,
+        // OPTIMIZATION: Pre-calculate balances in bulk
+        FutureBuilder<Map<int, double>>(
+          future: _expenseService.calculateBulkUserBalances(recentExpenses),
+          builder: (context, balanceSnapshot) {
+            if (!balanceSnapshot.hasData) {
+              _balances = {};
+            } else {
+              _balances = balanceSnapshot.data!;
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: recentExpenses.length,
+              itemBuilder: (context, index) {
+                final expense = recentExpenses[index];
+                return ExpenseListItemOptimized(
+                  expense: expense,
+                  dismissible: true,
+                  cachedBalance: _balances[expense.id],
+                  onDeleted: _refreshDebtBalance,
+                  onUpdated: _refreshDebtBalance,
+                );
+              },
             );
           },
         ),
@@ -777,7 +823,7 @@ class FilteredExpenseList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expenseService = ExpenseService();
+    final expenseService = ExpenseServiceCached();
 
     return Scaffold(
       appBar: AppBar(title: Text('Spese - ${category.label}')),
@@ -814,13 +860,22 @@ class FilteredExpenseList extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
-            itemCount: expenses.length,
-            itemBuilder: (context, index) {
-              final expense = expenses[index];
-              return ExpenseListItem(
-                expense: expense,
-                dismissible: true, // Allow swipe gestures
+          // OPTIMIZATION: Pre-calculate balances in bulk
+          return FutureBuilder<Map<int, double>>(
+            future: expenseService.calculateBulkUserBalances(expenses),
+            builder: (context, balanceSnapshot) {
+              final balances = balanceSnapshot.data ?? {};
+
+              return ListView.builder(
+                itemCount: expenses.length,
+                itemBuilder: (context, index) {
+                  final expense = expenses[index];
+                  return ExpenseListItemOptimized(
+                    expense: expense,
+                    dismissible: true,
+                    cachedBalance: balances[expense.id],
+                  );
+                },
               );
             },
           );

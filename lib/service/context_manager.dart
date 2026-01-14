@@ -5,6 +5,7 @@ import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/view_storage_service.dart';
 import 'package:solducci/service/group_storage_service.dart';
 import 'package:solducci/service/context_persistence_service.dart';
+import 'package:solducci/core/preload/smart_preload_coordinator.dart';
 
 /// Manages the current expense context (Personal or Group)
 /// This is the core of the multi-user system - determines what expenses are shown
@@ -18,6 +19,7 @@ class ContextManager extends ChangeNotifier {
   final _viewStorage = ViewStorageService();
   final _groupStorage = GroupStorageService();
   final _contextPersistence = ContextPersistenceService();
+  final _preloadCoordinator = SmartPreloadCoordinator();
 
   ExpenseContext _currentContext = ExpenseContext.personal();
   List<ExpenseGroup> _userGroups = [];
@@ -45,6 +47,9 @@ class ContextManager extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Initialize smart preload coordinator
+      _preloadCoordinator.initialize();
+
       await loadUserGroups();
       await loadUserViews();
       await loadGroupPreferences(); // Carica preferenze gruppi
