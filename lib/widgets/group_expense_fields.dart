@@ -36,6 +36,17 @@ class _GroupExpenseFieldsState extends State<GroupExpenseFields> {
   }
 
   @override
+  void didUpdateWidget(GroupExpenseFields oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Validate that _selectedPaidBy is still in the members list
+    if (_selectedPaidBy != null &&
+        !widget.members.any((m) => m.userId == _selectedPaidBy)) {
+      // Reset to null if the selected user is no longer in the members list
+      _selectedPaidBy = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,7 +96,10 @@ class _GroupExpenseFieldsState extends State<GroupExpenseFields> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _selectedPaidBy,
+          value: _selectedPaidBy != null &&
+                  widget.members.any((m) => m.userId == _selectedPaidBy)
+              ? _selectedPaidBy
+              : null,
           decoration: InputDecoration(
             hintText: 'Seleziona chi ha pagato',
             prefixIcon: const Icon(Icons.person),
@@ -95,7 +109,9 @@ class _GroupExpenseFieldsState extends State<GroupExpenseFields> {
             filled: true,
             fillColor: Colors.grey[50],
           ),
-          items: widget.members.map((member) {
+          items: widget.members
+              .toSet()
+              .map((member) {
             return DropdownMenuItem<String>(
               value: member.userId,
               child: Row(
