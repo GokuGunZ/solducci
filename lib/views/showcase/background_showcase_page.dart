@@ -1,6 +1,7 @@
 import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:solducci/theme/background_showcase.dart';
 
 /// Showcase page for exploring different background styles and customization options
 ///
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 /// - Live customization with sliders and color pickers
 /// - Advanced pattern controls: size, spacing, shape variations
 /// - Preview of how backgrounds look with actual content
+/// - Elegant pre-designed gradient presets for quick selection
 class BackgroundShowcasePage extends StatefulWidget {
   const BackgroundShowcasePage({super.key});
 
@@ -33,37 +35,597 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Background Showcase'),
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.purple.withValues(alpha: 0.8),
-                Colors.blue.withValues(alpha: 0.6),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Background Showcase'),
+          elevation: 0,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.purple.withValues(alpha: 0.8),
+                  Colors.blue.withValues(alpha: 0.6),
+                ],
+              ),
+            ),
+          ),
+          bottom: const TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: [
+              Tab(icon: Icon(Icons.tune), text: 'Custom Editor'),
+              Tab(icon: Icon(Icons.auto_awesome), text: 'Elegant Presets'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // Tab 1: Custom Background Editor
+            _buildCustomEditorTab(),
+
+            // Tab 2: Elegant Presets Gallery
+            _buildElegantPresetsTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomEditorTab() {
+    return Column(
+      children: [
+        // Layer manager
+        _buildLayerManager(),
+
+        // Preview area with controls
+        Expanded(
+          child: Row(
+            children: [
+              // Left side: Background preview
+              Expanded(flex: 2, child: _buildBackgroundPreview()),
+
+              // Right side: Controls panel
+              Expanded(flex: 1, child: _buildControlsPanel()),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildElegantPresetsTab() {
+    return Row(
+      children: [
+        // Left side: Gradient gallery
+        Expanded(
+          flex: 1,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              border: Border(right: BorderSide(color: Colors.grey[300]!)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Elegant Gradients',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Seleziona un background elegante e moderno',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'Soft Pastels',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      _buildPresetCard('Soft Lavender Dreams', BackgroundShowcase.softLavenderDreams),
+                      _buildPresetCard('Pearl Essence', BackgroundShowcase.pearlEssence),
+                      _buildPresetCard('Mint Cream', BackgroundShowcase.mintCream),
+
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24, bottom: 8),
+                        child: Text(
+                          'Elegant Sophistication',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      _buildPresetCard('Champagne Glow', BackgroundShowcase.champagneGlow),
+                      _buildPresetCard('Rose Quartz', BackgroundShowcase.roseQuartz),
+                      _buildPresetCard('Silk Mist', BackgroundShowcase.silkMist),
+
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24, bottom: 8),
+                        child: Text(
+                          'Fresh & Modern',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      _buildPresetCard('Sky Whisper', BackgroundShowcase.skyWhisper),
+                      _buildPresetCard('Peach Sorbet', BackgroundShowcase.peachSorbet),
+                      _buildPresetCard('Morning Dew', BackgroundShowcase.morningDew),
+
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24, bottom: 8),
+                        child: Text(
+                          'Radial Glow',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      _buildPresetCard('Soft Glow', BackgroundShowcase.softGlow),
+                      _buildPresetCard('Ethereal Halo', BackgroundShowcase.etherealHalo),
+
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24, bottom: 8),
+                        child: Text(
+                          'Diagonal Elegance',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      _buildPresetCard('Diagonal Grace', BackgroundShowcase.diagonalGrace),
+                      _buildPresetCard('Sunlight Cascade', BackgroundShowcase.sunlightCascade),
+
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24, bottom: 8),
+                        child: Text(
+                          'Multi-Color Blends',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      _buildPresetCard('Cloud Nine', BackgroundShowcase.cloudNine),
+                      _buildPresetCard('Pastel Rainbow', BackgroundShowcase.pastelRainbow),
+                      _buildPresetCard('Aurora Whisper', BackgroundShowcase.auroraWhisper),
+                      _buildPresetCard('Moonlit Satin', BackgroundShowcase.moonlitSatin),
+
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24, bottom: 8),
+                        child: Text(
+                          'Complex Layered',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      _buildComplexPresetCard('Layered Elegance', BackgroundShowcase.layeredElegance),
+                      _buildComplexPresetCard('Frosted Glass', BackgroundShowcase.frostedGlass),
+                      _buildComplexPresetCard('Flowing Silk', BackgroundShowcase.flowingSilk),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
+
+        // Right side: Full preview
+        Expanded(
+          flex: 2,
+          child: _buildElegantPreview(),
+        ),
+      ],
+    );
+  }
+
+  String? _selectedPresetName;
+  dynamic _selectedPresetGradient;
+
+  Widget _buildPresetCard(String name, Gradient gradient) {
+    final isSelected = _selectedPresetName == name;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPresetName = name;
+          _selectedPresetGradient = gradient;
+        });
+      },
+      child: Container(
+        height: 80,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.deepPurple : Colors.grey[300]!,
+            width: isSelected ? 3 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.deepPurple.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            if (isSelected)
+              const Positioned(
+                top: 8,
+                right: 8,
+                child: Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 24,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildComplexPresetCard(String name, Widget backgroundWidget) {
+    final isSelected = _selectedPresetName == name;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPresetName = name;
+          _selectedPresetGradient = backgroundWidget;
+        });
+      },
+      child: Container(
+        height: 80,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.deepPurple : Colors.grey[300]!,
+            width: isSelected ? 3 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.deepPurple.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            children: [
+              Positioned.fill(child: backgroundWidget),
+              Positioned(
+                bottom: 8,
+                left: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                const Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Colors.white,
+                    size: 24,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildElegantPreview() {
+    if (_selectedPresetGradient == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.palette,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Seleziona un background dalla lista',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        // Background
+        Positioned.fill(
+          child: _selectedPresetGradient is Widget
+              ? _selectedPresetGradient
+              : Container(
+                  decoration: BoxDecoration(
+                    gradient: _selectedPresetGradient as Gradient,
+                  ),
+                ),
+        ),
+
+        // Sample content overlay
+        ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.deepPurple,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedPresetName ?? '',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Elegant Background Preset',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Sample cards
+            _buildSampleElegantCard(
+              'Task Completata',
+              'Documentazione progetto aggiornata',
+              Icons.check_circle,
+              Colors.green,
+            ),
+            const SizedBox(height: 12),
+            _buildSampleElegantCard(
+              'In Progresso',
+              'Implementazione nuove features UI',
+              Icons.pending,
+              Colors.orange,
+            ),
+            const SizedBox(height: 12),
+            _buildSampleElegantCard(
+              'Da Fare',
+              'Code review e testing',
+              Icons.circle_outlined,
+              Colors.grey,
+            ),
+            const SizedBox(height: 24),
+
+            // Info card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.deepPurple.withValues(alpha: 0.2),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.deepPurple,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Anteprima live con contenuti reali per valutare leggibilità e estetica',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSampleElegantCard(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color iconColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          // Layer manager
-          _buildLayerManager(),
-
-          // Preview area with controls
+          Icon(icon, color: iconColor, size: 28),
+          const SizedBox(width: 16),
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Left side: Background preview
-                Expanded(flex: 2, child: _buildBackgroundPreview()),
-
-                // Right side: Controls panel
-                Expanded(flex: 1, child: _buildControlsPanel()),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                  ),
+                ),
               ],
             ),
+          ),
+          const Icon(
+            Icons.more_vert,
+            color: Colors.black38,
+            size: 20,
           ),
         ],
       ),

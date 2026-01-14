@@ -10,7 +10,8 @@ class ContextChip extends StatelessWidget {
   final ContextChipType type;
   final bool isSelected;
   final bool isRelated; // Correlato (vista ↔ gruppi) - molto trasparente
-  final bool isLightlySelected; // Selezione leggera (doppio tap) - meno trasparente
+  final bool
+  isLightlySelected; // Selezione leggera (doppio tap) - meno trasparente
   final bool includesPersonal;
   final VoidCallback onTap;
   final VoidCallback? onAddPersonalTap;
@@ -34,8 +35,8 @@ class ContextChip extends StatelessWidget {
     final icon = type == ContextChipType.personal
         ? Icons.person
         : type == ContextChipType.view
-            ? Icons.dashboard
-            : Icons.group;
+        ? Icons.view_list_rounded
+        : Icons.group;
 
     // Colore in base al tipo e selezione
     final Color chipColor;
@@ -46,8 +47,8 @@ class ContextChip extends StatelessWidget {
       chipColor = type == ContextChipType.personal
           ? Colors.purple[700]!
           : type == ContextChipType.view
-              ? Colors.blue[700]!
-              : Colors.green[700]!;
+          ? Colors.blue[700]!
+          : Colors.green[700]!;
       textColor = Colors.white;
       accentColor = chipColor;
     } else if (isLightlySelected) {
@@ -89,31 +90,33 @@ class ContextChip extends StatelessWidget {
             ),
           ]
         : isLightlySelected
-            ? [
-                // Glow medio per lightly selected (doppio tap)
-                BoxShadow(
-                  color: accentColor.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  spreadRadius: 1.5,
-                ),
-              ]
-            : isRelated
-                ? [
-                    // Glow leggero per correlati (tap singolo)
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : [];
+        ? [
+            // Glow medio per lightly selected (doppio tap)
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.35),
+              blurRadius: 10,
+              spreadRadius: 1.5,
+            ),
+          ]
+        : isRelated
+        ? [
+            // Glow leggero per correlati (tap singolo)
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.25),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ]
+        : [];
 
     return Container(
       decoration: BoxDecoration(
         color: chipColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? chipColor : (isRelated ? accentColor : Colors.grey[300]!),
+          color: isSelected
+              ? chipColor
+              : (isRelated ? accentColor : Colors.grey[300]!),
           width: isSelected ? 2 : 1,
         ),
         boxShadow: shadows,
@@ -145,8 +148,9 @@ class ContextChip extends StatelessWidget {
                     label,
                     style: TextStyle(
                       color: textColor,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       fontSize: 14,
                     ),
                   ),
@@ -160,8 +164,9 @@ class ContextChip extends StatelessWidget {
             Container(
               width: 1,
               height: 24,
-              color:
-                  isSelected ? Colors.white.withValues(alpha: 0.3) : Colors.grey[300],
+              color: isSelected
+                  ? Colors.white.withValues(alpha: 0.3)
+                  : Colors.grey[300],
             ),
             InkWell(
               onTap: onAddPersonalTap,

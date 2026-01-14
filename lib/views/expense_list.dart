@@ -71,12 +71,12 @@ class _ExpenseListState extends State<ExpenseList> {
     openExpenseForm(title: "Nuova Spesa");
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const ContextSwitcher(),
+        centerTitle: true,
         elevation: 2,
       ),
       body: StreamBuilder<List<Expense>>(
@@ -124,10 +124,7 @@ class _ExpenseListState extends State<ExpenseList> {
             itemCount: expenses.length,
             itemBuilder: (context, index) {
               final expense = expenses[index];
-              return ExpenseListItem(
-                expense: expense,
-                dismissible: true,
-              );
+              return ExpenseListItem(expense: expense, dismissible: true);
             },
           );
         },

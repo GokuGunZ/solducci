@@ -303,7 +303,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
     return Stack(
       children: [
         // Background gradient (same as original)
-        Positioned.fill(child: TodoTheme.customBackgroundGradient),
+        Positioned.fill(child: TodoTheme.customBackground),
 
         // Main content
         Column(

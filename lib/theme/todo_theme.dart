@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/theme/background_showcase.dart';
 
 /// Theme configuration for the ToDo section of the app
 /// Centralizes colors, gradients, and styling for consistency
@@ -83,31 +84,78 @@ class TodoTheme {
               startAngle: 211.5 * 3.14159 / 180,
               endAngle: 333 * 3.14159 / 180,
               colors: [
-                Color(0x4DFFFFFF), // White with 30% opacity
-                Color(0x4D9E9E9E), // Grey with 30% opacity
-                Color.fromARGB(214, 155, 39, 176), // Purple with 30% opacity
-              ],
-            ),
-          ),
-        ),
-      ),
-      // Layer 3: Linear gradient top to bottom (Purple -> Blue -> Black)
-      Positioned.fill(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color.fromARGB(51, 155, 39, 176), // Purple with 10% opacity
-                Color.fromARGB(65, 33, 149, 243), // Blue with 10% opacity
-                Color.fromARGB(150, 0, 0, 0), // Black with 10% opacity
+                Color.fromARGB(177, 255, 255, 255), // White with 30% opacity
+                Color.fromARGB(177, 158, 158, 158), // Grey with 30% opacity
+                Color.fromARGB(114, 155, 39, 176), // Purple with 30% opacity
               ],
             ),
           ),
         ),
       ),
     ],
+  );
+
+  static Widget customGreenGradientBackground = Stack(
+    children: [
+      // Layer 1: Bottom-right sweep gradient (Black -> Green -> Light Blue)
+      Positioned.fill(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: SweepGradient(
+              center: Alignment.center,
+              startAngle: 0 * 3.14159 / 180,
+              endAngle: 180 * 3.14159 / 180,
+              colors: [
+                Color.fromARGB(102, 122, 247, 155),
+                Color.fromARGB(178, 1, 255, 9),
+                Color.fromARGB(163, 15, 175, 0),
+              ],
+            ),
+          ),
+        ),
+      ),
+      // Layer 2: Bottom-left sweep gradient (White -> Grey -> Purple)
+      Positioned.fill(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: SweepGradient(
+              center: Alignment.center,
+              startAngle: 180 * 3.14159 / 180,
+              endAngle: 360 * 3.14159 / 180,
+              colors: [
+                Color.fromARGB(163, 15, 175, 0),
+                Color.fromARGB(178, 1, 255, 9),
+                Color.fromARGB(102, 122, 247, 155),
+              ],
+            ),
+          ),
+        ),
+      ),
+      Positioned.fill(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: SweepGradient(
+              center: Alignment.center,
+              startAngle: 90 * 3.14159 / 180,
+              endAngle: 450 * 3.14159 / 180,
+              colors: [
+                Color.fromARGB(162, 78, 225, 200),
+                Color.fromARGB(176, 59, 168, 135),
+                Color.fromARGB(102, 122, 247, 155),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  /// Custom background gradient for the app
+  /// Currently using Aurora Whisper: Northern lights inspired elegant gradient
+  static Widget customBackground = Container(
+    decoration: const BoxDecoration(
+      gradient: BackgroundShowcase.softLavenderDreams,
+    ),
   );
 
   // ========== BORDER ==========
@@ -263,26 +311,26 @@ class TodoTheme {
         color: (borderColor ?? Colors.white).withValues(alpha: borderOpacity),
         width: 1.5,
       ),
-      boxShadow: boxShadow ?? [
-        BoxShadow(
-          color: primaryPurple.withValues(alpha: 0.1),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: Colors.white.withValues(alpha: 0.3),
-          blurRadius: 2,
-          offset: const Offset(-1, -1),
-        ),
-      ],
+      boxShadow:
+          boxShadow ??
+          [
+            BoxShadow(
+              color: primaryPurple.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.3),
+              blurRadius: 2,
+              offset: const Offset(-1, -1),
+            ),
+          ],
     );
   }
 
   /// Glass morphism decoration for AppBar
   /// Lighter, more transparent variant for top navigation
-  static BoxDecoration glassAppBarDecoration({
-    BorderRadius? borderRadius,
-  }) {
+  static BoxDecoration glassAppBarDecoration({BorderRadius? borderRadius}) {
     return BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topCenter,
