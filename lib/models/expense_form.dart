@@ -6,11 +6,12 @@ import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/models/expense_view.dart';
+import 'package:solducci/models/expense_split_state.dart';
 import 'package:solducci/service/expense_service.dart';
 import 'package:solducci/service/context_manager.dart';
-import 'package:solducci/service/group_service.dart';
-import 'package:solducci/widgets/group_expense_fields.dart';
-import 'package:solducci/widgets/custom_split_editor.dart';
+import 'package:solducci/service/group_service_cached.dart';
+import 'package:solducci/widgets/expense_split/expense_type_switch.dart';
+import 'package:solducci/widgets/expense_split/group_split_card.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive/hive.dart';
 
@@ -153,47 +154,82 @@ class _ExpenseFormWidget extends StatefulWidget {
 }
 
 class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
+  // Expense type state (Personal vs Group)
+  ExpenseType _expenseType = ExpenseType.personal;
+
   // Group expense fields state
-  String? _paidBy;
-  SplitType? _splitType = SplitType.equal;
-  Map<String, double>? _customSplits;
-  List<GroupMember> _groupMembers = [];
+  ExpenseSplitState? _splitState;
+  ExpenseGroup? _currentGroup;
   bool _loadingMembers = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize group fields from existing expense if in edit mode
-    if (widget.expenseForm.isEditMode &&
-        widget.expenseForm._initialExpense != null) {
-      final expense = widget.expenseForm._initialExpense!;
-      _paidBy = expense.paidBy;
-      _splitType = expense.splitType ?? SplitType.equal;
-      _customSplits = expense.splitData;
-    }
-
+    // Determine initial expense type
     if (widget.isGroupContext && widget.groupId != null) {
-      _loadGroupMembers();
+      _expenseType = ExpenseType.group;
+      _loadGroupData();
+    } else if (widget.expenseForm.isEditMode &&
+        widget.expenseForm._initialExpense != null &&
+        widget.expenseForm._initialExpense!.groupId != null) {
+      // Edit mode with group expense
+      _expenseType = ExpenseType.group;
+      _loadGroupData();
+    } else {
+      _expenseType = ExpenseType.personal;
     }
   }
 
-  Future<void> _loadGroupMembers() async {
+  Future<void> _loadGroupData() async {
     setState(() => _loadingMembers = true);
 
     try {
-      final members = await GroupService()
-          .getGroupMembers(widget.groupId!)
+      final groupId = widget.groupId ?? widget.expenseForm._initialExpense?.groupId;
+      if (groupId == null) {
+        throw Exception('No group ID available');
+      }
+
+      // Use cached service for performance
+      final groupService = GroupServiceCached();
+      final members = await groupService
+          .getGroupMembers(groupId)
           .timeout(const Duration(seconds: 10));
 
+      // Get group info
+      final group = await groupService.getGroupById(groupId);
+
       if (mounted) {
+        final totalAmount = widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
+
+        // Initialize split state
+        if (widget.expenseForm.isEditMode &&
+            widget.expenseForm._initialExpense != null) {
+          // Edit mode: load existing split data
+          final expense = widget.expenseForm._initialExpense!;
+          _splitState = ExpenseSplitState(
+            members: members,
+            totalAmount: totalAmount,
+            initialPayer: expense.paidBy,
+            initialSplitters: expense.splitData?.keys.toSet(),
+            initialSplits: expense.splitData,
+            initialIsEqualSplit: expense.splitType == SplitType.equal,
+          );
+        } else {
+          // New expense: preselect all members with equal split
+          _splitState = ExpenseSplitState(
+            members: members,
+            totalAmount: totalAmount,
+          );
+
+          // Preselect current user as payer and all members for split
+          final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+          _splitState!.preselectAllMembers(payerId: currentUserId);
+        }
+
         setState(() {
-          _groupMembers = members;
+          _currentGroup = group;
           _loadingMembers = false;
-          // Auto-select current user as paidBy ONLY if not already set (new expense)
-          if (_paidBy == null) {
-            _paidBy = Supabase.instance.client.auth.currentUser?.id;
-          }
         });
       }
     } catch (e) {
@@ -211,34 +247,54 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
     }
   }
 
+  void _onExpenseTypeChanged(ExpenseType newType) {
+    if (newType == _expenseType) return;
+
+    setState(() {
+      _expenseType = newType;
+
+      if (newType == ExpenseType.group && widget.groupId != null) {
+        // Switching to group: load group data if not already loaded
+        if (_splitState == null) {
+          _loadGroupData();
+        }
+      } else if (newType == ExpenseType.personal) {
+        // Switching to personal: keep splitState but don't use it in submission
+        // No need to clear, just ignore it during save
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Show loading indicator while loading members
-    if (widget.isGroupContext && _loadingMembers) {
+    if (_loadingMembers) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Caricamento membri gruppo...'),
+            Text('Caricamento dati gruppo...'),
           ],
         ),
       );
     }
 
     // If in group context but no members loaded, show error
-    if (widget.isGroupContext && _groupMembers.isEmpty && !_loadingMembers) {
+    if (_expenseType == ExpenseType.group &&
+        _splitState == null &&
+        !_loadingMembers) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            const Text('Impossibile caricare i membri del gruppo'),
+            const Text('Impossibile caricare i dati del gruppo'),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _loadGroupMembers,
+              onPressed: _loadGroupData,
               icon: const Icon(Icons.refresh),
               label: const Text('Riprova'),
             ),
@@ -262,7 +318,15 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
           const SizedBox(height: 16),
 
           // Amount field - full width
-          FieldWidget(expenseField: widget.expenseForm.moneyField),
+          FieldWidget(
+            expenseField: widget.expenseForm.moneyField,
+            onAmountChanged: (newAmount) {
+              // Update split state when amount changes
+              if (_splitState != null && newAmount > 0) {
+                _splitState!.updateTotalAmount(newAmount);
+              }
+            },
+          ),
           const SizedBox(height: 24),
 
           // Date picker - card style
@@ -271,37 +335,54 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
 
           // Category selector
           FieldWidget(expenseField: widget.expenseForm.typeField),
+          const SizedBox(height: 24),
+
+          // NEW: Expense Type Switch (always visible, preselected based on context)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ExpenseTypeSwitch(
+              initialType: _expenseType,
+              onTypeChanged: _onExpenseTypeChanged,
+            ),
+          ),
           const SizedBox(height: 16),
 
-          // GROUP FIELDS - Show only in group context
-          if (widget.isGroupContext && _groupMembers.isNotEmpty) ...[
-            GroupExpenseFields(
-              members: _groupMembers,
-              initialPaidBy: _paidBy,
-              initialSplitType: _splitType,
-              onPaidByChanged: (value) {
-                setState(() => _paidBy = value);
+          // NEW: Group Split Card (show when group type selected with slide animation)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, -0.3),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
               },
-              onSplitTypeChanged: (value) {
-                setState(() => _splitType = value);
-              },
+              child: _expenseType == ExpenseType.group &&
+                      _splitState != null &&
+                      _currentGroup != null
+                  ? Padding(
+                      key: const ValueKey('group_split_card'),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: GroupSplitCard(
+                        group: _currentGroup!,
+                        splitState: _splitState!,
+                        isSelected: true,
+                        allowCollapse: false, // Always expanded in single group context
+                      ),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('empty')),
             ),
-
-            // Custom split editor - Show only if custom split selected
-            if (_splitType == SplitType.custom) ...[
-              const SizedBox(height: 16),
-              CustomSplitEditor(
-                members: _groupMembers,
-                totalAmount:
-                    widget.expenseForm.moneyField.getFieldValue() as double? ??
-                    0.0,
-                initialSplits: _customSplits,
-                onSplitsChanged: (splits) {
-                  setState(() => _customSplits = splits);
-                },
-              ),
-            ],
-          ],
+          ),
 
           const SizedBox(height: 32),
 
@@ -310,25 +391,26 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton.icon(
               onPressed: () async {
-                // Validate custom splits if needed
-                if (widget.isGroupContext &&
-                    _splitType == SplitType.custom &&
-                    _customSplits != null) {
-                  final totalAmount =
-                      widget.expenseForm.moneyField.getFieldValue()
-                          as double? ??
-                      0.0;
-                  final splitsTotal = _customSplits!.values.fold(
-                    0.0,
-                    (sum, amount) => sum + amount,
-                  );
-
-                  if ((splitsTotal - totalAmount).abs() > 0.01) {
+                // Validate split state if in group mode
+                if (_expenseType == ExpenseType.group && _splitState != null) {
+                  if (!_splitState!.isValid) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Gli importi custom devono sommare a ${totalAmount.toStringAsFixed(2)}€',
+                          _splitState!.selectedSplitters.isEmpty
+                              ? 'Seleziona almeno un utente per la divisione'
+                              : 'Gli importi devono sommare a ${_splitState!.totalAmount.toStringAsFixed(2)}€',
                         ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (_splitState!.selectedPayer == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Seleziona chi ha pagato la spesa'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -341,6 +423,20 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
 
                   // Get current user ID from Supabase
                   final userId = Supabase.instance.client.auth.currentUser?.id;
+
+                  // Determine split type based on state
+                  SplitType? splitType;
+                  Map<String, double>? splitData;
+
+                  if (_expenseType == ExpenseType.group && _splitState != null) {
+                    if (_splitState!.isEqualSplit) {
+                      splitType = SplitType.equal;
+                      splitData = null; // Equal split doesn't need custom data
+                    } else {
+                      splitType = SplitType.custom;
+                      splitData = _splitState!.splits;
+                    }
+                  }
 
                   if (widget.expenseForm.isEditMode &&
                       widget.expenseForm._initialExpense != null) {
@@ -362,24 +458,15 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                           widget.expenseForm.typeField.getFieldValue()
                               as Tipologia,
                       userId: widget.expenseForm._initialExpense!.userId,
-                      // FIX: Use current form values for group fields to allow updates
-                      groupId: widget.expenseForm._initialExpense!.groupId,
-                      paidBy: widget.isGroupContext
-                          ? _paidBy
-                          : widget.expenseForm._initialExpense!.paidBy,
-                      splitType: widget.isGroupContext
-                          ? _splitType
-                          : widget.expenseForm._initialExpense!.splitType,
-                      splitData:
-                          widget.isGroupContext &&
-                              _splitType == SplitType.custom
-                          ? _customSplits
-                          : (widget.isGroupContext
-                                ? null
-                                : widget
-                                      .expenseForm
-                                      ._initialExpense!
-                                      .splitData),
+                      // Use new split state if in group mode
+                      groupId: _expenseType == ExpenseType.group
+                          ? (widget.groupId ?? widget.expenseForm._initialExpense!.groupId)
+                          : null,
+                      paidBy: _expenseType == ExpenseType.group
+                          ? _splitState?.selectedPayer
+                          : null,
+                      splitType: splitType,
+                      splitData: splitData,
                     );
                     await widget.expenseForm._expenseService.updateExpense(
                       updatedExpense,
@@ -403,15 +490,13 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                           widget.expenseForm.typeField.getFieldValue()
                               as Tipologia,
                       userId: userId,
-                      // NEW: Add group fields if in group context
-                      groupId: widget.isGroupContext ? widget.groupId : null,
-                      paidBy: widget.isGroupContext ? _paidBy : null,
-                      splitType: widget.isGroupContext ? _splitType : null,
-                      splitData:
-                          widget.isGroupContext &&
-                              _splitType == SplitType.custom
-                          ? _customSplits
+                      // Add group fields if in group mode
+                      groupId: _expenseType == ExpenseType.group ? widget.groupId : null,
+                      paidBy: _expenseType == ExpenseType.group
+                          ? _splitState?.selectedPayer
                           : null,
+                      splitType: splitType,
+                      splitData: splitData,
                     );
                     await widget.expenseForm._expenseService.createExpense(
                       newExpense,
@@ -470,7 +555,13 @@ class ExpenseField {
 
 class FieldWidget extends StatefulWidget {
   final ExpenseField expenseField;
-  const FieldWidget({super.key, required this.expenseField});
+  final ValueChanged<double>? onAmountChanged;
+
+  const FieldWidget({
+    super.key,
+    required this.expenseField,
+    this.onAmountChanged,
+  });
 
   @override
   State<FieldWidget> createState() => _FieldWidgetState();
@@ -550,7 +641,9 @@ class _FieldWidgetState extends State<FieldWidget> {
           keyboardType: TextInputType.numberWithOptions(decimal: true),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           onChanged: (value) {
-            widget.expenseField.setValue(_formatter!.getDouble());
+            final newAmount = _formatter!.getDouble();
+            widget.expenseField.setValue(newAmount);
+            widget.onAmountChanged?.call(newAmount);
           },
           onSaved: (newValue) {
             widget.expenseField.setValue(_formatter!.getDouble());
@@ -850,16 +943,16 @@ class _ViewExpenseFormWidget extends StatefulWidget {
 }
 
 class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
-  // Gruppi selezionati (per creare la spesa)
-  final Set<String> _selectedGroupIds = {};
+  // Expense type state (always starts as Group in View context)
+  ExpenseType _expenseType = ExpenseType.group;
 
-  // Membri di tutti i gruppi della vista (caricati all'inizio)
-  final Map<String, List<GroupMember>> _groupMembers = {};
+  // Split state per each group
+  final Map<String, ExpenseSplitState> _groupSplitStates = {};
+  final Map<String, ExpenseGroup> _groups = {};
   bool _loadingMembers = false;
 
-  // Split fields (unificati per tutti i gruppi - FASE 1 semplificata)
-  String? _paidBy;
-  SplitType _splitType = SplitType.equal;
+  // Gruppi selezionati (per creare la spesa)
+  final Set<String> _selectedGroupIds = {};
 
   @override
   void initState() {
@@ -871,18 +964,47 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
     setState(() => _loadingMembers = true);
 
     try {
-      for (final group in widget.view.groups!) {
-        final members = await GroupService()
+      // Use cached service for performance
+      final groupService = GroupServiceCached();
+      final totalAmount = widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
+
+      // Load all groups in parallel
+      final futures = widget.view.groups!.map((group) async {
+        final members = await groupService
             .getGroupMembers(group.id)
             .timeout(const Duration(seconds: 10));
-        _groupMembers[group.id] = members;
+        final groupInfo = await groupService.getGroupById(group.id);
+        return MapEntry(
+          group.id,
+          {
+            'members': members,
+            'group': groupInfo,
+          },
+        );
+      });
+
+      final results = await Future.wait(futures);
+
+      for (final entry in results) {
+        final members = entry.value['members'] as List<GroupMember>;
+        final groupInfo = entry.value['group'] as ExpenseGroup;
+
+        _groups[entry.key] = groupInfo;
+
+        // Create split state for each group
+        _groupSplitStates[entry.key] = ExpenseSplitState(
+          members: members,
+          totalAmount: totalAmount,
+        );
+
+        // Preselect all members with current user as payer
+        final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+        _groupSplitStates[entry.key]!.preselectAllMembers(payerId: currentUserId);
       }
 
       if (mounted) {
         setState(() {
           _loadingMembers = false;
-          // Auto-select current user as paidBy
-          _paidBy = Supabase.instance.client.auth.currentUser?.id;
         });
       }
     } catch (e) {
@@ -903,22 +1025,27 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
     }
   }
 
-  /// Ottieni tutti i membri unici dai gruppi selezionati
-  List<GroupMember> get _allSelectedMembers {
-    final allMembers = <GroupMember>[];
-    final seenUserIds = <String>{};
+  void _onExpenseTypeChanged(ExpenseType newType) {
+    if (newType == _expenseType) return;
 
-    for (final groupId in _selectedGroupIds) {
-      final members = _groupMembers[groupId] ?? [];
-      for (final member in members) {
-        if (!seenUserIds.contains(member.userId)) {
-          allMembers.add(member);
-          seenUserIds.add(member.userId);
-        }
+    setState(() {
+      _expenseType = newType;
+
+      if (newType == ExpenseType.personal) {
+        // Deselect all groups
+        _selectedGroupIds.clear();
       }
-    }
+    });
+  }
 
-    return allMembers;
+  void _toggleGroupSelection(String groupId) {
+    setState(() {
+      if (_selectedGroupIds.contains(groupId)) {
+        _selectedGroupIds.remove(groupId);
+      } else {
+        _selectedGroupIds.add(groupId);
+      }
+    });
   }
 
   @override
@@ -939,339 +1066,178 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
 
     return Form(
       key: widget.formKey,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-          // Campi base
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Description field
           FieldWidget(expenseField: widget.expenseForm.descriptionField),
           const SizedBox(height: 16),
-          FieldWidget(expenseField: widget.expenseForm.moneyField),
-          const SizedBox(height: 16),
+
+          // Amount field with reactive update
+          FieldWidget(
+            expenseField: widget.expenseForm.moneyField,
+            onAmountChanged: (newAmount) {
+              // Update all split states when amount changes
+              for (final splitState in _groupSplitStates.values) {
+                if (newAmount > 0) {
+                  splitState.updateTotalAmount(newAmount);
+                }
+              }
+            },
+          ),
+          const SizedBox(height: 24),
+
+          // Date picker
           FieldWidget(expenseField: widget.expenseForm.dateField),
           const SizedBox(height: 16),
+
+          // Category selector
           FieldWidget(expenseField: widget.expenseForm.typeField),
           const SizedBox(height: 24),
 
-          // SEZIONE SELEZIONE GRUPPI
-          Row(
-            children: [
-              Expanded(
-                child: Divider(color: Colors.grey[400], thickness: 1),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'SELEZIONA GRUPPI',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Divider(color: Colors.grey[400], thickness: 1),
-              ),
-            ],
+          // Expense Type Switch (always visible, preselected to Group)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ExpenseTypeSwitch(
+              initialType: _expenseType,
+              onTypeChanged: _onExpenseTypeChanged,
+            ),
           ),
           const SizedBox(height: 16),
 
-          // Card selezionabili per ogni gruppo
-          ...widget.view.groups!.map((group) {
-            final isSelected = _selectedGroupIds.contains(group.id);
-            final members = _groupMembers[group.id] ?? [];
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Card(
-                elevation: isSelected ? 4 : 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: isSelected ? Colors.blue[700]! : Colors.grey[300]!,
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header con checkbox e nome gruppo
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            _selectedGroupIds.remove(group.id);
-                          } else {
-                            _selectedGroupIds.add(group.id);
-                          }
-                        });
-                      },
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        topRight: Radius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isSelected
-                                  ? Icons.check_circle
-                                  : Icons.circle_outlined,
-                              color: isSelected ? Colors.blue[700] : Colors.grey,
-                              size: 28,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                group.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: isSelected
-                                      ? Colors.blue[700]
-                                      : Colors.grey[800],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Chip membri (solo se gruppo selezionato)
-                    if (isSelected && members.isNotEmpty) ...[
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: members.map((member) {
-                            final isPayer = _paidBy == member.userId;
-                            return FilterChip(
-                              selected: isPayer,
-                              label: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 10,
-                                    backgroundColor: isPayer
-                                        ? Colors.white
-                                        : Colors.blue[200],
-                                    child: Text(
-                                      member.initials,
-                                      style: TextStyle(
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                        color: isPayer
-                                            ? Colors.blue[700]
-                                            : Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    member.nickname ??
-                                        member.email?.split('@').first ??
-                                        'Unknown',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isPayer
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              onSelected: (selected) {
-                                setState(() {
-                                  _paidBy = selected ? member.userId : null;
-                                });
-                              },
-                              selectedColor: Colors.blue[700],
-                              checkmarkColor: Colors.white,
-                              backgroundColor: Colors.grey[100],
-                              side: BorderSide(
-                                color: isPayer
-                                    ? Colors.blue[700]!
-                                    : Colors.grey[300]!,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          }),
-
-          // SPLIT FIELDS (visibili solo se almeno 1 gruppo selezionato)
-          if (_selectedGroupIds.isNotEmpty) ...[
-            const SizedBox(height: 24),
-
-            Row(
-              children: [
-                Expanded(
-                  child: Divider(color: Colors.grey[400], thickness: 1),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'SPLIT TRA MEMBRI',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Divider(color: Colors.grey[400], thickness: 1),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Dropdown "Chi ha pagato?" (unificato per tutti i gruppi)
-            Text(
-              'Chi ha pagato? *',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _paidBy,
-              decoration: InputDecoration(
-                hintText: 'Seleziona chi ha pagato',
-                prefixIcon: const Icon(Icons.person),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              items: _allSelectedMembers.map((member) {
-                return DropdownMenuItem<String>(
-                  value: member.userId,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: Colors.blue[200],
-                        child: Text(
-                          member.initials,
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          member.nickname ?? member.email ?? 'Unknown',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+          // Group Split Cards (show when group type selected with slide animation)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, -0.3),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
                   ),
                 );
-              }).toList(),
-              onChanged: (value) => setState(() => _paidBy = value),
-              validator: (value) =>
-                  value == null ? 'Seleziona chi ha pagato' : null,
-            ),
+              },
+              child: _expenseType == ExpenseType.group
+                  ? Column(
+                      key: const ValueKey('group_cards'),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: widget.view.groups!.map((group) {
+                        final splitState = _groupSplitStates[group.id];
+                        final groupInfo = _groups[group.id];
+                        final isSelected = _selectedGroupIds.contains(group.id);
 
-            const SizedBox(height: 16),
+                        if (splitState == null || groupInfo == null) {
+                          return const SizedBox.shrink();
+                        }
 
-            // Split type selector
-            Text(
-              'Come dividere?',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            ...SplitType.values.map((type) {
-              return RadioListTile<SplitType>(
-                value: type,
-                groupValue: _splitType,
-                onChanged: (value) => setState(() => _splitType = value!),
-                title: Row(
-                  children: [
-                    Text(
-                      type.icon,
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            type.label,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          child: GroupSplitCard(
+                            group: groupInfo,
+                            splitState: splitState,
+                            isSelected: isSelected,
+                            allowCollapse: true, // Allow collapse in view context
+                            showExpandIcon: false, // Hide expand icon in view context
+                            onSelectionChanged: (selected) {
+                              _toggleGroupSelection(group.id);
+                            },
                           ),
-                          Text(
-                            type.description,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                dense: true,
-              );
-            }),
-          ],
+                        );
+                      }).toList(),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('empty')),
+            ),
+          ),
 
           const SizedBox(height: 32),
 
           // Submit button
-          ElevatedButton.icon(
-            onPressed: _selectedGroupIds.isEmpty ? null : _onSubmit,
-            icon: const Icon(Icons.check),
-            label: const Text('Crea Spesa'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              disabledForegroundColor: Colors.grey[600],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ElevatedButton.icon(
+              onPressed: _expenseType == ExpenseType.personal ||
+                      _selectedGroupIds.isEmpty
+                  ? null
+                  : _onSubmit,
+              icon: const Icon(Icons.check),
+              label: Text(
+                _expenseType == ExpenseType.personal
+                    ? 'Crea Spesa Personale'
+                    : 'Crea Spesa Di Gruppo',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey[300],
+                disabledForegroundColor: Colors.grey[600],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
           const SizedBox(height: 16),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _onSubmit() async {
     if (!widget.formKey.currentState!.validate()) return;
+
+    // If personal expense, create without group
+    if (_expenseType == ExpenseType.personal) {
+      await _createPersonalExpense();
+      return;
+    }
+
+    // Validate all selected group split states
+    for (final groupId in _selectedGroupIds) {
+      final splitState = _groupSplitStates[groupId];
+      if (splitState == null) continue;
+
+      if (!splitState.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                splitState.selectedSplitters.isEmpty
+                    ? 'Seleziona almeno un utente per ${_groups[groupId]?.name}'
+                    : 'Gli importi per ${_groups[groupId]?.name} devono sommare a ${splitState.totalAmount.toStringAsFixed(2)}€',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (splitState.selectedPayer == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Seleziona chi ha pagato per ${_groups[groupId]?.name}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     widget.formKey.currentState!.save();
 
     if (_selectedGroupIds.length == 1) {
@@ -1283,18 +1249,57 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
     }
   }
 
-  Future<void> _createSingleGroupExpense(String groupId) async {
+  Future<void> _createPersonalExpense() async {
+    widget.formKey.currentState!.save();
+
     final expense = Expense(
       id: -1,
       description: widget.expenseForm.descriptionField.getFieldValue() as String,
       amount: widget.expenseForm.moneyField.getFieldValue() as double,
       date: widget.expenseForm.dateField.getFieldValue() as DateTime,
       type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
-      moneyFlow: MoneyFlow.carlucci, // Legacy field
+      moneyFlow: MoneyFlow.carlucci,
+      userId: Supabase.instance.client.auth.currentUser?.id,
+      groupId: null,
+      paidBy: null,
+      splitType: null,
+      splitData: null,
+    );
+
+    await ExpenseService().createExpense(expense);
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _createSingleGroupExpense(String groupId) async {
+    final splitState = _groupSplitStates[groupId]!;
+
+    // Determine split type based on state
+    SplitType splitType;
+    Map<String, double>? splitData;
+
+    if (splitState.isEqualSplit) {
+      splitType = SplitType.equal;
+      splitData = null;
+    } else {
+      splitType = SplitType.custom;
+      splitData = splitState.splits;
+    }
+
+    final expense = Expense(
+      id: -1,
+      description: widget.expenseForm.descriptionField.getFieldValue() as String,
+      amount: widget.expenseForm.moneyField.getFieldValue() as double,
+      date: widget.expenseForm.dateField.getFieldValue() as DateTime,
+      type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
+      moneyFlow: MoneyFlow.carlucci,
       userId: Supabase.instance.client.auth.currentUser?.id,
       groupId: groupId,
-      paidBy: _paidBy,
-      splitType: _splitType,
+      paidBy: splitState.selectedPayer,
+      splitType: splitType,
+      splitData: splitData,
     );
 
     await ExpenseService().createExpense(expense);
