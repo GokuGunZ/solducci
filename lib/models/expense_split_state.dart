@@ -19,6 +19,7 @@ class ExpenseSplitState extends ChangeNotifier {
   final Set<String> _selectedSplitters = {};
   final Map<String, double> _splits = {};
   bool _isEqualSplit = true;
+  bool _isPercentageView = false;
 
   ExpenseSplitState({
     required this.members,
@@ -50,6 +51,7 @@ class ExpenseSplitState extends ChangeNotifier {
   Set<String> get selectedSplitters => Set.unmodifiable(_selectedSplitters);
   Map<String, double> get splits => Map.unmodifiable(_splits);
   bool get isEqualSplit => _isEqualSplit;
+  bool get isPercentageView => _isPercentageView;
 
   // Computed properties
   double get currentTotal => _splits.values.fold(0.0, (a, b) => a + b);
@@ -115,6 +117,12 @@ class ExpenseSplitState extends ChangeNotifier {
       _calculateEqualSplits();
     }
 
+    notifyListeners();
+  }
+
+  /// Toggle visualizzazione percentuale
+  void togglePercentageView() {
+    _isPercentageView = !_isPercentageView;
     notifyListeners();
   }
 
@@ -216,6 +224,16 @@ class ExpenseSplitState extends ChangeNotifier {
   /// Ottieni l'importo per un utente
   double getSplitAmount(String userId) {
     return _splits[userId] ?? 0.0;
+  }
+
+  /// Ottieni la percentuale per un utente
+  ///
+  /// Calcola la percentuale dell'importo rispetto al totale.
+  /// Restituisce 0.0 se totalAmount è 0.
+  double getSplitPercentage(String userId) {
+    if (totalAmount <= 0.0) return 0.0;
+    final amount = _splits[userId] ?? 0.0;
+    return (amount / totalAmount) * 100.0;
   }
 
   @override

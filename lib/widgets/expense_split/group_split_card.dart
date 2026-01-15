@@ -4,6 +4,7 @@ import 'package:solducci/models/expense_split_state.dart';
 import 'package:solducci/widgets/expense_split/user_selection_chip.dart';
 import 'package:solducci/widgets/expense_split/user_split_chip.dart';
 import 'package:solducci/widgets/expense_split/equally_split_toggle.dart';
+import 'package:solducci/widgets/expense_split/percentage_toggle.dart';
 
 /// Card espandibile per rappresentare un gruppo nella divisione spesa
 ///
@@ -270,12 +271,24 @@ class _GroupSplitCardState extends State<GroupSplitCard>
 
                       const SizedBox(height: 16),
 
-                      // "Diviso tra" section with toggle
-                      EquallySplitToggle(
-                        isEqual: widget.splitState.isEqualSplit,
-                        onToggle: () {
-                          widget.splitState.toggleEqualSplit();
-                        },
+                      // "Diviso tra" section with toggles
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PercentageToggle(
+                            isPercentage: widget.splitState.isPercentageView,
+                            onToggle: () {
+                              widget.splitState.togglePercentageView();
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          EquallySplitToggle(
+                            isEqual: widget.splitState.isEqualSplit,
+                            onToggle: () {
+                              widget.splitState.toggleEqualSplit();
+                            },
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 12),
@@ -310,6 +323,7 @@ class _GroupSplitCardState extends State<GroupSplitCard>
                               );
                             },
                             showAddRemaining: !widget.splitState.isEqualSplit,
+                            isPercentageView: widget.splitState.isPercentageView,
                           );
                         }).toList(),
                       ),

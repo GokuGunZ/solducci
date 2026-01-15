@@ -29,6 +29,7 @@ class UserSplitChip extends StatefulWidget {
   final ValueChanged<double> onAmountChanged;
   final VoidCallback? onAssignRemaining;
   final bool showAddRemaining;
+  final bool isPercentageView;
 
   const UserSplitChip({
     super.key,
@@ -41,6 +42,7 @@ class UserSplitChip extends StatefulWidget {
     required this.onAmountChanged,
     this.onAssignRemaining,
     this.showAddRemaining = false,
+    this.isPercentageView = false,
   });
 
   @override
@@ -55,17 +57,36 @@ class _UserSplitChipState extends State<UserSplitChip> {
   void initState() {
     super.initState();
     _amountController = TextEditingController(
-      text: widget.amount > 0 ? widget.amount.toStringAsFixed(2) : '',
+      text: _getDisplayValue(),
     );
   }
 
   @override
   void didUpdateWidget(UserSplitChip oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.amount != oldWidget.amount && !_focusNode.hasFocus) {
-      _amountController.text = widget.amount > 0
-          ? widget.amount.toStringAsFixed(2)
-          : '';
+
+    // Update text if amount changed or percentage view toggled
+    final shouldUpdate = (widget.amount != oldWidget.amount ||
+                         widget.isPercentageView != oldWidget.isPercentageView) &&
+                        !_focusNode.hasFocus;
+
+    if (shouldUpdate) {
+      _amountController.text = _getDisplayValue();
+    }
+  }
+
+  /// Get display value based on current view mode
+  String _getDisplayValue() {
+    if (widget.amount <= 0) return '';
+
+    if (widget.isPercentageView) {
+      // Calculate percentage
+      if (widget.totalAmount <= 0) return '0.00';
+      final percentage = (widget.amount / widget.totalAmount) * 100.0;
+      return percentage.toStringAsFixed(2);
+    } else {
+      // Show amount in euros
+      return widget.amount.toStringAsFixed(2);
     }
   }
 
@@ -91,7 +112,17 @@ class _UserSplitChipState extends State<UserSplitChip> {
   }
 
   void _handleAmountChange(String value) {
-    final amount = double.tryParse(value) ?? 0.0;
+    double amount = double.tryParse(value) ?? 0.0;
+
+    // If in percentage view, convert percentage to amount
+    if (widget.isPercentageView) {
+      if (widget.totalAmount > 0) {
+        amount = (amount / 100.0) * widget.totalAmount;
+      } else {
+        amount = 0.0;
+      }
+    }
+
     widget.onAmountChanged(amount);
   }
 
@@ -175,7 +206,7 @@ class _UserSplitChipState extends State<UserSplitChip> {
             ],
             decoration: InputDecoration(
               suffix: Text(
-                '€',
+                widget.isPercentageView ? '%' : '€',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade600,
