@@ -431,7 +431,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                   if (_expenseType == ExpenseType.group && _splitState != null) {
                     if (_splitState!.isEqualSplit) {
                       splitType = SplitType.equal;
-                      splitData = null; // Equal split doesn't need custom data
+                      // FIX: Save splitData even in equal mode to track selected members
+                      splitData = _splitState!.splits;
                     } else {
                       splitType = SplitType.custom;
                       splitData = _splitState!.splits;
@@ -1282,7 +1283,8 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
 
     if (splitState.isEqualSplit) {
       splitType = SplitType.equal;
-      splitData = null;
+      // FIX: Save splitData even in equal mode to track selected members
+      splitData = splitState.splits;
     } else {
       splitType = SplitType.custom;
       splitData = splitState.splits;

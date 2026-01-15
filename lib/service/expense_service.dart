@@ -346,17 +346,38 @@ class ExpenseService {
 
     switch (expense.splitType) {
       case SplitType.equal:
-        // Split equally among all members
-        final amountPerPerson = expense.amount / members.length;
-        final roundedAmount = double.parse(amountPerPerson.toStringAsFixed(2));
+        // FIX: Split equally among selected members (from splitData) or all members (backward compatibility)
+        if (expense.splitData != null && expense.splitData!.isNotEmpty) {
+          // NEW BEHAVIOR: Use splitData to determine who is selected
+          // splitData already contains the calculated equal amounts
+          for (final entry in expense.splitData!.entries) {
+            final userId = entry.key;
+            final amount = entry.value;
 
-        for (final member in members) {
-          splits.add({
-            'expense_id': expenseId,
-            'user_id': member.userId,
-            'amount': roundedAmount,
-            'is_paid': member.userId == expense.paidBy,
-          });
+            // Only create split if amount > 0
+            if (amount > 0) {
+              splits.add({
+                'expense_id': expenseId,
+                'user_id': userId,
+                'amount': amount,
+                'is_paid': userId == expense.paidBy,
+              });
+            }
+          }
+        } else {
+          // BACKWARD COMPATIBILITY: Old behavior for existing expenses without splitData
+          // Split equally among all members
+          final amountPerPerson = expense.amount / members.length;
+          final roundedAmount = double.parse(amountPerPerson.toStringAsFixed(2));
+
+          for (final member in members) {
+            splits.add({
+              'expense_id': expenseId,
+              'user_id': member.userId,
+              'amount': roundedAmount,
+              'is_paid': member.userId == expense.paidBy,
+            });
+          }
         }
         break;
 
