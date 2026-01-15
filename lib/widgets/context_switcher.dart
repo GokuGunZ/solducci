@@ -21,6 +21,12 @@ class ContextSwitcher extends StatelessWidget {
     );
   }
 
+  /// Helper per verificare se il contesto corrente è la vista "Tutti i gruppi"
+  bool _isAllGroupsView(ExpenseContext context) {
+    if (!context.isView) return false;
+    return context.view?.id == 'all-groups-preset';
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -42,13 +48,13 @@ class ContextSwitcher extends StatelessWidget {
                   currentContext.isPersonal
                       ? Icons.person
                       : currentContext.isView
-                      ? Icons.view_list_rounded
+                      ? (_isAllGroupsView(currentContext) ? Icons.groups : Icons.view_list_rounded)
                       : Icons.group,
                   size: 20,
                   color: currentContext.isPersonal
                       ? Colors.purple
                       : currentContext.isView
-                      ? Colors.blue
+                      ? (_isAllGroupsView(currentContext) ? Colors.orange : Colors.blue)
                       : Colors.green,
                 ),
                 const SizedBox(width: 8),
@@ -172,6 +178,17 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
         _visuallyHighlightedGroupIds.clear();
       });
       contextManager.switchToPersonal();
+    } else if (type == ContextChipType.allGroups) {
+      // Vista "Tutti i gruppi": crea vista temporanea con tutti i gruppi
+      final includePersonal = _getAllGroupsIncludesPersonal(contextManager);
+
+      setState(() {
+        _selectedGroupIds.clear();
+        _selectedViewIds.clear();
+        _visuallyHighlightedGroupIds.clear();
+      });
+
+      contextManager.switchToAllGroupsView(includePersonal: includePersonal);
     } else if (type == ContextChipType.group) {
       // Gruppo: toggle multi-select
       if (_selectedGroupIds.contains(id)) {
@@ -307,6 +324,73 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
 
   Future<void> _toggleIncludePersonal(String viewId) async {
     await ContextManager().toggleIncludePersonalForView(viewId);
+    setState(() {});
+  }
+
+  /// Elimina una vista custom
+  Future<void> _deleteView(String viewId, ContextManager contextManager) async {
+    // Conferma eliminazione
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Elimina Vista'),
+        content: const Text('Sei sicuro di voler eliminare questa vista?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await contextManager.deleteView(viewId);
+      await contextManager.loadUserViews();
+
+      setState(() {
+        _selectedViewIds.remove(viewId);
+        _isEditingName = false;
+        _nameController.clear();
+      });
+
+      // Switch a Personal dopo eliminazione
+      contextManager.switchToPersonal();
+    }
+  }
+
+  /// Determina se la vista "Tutti i gruppi" è selezionata
+  bool _isAllGroupsViewSelected(ContextManager contextManager) {
+    if (!contextManager.currentContext.isView) return false;
+
+    final currentView = contextManager.currentContext.view;
+    if (currentView == null) return false;
+
+    // Verifica se la vista corrente contiene tutti i gruppi
+    final allGroupIds = contextManager.userGroups.map((g) => g.id).toSet();
+    final currentGroupIds = currentView.groupIds.toSet();
+
+    return allGroupIds.length == currentGroupIds.length &&
+        allGroupIds.every((id) => currentGroupIds.contains(id));
+  }
+
+  /// Ottiene la preferenza "include personal" per la vista "Tutti i gruppi"
+  bool _getAllGroupsIncludesPersonal(ContextManager contextManager) {
+    if (_isAllGroupsViewSelected(contextManager)) {
+      return contextManager.currentContext.view?.includePersonal ?? false;
+    }
+    return false;
+  }
+
+  /// Toggle "include personal" per la vista "Tutti i gruppi"
+  Future<void> _toggleAllGroupsPersonal(ContextManager contextManager) async {
+    final currentValue = _getAllGroupsIncludesPersonal(contextManager);
+    contextManager.switchToAllGroupsView(includePersonal: !currentValue);
     setState(() {});
   }
 
@@ -453,6 +537,17 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Bottone cestino per eliminare viste (solo per viste custom, non per "Tutti i gruppi")
+              if (showEditButton && _isEditingName && _selectedViewIds.length == 1 && _selectedGroupIds.isEmpty) ...[
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _deleteView(_selectedViewIds.first, contextManager),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Elimina vista',
+                ),
+                const SizedBox(width: 8),
+              ],
               Flexible(
                 child: isEditable
                     ? TextField(
@@ -564,21 +659,38 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                       controller: scrollController,
                       padding: const EdgeInsets.all(16),
                       children: [
-                        // Chip Personale (align left con width dinamica)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ContextChip(
-                            id: 'personal',
-                            label: 'Personale',
-                            type: ContextChipType.personal,
-                            isSelected:
-                                contextManager.currentContext.isPersonal &&
-                                !_isInMultiSelectMode,
-                            onTap: () => _onChipTap(
-                              'personal',
-                              ContextChipType.personal,
+                        // Chip Personale e "Tutti i gruppi" sulla stessa riga
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ContextChip(
+                              id: 'personal',
+                              label: 'Personale',
+                              type: ContextChipType.personal,
+                              isSelected:
+                                  contextManager.currentContext.isPersonal &&
+                                  !_isInMultiSelectMode,
+                              onTap: () => _onChipTap(
+                                'personal',
+                                ContextChipType.personal,
+                              ),
                             ),
-                          ),
+                            // Chip "Tutti i gruppi" presettato
+                            if (userGroups.isNotEmpty)
+                              ContextChip(
+                                id: 'all_groups',
+                                label: 'Tutti i gruppi',
+                                type: ContextChipType.allGroups,
+                                isSelected: _isAllGroupsViewSelected(contextManager),
+                                includesPersonal: _getAllGroupsIncludesPersonal(contextManager),
+                                onTap: () => _onChipTap(
+                                  'all_groups',
+                                  ContextChipType.allGroups,
+                                ),
+                                onAddPersonalTap: () => _toggleAllGroupsPersonal(contextManager),
+                              ),
+                          ],
                         ),
 
                         const SizedBox(height: 24),

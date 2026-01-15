@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Tipo di chip contesto
-enum ContextChipType { personal, group, view }
+enum ContextChipType { personal, group, view, allGroups }
 
 /// Widget Chip riutilizzabile per selezionare contesti (Personal, Group, View)
 class ContextChip extends StatelessWidget {
@@ -36,6 +36,8 @@ class ContextChip extends StatelessWidget {
         ? Icons.person
         : type == ContextChipType.view
         ? Icons.view_list_rounded
+        : type == ContextChipType.allGroups
+        ? Icons.groups
         : Icons.group;
 
     // Colore in base al tipo e selezione
@@ -48,6 +50,8 @@ class ContextChip extends StatelessWidget {
           ? Colors.purple[700]!
           : type == ContextChipType.view
           ? Colors.blue[700]!
+          : type == ContextChipType.allGroups
+          ? Colors.orange[700]!
           : Colors.green[700]!;
       textColor = Colors.white;
       accentColor = chipColor;
@@ -55,23 +59,35 @@ class ContextChip extends StatelessWidget {
       // Stato "lightly selected" (doppio tap): meno trasparente di related
       chipColor = type == ContextChipType.view
           ? Colors.blue[100]!
+          : type == ContextChipType.allGroups
+          ? Colors.orange[100]!
           : Colors.green[100]!;
       textColor = type == ContextChipType.view
           ? Colors.blue[700]!
+          : type == ContextChipType.allGroups
+          ? Colors.orange[700]!
           : Colors.green[700]!;
       accentColor = type == ContextChipType.view
           ? Colors.blue[400]!
+          : type == ContextChipType.allGroups
+          ? Colors.orange[400]!
           : Colors.green[400]!;
     } else if (isRelated) {
       // Stato "correlato" (tap singolo): molto trasparente
       chipColor = type == ContextChipType.view
           ? Colors.blue[50]!
+          : type == ContextChipType.allGroups
+          ? Colors.orange[50]!
           : Colors.green[50]!;
       textColor = type == ContextChipType.view
           ? Colors.blue[700]!
+          : type == ContextChipType.allGroups
+          ? Colors.orange[700]!
           : Colors.green[700]!;
       accentColor = type == ContextChipType.view
           ? Colors.blue[300]!
+          : type == ContextChipType.allGroups
+          ? Colors.orange[300]!
           : Colors.green[300]!;
     } else {
       chipColor = Colors.grey[100]!;
