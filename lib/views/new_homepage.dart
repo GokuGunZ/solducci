@@ -6,11 +6,9 @@ import 'package:solducci/models/dashboard_data.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/auth_service.dart';
-import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/widgets/expense_list_item_optimized.dart';
 import 'package:solducci/widgets/context_switcher.dart';
 import 'package:solducci/utils/category_helpers.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NewHomepage extends StatefulWidget {
   const NewHomepage({super.key});
@@ -157,13 +155,21 @@ class _NewHomepageState extends State<NewHomepage> {
                       _buildTotalsSection(totalExpenses, currentMonthTotal),
                       SizedBox(height: 16),
 
-                      // Debt balance section (only for group context)
+                      // Debt balance section (for group and view contexts)
                       // Use ValueKey based on refresh counter to force rebuild
                       if (_contextManager.currentContext.isGroup)
                         _buildDebtBalanceSectionAsync(
                           key: ValueKey('debt_balance_$_debtBalanceRefreshKey'),
                         ),
                       if (_contextManager.currentContext.isGroup)
+                        SizedBox(height: 16),
+
+                      // View debt balance section (for multi-group views)
+                      if (_contextManager.currentContext.isView)
+                        _buildViewDebtBalanceSectionAsync(
+                          key: ValueKey('view_debt_balance_$_debtBalanceRefreshKey'),
+                        ),
+                      if (_contextManager.currentContext.isView)
                         SizedBox(height: 16),
 
                       // Categories section with totals
@@ -497,24 +503,17 @@ class _NewHomepageState extends State<NewHomepage> {
     });
   }
 
-  // Build debt balance section (OPTIMIZED - no nested FutureBuilder!)
-  // Combines balance calculation + member names in ONE parallel query
+  // Build debt balance section for GROUP context (MULTI-PERSON SUPPORT)
+  // Shows all pairwise balances between current user and other members
   Widget _buildDebtBalanceSectionAsync({Key? key}) {
     final groupId = _contextManager.currentContext.groupId;
     if (groupId == null) return SizedBox.shrink();
 
-    // OPTIMIZATION: Combine both futures in parallel using Future.wait
-    // This eliminates waterfall requests (balance → names)
-    final combinedFuture = Future.wait([
-      _expenseService.calculateGroupBalance(groupId),
-      _getUserNames(groupId),
-    ]);
-
-    return FutureBuilder<List<dynamic>>(
+    return FutureBuilder<Map<String, Map<String, dynamic>>>(
       key: key,
-      future: combinedFuture,
+      future: _expenseService.calculateGroupBalanceMultiPerson(groupId),
       builder: (context, snapshot) {
-        // Single loading state for both queries
+        // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Card(
             elevation: 3,
@@ -535,106 +534,71 @@ class _NewHomepageState extends State<NewHomepage> {
           return SizedBox.shrink();
         }
 
-        if (!snapshot.hasData) {
-          return SizedBox.shrink();
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // No debts - show balanced state
+          return Card(
+            elevation: 3,
+            color: Colors.green[50],
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Saldo Debiti',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green[700], size: 32),
+                      SizedBox(width: 8),
+                      Text(
+                        'Tutti i saldi in pareggio',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
-        // Extract data from combined result
-        final balances = snapshot.data![0] as Map<String, double>;
-        final names = snapshot.data![1] as List<String>;
-
-        final currentUserName = names[0];
-        final otherUserName = names[1];
-
-        // Handle balanced case
-        if (balances.isEmpty) {
-          final debtBalance = DebtBalance(
-            carlOwes: 0.0,
-            pitOwes: 0.0,
-            netBalance: 0.0,
-            balanceLabel: "Saldo in pareggio",
-          );
-          return _buildDebtBalanceSection(
-            debtBalance,
-            currentUserName,
-            otherUserName,
-          );
-        }
-
-        // Normal case with debt
-        final debtBalance = DebtBalance.fromBalanceMap(
-          balances,
-          currentUserName,
-          otherUserName,
-        );
-
-        return _buildDebtBalanceSection(
-          debtBalance,
-          currentUserName,
-          otherUserName,
-        );
+        // Multi-person balances - show all pairs
+        final balances = snapshot.data!;
+        return _buildMultiPersonDebtBalanceSection(balances);
       },
     );
   }
 
-  // Helper to get both user names in the group
-  // Returns [currentUserName, otherUserName]
-  Future<List<String>> _getUserNames(String groupId) async {
-    try {
-      final supabase = Supabase.instance.client;
-      final currentUserId = supabase.auth.currentUser?.id;
-      if (currentUserId == null) return ['Tu', 'Altro membro'];
-
-      // OPTIMIZATION: Use cached group members instead of fresh query
-      final members = await GroupServiceCached().getGroupMembers(groupId);
-      if (members.isEmpty) return ['Tu', 'Altro membro'];
-
-      // Find current user and other member
-      final currentMember = members.firstWhere(
-        (m) => m.userId == currentUserId,
-        orElse: () => members.first,
+  // Build multi-person debt balance section (list of all pairwise balances)
+  Widget _buildMultiPersonDebtBalanceSection(Map<String, Map<String, dynamic>> balances) {
+    // Convert to PairwiseDebtBalance list
+    final pairwiseBalances = balances.entries.map((entry) {
+      final userId = entry.key;
+      final data = entry.value;
+      return PairwiseDebtBalance.fromBalanceEntry(
+        userId: userId,
+        userName: data['name'] as String,
+        balance: data['balance'] as double,
       );
+    }).toList();
 
-      final otherMember = members.firstWhere(
-        (m) => m.userId != currentUserId,
-        orElse: () => members.last,
-      );
-
-      return [
-        currentMember.nickname ?? 'Tu',
-        otherMember.nickname ?? 'Altro membro',
-      ];
-    } catch (e) {
-      return ['Tu', 'Altro membro'];
-    }
-  }
-
-  // Build debt balance section with dynamic user names
-  Widget _buildDebtBalanceSection(
-    DebtBalance balance,
-    String currentUserName,
-    String otherUserName,
-  ) {
-    // Use balance.netBalance convention from fromBalanceMap:
-    // netBalance > 0 = current user owes
-    // netBalance < 0 = current user is owed
-    final currentUserOwes = balance.netBalance > 0;
-    final balanced = balance.netBalance == 0;
-    final amount = balance.netBalance.abs();
-
-    // Get first letter for avatars
-    final currentInitial = currentUserName.isNotEmpty
-        ? currentUserName[0].toUpperCase()
-        : 'T';
-    final otherInitial = otherUserName.isNotEmpty
-        ? otherUserName[0].toUpperCase()
-        : 'A';
+    // Sort: you owe first, then they owe you
+    pairwiseBalances.sort((a, b) {
+      if (a.youOwe && !b.youOwe) return -1;
+      if (!a.youOwe && b.youOwe) return 1;
+      return b.amount.abs().compareTo(a.amount.abs());
+    });
 
     return Card(
       elevation: 3,
-      color: balanced
-          ? Colors.green[50]
-          : (currentUserOwes ? Colors.orange[50] : Colors.blue[50]),
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: Column(
@@ -645,115 +609,493 @@ class _NewHomepageState extends State<NewHomepage> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 12),
-            Row(
-              children: [
-                // Current user column
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.orange[200],
-                        child: Text(
-                          currentInitial,
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        currentUserName,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Amount/Arrow column
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (balanced)
-                        Icon(
-                          Icons.check_circle,
-                          color: Colors.green[700],
-                          size: 24,
-                        )
-                      else
-                        Icon(
-                          currentUserOwes
-                              ? Icons.arrow_forward
-                              : Icons.arrow_back,
-                          color: currentUserOwes
-                              ? Colors.orange[700]
-                              : Colors.blue[700],
-                          size: 24,
-                        ),
-                      SizedBox(height: 4),
-                      Text(
-                        balanced ? 'Pari' : '${amount.toStringAsFixed(2)} €',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: balanced
-                              ? Colors.green[700]
-                              : (currentUserOwes
-                                    ? Colors.orange[700]
-                                    : Colors.blue[700]),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (!balanced)
-                        Text(
-                          currentUserOwes ? 'Deve a' : 'Deve ricevere',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                    ],
-                  ),
-                ),
-
-                // Other user column
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.blue[200],
-                        child: Text(
-                          otherInitial,
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        otherUserName,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            ...pairwiseBalances.map((balance) => _buildPairwiseBalanceRow(balance)),
           ],
         ),
       ),
     );
   }
+
+  // Build single pairwise balance row (5-column layout)
+  Widget _buildPairwiseBalanceRow(PairwiseDebtBalance balance) {
+    final currentUserInitial = 'T'; // Tu
+    final color = balance.youOwe ? Colors.orange : Colors.blue;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          // Position 1: Other user (if they owe you) or empty
+          Expanded(
+            flex: 2,
+            child: balance.theyOwe
+                ? Column(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.blue[200],
+                        radius: 16,
+                        child: Text(
+                          balance.userInitial,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        balance.userName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  )
+                : SizedBox.shrink(),
+          ),
+
+          // Position 2: Arrow + debt info (if other owes you)
+          Expanded(
+            flex: 2,
+            child: balance.theyOwe
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.arrow_forward,
+                        color: color[700],
+                        size: 24,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '${balance.amountLabel} €',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: color[700],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        'Deve ricevere',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  )
+                : SizedBox.shrink(),
+          ),
+
+          // Position 3: Current user (always present)
+          Expanded(
+            flex: 2,
+            child: Column(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.orange[200],
+                  radius: 16,
+                  child: Text(
+                    currentUserInitial,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Tu',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+
+          // Position 4: Arrow + debt info (if you owe other)
+          Expanded(
+            flex: 2,
+            child: balance.youOwe
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.arrow_forward,
+                        color: color[700],
+                        size: 24,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '${balance.amountLabel} €',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: color[700],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        'Deve a',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  )
+                : SizedBox.shrink(),
+          ),
+
+          // Position 5: Other user (if you owe them) or empty
+          Expanded(
+            flex: 2,
+            child: balance.youOwe
+                ? Column(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.blue[200],
+                        radius: 16,
+                        child: Text(
+                          balance.userInitial,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        balance.userName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  )
+                : SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build debt balance section for VIEW context (GROUPED BY GROUPS)
+  // Shows aggregated debts per group
+  Widget _buildViewDebtBalanceSectionAsync({Key? key}) {
+    final groupIds = _contextManager.currentContext.groupIds;
+    if (groupIds.isEmpty) return SizedBox.shrink();
+
+    return FutureBuilder<Map<String, Map<String, dynamic>>>(
+      key: key,
+      future: _expenseService.calculateViewBalanceGrouped(groupIds),
+      builder: (context, snapshot) {
+        // Loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Card(
+            elevation: 3,
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return SizedBox.shrink();
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // No debts in any group
+          return Card(
+            elevation: 3,
+            color: Colors.green[50],
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Saldo Debiti',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green[700], size: 32),
+                      SizedBox(width: 8),
+                      Text(
+                        'Tutti i saldi in pareggio',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Grouped balances
+        final groupedBalances = snapshot.data!;
+        return _buildGroupedDebtBalanceSection(groupedBalances);
+      },
+    );
+  }
+
+  // Build grouped debt balance section (list by groups)
+  Widget _buildGroupedDebtBalanceSection(Map<String, Map<String, dynamic>> groupedBalances) {
+    // Convert to GroupedDebtBalance list
+    final groupBalances = groupedBalances.entries.map((entry) {
+      final groupId = entry.key;
+      final data = entry.value;
+      return GroupedDebtBalance(
+        groupId: groupId,
+        groupName: data['groupName'] as String,
+        peopleYouOwe: data['peopleYouOwe'] as int,
+        peopleWhoOweYou: data['peopleWhoOweYou'] as int,
+        totalYouOwe: data['totalYouOwe'] as double,
+        totalTheyOweYou: data['totalTheyOweYou'] as double,
+      );
+    }).toList();
+
+    return Card(
+      elevation: 3,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Saldo Debiti per Gruppo',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            ...groupBalances.map((balance) => _buildGroupedBalanceRow(balance)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build single grouped balance row - ONE row per group showing both debts and credits
+  Widget _buildGroupedBalanceRow(GroupedDebtBalance balance) {
+    final currentUserInitial = 'T'; // Tu
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Group name header
+          Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              balance.groupName,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          // Single row with 5 columns showing BOTH sides
+          Row(
+            children: [
+              // Position 1: Other people who owe you (if any)
+              Expanded(
+                flex: 2,
+                child: balance.hasCredits
+                    ? Column(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.blue[200],
+                            radius: 16,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${balance.peopleWhoOweYou}',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(width: 2),
+                                Icon(Icons.people, size: 10),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '${balance.peopleWhoOweYou} ${balance.peopleWhoOweYou == 1 ? "persona" : "persone"}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      )
+                    : SizedBox.shrink(),
+              ),
+
+              // Position 2: Arrow + amount (credits - they owe you)
+              Expanded(
+                flex: 2,
+                child: balance.hasCredits
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.arrow_forward,
+                            color: Colors.blue[700],
+                            size: 24,
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '${balance.totalTheyOweYou.toStringAsFixed(2)} €',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            'Deve ricevere',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      )
+                    : SizedBox.shrink(),
+              ),
+
+              // Position 3: Current user (always present)
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.orange[200],
+                      radius: 16,
+                      child: Text(
+                        currentUserInitial,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Tu',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Position 4: Arrow + amount (debts - you owe them)
+              Expanded(
+                flex: 2,
+                child: balance.hasDebts
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.arrow_forward,
+                            color: Colors.orange[700],
+                            size: 24,
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '${balance.totalYouOwe.toStringAsFixed(2)} €',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[700],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            'Deve a',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      )
+                    : SizedBox.shrink(),
+              ),
+
+              // Position 5: Other people you owe (if any)
+              Expanded(
+                flex: 2,
+                child: balance.hasDebts
+                    ? Column(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.orange[200],
+                            radius: 16,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${balance.peopleYouOwe}',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(width: 2),
+                                Icon(Icons.people, size: 10),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '${balance.peopleYouOwe} ${balance.peopleYouOwe == 1 ? "persona" : "persone"}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      )
+                    : SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
 
   // Build recent expenses section
   Widget _buildRecentExpensesSection(
