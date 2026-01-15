@@ -23,22 +23,268 @@ User requests feature with:
 ## Component Decision Tree
 
 ```
-User needs a list view
-        ↓
-Does it need filtering?
-  ├─ Yes → Is it a simple enum-based filter?
-  │         ├─ Yes → Use CategoryScrollBar<T, C>
-  │         └─ No → Use FilterableListView<T, F> with custom filter
-  └─ No → Does it need reordering?
-            ├─ Yes → Use ReorderableListViewBase<T>
-            └─ No → Use standard ListView.builder
+User needs...
+
+├─ A switch between 2 enum options
+│  └─ Use SlidableSwitch<T extends Enum>
+│
+├─ A chip that expands to show more content
+│  └─ Use ExpandableChip<T>
+│
+├─ Inline toggleable text in a sentence
+│  └─ Use InlineToggle
+│
+├─ A list view
+│  ↓
+│  Does it need filtering?
+│    ├─ Yes → Is it a simple enum-based filter?
+│    │         ├─ Yes → Use CategoryScrollBar<T, C>
+│    │         └─ No → Use FilterableListView<T, F> with custom filter
+│    └─ No → Does it need reordering?
+│              ├─ Yes → Use ReorderableListViewBase<T>
+│              └─ No → Use standard ListView.builder
+│
+└─ Highlight animation on item creation/update
+   └─ Use HighlightContainer or HighlightAnimationMixin
 ```
 
 ---
 
 ## Component Library Reference
 
-### 1. FilterableListView<T, F>
+### 1. SlidableSwitch<T extends Enum>
+
+**When to use**:
+- ✅ Switch between exactly 2 enum options
+- ✅ Need smooth drag-and-drop interaction
+- ✅ Want animated color gradient during transition
+- ✅ Clean, modern pill-shaped design
+
+**How to implement**:
+
+```dart
+// STEP 1: Define enum with properties
+enum Theme {
+  light,
+  dark;
+
+  String get label {
+    switch (this) {
+      case Theme.light: return 'Light';
+      case Theme.dark: return 'Dark';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case Theme.light: return Icons.light_mode;
+      case Theme.dark: return Icons.dark_mode;
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case Theme.light: return Colors.amber;
+      case Theme.dark: return Colors.indigo;
+    }
+  }
+}
+
+// STEP 2: Use SlidableSwitch
+class ThemeSwitch extends StatelessWidget {
+  final Theme selectedTheme;
+  final ValueChanged<Theme> onThemeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SlidableSwitch<Theme>(
+      options: [
+        SlidableSwitchOption(
+          value: Theme.light,
+          label: Theme.light.label,
+          icon: Theme.light.icon,
+          color: Theme.light.color,
+        ),
+        SlidableSwitchOption(
+          value: Theme.dark,
+          label: Theme.dark.label,
+          icon: Theme.dark.icon,
+          color: Theme.dark.color,
+        ),
+      ],
+      initialValue: selectedTheme,
+      onChanged: onThemeChanged,
+    );
+  }
+}
+```
+
+**Agent Checklist**:
+- [ ] Created enum with exactly 2 values
+- [ ] Implemented `label`, `icon`, and `color` getters
+- [ ] Created SlidableSwitchOption for each enum value
+- [ ] Handled `onChanged` callback
+
+---
+
+### 2. ExpandableChip<T>
+
+**When to use**:
+- ✅ Need chip that reveals extra content when selected
+- ✅ Want smooth slide-in/out animations
+- ✅ Dynamic content that adapts to size
+- ✅ Interactive expanded section (inputs, buttons, etc.)
+
+**How to implement**:
+
+```dart
+// STEP 1: Define data model
+class User {
+  final String id;
+  final String name;
+  final String avatarUrl;
+}
+
+// STEP 2: Use ExpandableChip with builders
+class UserAmountChip extends StatefulWidget {
+  final User user;
+  final bool isSelected;
+  final double amount;
+  final ValueChanged<bool> onSelectionChanged;
+  final ValueChanged<double> onAmountChanged;
+
+  @override
+  State<UserAmountChip> createState() => _UserAmountChipState();
+}
+
+class _UserAmountChipState extends State<UserAmountChip> {
+  late TextEditingController _amountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController(
+      text: widget.amount.toString(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpandableChip<User>(
+      item: widget.user,
+      isSelected: widget.isSelected,
+      baseContentBuilder: (context, user) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(backgroundImage: NetworkImage(user.avatarUrl)),
+          SizedBox(width: 8),
+          Text(user.name),
+        ],
+      ),
+      expandedContentBuilder: (context, user) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IntrinsicWidth(
+            child: TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: '0.00',
+                border: InputBorder.none,
+              ),
+              onChanged: (value) {
+                final amount = double.tryParse(value) ?? 0.0;
+                widget.onAmountChanged(amount);
+              },
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.check),
+            onPressed: () => print('Confirmed'),
+          ),
+        ],
+      ),
+      onSelectionChanged: widget.onSelectionChanged,
+    );
+  }
+}
+```
+
+**Agent Checklist**:
+- [ ] Defined data model class
+- [ ] Implemented `baseContentBuilder` (always visible)
+- [ ] Implemented `expandedContentBuilder` (slides in)
+- [ ] Handled `onSelectionChanged` callback
+- [ ] Managed stateful content (if needed)
+
+---
+
+### 3. InlineToggle
+
+**When to use**:
+- ✅ Toggle a word within a sentence
+- ✅ Need strikethrough animation when inactive
+- ✅ Want background highlight on active state
+- ✅ Clean, inline interaction without separate switch
+
+**How to implement**:
+
+```dart
+// Simple example
+class AutoSaveToggle extends StatefulWidget {
+  @override
+  State<AutoSaveToggle> createState() => _AutoSaveToggleState();
+}
+
+class _AutoSaveToggleState extends State<AutoSaveToggle> {
+  bool autoSave = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return InlineToggle(
+      isActive: autoSave,
+      toggleText: 'Auto-save',
+      remainingText: ' enabled for this document',
+      style: InlineToggleStyle(
+        activeColor: Colors.green.shade700,
+        inactiveColor: Colors.grey.shade500,
+        activeBackgroundColor: Colors.green.shade50,
+      ),
+      onToggle: () => setState(() => autoSave = !autoSave),
+    );
+  }
+}
+
+// Advanced example with custom styling
+InlineToggle(
+  isActive: notificationsEnabled,
+  toggleText: 'Notifications',
+  remainingText: ' will be sent to your email',
+  style: InlineToggleStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    activeColor: Colors.blue.shade800,
+    inactiveColor: Colors.grey.shade400,
+    activeBackgroundColor: Colors.blue.shade100,
+    borderRadius: 6,
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  ),
+  animationDuration: Duration(milliseconds: 250),
+  onToggle: () {
+    setState(() => notificationsEnabled = !notificationsEnabled);
+  },
+)
+```
+
+**Agent Checklist**:
+- [ ] Defined toggle state variable
+- [ ] Split sentence into toggleable and remaining text
+- [ ] Configured InlineToggleStyle with colors
+- [ ] Implemented onToggle callback
+
+---
+
+### 4. FilterableListView<T, F>
 
 **When to use**:
 - ✅ List with multiple filter criteria
@@ -667,6 +913,9 @@ void didUpdateWidget(YourWidget oldWidget) {
 
 | Need | Component |
 |------|-----------|
+| Switch between 2 enums | `SlidableSwitch<T extends Enum>` |
+| Chip with expandable content | `ExpandableChip<T>` |
+| Inline toggleable text | `InlineToggle` |
 | Simple list | `ListView.builder` |
 | Filtered list | `FilterableListView<T, F>` |
 | Category filter bar | `CategoryScrollBar<T, C>` |
@@ -679,6 +928,12 @@ void didUpdateWidget(YourWidget oldWidget) {
 
 ```
 lib/core/components/
+  ├── switches/
+  │   └── slidable_switch.dart                 ✅ NEW
+  ├── chips/
+  │   └── expandable_chip.dart                 ✅ NEW
+  ├── text/
+  │   └── inline_toggle.dart                   ✅ NEW
   ├── lists/
   │   ├── base/
   │   │   ├── filterable_list_view.dart

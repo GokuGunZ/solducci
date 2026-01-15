@@ -117,6 +117,79 @@ class DebtBalance {
   }
 }
 
+/// Model for pairwise debt balance (for multi-person groups)
+/// Represents the debt/credit between current user and ONE specific user
+class PairwiseDebtBalance {
+  final String userId;
+  final String userName;
+  final String userInitial;
+  final double amount; // positive = they owe you, negative = you owe them
+
+  PairwiseDebtBalance({
+    required this.userId,
+    required this.userName,
+    required this.userInitial,
+    required this.amount,
+  });
+
+  bool get isBalanced => amount == 0.0;
+  bool get youOwe => amount < 0.0;
+  bool get theyOwe => amount > 0.0;
+
+  String get amountLabel => amount.abs().toStringAsFixed(2);
+
+  String get label {
+    if (isBalanced) return "Saldo in pareggio";
+    if (youOwe) return "Devi $amountLabel € a $userName";
+    return "$userName ti deve $amountLabel €";
+  }
+
+  /// Create from balance map entry
+  factory PairwiseDebtBalance.fromBalanceEntry({
+    required String userId,
+    required String userName,
+    required double balance,
+  }) {
+    final initial = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+    return PairwiseDebtBalance(
+      userId: userId,
+      userName: userName,
+      userInitial: initial,
+      amount: balance,
+    );
+  }
+}
+
+/// Model for grouped debt balance (for view context)
+/// Represents aggregated debts for ONE group in a multi-group view
+class GroupedDebtBalance {
+  final String groupId;
+  final String groupName;
+  final int peopleYouOwe; // number of people you owe money to
+  final int peopleWhoOweYou; // number of people who owe you money
+  final double totalYouOwe; // total amount you owe
+  final double totalTheyOweYou; // total amount they owe you
+
+  GroupedDebtBalance({
+    required this.groupId,
+    required this.groupName,
+    required this.peopleYouOwe,
+    required this.peopleWhoOweYou,
+    required this.totalYouOwe,
+    required this.totalTheyOweYou,
+  });
+
+  bool get isBalanced => peopleYouOwe == 0 && peopleWhoOweYou == 0;
+  bool get hasDebts => peopleYouOwe > 0;
+  bool get hasCredits => peopleWhoOweYou > 0;
+
+  // Net balance: positive = you owe, negative = they owe you
+  double get netBalance => totalYouOwe - totalTheyOweYou;
+
+  String get totalYouOweLabel => totalYouOwe.toStringAsFixed(2);
+  String get totalTheyOweYouLabel => totalTheyOweYou.toStringAsFixed(2);
+}
+
 /// Service for dashboard analytics
 class DashboardService {
   /// Groups expenses by month, sorted newest to oldest

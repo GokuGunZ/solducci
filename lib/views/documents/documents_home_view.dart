@@ -303,7 +303,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
     return Stack(
       children: [
         // Background gradient (same as original)
-        Positioned.fill(child: TodoTheme.customBackgroundGradient),
+        Positioned.fill(child: TodoTheme.customBackground),
 
         // Main content
         Column(
@@ -372,15 +372,10 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 12,
+                    vertical: 20,
                   ),
                   child: Row(
                     children: [
-                      // Back button
-                      IconButton(
-                        icon: Icon(Icons.arrow_back, color: Colors.purple[700]),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
                       const SizedBox(width: 8),
                       // Title with
                       Column(

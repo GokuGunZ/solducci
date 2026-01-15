@@ -5,6 +5,7 @@ import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/view_storage_service.dart';
 import 'package:solducci/service/group_storage_service.dart';
 import 'package:solducci/service/context_persistence_service.dart';
+import 'package:solducci/core/preload/smart_preload_coordinator.dart';
 
 /// Manages the current expense context (Personal or Group)
 /// This is the core of the multi-user system - determines what expenses are shown
@@ -18,6 +19,7 @@ class ContextManager extends ChangeNotifier {
   final _viewStorage = ViewStorageService();
   final _groupStorage = GroupStorageService();
   final _contextPersistence = ContextPersistenceService();
+  final _preloadCoordinator = SmartPreloadCoordinator();
 
   ExpenseContext _currentContext = ExpenseContext.personal();
   List<ExpenseGroup> _userGroups = [];
@@ -45,6 +47,9 @@ class ContextManager extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Initialize smart preload coordinator
+      _preloadCoordinator.initialize();
+
       await loadUserGroups();
       await loadUserViews();
       await loadGroupPreferences(); // Carica preferenze gruppi
@@ -258,6 +263,29 @@ class ContextManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Switch to "All Groups" preset view (temporary view with all groups)
+  void switchToAllGroupsView({bool includePersonal = false}) {
+    // Get all group IDs
+    final allGroupIds = _userGroups.map((g) => g.id).toList();
+
+    // Create a special temporary view with all groups
+    final allGroupsView = ExpenseView(
+      id: 'all-groups-preset', // Fixed ID for "All Groups" preset
+      name: 'Tutti i gruppi',
+      groupIds: allGroupIds,
+      includePersonal: includePersonal,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      groups: _userGroups,
+    );
+
+    // Salva nel singleton per accesso dal modal
+    _currentTemporaryView = allGroupsView;
+
+    _currentContext = ExpenseContext.view(allGroupsView);
+    notifyListeners();
+  }
+
   /// Switch to group by ID (useful for deep linking)
   Future<void> switchToGroupById(String groupId) async {
     try {
@@ -368,6 +396,21 @@ class ContextManager extends ChangeNotifier {
       await _viewStorage.deleteView(_currentContext.viewId!);
       await loadUserViews();
       switchToPersonal();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Delete a specific view by ID
+  Future<void> deleteView(String viewId) async {
+    try {
+      await _viewStorage.deleteView(viewId);
+      await loadUserViews();
+
+      // If it's the current view, switch to personal
+      if (_currentContext.isView && _currentContext.viewId == viewId) {
+        switchToPersonal();
+      }
     } catch (e) {
       rethrow;
     }

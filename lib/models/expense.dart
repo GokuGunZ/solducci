@@ -2,20 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/split_type.dart';
+import 'package:solducci/core/cache/cacheable_model.dart';
+import 'package:hive/hive.dart';
 
-class Expense {
+part 'expense.g.dart';
+
+@HiveType(typeId: 1)
+class Expense implements CacheableModel<int> {
+  @HiveField(0)
   int id;
+
+  @HiveField(1)
   String description;
+
+  @HiveField(2)
   double amount;
+
+  @HiveField(3)
   MoneyFlow moneyFlow; // Legacy field - kept for backward compatibility
+
+  @HiveField(4)
   DateTime date;
+
+  @HiveField(5)
   Tipologia type;
+
+  @HiveField(6)
   String? userId; // User ID for personal expenses
 
   // NEW: Multi-user support
+  @HiveField(7)
   String? groupId; // Group ID for group expenses
+
+  @HiveField(8)
   String? paidBy; // UUID of user who paid
+
+  @HiveField(9)
   SplitType? splitType; // How expense is split
+
+  @HiveField(10)
   Map<String, double>? splitData; // Custom split amounts per user
 
   Expense({
@@ -37,6 +62,48 @@ class Expense {
 
   /// Check if expense is for a group
   bool get isGroup => groupId != null;
+
+  // ====================================================================
+  // CacheableModel Implementation
+  // ====================================================================
+
+  @override
+  int get cacheKey => id;
+
+  @override
+  DateTime? get lastModified => date;
+
+  @override
+  bool get shouldCache => true;
+
+  @override
+  Expense copyWith({
+    int? id,
+    String? description,
+    double? amount,
+    MoneyFlow? moneyFlow,
+    DateTime? date,
+    Tipologia? type,
+    String? userId,
+    String? groupId,
+    String? paidBy,
+    SplitType? splitType,
+    Map<String, double>? splitData,
+  }) {
+    return Expense(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      amount: amount ?? this.amount,
+      moneyFlow: moneyFlow ?? this.moneyFlow,
+      date: date ?? this.date,
+      type: type ?? this.type,
+      userId: userId ?? this.userId,
+      groupId: groupId ?? this.groupId,
+      paidBy: paidBy ?? this.paidBy,
+      splitType: splitType ?? this.splitType,
+      splitData: splitData ?? this.splitData,
+    );
+  }
 
   // map(entity) -> expense(model)
   factory Expense.fromMap(Map<String, dynamic> map) {

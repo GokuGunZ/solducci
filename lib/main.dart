@@ -6,7 +6,55 @@ import 'package:solducci/routes/app_router.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/core/di/service_locator.dart';
+import 'package:solducci/core/cache/cache_manager.dart';
+import 'package:solducci/core/cache/persistent/hive_adapters.dart';
+import 'package:solducci/service/expense_service_cached.dart';
+import 'package:solducci/service/group_service_cached.dart';
+import 'package:solducci/service/profile_service_cached.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Initialize caching framework with persistent cache support
+/// - Registers Hive type adapters for persistent storage
+/// - Initializes persistent cache boxes for each service
+/// - Registers cached services in CacheManager
+/// - Sets up cross-service invalidation rules
+/// - Preloads critical data for faster app startup
+Future<void> _initializeCaching() async {
+  // 1. Register Hive adapters (must be done first)
+  await registerHiveAdapters();
+
+  // 2. Services auto-register on first access (singletons)
+  final expenseService = ExpenseServiceCached();
+  final groupService = GroupServiceCached();
+  final profileService = ProfileServiceCached();
+
+  // 3. Initialize persistent caches
+  await Future.wait([
+    expenseService.initPersistentCache(),
+    groupService.initPersistentCache(),
+    profileService.initPersistentCache(),
+  ]);
+
+  // 4. Setup cross-service invalidation rules
+  // When expenses change, invalidate groups cache (might affect group balances)
+  CacheManager.instance.registerInvalidationRule(
+    'expenses',
+    ['groups'],
+  );
+
+  // 5. Preload critical data in parallel (will load from persistent cache if available)
+  await Future.wait([
+    expenseService.ensureInitialized(),
+    groupService.ensureInitialized(),
+    profileService.ensureInitialized(),
+  ]);
+
+  // Debug diagnostics (only in debug mode)
+  if (const bool.fromEnvironment('dart.vm.product') == false) {
+    debugPrint('✅ Persistent caching framework initialized');
+    CacheManager.instance.printGlobalDiagnostics();
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,8 +67,12 @@ void main() async {
     const supabaseUrlFromDefine = String.fromEnvironment('SUPABASE_URL');
     const supabaseKeyFromDefine = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-    String? supabaseUrl = supabaseUrlFromDefine.isNotEmpty ? supabaseUrlFromDefine : null;
-    String? supabaseKey = supabaseKeyFromDefine.isNotEmpty ? supabaseKeyFromDefine : null;
+    String? supabaseUrl = supabaseUrlFromDefine.isNotEmpty
+        ? supabaseUrlFromDefine
+        : null;
+    String? supabaseKey = supabaseKeyFromDefine.isNotEmpty
+        ? supabaseKeyFromDefine
+        : null;
 
     // Fallback to .env file for local development (flutter run)
     if (supabaseUrl == null || supabaseKey == null) {
@@ -34,15 +86,21 @@ void main() async {
     }
 
     // Validate that we have the required credentials
-    if (supabaseUrl == null || supabaseKey == null || supabaseUrl.isEmpty || supabaseKey.isEmpty) {
+    if (supabaseUrl == null ||
+        supabaseKey == null ||
+        supabaseUrl.isEmpty ||
+        supabaseKey.isEmpty) {
       throw Exception(
         'Missing Supabase credentials.\n\n'
         'For local development: Create assets/dev/.env with SUPABASE_URL and SUPABASE_ANON_KEY\n'
-        'For production builds: Use --dart-define to pass credentials'
+        'For production builds: Use --dart-define to pass credentials',
       );
     }
 
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+
+    // Initialize caching framework
+    await _initializeCaching();
 
     // Setup dependency injection
     await setupServiceLocator();
@@ -99,11 +157,7 @@ class ErrorApp extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 80,
-                    color: Colors.red[700],
-                  ),
+                  Icon(Icons.error_outline, size: 80, color: Colors.red[700]),
                   const SizedBox(height: 24),
                   Text(
                     'Errore di Inizializzazione',
@@ -164,20 +218,17 @@ class SolducciApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.purple,
         useMaterial3: true,
-        scaffoldBackgroundColor: Colors.transparent, // CRITICAL: Allow background gradients to show through
+        scaffoldBackgroundColor: Colors
+            .white, // CRITICAL: Allow background gradients to show through
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('it', 'IT'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('it', 'IT'), Locale('en', 'US')],
       locale: const Locale('it', 'IT'),
       routerConfig: AppRouter.router,
     );
   }
 }
-
