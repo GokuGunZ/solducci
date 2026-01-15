@@ -1,7 +1,7 @@
 name: solducci
-description: "A new Flutter project."
+description: "Empower your finance tracking with solducci."
 publish_to: "none"
-version: 1.0.1+1
+version: 1.02.00+1
 
 environment:
   sdk: ^3.8.1
