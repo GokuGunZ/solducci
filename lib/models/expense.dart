@@ -146,9 +146,28 @@ class Expense implements CacheableModel<int> {
           ? SplitType.fromValue(map['split_type'] as String)
           : null,
       splitData: map['split_data'] != null
-          ? Map<String, double>.from(map['split_data'] as Map)
+          ? _parseSplitData(map['split_data'] as Map)
           : null,
     );
+  }
+
+  /// Helper method to safely parse split_data from database
+  /// Handles both int and double values from JSON/database
+  static Map<String, double> _parseSplitData(Map rawMap) {
+    final result = <String, double>{};
+    rawMap.forEach((key, value) {
+      if (value is int) {
+        result[key.toString()] = value.toDouble();
+      } else if (value is double) {
+        result[key.toString()] = value;
+      } else if (value is num) {
+        result[key.toString()] = value.toDouble();
+      } else {
+        // Fallback: try to parse as double, or use 0.0
+        result[key.toString()] = double.tryParse(value.toString()) ?? 0.0;
+      }
+    });
+    return result;
   }
 
   // expense(model) -> map(entity)
