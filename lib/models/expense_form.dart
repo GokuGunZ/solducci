@@ -185,7 +185,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
     setState(() => _loadingMembers = true);
 
     try {
-      final groupId = widget.groupId ?? widget.expenseForm._initialExpense?.groupId;
+      final groupId =
+          widget.groupId ?? widget.expenseForm._initialExpense?.groupId;
       if (groupId == null) {
         throw Exception('No group ID available');
       }
@@ -200,7 +201,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
       final group = await groupService.getGroupById(groupId);
 
       if (mounted) {
-        final totalAmount = widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
+        final totalAmount =
+            widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
 
         // Initialize split state
         if (widget.expenseForm.isEditMode &&
@@ -317,21 +319,40 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
           FieldWidget(expenseField: widget.expenseForm.descriptionField),
           const SizedBox(height: 16),
 
-          // Amount field - full width
-          FieldWidget(
-            expenseField: widget.expenseForm.moneyField,
-            onAmountChanged: (newAmount) {
-              // Update split state when amount changes
-              if (_splitState != null && newAmount > 0) {
-                _splitState!.updateTotalAmount(newAmount);
-              }
-            },
+          // Amount field and Date picker on the same row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Date picker - takes 50% of space
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FieldWidget(
+                      expenseField: widget.expenseForm.dateField,
+                    ),
+                  ),
+                ),
+                // Amount field - takes 50% of space
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: FieldWidget(
+                      expenseField: widget.expenseForm.moneyField,
+                      onAmountChanged: (newAmount) {
+                        // Update split state when amount changes
+                        if (_splitState != null && newAmount > 0) {
+                          _splitState!.updateTotalAmount(newAmount);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
-
-          // Date picker - card style
-          FieldWidget(expenseField: widget.expenseForm.dateField),
-          const SizedBox(height: 16),
 
           // Category selector
           FieldWidget(expenseField: widget.expenseForm.typeField),
@@ -361,13 +382,11 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                     begin: const Offset(0, -0.3),
                     end: Offset.zero,
                   ).animate(animation),
-                  child: FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
+                  child: FadeTransition(opacity: animation, child: child),
                 );
               },
-              child: _expenseType == ExpenseType.group &&
+              child:
+                  _expenseType == ExpenseType.group &&
                       _splitState != null &&
                       _currentGroup != null
                   ? Padding(
@@ -377,7 +396,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                         group: _currentGroup!,
                         splitState: _splitState!,
                         isSelected: true,
-                        allowCollapse: false, // Always expanded in single group context
+                        allowCollapse:
+                            false, // Always expanded in single group context
                       ),
                     )
                   : const SizedBox.shrink(key: ValueKey('empty')),
@@ -428,7 +448,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                   SplitType? splitType;
                   Map<String, double>? splitData;
 
-                  if (_expenseType == ExpenseType.group && _splitState != null) {
+                  if (_expenseType == ExpenseType.group &&
+                      _splitState != null) {
                     if (_splitState!.isEqualSplit) {
                       splitType = SplitType.equal;
                       // FIX: Save splitData even in equal mode to track selected members
@@ -461,7 +482,8 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                       userId: widget.expenseForm._initialExpense!.userId,
                       // Use new split state if in group mode
                       groupId: _expenseType == ExpenseType.group
-                          ? (widget.groupId ?? widget.expenseForm._initialExpense!.groupId)
+                          ? (widget.groupId ??
+                                widget.expenseForm._initialExpense!.groupId)
                           : null,
                       paidBy: _expenseType == ExpenseType.group
                           ? _splitState?.selectedPayer
@@ -492,7 +514,9 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                               as Tipologia,
                       userId: userId,
                       // Add group fields if in group mode
-                      groupId: _expenseType == ExpenseType.group ? widget.groupId : null,
+                      groupId: _expenseType == ExpenseType.group
+                          ? widget.groupId
+                          : null,
                       paidBy: _expenseType == ExpenseType.group
                           ? _splitState?.selectedPayer
                           : null,
@@ -624,108 +648,97 @@ class _FieldWidgetState extends State<FieldWidget> {
         ),
       );
     } else if (type == double) {
-      return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: TextFormField(
-          controller: _amountController,
-          inputFormatters: <TextInputFormatter>[_formatter!],
-          decoration: InputDecoration(
-            labelText: widget.expenseField.getFieldName(),
-            hintText: '0,00 €',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.grey[50],
-            prefixIcon: Icon(Icons.euro, color: Colors.green[700]),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            errorMaxLines: 2,
-          ),
-          keyboardType: TextInputType.numberWithOptions(decimal: true),
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          onChanged: (value) {
-            final newAmount = _formatter!.getDouble();
-            widget.expenseField.setValue(newAmount);
-            widget.onAmountChanged?.call(newAmount);
-          },
-          onSaved: (newValue) {
-            widget.expenseField.setValue(_formatter!.getDouble());
-          },
-          validator: (value) {
-            final currentAmount = _formatter!.getDouble();
-            if (currentAmount <= 0) {
-              return 'Inserisci un importo valido';
-            }
-            return null;
-          },
+      return TextFormField(
+        controller: _amountController,
+        inputFormatters: <TextInputFormatter>[_formatter!],
+        decoration: InputDecoration(
+          labelText: widget.expenseField.getFieldName(),
+          hintText: '0,00 €',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: Colors.grey[50],
+          prefixIcon: Icon(Icons.euro, color: Colors.green[700]),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          errorMaxLines: 2,
         ),
+        keyboardType: TextInputType.numberWithOptions(decimal: true),
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        onChanged: (value) {
+          final newAmount = _formatter!.getDouble();
+          widget.expenseField.setValue(newAmount);
+          widget.onAmountChanged?.call(newAmount);
+        },
+        onSaved: (newValue) {
+          widget.expenseField.setValue(_formatter!.getDouble());
+        },
+        validator: (value) {
+          final currentAmount = _formatter!.getDouble();
+          if (currentAmount <= 0) {
+            return 'Inserisci un importo valido';
+          }
+          return null;
+        },
       );
     } else if (type == DateTime) {
       final dateValue = widget.expenseField.getFieldValue() as DateTime;
       final formattedDate = DateFormat('dd/MM/yyyy').format(dateValue);
 
-      return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            onTap: () async {
-              final DateTime? picked = await showDatePicker(
-                context: context,
-                initialDate: dateValue,
-                firstDate: DateTime(1950),
-                lastDate: DateTime(2050),
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: ColorScheme.light(
-                        primary: Colors.blue[700]!,
-                        onPrimary: Colors.white,
-                      ),
-                    ),
-                    child: child!,
-                  );
-                },
-              );
-              if (picked != null && picked != dateValue) {
-                setState(() {
-                  widget.expenseField.setValue(picked);
-                });
-              }
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today, color: Colors.blue[700], size: 24),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Data',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          formattedDate,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: InkWell(
+          onTap: () async {
+            final DateTime? picked = await showDatePicker(
+              context: context,
+              initialDate: dateValue,
+              firstDate: DateTime(1950),
+              lastDate: DateTime(2050),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.light(
+                      primary: Colors.blue[700]!,
+                      onPrimary: Colors.white,
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Colors.grey[400]),
-                ],
-              ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null && picked != dateValue) {
+              setState(() {
+                widget.expenseField.setValue(picked);
+              });
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today, color: Colors.blue[700], size: 24),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Data',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        formattedDate,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey[400]),
+              ],
             ),
           ),
         ),
@@ -967,7 +980,8 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
     try {
       // Use cached service for performance
       final groupService = GroupServiceCached();
-      final totalAmount = widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
+      final totalAmount =
+          widget.expenseForm.moneyField.getFieldValue() as double? ?? 0.0;
 
       // Load all groups in parallel
       final futures = widget.view.groups!.map((group) async {
@@ -975,13 +989,7 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
             .getGroupMembers(group.id)
             .timeout(const Duration(seconds: 10));
         final groupInfo = await groupService.getGroupById(group.id);
-        return MapEntry(
-          group.id,
-          {
-            'members': members,
-            'group': groupInfo,
-          },
-        );
+        return MapEntry(group.id, {'members': members, 'group': groupInfo});
       });
 
       final results = await Future.wait(futures);
@@ -1000,7 +1008,9 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
 
         // Preselect all members with current user as payer
         final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-        _groupSplitStates[entry.key]!.preselectAllMembers(payerId: currentUserId);
+        _groupSplitStates[entry.key]!.preselectAllMembers(
+          payerId: currentUserId,
+        );
       }
 
       if (mounted) {
@@ -1074,23 +1084,42 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
           FieldWidget(expenseField: widget.expenseForm.descriptionField),
           const SizedBox(height: 16),
 
-          // Amount field with reactive update
-          FieldWidget(
-            expenseField: widget.expenseForm.moneyField,
-            onAmountChanged: (newAmount) {
-              // Update all split states when amount changes
-              for (final splitState in _groupSplitStates.values) {
-                if (newAmount > 0) {
-                  splitState.updateTotalAmount(newAmount);
-                }
-              }
-            },
+          // Amount field and Date picker on the same row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Date picker - takes 50% of space
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FieldWidget(
+                      expenseField: widget.expenseForm.dateField,
+                    ),
+                  ),
+                ),
+                // Amount field - takes 50% of space
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: FieldWidget(
+                      expenseField: widget.expenseForm.moneyField,
+                      onAmountChanged: (newAmount) {
+                        // Update all split states when amount changes
+                        for (final splitState in _groupSplitStates.values) {
+                          if (newAmount > 0) {
+                            splitState.updateTotalAmount(newAmount);
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
-
-          // Date picker
-          FieldWidget(expenseField: widget.expenseForm.dateField),
-          const SizedBox(height: 16),
 
           // Category selector
           FieldWidget(expenseField: widget.expenseForm.typeField),
@@ -1120,10 +1149,7 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
                     begin: const Offset(0, -0.3),
                     end: Offset.zero,
                   ).animate(animation),
-                  child: FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
+                  child: FadeTransition(opacity: animation, child: child),
                 );
               },
               child: _expenseType == ExpenseType.group
@@ -1140,13 +1166,18 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
                           child: GroupSplitCard(
                             group: groupInfo,
                             splitState: splitState,
                             isSelected: isSelected,
-                            allowCollapse: true, // Allow collapse in view context
-                            showExpandIcon: false, // Hide expand icon in view context
+                            allowCollapse:
+                                true, // Allow collapse in view context
+                            showExpandIcon:
+                                false, // Hide expand icon in view context
                             onSelectionChanged: (selected) {
                               _toggleGroupSelection(group.id);
                             },
@@ -1164,7 +1195,8 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton.icon(
-              onPressed: _expenseType == ExpenseType.personal ||
+              onPressed:
+                  _expenseType == ExpenseType.personal ||
                       _selectedGroupIds.isEmpty
                   ? null
                   : _onSubmit,
@@ -1230,7 +1262,9 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Seleziona chi ha pagato per ${_groups[groupId]?.name}'),
+              content: Text(
+                'Seleziona chi ha pagato per ${_groups[groupId]?.name}',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -1255,7 +1289,8 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
 
     final expense = Expense(
       id: -1,
-      description: widget.expenseForm.descriptionField.getFieldValue() as String,
+      description:
+          widget.expenseForm.descriptionField.getFieldValue() as String,
       amount: widget.expenseForm.moneyField.getFieldValue() as double,
       date: widget.expenseForm.dateField.getFieldValue() as DateTime,
       type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
@@ -1292,7 +1327,8 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
 
     final expense = Expense(
       id: -1,
-      description: widget.expenseForm.descriptionField.getFieldValue() as String,
+      description:
+          widget.expenseForm.descriptionField.getFieldValue() as String,
       amount: widget.expenseForm.moneyField.getFieldValue() as double,
       date: widget.expenseForm.dateField.getFieldValue() as DateTime,
       type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
@@ -1316,9 +1352,7 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Hai selezionato ${_selectedGroupIds.length} gruppi'),
-        content: const Text(
-          'Come vuoi procedere con questa spesa?',
-        ),
+        content: const Text('Come vuoi procedere con questa spesa?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'cancel'),
