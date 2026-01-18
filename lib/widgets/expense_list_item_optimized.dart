@@ -191,7 +191,7 @@ class ExpenseListItemOptimized extends StatelessWidget {
             Text('👥', style: TextStyle(fontSize: 10)),
             const SizedBox(width: 2),
             Text(
-              groupName ?? 'Gruppo',  // Fallback to generic if not cached
+              groupName ?? 'Gruppo', // Fallback to generic if not cached
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -285,17 +285,36 @@ class ExpenseListItemOptimized extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Dettagli Spesa',
+                    expense.description,
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _editExpense(context);
+                        },
+                        icon: Icon(Icons.edit),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.lightGreen,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      IconButton(
+                        icon: Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               SizedBox(height: 20),
-              _buildDetailRow('Descrizione', expense.description),
               _buildDetailRow('Importo', expense.formatAmount(expense.amount)),
               _buildDetailRow('Categoria', expense.type.label),
               _buildDetailRow(
@@ -345,22 +364,6 @@ class ExpenseListItemOptimized extends StatelessWidget {
                       label: Text('Duplica'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.lightBlueAccent,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 15),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _editExpense(context);
-                      },
-                      icon: Icon(Icons.edit),
-                      label: Text('Modifica'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightGreen,
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: 15),
                       ),
