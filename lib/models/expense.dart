@@ -18,9 +18,6 @@ class Expense implements CacheableModel<int> {
   @HiveField(2)
   double amount;
 
-  @HiveField(3)
-  MoneyFlow moneyFlow; // Legacy field - kept for backward compatibility
-
   @HiveField(4)
   DateTime date;
 
@@ -47,7 +44,6 @@ class Expense implements CacheableModel<int> {
     required this.id,
     required this.description,
     required this.amount,
-    required this.moneyFlow,
     required this.date,
     required this.type,
     this.userId,
@@ -81,7 +77,6 @@ class Expense implements CacheableModel<int> {
     int? id,
     String? description,
     double? amount,
-    MoneyFlow? moneyFlow,
     DateTime? date,
     Tipologia? type,
     String? userId,
@@ -94,7 +89,6 @@ class Expense implements CacheableModel<int> {
       id: id ?? this.id,
       description: description ?? this.description,
       amount: amount ?? this.amount,
-      moneyFlow: moneyFlow ?? this.moneyFlow,
       date: date ?? this.date,
       type: type ?? this.type,
       userId: userId ?? this.userId,
@@ -129,10 +123,6 @@ class Expense implements CacheableModel<int> {
       id: map['id'] as int,
       description: map['description'] as String,
       amount: (map['amount'] as num).toDouble(), // match your DB column
-      moneyFlow: MoneyFlow.values.firstWhere(
-        (f) => f.label == map['money_flow'] || f.name == map['money_flow'],
-        orElse: () => MoneyFlow.carlToPit,
-      ),
       date: parsedDate,
       type: Tipologia.values.firstWhere(
         (t) => t.label == map['type'] || t.name == map['type'],
@@ -175,7 +165,6 @@ class Expense implements CacheableModel<int> {
     final Map<String, dynamic> map = {
       'description': description,
       'amount': amount,
-      'money_flow': moneyFlow.name, // enum -> string
       'date': date.toIso8601String(), // DateTime -> string
       'type': type.name, // enum -> string
     };
@@ -214,7 +203,7 @@ class Expense implements CacheableModel<int> {
       title: Text(description),
       leading: Text(formatAmount(amount)),
       trailing: Text(type.label),
-      subtitle: Text("${date.toString()} -- ${moneyFlow.label}"),
+      subtitle: Text(date.toString()),
     );
   }
 }

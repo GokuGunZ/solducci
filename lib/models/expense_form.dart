@@ -23,7 +23,6 @@ class ExpenseForm {
 
   final ExpenseField descriptionField;
   final ExpenseField moneyField;
-  final ExpenseField flowField;
   final ExpenseField dateField;
   final ExpenseField typeField;
 
@@ -31,7 +30,6 @@ class ExpenseForm {
   ExpenseForm._internal({
     required this.descriptionField,
     required this.moneyField,
-    required this.flowField,
     required this.dateField,
     required this.typeField,
     Expense? initialExpense,
@@ -42,7 +40,6 @@ class ExpenseForm {
     return ExpenseForm._internal(
       descriptionField: ExpenseField(fieldName: 'Description', type: String),
       moneyField: ExpenseField(fieldName: "Money", type: double),
-      flowField: ExpenseField(fieldName: "Flow", type: MoneyFlow),
       dateField: ExpenseField(
         fieldName: "Date",
         type: DateTime,
@@ -65,11 +62,6 @@ class ExpenseForm {
         type: double,
         value: expense.amount,
       ),
-      flowField: ExpenseField(
-        fieldName: "Flow",
-        type: MoneyFlow,
-        value: expense.moneyFlow,
-      ),
       dateField: ExpenseField(
         fieldName: "Date",
         type: DateTime,
@@ -89,21 +81,18 @@ class ExpenseForm {
   List<dynamic> getFieldsNames() => [
     descriptionField.getFieldName(),
     moneyField.getFieldName(),
-    flowField.getFieldName(),
     dateField.getFieldName(),
     typeField.getFieldName(),
   ];
   List<dynamic> getFieldValues() => [
     descriptionField.getFieldValue(),
     moneyField.getFieldValue(),
-    flowField.getFieldValue(),
     dateField.getFieldValue(),
     typeField.getFieldValue(),
   ];
   Map<String, dynamic> getFieldsMap() => {
     descriptionField.getFieldName(): descriptionField.getFieldValue(),
     moneyField.getFieldName(): moneyField.getFieldValue(),
-    flowField.getFieldName(): flowField.getFieldValue()?.label,
     dateField.getFieldName(): DateFormat(
       'dd/MM/yyyy',
     ).format(dateField.getFieldValue()),
@@ -471,8 +460,6 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                       amount:
                           widget.expenseForm.moneyField.getFieldValue()
                               as double,
-                      // MoneyFlow: always use default (legacy field, no longer used)
-                      moneyFlow: MoneyFlow.carlucci,
                       date:
                           widget.expenseForm.dateField.getFieldValue()
                               as DateTime,
@@ -504,8 +491,6 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                       amount:
                           widget.expenseForm.moneyField.getFieldValue()
                               as double,
-                      // MoneyFlow: always use default (legacy field, no longer used)
-                      moneyFlow: MoneyFlow.carlucci,
                       date:
                           widget.expenseForm.dateField.getFieldValue()
                               as DateTime,
@@ -782,25 +767,6 @@ class _FieldWidgetState extends State<FieldWidget> {
   }
 }
 
-@HiveType(typeId: 2)
-enum MoneyFlow {
-  @HiveField(0)
-  carlToPit('Carl-->Pit'),
-  @HiveField(1)
-  pitToCarl('Pit-->Carl'),
-  @HiveField(2)
-  carlDiv2('Carl-->/2'),
-  @HiveField(3)
-  pitDiv2('Pit-->/2'),
-  @HiveField(4)
-  carlucci('Carlucci'),
-  @HiveField(5)
-  pit('Pitucci');
-
-  final String label;
-  const MoneyFlow(this.label);
-}
-
 @HiveType(typeId: 3)
 enum Tipologia {
   @HiveField(0)
@@ -825,8 +791,6 @@ enum Tipologia {
 extension EnumLabel on Enum {
   String getLabel() {
     switch (runtimeType) {
-      case MoneyFlow:
-        return (this as MoneyFlow).label;
       case Tipologia:
         return (this as Tipologia).label;
       default:
@@ -836,8 +800,6 @@ extension EnumLabel on Enum {
 
   String getTypeTitle() {
     switch (runtimeType) {
-      case MoneyFlow:
-        return "Inserisci la direzione del flusso";
       case Tipologia:
         return "Inserisci la tipologia della spesa";
       default:
@@ -847,7 +809,6 @@ extension EnumLabel on Enum {
 }
 
 final enumTypeValues = <Type, List<Enum>>{
-  MoneyFlow: MoneyFlow.values,
   Tipologia: Tipologia.values,
 };
 
@@ -1294,7 +1255,6 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
       amount: widget.expenseForm.moneyField.getFieldValue() as double,
       date: widget.expenseForm.dateField.getFieldValue() as DateTime,
       type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
-      moneyFlow: MoneyFlow.carlucci,
       userId: Supabase.instance.client.auth.currentUser?.id,
       groupId: null,
       paidBy: null,
@@ -1332,7 +1292,6 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
       amount: widget.expenseForm.moneyField.getFieldValue() as double,
       date: widget.expenseForm.dateField.getFieldValue() as DateTime,
       type: widget.expenseForm.typeField.getFieldValue() as Tipologia,
-      moneyFlow: MoneyFlow.carlucci,
       userId: Supabase.instance.client.auth.currentUser?.id,
       groupId: groupId,
       paidBy: splitState.selectedPayer,
