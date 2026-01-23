@@ -467,7 +467,7 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                           widget.expenseForm.typeField.getFieldValue()
                               as Tipologia,
                       userId: widget.expenseForm._initialExpense!.userId,
-                      // Use new split state if in group mode
+                      // FIX: Only set groupId if user selected group type
                       groupId: _expenseType == ExpenseType.group
                           ? (widget.groupId ??
                                 widget.expenseForm._initialExpense!.groupId)
@@ -475,8 +475,12 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                       paidBy: _expenseType == ExpenseType.group
                           ? _splitState?.selectedPayer
                           : null,
-                      splitType: splitType,
-                      splitData: splitData,
+                      splitType: _expenseType == ExpenseType.group
+                          ? splitType
+                          : null,
+                      splitData: _expenseType == ExpenseType.group
+                          ? splitData
+                          : null,
                     );
                     await widget.expenseForm._expenseService.updateExpense(
                       updatedExpense,
@@ -498,15 +502,19 @@ class _ExpenseFormWidgetState extends State<_ExpenseFormWidget> {
                           widget.expenseForm.typeField.getFieldValue()
                               as Tipologia,
                       userId: userId,
-                      // Add group fields if in group mode
+                      // FIX: Only set group fields if user selected group type
                       groupId: _expenseType == ExpenseType.group
                           ? widget.groupId
                           : null,
                       paidBy: _expenseType == ExpenseType.group
                           ? _splitState?.selectedPayer
                           : null,
-                      splitType: splitType,
-                      splitData: splitData,
+                      splitType: _expenseType == ExpenseType.group
+                          ? splitType
+                          : null,
+                      splitData: _expenseType == ExpenseType.group
+                          ? splitData
+                          : null,
                     );
                     await widget.expenseForm._expenseService.createExpense(
                       newExpense,
@@ -808,9 +816,7 @@ extension EnumLabel on Enum {
   }
 }
 
-final enumTypeValues = <Type, List<Enum>>{
-  Tipologia: Tipologia.values,
-};
+final enumTypeValues = <Type, List<Enum>>{Tipologia: Tipologia.values};
 
 class EnumFormField<T extends Enum> extends FormField<T> {
   final String title;
@@ -1156,11 +1162,10 @@ class _ViewExpenseFormWidgetState extends State<_ViewExpenseFormWidget> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton.icon(
-              onPressed:
-                  _expenseType == ExpenseType.personal ||
-                      _selectedGroupIds.isEmpty
-                  ? null
-                  : _onSubmit,
+              // FIX: Allow submit for personal expenses OR when groups are selected
+              onPressed: _expenseType == ExpenseType.personal
+                  ? _onSubmit
+                  : (_selectedGroupIds.isEmpty ? null : _onSubmit),
               icon: const Icon(Icons.check),
               label: Text(
                 _expenseType == ExpenseType.personal
