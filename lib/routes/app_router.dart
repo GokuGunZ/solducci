@@ -11,6 +11,8 @@ import 'package:solducci/views/category_view.dart';
 import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
+import 'package:solducci/features/space/views/space_home_view.dart';
+import 'package:solducci/features/space/views/space_document_list_view.dart';
 import 'package:solducci/views/documents/documents_home_view.dart';
 import 'package:solducci/views/groups/create_group_page.dart';
 import 'package:solducci/views/groups/group_detail_page.dart';
@@ -89,10 +91,52 @@ class AppRouter {
         path: '/personal-expenses',
         builder: (context, state) => const PersonalExpensesPage(),
       ),
-      // ToDo List Route
+      
+      // Space Feature Routes
+      GoRoute(path: '/space', builder: (context, state) => const SpaceHomeView()),
       GoRoute(
-        path: '/notes',
-        builder: (context, state) => const DocumentsHomeView(),
+        path: '/space/tasks', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'todo', sectionLabel: 'Task'),
+      ),
+      GoRoute(
+        path: '/space/tasks/:id',
+        builder: (context, state) => const DocumentsHomeView(), // TODO: pass documentId in Phase 2
+      ),
+      GoRoute(
+        path: '/space/notes', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'note', sectionLabel: 'Note'),
+      ),
+      GoRoute(
+        path: '/space/notes/:id',
+        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Note Detail')), body: const Center(child: Text('Coming soon'))),
+      ),
+      GoRoute(
+        path: '/space/asterisks', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'asterisk', sectionLabel: 'Asterischi'),
+      ),
+      GoRoute(
+        path: '/space/asterisks/:id',
+        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Asterisk Detail')), body: const Center(child: Text('Coming soon'))),
+      ),
+      GoRoute(
+        path: '/space/resources', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'resource_list', sectionLabel: 'Risorse'),
+      ),
+      GoRoute(
+        path: '/space/resources/:id',
+        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Resource Detail')), body: const Center(child: Text('Coming soon'))),
+      ),
+      GoRoute(
+        path: '/space/pantry', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'dispensa', sectionLabel: 'Dispensa'),
+      ),
+      GoRoute(
+        path: '/space/pantry/:id',
+        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Pantry Detail')), body: const Center(child: Text('Coming soon'))),
+      ),
+      GoRoute(
+        path: '/space/pantry/:pantryId/shopping/:id',
+        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Shopping List Detail')), body: const Center(child: Text('Coming soon'))),
       ),
 
       // Group Management Routes

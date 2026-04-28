@@ -12,6 +12,10 @@ import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 import 'package:solducci/widgets/common/todo_app_bar.dart';
 import 'package:solducci/theme/todo_theme.dart';
 
+import 'package:solducci/models/user_profile.dart';
+import 'package:solducci/service/group_service.dart';
+import 'package:solducci/service/context_manager.dart';
+
 /// Form for creating or editing a task
 /// Handles all task fields: title, description, tags, priority, due date, size
 class TaskForm extends StatefulWidget {
@@ -39,6 +43,8 @@ class _TaskFormState extends State<TaskForm> {
   final _formKey = GlobalKey<FormState>();
   final _taskService = TaskService();
   final _tagService = TagService();
+  final _groupService = GroupService();
+  final _contextManager = ContextManager();
 
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
@@ -50,6 +56,9 @@ class _TaskFormState extends State<TaskForm> {
   TShirtSize? _selectedSize;
   TaskStatus? _selectedStatus;
   DateTime? _selectedDueDate;
+  String? _selectedAssignedTo;
+  List<GroupMember> _groupMembers = [];
+  bool _isLoadingMembers = false;
   Recurrence? _recurrence;
   bool _isLoading = false;
   final _recurrenceService = RecurrenceService();
@@ -73,17 +82,42 @@ class _TaskFormState extends State<TaskForm> {
       _loadParentTask();
     }
 
+    // Load group members if in a group context
+    if (widget.document.groupId != null) {
+      _loadGroupMembers();
+    }
+
     // Initialize values for edit mode
     if (widget.task != null) {
       _selectedPriority = widget.task!.priority;
       _selectedSize = widget.task!.tShirtSize;
       _selectedStatus = widget.task!.status;
       _selectedDueDate = widget.task!.dueDate;
+      _selectedAssignedTo = widget.task!.assignedTo;
       _loadTaskTags();
       _loadRecurrence();
     } else if (widget.initialTags != null) {
       // Pre-select tags for new tasks
       _selectedTags = List.from(widget.initialTags!);
+    }
+  }
+
+  Future<void> _loadGroupMembers() async {
+    if (widget.document.groupId == null) return;
+    
+    setState(() => _isLoadingMembers = true);
+    try {
+      final members = await _groupService.getGroupMembers(widget.document.groupId!);
+      if (mounted) {
+        setState(() {
+          _groupMembers = members;
+          _isLoadingMembers = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMembers = false);
+      }
     }
   }
 
@@ -240,6 +274,11 @@ class _TaskFormState extends State<TaskForm> {
             _buildSizeSelector(),
 
             const SizedBox(height: 16),
+
+            // Assigned to selector (only if in a group)
+            if (widget.document.groupId != null) _buildAssignedToSelector(),
+
+            if (widget.document.groupId != null) const SizedBox(height: 16),
 
             // Status selector (only if advanced states enabled)
             if (_shouldShowAdvancedStates()) _buildStatusSelector(),
@@ -555,6 +594,58 @@ class _TaskFormState extends State<TaskForm> {
     );
   }
 
+  Widget _buildAssignedToSelector() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.person, color: Colors.blue),
+                SizedBox(width: 8),
+                Text(
+                  'Assegnato a',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _isLoadingMembers
+                ? const Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<String?>(
+                    value: _selectedAssignedTo,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    hint: const Text('Nessun assegnatario'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Nessuno'),
+                      ),
+                      ..._groupMembers.map((member) {
+                        return DropdownMenuItem<String?>(
+                          value: member.userId,
+                          child: Text(member.displayName),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedAssignedTo = value;
+                      });
+                    },
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Check if any selected tag has advanced states enabled
   bool _shouldShowAdvancedStates() {
     return _selectedTags.any((tag) => tag.useAdvancedStates);
@@ -830,6 +921,7 @@ class _TaskFormState extends State<TaskForm> {
         var newTask = Task.create(
           documentId: widget.document.id,
           parentTaskId: widget.parentTaskId,
+          assignedTo: _selectedAssignedTo,
           title: title,
           description: description.isEmpty ? null : description,
           priority: _selectedPriority,
@@ -884,6 +976,7 @@ class _TaskFormState extends State<TaskForm> {
           priority: _selectedPriority,
           dueDate: _selectedDueDate,
           tShirtSize: _selectedSize,
+          assignedTo: _selectedAssignedTo,
         );
 
         // Set status if advanced states enabled
