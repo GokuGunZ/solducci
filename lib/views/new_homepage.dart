@@ -167,7 +167,9 @@ class _NewHomepageState extends State<NewHomepage> {
                       // View debt balance section (for multi-group views)
                       if (_contextManager.currentContext.isView)
                         _buildViewDebtBalanceSectionAsync(
-                          key: ValueKey('view_debt_balance_$_debtBalanceRefreshKey'),
+                          key: ValueKey(
+                            'view_debt_balance_$_debtBalanceRefreshKey',
+                          ),
                         ),
                       if (_contextManager.currentContext.isView)
                         SizedBox(height: 16),
@@ -552,7 +554,11 @@ class _NewHomepageState extends State<NewHomepage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green[700], size: 32),
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green[700],
+                        size: 32,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Tutti i saldi in pareggio',
@@ -578,7 +584,9 @@ class _NewHomepageState extends State<NewHomepage> {
   }
 
   // Build multi-person debt balance section (list of all pairwise balances)
-  Widget _buildMultiPersonDebtBalanceSection(Map<String, Map<String, dynamic>> balances) {
+  Widget _buildMultiPersonDebtBalanceSection(
+    Map<String, Map<String, dynamic>> balances,
+  ) {
     // Convert to PairwiseDebtBalance list
     final pairwiseBalances = balances.entries.map((entry) {
       final userId = entry.key;
@@ -609,7 +617,9 @@ class _NewHomepageState extends State<NewHomepage> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 12),
-            ...pairwiseBalances.map((balance) => _buildPairwiseBalanceRow(balance)),
+            ...pairwiseBalances.map(
+              (balance) => _buildPairwiseBalanceRow(balance),
+            ),
           ],
         ),
       ),
@@ -636,7 +646,10 @@ class _NewHomepageState extends State<NewHomepage> {
                         radius: 16,
                         child: Text(
                           balance.userInitial,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       SizedBox(height: 4),
@@ -662,11 +675,7 @@ class _NewHomepageState extends State<NewHomepage> {
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.arrow_forward,
-                        color: color[700],
-                        size: 24,
-                      ),
+                      Icon(Icons.arrow_forward, color: color[700], size: 24),
                       SizedBox(height: 4),
                       Text(
                         '${balance.amountLabel} €',
@@ -679,10 +688,7 @@ class _NewHomepageState extends State<NewHomepage> {
                       ),
                       Text(
                         'Deve ricevere',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -706,10 +712,7 @@ class _NewHomepageState extends State<NewHomepage> {
                 SizedBox(height: 4),
                 Text(
                   'Tu',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -723,11 +726,7 @@ class _NewHomepageState extends State<NewHomepage> {
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.arrow_forward,
-                        color: color[700],
-                        size: 24,
-                      ),
+                      Icon(Icons.arrow_forward, color: color[700], size: 24),
                       SizedBox(height: 4),
                       Text(
                         '${balance.amountLabel} €',
@@ -740,10 +739,7 @@ class _NewHomepageState extends State<NewHomepage> {
                       ),
                       Text(
                         'Deve a',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -762,7 +758,10 @@ class _NewHomepageState extends State<NewHomepage> {
                         radius: 16,
                         child: Text(
                           balance.userInitial,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       SizedBox(height: 4),
@@ -834,7 +833,11 @@ class _NewHomepageState extends State<NewHomepage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green[700], size: 32),
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green[700],
+                        size: 32,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Tutti i saldi in pareggio',
@@ -860,7 +863,9 @@ class _NewHomepageState extends State<NewHomepage> {
   }
 
   // Build grouped debt balance section (list by groups)
-  Widget _buildGroupedDebtBalanceSection(Map<String, Map<String, dynamic>> groupedBalances) {
+  Widget _buildGroupedDebtBalanceSection(
+    Map<String, Map<String, dynamic>> groupedBalances,
+  ) {
     // Convert to GroupedDebtBalance list
     final groupBalances = groupedBalances.entries.map((entry) {
       final groupId = entry.key;
@@ -904,8 +909,7 @@ class _NewHomepageState extends State<NewHomepage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Group name header
-          Padding(
-            padding: EdgeInsets.only(bottom: 8),
+          Center(
             child: Text(
               balance.groupName,
               style: TextStyle(
@@ -934,7 +938,10 @@ class _NewHomepageState extends State<NewHomepage> {
                               children: [
                                 Text(
                                   '${balance.peopleWhoOweYou}',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 SizedBox(width: 2),
                                 Icon(Icons.people, size: 10),
@@ -1002,7 +1009,10 @@ class _NewHomepageState extends State<NewHomepage> {
                       radius: 16,
                       child: Text(
                         currentUserInitial,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     SizedBox(height: 4),
@@ -1067,7 +1077,10 @@ class _NewHomepageState extends State<NewHomepage> {
                               children: [
                                 Text(
                                   '${balance.peopleYouOwe}',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 SizedBox(width: 2),
                                 Icon(Icons.people, size: 10),
@@ -1095,7 +1108,6 @@ class _NewHomepageState extends State<NewHomepage> {
       ),
     );
   }
-
 
   // Build recent expenses section
   Widget _buildRecentExpensesSection(

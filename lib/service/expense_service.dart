@@ -19,17 +19,12 @@ class ExpenseService {
   // Create
   Future<void> createExpense(Expense newExpense) async {
     try {
-      // Auto-set context fields if not set
-      final context = _contextManager.currentContext;
+      // FIX: Trust the expense object as-is from the form
+      // The form now handles Personal vs Group selection explicitly
+      // Don't force context fields - respect user's choice
 
-      // FORCE context fields based on current context (not just if null)
-      if (context.isGroup) {
-        newExpense.groupId = context.groupId;  // Always set from context
-      }
-      if (context.isPersonal) {
-        newExpense.userId = _supabase.auth.currentUser?.id;  // Always set from auth
-        newExpense.groupId = null;  // Ensure no groupId for personal expenses
-      }
+      // Only ensure userId is set if not already set
+      newExpense.userId ??= _supabase.auth.currentUser?.id;
 
       final dataToInsert = newExpense.toMap();
 
