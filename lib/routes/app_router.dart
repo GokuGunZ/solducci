@@ -8,7 +8,6 @@ import 'package:solducci/views/signup_page.dart';
 import 'package:solducci/views/shell_with_nav.dart';
 import 'package:solducci/views/monthly_view.dart';
 import 'package:solducci/views/category_view.dart';
-import 'package:solducci/views/balance_view.dart';
 import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
@@ -75,10 +74,6 @@ class AppRouter {
       GoRoute(
         path: '/dashboard/category',
         builder: (context, state) => const CategoryView(),
-      ),
-      GoRoute(
-        path: '/dashboard/balance',
-        builder: (context, state) => const BalanceView(),
       ),
       GoRoute(
         path: '/dashboard/timeline',

@@ -14,7 +14,6 @@ import 'package:solducci/core/cache/persistent/persistent_cache_entry.dart';
 /// Registered adapters:
 /// - PersistentCacheMetadata (typeId: 0)
 /// - Expense (typeId: 1)
-/// - MoneyFlow enum (typeId: 2)
 /// - Tipologia enum (typeId: 3)
 /// - SplitType enum (typeId: 4)
 /// - UserProfile (typeId: 5)
@@ -38,10 +37,6 @@ Future<void> registerHiveAdapters() async {
   }
 
   // Register enum adapters
-  if (!Hive.isAdapterRegistered(2)) {
-    Hive.registerAdapter(MoneyFlowAdapter());
-  }
-
   if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(TipologiaAdapter());
   }
