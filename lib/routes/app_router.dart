@@ -13,6 +13,11 @@ import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
 import 'package:solducci/features/space/views/space_document_list_view.dart';
+import 'package:solducci/features/space/views/note_detail_view.dart';
+import 'package:solducci/features/space/views/asterisk_detail_view.dart';
+import 'package:solducci/features/space/views/resource_detail_view.dart';
+import 'package:solducci/features/space/views/pantry_detail_view.dart';
+import 'package:solducci/features/space/views/shopping_list_detail_view.dart';
 import 'package:solducci/views/documents/documents_home_view.dart';
 import 'package:solducci/views/groups/create_group_page.dart';
 import 'package:solducci/views/groups/group_detail_page.dart';
@@ -108,7 +113,10 @@ class AppRouter {
       ),
       GoRoute(
         path: '/space/notes/:id',
-        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Note Detail')), body: const Center(child: Text('Coming soon'))),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return NoteDetailView(documentId: id);
+        },
       ),
       GoRoute(
         path: '/space/asterisks', 
@@ -116,7 +124,10 @@ class AppRouter {
       ),
       GoRoute(
         path: '/space/asterisks/:id',
-        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Asterisk Detail')), body: const Center(child: Text('Coming soon'))),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return AsteriskDetailView(documentId: id);
+        },
       ),
       GoRoute(
         path: '/space/resources', 
@@ -124,7 +135,10 @@ class AppRouter {
       ),
       GoRoute(
         path: '/space/resources/:id',
-        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Resource Detail')), body: const Center(child: Text('Coming soon'))),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ResourceDetailView(documentId: id);
+        },
       ),
       GoRoute(
         path: '/space/pantry', 
@@ -132,11 +146,17 @@ class AppRouter {
       ),
       GoRoute(
         path: '/space/pantry/:id',
-        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Pantry Detail')), body: const Center(child: Text('Coming soon'))),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PantryDetailView(documentId: id);
+        },
       ),
       GoRoute(
         path: '/space/pantry/:pantryId/shopping/:id',
-        builder: (context, state) => Scaffold(appBar: AppBar(title: const Text('Shopping List Detail')), body: const Center(child: Text('Coming soon'))),
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ShoppingListDetailView(documentId: id);
+        },
       ),
 
       // Group Management Routes

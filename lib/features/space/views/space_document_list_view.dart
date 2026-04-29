@@ -151,7 +151,6 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
           controller: titleController,
           decoration: const InputDecoration(
             hintText: 'Titolo',
-            autoFocus: true,
           ),
           autofocus: true,
           onSubmitted: (value) {

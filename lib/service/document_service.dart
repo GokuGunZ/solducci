@@ -34,7 +34,7 @@ class DocumentService {
     ExpenseContext context,
     String documentType,
   ) {
-    final userId = AuthService().currentUserId;
+    final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return Stream.value([]);
 
     // We use a stream of the whole documents table and filter client-side
@@ -71,7 +71,7 @@ class DocumentService {
     ExpenseContext context,
     String documentType,
   ) async {
-    final userId = AuthService().currentUserId;
+    final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
     var query = _supabase
