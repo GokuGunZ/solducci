@@ -187,56 +187,74 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
 
     final context = _contextManager.currentContext;
     
+    // Prevent document creation in View contexts as it's ambiguous
+    if (context.isView) {
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text('Seleziona un gruppo o il contesto Personale per creare una nuova lista'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final effectiveUserId = context.isPersonal ? userId : null;
+    final groupId = context.groupId;
+
     Document newDoc;
     switch (widget.type) {
       case 'todo':
-        newDoc = TodoDocument(
-          id: '',
-          userId: context.isPersonal ? userId : null,
-          groupId: context.groupId,
+        newDoc = TodoDocument.create(
+          userId: userId, // TodoDocument.create expects non-nullable userId as it was original impl
           title: title,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
         );
+        // If it's for a group, we need to override the userId/groupId manually 
+        // as TodoDocument.create only supports personal for now
+        if (context.isGroup) {
+          return await _documentService.createDocument(TodoDocument(
+            id: '',
+            userId: null,
+            groupId: groupId,
+            title: title,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ));
+        }
         break;
       case 'note':
-        newDoc = NoteDocument(
-          id: '',
-          userId: context.isPersonal ? userId : null,
-          groupId: context.groupId,
+        newDoc = NoteDocument.create(
+          userId: effectiveUserId,
+          groupId: groupId,
           title: title,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
         );
         break;
       case 'asterisk':
-        newDoc = AsteriskDocument(
-          id: '',
-          userId: context.isPersonal ? userId : null,
-          groupId: context.groupId,
+        newDoc = AsteriskDocument.create(
+          userId: effectiveUserId,
+          groupId: groupId,
           title: title,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
         );
         break;
       case 'resource_list':
-        newDoc = ResourceListDocument(
-          id: '',
-          userId: context.isPersonal ? userId : null,
-          groupId: context.groupId,
+        newDoc = ResourceListDocument.create(
+          userId: effectiveUserId,
+          groupId: groupId,
           title: title,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
         );
         break;
       case 'dispensa':
-        newDoc = DispensaDocument(
-          id: '',
-          userId: context.isPersonal ? userId : null,
-          groupId: context.groupId,
+        newDoc = DispensaDocument.create(
+          userId: effectiveUserId,
+          groupId: groupId,
           title: title,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+        );
+        break;
+      case 'shopping_list':
+        newDoc = ShoppingListDocument.create(
+          userId: effectiveUserId,
+          groupId: groupId,
+          title: title,
         );
         break;
       default:

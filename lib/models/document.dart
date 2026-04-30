@@ -206,6 +206,23 @@ class NoteDocument extends Document {
           : {},
     );
   }
+
+  factory NoteDocument.create({
+    required String? userId,
+    String? groupId,
+    required String title,
+    String? description,
+  }) {
+    return NoteDocument(
+      id: '',
+      userId: userId,
+      groupId: groupId,
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
 }
 
 /// Asterisk document - mental bookmarks for discussion
@@ -233,6 +250,23 @@ class AsteriskDocument extends Document {
       metadata: map['metadata'] != null
           ? Map<String, dynamic>.from(map['metadata'] as Map)
           : {},
+    );
+  }
+
+  factory AsteriskDocument.create({
+    required String? userId,
+    String? groupId,
+    required String title,
+    String? description,
+  }) {
+    return AsteriskDocument(
+      id: '',
+      userId: userId,
+      groupId: groupId,
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 }
@@ -264,6 +298,23 @@ class ResourceListDocument extends Document {
           : {},
     );
   }
+
+  factory ResourceListDocument.create({
+    required String? userId,
+    String? groupId,
+    required String title,
+    String? description,
+  }) {
+    return ResourceListDocument(
+      id: '',
+      userId: userId,
+      groupId: groupId,
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
 }
 
 /// Dispensa document - pantry inventory
@@ -293,6 +344,23 @@ class DispensaDocument extends Document {
           : {},
     );
   }
+
+  factory DispensaDocument.create({
+    required String? userId,
+    String? groupId,
+    required String title,
+    String? description,
+  }) {
+    return DispensaDocument(
+      id: '',
+      userId: userId,
+      groupId: groupId,
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
 }
 
 /// Shopping List document
@@ -320,6 +388,23 @@ class ShoppingListDocument extends Document {
       metadata: map['metadata'] != null
           ? Map<String, dynamic>.from(map['metadata'] as Map)
           : {},
+    );
+  }
+
+  factory ShoppingListDocument.create({
+    required String? userId,
+    String? groupId,
+    required String title,
+    String? description,
+  }) {
+    return ShoppingListDocument(
+      id: '',
+      userId: userId,
+      groupId: groupId,
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 }
