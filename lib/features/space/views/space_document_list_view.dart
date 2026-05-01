@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
-import 'package:solducci/service/auth_service.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SpaceDocumentListView extends StatefulWidget {
   final String type;
@@ -149,10 +149,10 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
         title: Text('Nuova lista ${widget.sectionLabel}'),
         content: TextField(
           controller: titleController,
+          autofocus: true,
           decoration: const InputDecoration(
             hintText: 'Titolo',
           ),
-          autofocus: true,
           onSubmitted: (value) {
             if (value.trim().isNotEmpty) {
               Navigator.pop(context);
@@ -182,12 +182,11 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
   }
 
   Future<void> _createDocument(String title) async {
-    final userId = AuthService().currentUserId;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
 
     final context = _contextManager.currentContext;
     
-    // Prevent document creation in View contexts as it's ambiguous
     if (context.isView) {
       if (mounted) {
         ScaffoldMessenger.of(this.context).showSnackBar(
@@ -205,14 +204,9 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
     Document newDoc;
     switch (widget.type) {
       case 'todo':
-        newDoc = TodoDocument.create(
-          userId: userId, // TodoDocument.create expects non-nullable userId as it was original impl
-          title: title,
-        );
         // If it's for a group, we need to override the userId/groupId manually 
-        // as TodoDocument.create only supports personal for now
         if (context.isGroup) {
-          return await _documentService.createDocument(TodoDocument(
+          await _documentService.createDocument(TodoDocument(
             id: '',
             userId: null,
             groupId: groupId,
@@ -220,6 +214,12 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           ));
+          return;
+        } else {
+          newDoc = TodoDocument.create(
+            userId: userId,
+            title: title,
+          );
         }
         break;
       case 'note':

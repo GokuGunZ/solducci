@@ -519,6 +519,7 @@ class ExpenseContext {
   final bool isPersonal;
   final bool isView;
   final ExpenseGroup? group;
+  final String? _explicitGroupId;
   final ExpenseView? view;
   final bool includePersonalForGroup;
 
@@ -526,12 +527,14 @@ class ExpenseContext {
       : isPersonal = true,
         isView = false,
         group = null,
+        _explicitGroupId = null,
         view = null,
         includePersonalForGroup = false;
 
   ExpenseContext.group(this.group, {this.includePersonalForGroup = false})
       : isPersonal = false,
         isView = false,
+        _explicitGroupId = null,
         view = null {
     if (group == null) {
       throw Exception('Group cannot be null for group context');
@@ -542,11 +545,21 @@ class ExpenseContext {
       : isPersonal = false,
         isView = true,
         group = null,
+        _explicitGroupId = null,
         includePersonalForGroup = false {
     if (view == null) {
       throw Exception('View cannot be null for view context');
     }
   }
+
+  /// Create a group context from a group ID only
+  /// Use this when the full ExpenseGroup object is not available
+  ExpenseContext.fromGroupId(this._explicitGroupId)
+      : isPersonal = false,
+        isView = false,
+        group = null,
+        view = null,
+        includePersonalForGroup = false;
 
   /// Check if context is a group (single group, not a view)
   bool get isGroup => !isPersonal && !isView;
@@ -557,12 +570,13 @@ class ExpenseContext {
     if (isView) {
       return view!.includePersonal ? '${view!.name} 👤' : view!.name;
     }
+    if (group == null) return 'Gruppo';
     // Single group with optional personal icon
     return includePersonalForGroup ? '${group!.name} 👤' : group!.name;
   }
 
   /// Group ID (null if personal or view)
-  String? get groupId => group?.id;
+  String? get groupId => group?.id ?? _explicitGroupId;
 
   /// View ID (null if personal or group)
   String? get viewId => view?.id;
@@ -571,7 +585,8 @@ class ExpenseContext {
   List<String> get groupIds {
     if (isPersonal) return [];
     if (isView) return view!.groupIds;
-    return [group!.id];
+    final id = groupId;
+    return id != null ? [id] : [];
   }
 
   /// Check if context includes personal expenses (for views and groups with toggle enabled)

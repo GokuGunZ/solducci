@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:solducci/models/space_items.dart';
+import 'package:solducci/service/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 /// Service for managing space items (Notes, Asterisks, Resources, Pantry)
 class SpaceService {
@@ -50,8 +52,6 @@ class SpaceService {
         .stream(primaryKey: ['id'])
         .eq('document_id', documentId);
     
-    // Stream filtering in PostgREST is limited, we filter client-side for status if needed
-    // or we could use different stream filters if it was supported more flexibly.
     return query.map((data) {
       var items = data.map((map) => AsteriskItem.fromMap(map)).toList();
       if (isResolved != null) {
@@ -84,7 +84,6 @@ class SpaceService {
   // --- RESOURCES ---
 
   Stream<List<ResourceItem>> watchResources(String documentId) {
-    // We use a simple stream for real-time updates of items
     return _supabase
         .from('resource_items')
         .stream(primaryKey: ['id'])
@@ -119,7 +118,6 @@ class SpaceService {
         .update(item.toMap())
         .eq('id', item.id);
 
-    // Update tags: delete old ones and insert new ones
     await _supabase.from('resource_item_tags').delete().eq('resource_item_id', item.id);
     if (tagIds.isNotEmpty) {
       final tagInserts = tagIds.map((tagId) => {
@@ -152,22 +150,15 @@ class SpaceService {
     final response = await _supabase
         .from('resource_item_reads')
         .select('resource_item_id')
-        .eq('user_id', userId)
-        .filter('resource_item_id', 'in', 
-           _supabase.from('resource_items').select('id').eq('document_id', documentId)
-        );
+        .eq('user_id', userId);
     
     return (response as List).map((r) => r['resource_item_id'] as String).toList();
   }
 
   Future<Map<String, List<String>>> getResourceTags(String documentId) async {
-    // Fetch all tags for resources in this document
     final response = await _supabase
         .from('resource_item_tags')
-        .select('resource_item_id, tag_id')
-        .filter('resource_item_id', 'in', 
-           _supabase.from('resource_items').select('id').eq('document_id', documentId)
-        );
+        .select('resource_item_id, tag_id');
     
     final result = <String, List<String>>{};
     for (var row in (response as List)) {
@@ -217,6 +208,21 @@ class SpaceService {
 
   Future<void> deletePantryItem(String id) async {
     await _supabase.from('pantry_items').delete().eq('id', id);
+  }
+
+  Future<PantryItem?> getPantryItem(String id) async {
+    try {
+      final response = await _supabase
+          .from('pantry_items')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+      
+      if (response == null) return null;
+      return PantryItem.fromMap(response);
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<PantryQuantity> addPantryQuantity(PantryQuantity quantity) async {
@@ -271,7 +277,6 @@ class SpaceService {
   }
 
   Future<void> confirmShoppingPurchase(String documentId) async {
-    // 1. Get all checked items
     final response = await _supabase
         .from('shopping_list_items')
         .select()
@@ -280,21 +285,18 @@ class SpaceService {
 
     final items = (response as List).map((map) => ShoppingListItem.fromMap(map)).toList();
 
-    // 2. For each item linked to pantry, create a new PantryQuantity
     for (var item in items) {
       if (item.pantryItemId != null) {
         await addPantryQuantity(PantryQuantity(
           id: '',
           pantryItemId: item.pantryItemId!,
-          quantity: item.quantity,
+          sizePerUnit: item.quantity, // We assume quantity in shopping list is the size
+          unitsCount: 1, // Default to 1 unit of that size
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ));
       }
-    // 3. Delete the item from shopping list after purchase
-    await deleteShoppingListItem(item.id);
+      await deleteShoppingListItem(item.id);
+    }
   }
-}
-
-// Additional methods for resources, pantry etc. will be added in their respective phases
 }

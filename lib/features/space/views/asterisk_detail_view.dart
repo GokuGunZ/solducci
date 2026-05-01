@@ -128,7 +128,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
       documentId: widget.documentId,
       content: content,
       isResolved: false,
-      position: 0, // We could calculate this based on existing items count
+      position: 0,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -155,7 +155,6 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
             onPressed: () async {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
-                Navigator.pop(context);
                 final updatedDoc = AsteriskDocument(
                   id: _document!.id,
                   userId: _document!.userId,
@@ -170,6 +169,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
                 setState(() {
                   _document = updatedDoc;
                 });
+                Navigator.pop(context);
               }
             },
             child: const Text('Salva'),
@@ -238,12 +238,34 @@ class _AsteriskList extends StatelessWidget {
               ),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => spaceService.deleteAsteriskItem(item.id),
+                onPressed: () => _confirmDelete(context, item),
               ),
             );
           },
         );
       },
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, AsteriskItem item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Elimina asterisco'),
+        content: const Text('Sei sicuro di voler eliminare questo punto di discussione?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await SpaceService().deleteAsteriskItem(item.id);
+    }
   }
 }

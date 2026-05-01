@@ -81,21 +81,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
           final items = snapshot.data ?? [];
 
           if (items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.link_off, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text('Nessuna risorsa salvata'),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _showAddResourceDialog,
-                    child: const Text('Aggiungi la prima'),
-                  ),
-                ],
-              ),
-            );
+            return const Center(child: Text('Nessuna risorsa salvata'));
           }
 
           return ListView.builder(
@@ -107,43 +93,83 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
               final tagIds = _itemTagIds[item.id] ?? [];
               final itemTags = _allTags.where((t) => tagIds.contains(t.id)).toList();
 
-              return Card(
-                child: ListTile(
-                  leading: Icon(
-                    _getIconForMediaType(item.mediaType),
-                    color: isRead ? Colors.grey : Colors.blue,
-                  ),
-                  title: Text(
-                    item.title,
-                    style: TextStyle(
-                      fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+              return Dismissible(
+                key: Key('resource_${item.id}'),
+                background: Container(
+                  color: isRead ? Colors.orange : Colors.green,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  child: Icon(isRead ? Icons.mark_email_unread : Icons.check, color: Colors.white),
+                ),
+                secondaryBackground: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.startToEnd) {
+                    await _spaceService.markResourceAsRead(item.id);
+                    _loadData();
+                    return false; // Don't actually dismiss
+                  } else {
+                    return await _confirmDelete(item);
+                  }
+                },
+                child: Card(
+                  color: isRead ? Colors.grey[50] : null,
+                  child: ListTile(
+                    leading: IconButton(
+                      icon: Icon(
+                        isRead ? Icons.check_circle : Icons.circle_outlined,
+                        color: isRead ? Colors.green : Colors.blue,
+                      ),
+                      onPressed: () async {
+                        await _spaceService.markResourceAsRead(item.id);
+                        _loadData();
+                      },
                     ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (item.url != null)
-                        Text(
-                          item.url!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, color: Colors.blue),
-                        ),
-                      if (itemTags.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Wrap(
-                            spacing: 4,
-                            children: itemTags.map((t) => _buildMiniTag(t)).toList(),
+                    title: Text(
+                      item.title,
+                      style: TextStyle(
+                        fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                        color: isRead ? Colors.grey[600] : Colors.black87,
+                        decoration: isRead ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (itemTags.isNotEmpty) 
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, bottom: 4),
+                            child: Wrap(spacing: 4, children: itemTags.map((t) => _buildMiniTag(t)).toList()),
                           ),
-                        ),
-                    ],
+                        if (item.url != null) 
+                          Text(
+                            item.url!, 
+                            maxLines: 1, 
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isRead ? Colors.grey : Colors.blue,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                    trailing: isRead 
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text('LETTO', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                        )
+                      : const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                    onTap: () => _openResource(item),
+                    onLongPress: () => _showEditResourceDialog(item, tagIds),
                   ),
-                  trailing: isRead 
-                    ? const Icon(Icons.check_circle, color: Colors.green, size: 16)
-                    : const Icon(Icons.circle_outlined, color: Colors.blue, size: 16),
-                  onTap: () => _openResource(item),
-                  onLongPress: () => _showEditResourceDialog(item, tagIds),
                 ),
               );
             },
@@ -157,6 +183,25 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
     );
   }
 
+  Future<bool> _confirmDelete(ResourceItem item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Elimina risorsa'),
+        content: const Text('Sei sicuro di voler eliminare questa risorsa?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Elimina'), style: TextButton.styleFrom(foregroundColor: Colors.red)),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await _spaceService.deleteResourceItem(item.id);
+      return true;
+    }
+    return false;
+  }
+
   Widget _buildMiniTag(Tag tag) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -164,14 +209,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
         color: tag.colorObject?.withOpacity(0.2) ?? Colors.grey.withOpacity(0.2),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
-        tag.name,
-        style: TextStyle(
-          fontSize: 10,
-          color: tag.colorObject ?? Colors.grey[700],
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text(tag.name, style: TextStyle(fontSize: 10, color: tag.colorObject ?? Colors.grey[700], fontWeight: FontWeight.bold)),
     );
   }
 
@@ -189,14 +227,8 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
       final uri = Uri.parse(item.url!);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
-        await _spaceService.markResourceAsRead(item.id);
-        if (mounted) {
-          setState(() {
-            if (!_readItemIds.contains(item.id)) {
-              _readItemIds.add(item.id);
-            }
-          });
-        }
+        // User asked for click to open, and swipe to mark as read.
+        // We could also mark as read automatically here if preferred.
       }
     }
   }
@@ -225,18 +257,9 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Titolo *'),
-                ),
-                TextField(
-                  controller: urlController,
-                  decoration: const InputDecoration(labelText: 'URL (opzionale)'),
-                ),
-                TextField(
-                  controller: descController,
-                  decoration: const InputDecoration(labelText: 'Descrizione'),
-                ),
+                TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Titolo *')),
+                TextField(controller: urlController, decoration: const InputDecoration(labelText: 'URL (opzionale)')),
+                TextField(controller: descController, decoration: const InputDecoration(labelText: 'Descrizione')),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedMediaType,
@@ -250,8 +273,6 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
                   decoration: const InputDecoration(labelText: 'Tipo'),
                 ),
                 const SizedBox(height: 16),
-                const Text('Tag:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
                 Wrap(
                   spacing: 4,
                   children: _allTags.map((tag) {
@@ -259,15 +280,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
                     return FilterChip(
                       label: Text(tag.name, style: const TextStyle(fontSize: 12)),
                       selected: isSelected,
-                      onSelected: (selected) {
-                        setDialogState(() {
-                          if (selected) {
-                            selectedTagIds.add(tag.id);
-                          } else {
-                            selectedTagIds.remove(tag.id);
-                          }
-                        });
-                      },
+                      onSelected: (selected) => setDialogState(() => selected ? selectedTagIds.add(tag.id) : selectedTagIds.remove(tag.id)),
                     );
                   }).toList(),
                 ),
@@ -275,44 +288,29 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
             ),
           ),
           actions: [
-            if (item != null)
-              TextButton(
-                onPressed: () async {
-                  await _spaceService.deleteResourceItem(item.id);
-                  Navigator.pop(context);
-                  _loadData();
-                },
-                child: const Text('Elimina', style: TextStyle(color: Colors.red)),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annulla'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
             ElevatedButton(
               onPressed: () async {
-                final title = titleController.text.trim();
-                if (title.isEmpty) return;
-
-                final newItem = ResourceItem(
-                  id: item?.id ?? '',
-                  documentId: widget.documentId,
-                  title: title,
-                  url: urlController.text.trim(),
-                  description: descController.text.trim(),
-                  mediaType: selectedMediaType,
-                  position: item?.position ?? 0,
-                  createdAt: item?.createdAt ?? DateTime.now(),
-                  updatedAt: DateTime.now(),
-                );
-
-                if (item == null) {
-                  await _spaceService.createResourceItem(newItem, selectedTagIds);
-                } else {
-                  await _spaceService.updateResourceItem(newItem, selectedTagIds);
+                if (titleController.text.isNotEmpty) {
+                  final newItem = ResourceItem(
+                    id: item?.id ?? '',
+                    documentId: widget.documentId,
+                    title: titleController.text,
+                    url: urlController.text,
+                    description: descController.text,
+                    mediaType: selectedMediaType,
+                    position: item?.position ?? 0,
+                    createdAt: item?.createdAt ?? DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  );
+                  if (item == null) {
+                    await _spaceService.createResourceItem(newItem, selectedTagIds);
+                  } else {
+                    await _spaceService.updateResourceItem(newItem, selectedTagIds);
+                  }
+                  Navigator.pop(context);
+                  _loadData();
                 }
-
-                Navigator.pop(context);
-                _loadData();
               },
               child: const Text('Salva'),
             ),

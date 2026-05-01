@@ -99,64 +99,69 @@ class AppRouter {
       
       // Space Feature Routes
       GoRoute(path: '/space', builder: (context, state) => const SpaceHomeView()),
+      
+      // Tasks
       GoRoute(
         path: '/space/tasks', 
         builder: (context, state) => const SpaceDocumentListView(type: 'todo', sectionLabel: 'Task'),
       ),
       GoRoute(
         path: '/space/tasks/:id',
-        builder: (context, state) => const DocumentsHomeView(), // TODO: pass documentId in Phase 2
+        builder: (context, state) => const DocumentsHomeView(),
       ),
+
+      // Notes
       GoRoute(
         path: '/space/notes', 
         builder: (context, state) => const SpaceDocumentListView(type: 'note', sectionLabel: 'Note'),
       ),
       GoRoute(
         path: '/space/notes/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return NoteDetailView(documentId: id);
-        },
+        builder: (context, state) => NoteDetailView(documentId: state.pathParameters['id']!),
       ),
+
+      // Asterisks
       GoRoute(
         path: '/space/asterisks', 
         builder: (context, state) => const SpaceDocumentListView(type: 'asterisk', sectionLabel: 'Asterischi'),
       ),
       GoRoute(
         path: '/space/asterisks/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return AsteriskDetailView(documentId: id);
-        },
+        builder: (context, state) => AsteriskDetailView(documentId: state.pathParameters['id']!),
       ),
+
+      // Resources
       GoRoute(
         path: '/space/resources', 
         builder: (context, state) => const SpaceDocumentListView(type: 'resource_list', sectionLabel: 'Risorse'),
       ),
       GoRoute(
         path: '/space/resources/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return ResourceDetailView(documentId: id);
-        },
+        builder: (context, state) => ResourceDetailView(documentId: state.pathParameters['id']!),
       ),
+
+      // Shopping (Must be before Pantry to avoid pattern conflict if any)
+      GoRoute(
+        path: '/space/shopping', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'shopping_list', sectionLabel: 'Liste Spesa'),
+      ),
+      GoRoute(
+        path: '/space/shopping/:id',
+        builder: (context, state) => ShoppingListDetailView(documentId: state.pathParameters['id']!),
+      ),
+
+      // Pantry
       GoRoute(
         path: '/space/pantry', 
         builder: (context, state) => const SpaceDocumentListView(type: 'dispensa', sectionLabel: 'Dispensa'),
       ),
       GoRoute(
         path: '/space/pantry/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return PantryDetailView(documentId: id);
-        },
+        builder: (context, state) => PantryDetailView(documentId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/space/pantry/:pantryId/shopping/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return ShoppingListDetailView(documentId: id);
-        },
+        builder: (context, state) => ShoppingListDetailView(documentId: state.pathParameters['id']!),
       ),
 
       // Group Management Routes

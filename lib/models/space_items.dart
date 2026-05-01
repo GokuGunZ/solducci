@@ -177,7 +177,7 @@ class PantryItem {
     this.quantities,
   });
 
-  double get totalQuantity => quantities?.fold(0.0, (sum, q) => sum! + q.quantity) ?? 0.0;
+  double get totalQuantity => quantities?.fold(0.0, (sum, q) => sum! + q.totalQuantity) ?? 0.0;
   bool get isBelowThreshold => thresholdLow != null && totalQuantity <= thresholdLow!;
 
   factory PantryItem.fromMap(Map<String, dynamic> map, {List<PantryQuantity>? quantities}) {
@@ -212,7 +212,8 @@ class PantryItem {
 class PantryQuantity {
   final String id;
   final String pantryItemId;
-  final double quantity;
+  final double sizePerUnit; // e.g. 500 (grams) or 1 (liter)
+  final int unitsCount; // e.g. 3 (packs/bottles)
   final DateTime? expirationDate;
   final String? lotNumber;
   final DateTime createdAt;
@@ -221,18 +222,22 @@ class PantryQuantity {
   PantryQuantity({
     required this.id,
     required this.pantryItemId,
-    required this.quantity,
+    required this.sizePerUnit,
+    required this.unitsCount,
     this.expirationDate,
     this.lotNumber,
     required this.createdAt,
     required this.updatedAt,
   });
 
+  double get totalQuantity => sizePerUnit * unitsCount;
+
   factory PantryQuantity.fromMap(Map<String, dynamic> map) {
     return PantryQuantity(
       id: map['id'] as String,
       pantryItemId: map['pantry_item_id'] as String,
-      quantity: (map['quantity'] as num).toDouble(),
+      sizePerUnit: (map['size_per_unit'] as num? ?? 1.0).toDouble(),
+      unitsCount: (map['units_count'] as int? ?? 1),
       expirationDate: map['expiration_date'] != null ? DateTime.parse(map['expiration_date'] as String) : null,
       lotNumber: map['lot_number'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -243,7 +248,8 @@ class PantryQuantity {
   Map<String, dynamic> toMap() {
     return {
       'pantry_item_id': pantryItemId,
-      'quantity': quantity,
+      'size_per_unit': sizePerUnit,
+      'units_count': unitsCount,
       'expiration_date': expirationDate?.toIso8601String(),
       'lot_number': lotNumber,
       'updated_at': DateTime.now().toIso8601String(),
