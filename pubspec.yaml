@@ -1,7 +1,7 @@
 name: solducci
 description: "Empower your finance tracking with solducci."
 publish_to: "none"
-version: 1.02.01+1
+version: 1.03.00+1
 
 environment:
   sdk: ^3.8.1
@@ -22,6 +22,7 @@ dependencies:
   go_router: ^14.6.2
   animated_reorderable_list: ^1.3.0
   shared_preferences: ^2.3.4
+  url_launcher: ^6.3.1
 
   # State Management & DI
   flutter_bloc: ^8.1.3

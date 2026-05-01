@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/views/new_homepage.dart';
-import 'package:solducci/views/documents/documents_home_view.dart';
+import 'package:solducci/features/space/views/space_home_view.dart';
 import 'package:solducci/views/dashboard_hub.dart';
 import 'package:solducci/views/profile_page.dart';
 
@@ -25,7 +25,7 @@ class ShellWithNavState extends State<ShellWithNav> {
   // List of tab pages
   static const List<Widget> _pages = [
     NewHomepage(),
-    DocumentsHomeView(),
+    SpaceHomeView(),
     DashboardHub(),
     ProfilePage(),
   ];
@@ -51,7 +51,10 @@ class ShellWithNavState extends State<ShellWithNav> {
             icon: Icon(Icons.attach_money_sharp),
             label: 'Finances',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'ToDo'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.space_dashboard_outlined),
+            label: 'Spazio',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.analytics),
             label: 'Dashboard',

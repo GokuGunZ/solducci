@@ -11,6 +11,13 @@ import 'package:solducci/views/category_view.dart';
 import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
+import 'package:solducci/features/space/views/space_home_view.dart';
+import 'package:solducci/features/space/views/space_document_list_view.dart';
+import 'package:solducci/features/space/views/note_detail_view.dart';
+import 'package:solducci/features/space/views/asterisk_detail_view.dart';
+import 'package:solducci/features/space/views/resource_detail_view.dart';
+import 'package:solducci/features/space/views/pantry_detail_view.dart';
+import 'package:solducci/features/space/views/shopping_list_detail_view.dart';
 import 'package:solducci/views/documents/documents_home_view.dart';
 import 'package:solducci/views/groups/create_group_page.dart';
 import 'package:solducci/views/groups/group_detail_page.dart';
@@ -89,10 +96,72 @@ class AppRouter {
         path: '/personal-expenses',
         builder: (context, state) => const PersonalExpensesPage(),
       ),
-      // ToDo List Route
+      
+      // Space Feature Routes
+      GoRoute(path: '/space', builder: (context, state) => const SpaceHomeView()),
+      
+      // Tasks
       GoRoute(
-        path: '/notes',
+        path: '/space/tasks', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'todo', sectionLabel: 'Task'),
+      ),
+      GoRoute(
+        path: '/space/tasks/:id',
         builder: (context, state) => const DocumentsHomeView(),
+      ),
+
+      // Notes
+      GoRoute(
+        path: '/space/notes', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'note', sectionLabel: 'Note'),
+      ),
+      GoRoute(
+        path: '/space/notes/:id',
+        builder: (context, state) => NoteDetailView(documentId: state.pathParameters['id']!),
+      ),
+
+      // Asterisks
+      GoRoute(
+        path: '/space/asterisks', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'asterisk', sectionLabel: 'Asterischi'),
+      ),
+      GoRoute(
+        path: '/space/asterisks/:id',
+        builder: (context, state) => AsteriskDetailView(documentId: state.pathParameters['id']!),
+      ),
+
+      // Resources
+      GoRoute(
+        path: '/space/resources', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'resource_list', sectionLabel: 'Risorse'),
+      ),
+      GoRoute(
+        path: '/space/resources/:id',
+        builder: (context, state) => ResourceDetailView(documentId: state.pathParameters['id']!),
+      ),
+
+      // Shopping (Must be before Pantry to avoid pattern conflict if any)
+      GoRoute(
+        path: '/space/shopping', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'shopping_list', sectionLabel: 'Liste Spesa'),
+      ),
+      GoRoute(
+        path: '/space/shopping/:id',
+        builder: (context, state) => ShoppingListDetailView(documentId: state.pathParameters['id']!),
+      ),
+
+      // Pantry
+      GoRoute(
+        path: '/space/pantry', 
+        builder: (context, state) => const SpaceDocumentListView(type: 'dispensa', sectionLabel: 'Dispensa'),
+      ),
+      GoRoute(
+        path: '/space/pantry/:id',
+        builder: (context, state) => PantryDetailView(documentId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/space/pantry/:pantryId/shopping/:id',
+        builder: (context, state) => ShoppingListDetailView(documentId: state.pathParameters['id']!),
       ),
 
       // Group Management Routes

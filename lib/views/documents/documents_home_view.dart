@@ -26,7 +26,8 @@ import 'package:solducci/views/documents/tag_view.dart';
 /// - Tag management
 /// - Swipe navigation between views
 class DocumentsHomeView extends StatefulWidget {
-  const DocumentsHomeView({super.key});
+  final String? documentId;
+  const DocumentsHomeView({super.key, this.documentId});
 
   @override
   State<DocumentsHomeView> createState() => _DocumentsHomeViewState();
@@ -59,6 +60,18 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
     super.initState();
     _initializeController();
     _loadTags();
+    if (widget.documentId != null) {
+      _loadSpecificDocument();
+    }
+  }
+
+  Future<void> _loadSpecificDocument() async {
+    final doc = await _documentService.getDocumentById(widget.documentId!);
+    if (doc is TodoDocument && mounted) {
+      setState(() {
+        _currentDocument = doc;
+      });
+    }
   }
 
   void _initializeController() {
