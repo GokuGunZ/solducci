@@ -210,6 +210,9 @@ class GroupMember {
   bool get isAdmin => role == GroupRole.admin;
   bool get isMember => role == GroupRole.member;
 
+  /// Get display name (nickname or email or userId)
+  String get displayName => nickname ?? email ?? userId;
+
   @override
   String toString() {
     return 'GroupMember(userId: $userId, nickname: $nickname, role: ${role.value})';

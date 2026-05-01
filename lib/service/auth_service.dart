@@ -21,4 +21,6 @@ class AuthService {
     return await _supabaseClient.auth.signOut();
   }
 
+  String? get currentUserId => _supabaseClient.auth.currentUser?.id;
+
  }

@@ -27,6 +27,7 @@
 ### For Claude Agents
 - [Claude Agent - Documents Guide](./CLAUDE_AGENT_DOCUMENTS_GUIDE.md) - Maintain Documents feature
 - [Claude Agent - Components Guide](./REUSABLE_COMPONENTS_AGENT_GUIDE.md) - Use component library
+- [Spazio Implementation Guide](./SPACE_IMPLEMENTATION_GUIDE.md) - Implement "Spazio" feature end-to-end
 
 ---
 
@@ -69,6 +70,15 @@ Developer tool for component gallery:
 | Document | Audience | Purpose |
 |----------|----------|---------|
 | [UI_SHOWCASE_GUIDE.md](./UI_SHOWCASE_GUIDE.md) | Developers, Designers | Showcase feature documentation |
+
+### Spazio Feature Documentation
+Nuova 5a tab — contenuti condivisi (Task, Note, Asterischi, Risorse, Dispensa):
+
+| Document | Audience | Purpose |
+|----------|----------|---------|
+| [SPACE_PRODUCT_REQUIREMENTS.md](./SPACE_PRODUCT_REQUIREMENTS.md) | PM, Designers | Vision, requisiti funzionali, regole di accesso |
+| [SPACE_TECHNICAL_DESIGN.md](./SPACE_TECHNICAL_DESIGN.md) | Senior Developers | DB schema, modelli, services, routing, RLS |
+| [SPACE_IMPLEMENTATION_GUIDE.md](./SPACE_IMPLEMENTATION_GUIDE.md) | Developers, AI Agents | Guida step-by-step fase per fase |
 
 ### Legacy & Utility Documentation
 Historical and setup documents:
