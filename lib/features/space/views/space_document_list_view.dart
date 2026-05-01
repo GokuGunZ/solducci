@@ -54,7 +54,10 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
         ],
       ),
       body: StreamBuilder<List<Document>>(
-        stream: _documentService.watchDocumentsForContext(currentContext, widget.type),
+        stream: _documentService.watchDocumentsForContext(
+          currentContext,
+          widget.type,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -100,9 +103,7 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
               return Card(
                 child: ListTile(
                   title: Text(doc.title),
-                  subtitle: Text(
-                    'Aggiornato il ${_formatDate(doc.updatedAt)}',
-                  ),
+                  subtitle: Text('Aggiornato il ${_formatDate(doc.updatedAt)}'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _navigateToDocument(context, doc),
                   onLongPress: () => _showDeleteConfirm(context, doc),
@@ -130,19 +131,26 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
 
   String _getSectionPath() {
     switch (widget.type) {
-      case 'todo': return 'tasks';
-      case 'note': return 'notes';
-      case 'asterisk': return 'asterisks';
-      case 'resource_list': return 'resources';
-      case 'dispensa': return 'pantry';
-      case 'shopping_list': return 'shopping';
-      default: return 'unknown';
+      case 'todo':
+        return 'tasks';
+      case 'note':
+        return 'notes';
+      case 'asterisk':
+        return 'asterisks';
+      case 'resource_list':
+        return 'resources';
+      case 'dispensa':
+        return 'pantry';
+      case 'shopping_list':
+        return 'shopping';
+      default:
+        return 'unknown';
     }
   }
 
   Future<void> _showCreateDialog(BuildContext context) async {
     final titleController = TextEditingController();
-    
+
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -168,10 +176,10 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
           ElevatedButton(
             onPressed: () {
               if (titleController.text.trim().isEmpty) return;
-              
+
               final title = titleController.text.trim();
               Navigator.pop(context);
-              
+
               _createDocument(title);
             },
             child: const Text('Crea'),
@@ -191,7 +199,9 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
       if (mounted) {
         ScaffoldMessenger.of(this.context).showSnackBar(
           const SnackBar(
-            content: Text('Seleziona un gruppo o il contesto Personale per creare una nuova lista'),
+            content: Text(
+              'Seleziona un gruppo o il contesto Personale per creare una nuova lista',
+            ),
           ),
         );
       }
