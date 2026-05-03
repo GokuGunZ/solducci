@@ -160,8 +160,14 @@ class DocumentService {
 
       final dataToInsert = document.toInsertMap();
       
-      // Ensure user_id is set to creator if not provided
-      dataToInsert['user_id'] ??= userId;
+      // Ensure user_id is set to creator only if it's a personal document
+      // and not explicitly provided. If it's a group document (groupId != null),
+      // user_id MUST be null to satisfy the database constraint.
+      if (dataToInsert['group_id'] == null) {
+        dataToInsert['user_id'] ??= userId;
+      } else {
+        dataToInsert['user_id'] = null;
+      }
 
       final response = await _supabase
           .from('documents')
@@ -185,7 +191,7 @@ class DocumentService {
 
       final dataToUpdate = document.toUpdateMap();
 
-      // Owners or group members can update (RLS handles this, but we add a check for safety)
+      // Owners or group members can update (RLS handles this)
       await _supabase
           .from('documents')
           .update(dataToUpdate)
@@ -203,11 +209,11 @@ class DocumentService {
         throw Exception('User not authenticated');
       }
 
+      // RLS will ensure the user has permission to delete
       await _supabase
           .from('documents')
           .delete()
-          .eq('id', documentId)
-          .eq('user_id', userId);
+          .eq('id', documentId);
     } catch (e) {
       rethrow;
     }
@@ -251,10 +257,11 @@ class DocumentService {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return [];
 
+      // We don't filter by user_id here to allow searching group docs
+      // RLS will handle visibility.
       final response = await _supabase
           .from('documents')
           .select()
-          .eq('user_id', userId)
           .ilike('title', '%$query%')
           .order('updated_at', ascending: false);
 
@@ -270,10 +277,11 @@ class DocumentService {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return {};
 
+      // We don't filter by user_id here to include group docs
+      // RLS will handle visibility.
       final response = await _supabase
           .from('documents')
-          .select('document_type')
-          .eq('user_id', userId);
+          .select('document_type');
 
       final counts = <String, int>{};
       for (final row in response) {

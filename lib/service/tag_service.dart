@@ -49,11 +49,11 @@ class TagService {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return null;
 
+      // Note: we don't filter by user_id here to allow seeing tags on shared tasks
       final response = await _supabase
           .from('tags')
           .select()
           .eq('id', tagId)
-          .eq('user_id', userId)
           .maybeSingle();
 
       if (response == null) return null;
@@ -64,16 +64,16 @@ class TagService {
     }
   }
 
-  /// Get root tags (tags without parent)
-  Future<List<Tag>> getRootTags() async {
+  /// Get root tags (tags without parent) - defaults to personal tags
+  Future<List<Tag>> getRootTags({String? userId}) async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return [];
+      final effectiveUserId = userId ?? _supabase.auth.currentUser?.id;
+      if (effectiveUserId == null) return [];
 
       final response = await _supabase
           .from('tags')
           .select()
-          .eq('user_id', userId)
+          .eq('user_id', effectiveUserId)
           .isFilter('parent_tag_id', null)
           .order('name');
 
@@ -86,13 +86,10 @@ class TagService {
   /// Get child tags of a specific parent tag
   Future<List<Tag>> getChildTags(String parentTagId) async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return [];
-
+      // Note: we don't filter by user_id here as we already have the parentTagId
       final response = await _supabase
           .from('tags')
           .select()
-          .eq('user_id', userId)
           .eq('parent_tag_id', parentTagId)
           .order('name');
 
