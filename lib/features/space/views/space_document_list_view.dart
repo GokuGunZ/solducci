@@ -4,6 +4,9 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:solducci/features/space/services/space_service.dart';
+import 'package:solducci/core/widgets/donut_progress_indicator.dart';
+import 'package:solducci/models/space_items.dart';
 
 class SpaceDocumentListView extends StatefulWidget {
   final String type;
@@ -104,7 +107,9 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
                 child: ListTile(
                   title: Text(doc.title),
                   subtitle: Text('Aggiornato il ${_formatDate(doc.updatedAt)}'),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: widget.type == 'shopping_list' 
+                    ? _ShoppingListProgress(documentId: doc.id)
+                    : const Icon(Icons.chevron_right),
                   onTap: () => _navigateToDocument(context, doc),
                   onLongPress: () => _showDeleteConfirm(context, doc),
                 ),
@@ -149,6 +154,11 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
   }
 
   Future<void> _showCreateDialog(BuildContext context) async {
+    if (widget.type == 'shopping_list') {
+      _createDocument('Spesa');
+      return;
+    }
+
     final titleController = TextEditingController();
 
     return showDialog(
@@ -272,7 +282,10 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
     }
 
     try {
-      await _documentService.createDocument(newDoc);
+      final createdDoc = await _documentService.createDocument(newDoc);
+      if (mounted && widget.type == 'shopping_list') {
+        _navigateToDocument(this.context, createdDoc);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(this.context).showSnackBar(
@@ -303,6 +316,30 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ShoppingListProgress extends StatelessWidget {
+  final String documentId;
+
+  const _ShoppingListProgress({required this.documentId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ShoppingListItem>>(
+      stream: SpaceService().watchShoppingListItems(documentId),
+      builder: (context, snapshot) {
+        final items = snapshot.data ?? [];
+        final total = items.length;
+        final completed = items.where((i) => i.isBought).length;
+
+        return DonutProgressIndicator(
+          total: total,
+          completed: completed,
+          size: 40,
+        );
+      },
     );
   }
 }
