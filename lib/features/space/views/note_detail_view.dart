@@ -107,27 +107,43 @@ class _NoteDetailViewState extends State<NoteDetailView> {
       return const Scaffold(body: Center(child: Text('Documento non trovato')));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_document!.title),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_note),
-            onPressed: _showEditTitleDialog,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        // Se c'è un salvataggio in sospeso, lo eseguiamo prima di uscire
+        if (_debounceTimer?.isActive ?? false) {
+          _debounceTimer!.cancel();
+          await _saveContent(_contentController.text);
+        }
+
+        if (context.mounted) {
+          Navigator.of(context).pop(result);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_document!.title),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.edit_note),
+              onPressed: _showEditTitleDialog,
+            ),
+          ],
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _contentController,
+            maxLines: null,
+            expands: true,
+            decoration: const InputDecoration(
+              hintText: 'Scrivi qui i tuoi appunti...',
+              border: InputBorder.none,
+            ),
+            onChanged: _onContentChanged,
           ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: TextField(
-          controller: _contentController,
-          maxLines: null,
-          expands: true,
-          decoration: const InputDecoration(
-            hintText: 'Scrivi qui i tuoi appunti...',
-            border: InputBorder.none,
-          ),
-          onChanged: _onContentChanged,
         ),
       ),
     );
