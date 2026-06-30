@@ -56,6 +56,11 @@ jobs:
           mkdir -p assets/dev
           touch assets/dev/.env
 
+      - name: Rename App for Testing
+        run: |
+          sed -i 's/applicationId = "com.gokugunz.solducci"/applicationId = "com.gokugunz.solducci.test"/' android/app/build.gradle.kts
+          sed -i 's/android:label="solducci"/android:label="Solducci Test"/' android/app/src/main/AndroidManifest.xml
+
       - name: Build Android APK (Signed)
         env:
           GSHEET_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_B64 }}
