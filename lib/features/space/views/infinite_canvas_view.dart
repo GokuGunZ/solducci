@@ -606,6 +606,80 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     });
   }
 
+  void _showBookmarksModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E2C),
+      isScrollControlled: true,
+      builder: (context) {
+        final bookmarks = _controller.allNodes.where((n) => n.metadata['isBookmarked'] == true).toList();
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.6,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1E1E2C),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: Text('I tuoi Segnalibri', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                ),
+                Expanded(
+                  child: bookmarks.isEmpty 
+                      ? const Center(child: Text('Nessun segnalibro trovato', style: TextStyle(color: Colors.white54)))
+                      : ListView.builder(
+                          itemCount: bookmarks.length,
+                          itemBuilder: (context, index) {
+                            final node = bookmarks[index];
+                            final isFolder = node.type == 'folder';
+                            return ListTile(
+                              leading: Icon(isFolder ? Icons.folder : Icons.article, color: isFolder ? const Color(0xFF3B82F6) : const Color(0xFF10B981)),
+                              title: Text(node.title.isEmpty ? 'Senza titolo' : node.title, style: const TextStyle(color: Colors.white)),
+                              subtitle: Text(isFolder ? 'Cartella' : 'Appunto', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.bookmark_remove, color: Colors.white30),
+                                onPressed: () {
+                                  _controller.updateNodeMetadata(node.id, {'isBookmarked': false});
+                                  Navigator.pop(context);
+                                  _showBookmarksModal(); // Re-open to refresh
+                                },
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                if (isFolder) {
+                                  _controller.enterFolder(node.id);
+                                } else {
+                                  if (node.parentId != null) {
+                                    _controller.enterFolder(node.parentId!);
+                                    Future.delayed(const Duration(milliseconds: 300), () {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Appunto trovato: ${node.title.isEmpty ? "Senza titolo" : node.title}'),
+                                          backgroundColor: const Color(0xFF10B981),
+                                        ),
+                                      );
+                                    });
+                                  } else {
+                                    _controller.jumpToFolder(null);
+                                  }
+                                }
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showLayoutSettingsModal() {
     showModalBottomSheet(
       context: context,
@@ -895,7 +969,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                         _selectionMode = value;
                       });
                     } else if (value == 'bookmarks') {
-                      // TODO: Apri modal bookmarks
+                      _showBookmarksModal();
                     } else if (value == 'refresh') {
                       _controller.resetAllOverrides();
                     } else if (value == 'template') {
