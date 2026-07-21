@@ -102,4 +102,13 @@ class CanvasTreeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateNodeTitle(CanvasNode node, String newTitle) async {
+    final updated = node.copyWith(
+      title: newTitle,
+      updatedAt: DateTime.now(),
+    );
+    await _syncService.pushNode(updated);
+    notifyListeners();
+  }
+
 }

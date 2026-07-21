@@ -25,6 +25,7 @@ class MarkdownNodeWidget extends StatefulWidget {
 
 class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProviderStateMixin {
   late TextEditingController _textController;
+  late TextEditingController _titleController;
   late FocusNode _focusNode;
   late ScrollController _readerScrollController;
   late ScrollController _editorScrollController;
@@ -51,6 +52,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.node.payload['text'] ?? '');
+    _titleController = TextEditingController(text: widget.node.title);
     _focusNode = FocusNode();
     _readerScrollController = ScrollController();
     _editorScrollController = ScrollController();
@@ -107,12 +109,16 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
         !_focusNode.hasFocus) {
       _textController.text = widget.node.payload['text'] ?? '';
     }
+    if (oldWidget.node.title != widget.node.title && !_focusNode.hasFocus) {
+      _titleController.text = widget.node.title;
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _textController.dispose();
+    _titleController.dispose();
     _focusNode.dispose();
     _readerScrollController.dispose();
     _editorScrollController.dispose();
@@ -142,6 +148,12 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       widget.controller.updateNodeText(
         widget.node, 
         _textController.text
+      );
+    }
+    if (_titleController.text != widget.node.title && _titleController.text.trim().isNotEmpty) {
+      widget.controller.updateNodeTitle(
+        widget.node, 
+        _titleController.text.trim()
       );
     }
   }
@@ -285,12 +297,21 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.edit_note, color: Colors.transparent, size: 24),
-                          const SizedBox(width: 12),
                           Expanded(
-                            child: Text(widget.node.title, style: const TextStyle(color: Color(0xFF6366F1), fontSize: 18, fontWeight: FontWeight.bold)),
+                            child: TextField(
+                              controller: _titleController,
+                              style: const TextStyle(color: Color(0xFF6366F1), fontSize: 18, fontWeight: FontWeight.bold),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onChanged: _onTextChanged,
+                            ),
                           ),
                           const Icon(Icons.arrow_back_ios, color: Colors.transparent, size: 16),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.edit_note, color: Colors.transparent, size: 16),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -340,12 +361,12 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.edit_note, color: Color(0xFF6366F1), size: 24),
-                              const SizedBox(width: 12),
                               Expanded(
                                 child: Text(widget.node.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                               ),
                               Icon(Icons.arrow_back_ios, color: Colors.white.withOpacity(0.1), size: 16),
+                              const SizedBox(width: 6),
+                              Icon(Icons.edit_note, color: Colors.white.withOpacity(0.1), size: 16),
                             ],
                           ),
                           const SizedBox(height: 12),
