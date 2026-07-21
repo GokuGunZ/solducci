@@ -19,6 +19,16 @@ import 'package:solducci/features/space/views/resource_detail_view.dart';
 import 'package:solducci/features/space/views/pantry_detail_view.dart';
 import 'package:solducci/features/space/views/shopping_list_detail_view.dart';
 import 'package:solducci/views/documents/documents_home_view.dart';
+import 'package:solducci/features/time_management/views/time_management_hub.dart';
+import 'package:solducci/features/time_management/views/routine_hub.dart';
+import 'package:solducci/features/time_management/views/create_scenario_view.dart';
+import 'package:solducci/features/time_management/views/create_trip_view.dart';
+import 'package:solducci/features/time_management/views/create_event_view.dart';
+import 'package:solducci/features/time_management/views/create_outing_view.dart';
+import 'package:solducci/features/time_management/views/create_availability_view.dart';
+import 'package:solducci/features/time_management/views/trip_detail_view.dart';
+import 'package:solducci/features/time_management/views/event_detail_view.dart';
+import 'package:solducci/features/time_management/views/outing_detail_view.dart';
 import 'package:solducci/views/groups/create_group_page.dart';
 import 'package:solducci/views/groups/group_detail_page.dart';
 import 'package:solducci/views/groups/invite_member_page.dart';
@@ -162,6 +172,48 @@ class AppRouter {
       GoRoute(
         path: '/space/pantry/:pantryId/shopping/:id',
         builder: (context, state) => ShoppingListDetailView(documentId: state.pathParameters['id']!),
+      ),
+
+      // Time Management
+      GoRoute(
+        path: '/space/time_management',
+        builder: (context, state) => const TimeManagementHub(),
+      ),
+      GoRoute(
+        path: '/space/time_management/routines',
+        builder: (context, state) => const RoutineHub(),
+      ),
+      GoRoute(
+        path: '/space/time_management/create',
+        builder: (context, state) => const CreateScenarioView(),
+      ),
+      GoRoute(
+        path: '/space/time_management/create/trip',
+        builder: (context, state) => const CreateTripView(),
+      ),
+      GoRoute(
+        path: '/space/time_management/create/event',
+        builder: (context, state) => const CreateEventView(),
+      ),
+      GoRoute(
+        path: '/space/time_management/create/outing',
+        builder: (context, state) => const CreateOutingView(),
+      ),
+      GoRoute(
+        path: '/space/time_management/create/availability',
+        builder: (context, state) => const CreateAvailabilityView(),
+      ),
+      GoRoute(
+        path: '/space/time_management/scenario/trip/:id',
+        builder: (context, state) => TripDetailView(scenarioId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/space/time_management/scenario/event/:id',
+        builder: (context, state) => EventDetailView(scenarioId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/space/time_management/scenario/outing/:id',
+        builder: (context, state) => OutingDetailView(scenarioId: state.pathParameters['id']!),
       ),
 
       // Group Management Routes

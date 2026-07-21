@@ -12,6 +12,9 @@ class TimeScenario {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  String get title => metadata['title'] as String? ?? 'Senza Titolo';
+  DateTime? get targetDate => startDate;
+
   TimeScenario({
     required this.id,
     required this.documentId,
