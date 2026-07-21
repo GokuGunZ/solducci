@@ -6,6 +6,11 @@ import 'package:solducci/views/hubs/archive_hub_view.dart';
 import 'package:solducci/widgets/constellation_menu.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/widgets/quick_add_item_modal.dart';
+import 'package:solducci/service/document_service.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/time_management_service.dart';
+import 'package:solducci/models/routine.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 
 /// Shell widget that provides persistent bottom navigation bar
@@ -52,6 +57,22 @@ class ShellWithNavState extends State<ShellWithNav> {
     }
   }
 
+  Future<List<CollectionFolder>> _getFolders(String documentType) async {
+    final contextManager = ContextManager();
+    final docs = await DocumentService().getDocumentsForContext(contextManager.currentContext, documentType);
+    return docs.map((d) => CollectionFolder(d.id, d.title)).toList();
+  }
+
+  Future<List<CollectionFolder>> _getRoutineCategories() async {
+    // Ritorna le categorie per le routine. In futuro potrebbero venire dal DB.
+    return [
+      CollectionFolder('1', 'Mattina'),
+      CollectionFolder('2', 'Sera'),
+      CollectionFolder('3', 'Lavoro'),
+      CollectionFolder('4', 'Fitness'),
+    ];
+  }
+
   List<ConstellationAction> _getCurrentTabActions(BuildContext context) {
     switch (_selectedIndex) {
       case 0: // Feed
@@ -82,14 +103,22 @@ class ShellWithNavState extends State<ShellWithNav> {
                 context: context,
                 title: 'Aggiungi in Dispensa',
                 themeColor: const Color(0xFF10B981),
-                folders: [
-                  CollectionFolder('1', 'Casa'),
-                  CollectionFolder('2', 'Ufficio'),
-                ],
-                onAdd: (folderId, itemName) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Aggiunto "$itemName" alla dispensa!')),
-                  );
+                foldersFuture: _getFolders('dispensa'),
+                onAdd: (folderId, itemName) async {
+                  try {
+                    await DocumentService().addPantryItem(folderId, itemName);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Aggiunto "$itemName" alla dispensa!')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Errore: Impossibile aggiungere l\'elemento.')),
+                      );
+                    }
+                  }
                 },
               );
             },
@@ -102,19 +131,22 @@ class ShellWithNavState extends State<ShellWithNav> {
                 context: context,
                 title: 'Nuovo Elemento Spesa',
                 themeColor: const Color(0xFF10B981),
-                folders: [
-                  CollectionFolder('1', 'Spesa Settimanale'),
-                  CollectionFolder('2', 'Festa Compleanno'),
-                  CollectionFolder('3', 'Farmacia'),
-                  CollectionFolder('4', 'Bricolage'),
-                  CollectionFolder('5', 'Cena Sabato'),
-                  CollectionFolder('6', 'Lavoro'),
-                  CollectionFolder('7', 'Altro (Test Dropdown)'),
-                ],
-                onAdd: (folderId, itemName) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Aggiunto "$itemName" alla lista!')),
-                  );
+                foldersFuture: _getFolders('shopping_list'),
+                onAdd: (folderId, itemName) async {
+                  try {
+                    await DocumentService().addShoppingListItem(folderId, itemName);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Aggiunto "$itemName" alla lista!')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Errore nell\'aggiunta.')),
+                      );
+                    }
+                  }
                 },
               );
             },
@@ -130,16 +162,38 @@ class ShellWithNavState extends State<ShellWithNav> {
                 context: context,
                 title: 'Nuova Routine',
                 themeColor: const Color(0xFFF59E0B),
-                folders: [
-                  CollectionFolder('1', 'Mattina'),
-                  CollectionFolder('2', 'Sera'),
-                  CollectionFolder('3', 'Lavoro'),
-                  CollectionFolder('4', 'Fitness'),
-                ],
-                onAdd: (folderId, itemName) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Creata routine "$itemName"!')),
-                  );
+                foldersFuture: _getRoutineCategories(),
+                onAdd: (folderId, itemName) async {
+                  try {
+                    // Categoria come descrizione per ora
+                    final categoryName = ['Mattina', 'Sera', 'Lavoro', 'Fitness'].elementAtOrNull(int.tryParse(folderId) ?? 0) ?? 'Generale';
+                    final contextManager = ContextManager();
+                    final currentContext = contextManager.currentContext;
+                    
+                    final newRoutine = RoutineTemplate(
+                      id: '', // Generated by Supabase
+                      userId: Supabase.instance.client.auth.currentUser?.id ?? '', 
+                      groupId: currentContext.isGroup ? currentContext.groupId : null,
+                      name: itemName,
+                      description: 'Categoria: $categoryName',
+                      isActive: true,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                    );
+                    
+                    await TimeManagementService().createRoutineTemplate(newRoutine, [], []);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Creata routine "$itemName"!')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Errore: Impossibile creare routine.')),
+                      );
+                    }
+                  }
                 },
               );
             },
@@ -165,15 +219,22 @@ class ShellWithNavState extends State<ShellWithNav> {
                 context: context,
                 title: 'Nuovo Asterisco',
                 themeColor: const Color(0xFF3B82F6),
-                folders: [
-                  CollectionFolder('1', 'Personale'),
-                  CollectionFolder('2', 'Lavoro'),
-                  CollectionFolder('3', 'Idee'),
-                ],
-                onAdd: (folderId, itemName) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Creato asterisco "$itemName"!')),
-                  );
+                foldersFuture: _getFolders('asterisk'),
+                onAdd: (folderId, itemName) async {
+                  try {
+                    await DocumentService().addAsteriskItem(folderId, itemName);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Creato asterisco "$itemName"!')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Errore.')),
+                      );
+                    }
+                  }
                 },
               );
             },
@@ -186,16 +247,22 @@ class ShellWithNavState extends State<ShellWithNav> {
                 context: context,
                 title: 'Nuova Risorsa',
                 themeColor: const Color(0xFF3B82F6),
-                folders: [
-                  CollectionFolder('1', 'Documenti'),
-                  CollectionFolder('2', 'Bollette'),
-                  CollectionFolder('3', 'Ricevute'),
-                  CollectionFolder('4', 'Manuali'),
-                ],
-                onAdd: (folderId, itemName) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Creata risorsa "$itemName"!')),
-                  );
+                foldersFuture: _getFolders('resource_list'),
+                onAdd: (folderId, itemName) async {
+                  try {
+                    await DocumentService().addResourceItem(folderId, itemName);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Creata risorsa "$itemName"!')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Errore.')),
+                      );
+                    }
+                  }
                 },
               );
             },
@@ -208,15 +275,22 @@ class ShellWithNavState extends State<ShellWithNav> {
                 context: context,
                 title: 'Nuova Nota',
                 themeColor: const Color(0xFF3B82F6),
-                folders: [
-                  CollectionFolder('1', 'Generale'),
-                  CollectionFolder('2', 'Meeting'),
-                  CollectionFolder('3', 'Diario'),
-                ],
-                onAdd: (folderId, itemName) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Creata nota "$itemName"!')),
-                  );
+                foldersFuture: _getFolders('note'),
+                onAdd: (folderId, itemName) async {
+                  try {
+                    await DocumentService().addNoteItem(folderId, itemName);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Creata nota "$itemName"!')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Errore.')),
+                      );
+                    }
+                  }
                 },
               );
             },

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/service/expense_service_cached.dart';
+import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/dashboard_data.dart';
+import 'dart:math';
 
 class EconomyChartsHubView extends StatelessWidget {
   const EconomyChartsHubView({super.key});
@@ -13,31 +17,53 @@ class EconomyChartsHubView extends StatelessWidget {
         title: const Text('Dashboard Grafici', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Panoramica Mensile',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          _buildMockChartCard(
-            title: 'Andamento Spese',
-            height: 200,
-            child: _buildBarChartMock(),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Distribuzione Categorie',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          _buildMockChartCard(
-            title: 'Ripartizione per Categoria',
-            height: 240,
-            child: _buildPieChartMock(),
-          ),
-        ],
+      body: StreamBuilder<List<Expense>>(
+        stream: ExpenseServiceCached().stream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)));
+          }
+
+          final expenses = snapshot.data ?? [];
+          if (expenses.isEmpty) {
+            return const Center(
+              child: Text(
+                'Nessuna spesa registrata per generare i grafici.',
+                style: TextStyle(color: Colors.white54, fontSize: 16),
+              ),
+            );
+          }
+
+          final monthlyGroups = DashboardService.groupByMonth(expenses);
+          final categoryData = DashboardService.categoryBreakdown(expenses);
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const Text(
+                'Andamento Mensile',
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildMockChartCard(
+                title: 'Spese degli ultimi mesi',
+                height: 240,
+                child: _buildBarChartReal(monthlyGroups),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Distribuzione Categorie',
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildMockChartCard(
+                title: 'Ripartizione Totale',
+                height: min(300.0, max(150.0, categoryData.length * 50.0 + 50.0)),
+                child: _buildCategoryListReal(categoryData),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -61,56 +87,99 @@ class EconomyChartsHubView extends StatelessWidget {
     );
   }
 
-  Widget _buildBarChartMock() {
+  Widget _buildBarChartReal(List<MonthlyGroup> monthlyGroups) {
+    if (monthlyGroups.isEmpty) return const SizedBox.shrink();
+
+    // Take up to 6 most recent months, reverse to show chronological order left-to-right
+    final recentGroups = monthlyGroups.take(6).toList().reversed.toList();
+    final maxTotal = recentGroups.map((g) => g.total).reduce(max);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        _buildBar(0.4),
-        _buildBar(0.7),
-        _buildBar(0.3),
-        _buildBar(0.9),
-        _buildBar(0.5),
-        _buildBar(0.8),
-      ],
+      children: recentGroups.map((group) {
+        final heightFactor = maxTotal > 0 ? (group.total / maxTotal) : 0.0;
+        final monthAbbr = group.monthLabel.split(' ')[0].substring(0, 3);
+        
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text('€${group.total.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+            const SizedBox(height: 4),
+            _buildBar(heightFactor),
+            const SizedBox(height: 8),
+            Text(monthAbbr, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          ],
+        );
+      }).toList(),
     );
   }
 
   Widget _buildBar(double heightFactor) {
-    return FractionallySizedBox(
-      heightFactor: heightFactor,
-      child: Container(
-        width: 24,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF10B981), Color(0xFF047857)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+    // Ensure minimum visible height for non-zero values
+    final effectiveFactor = heightFactor > 0 ? max(0.05, heightFactor) : 0.0;
+    
+    return Expanded(
+      child: FractionallySizedBox(
+        heightFactor: effectiveFactor,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: 32,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF10B981), Color(0xFF047857)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(6),
           ),
-          borderRadius: BorderRadius.circular(6),
         ),
       ),
     );
   }
 
-  Widget _buildPieChartMock() {
-    return Center(
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 140,
-            height: 140,
-            child: CircularProgressIndicator(
-              value: 0.7,
-              strokeWidth: 20,
-              backgroundColor: const Color(0xFF2A2A2D),
-              color: const Color(0xFF10B981),
-            ),
+  Widget _buildCategoryListReal(List<CategoryBreakdown> categories) {
+    return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final cat = categories[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.primaries[index % Colors.primaries.length],
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  cat.category.label,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+              Text(
+                '€${cat.total.toStringAsFixed(2)}',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 48,
+                child: Text(
+                  '${cat.percentage.toStringAsFixed(1)}%',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ),
+            ],
           ),
-          const Text('70%\nCasa', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ],
-      ),
+        );
+      },
     );
   }
 }

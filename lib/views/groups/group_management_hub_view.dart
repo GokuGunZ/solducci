@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:solducci/service/group_service_cached.dart';
+import 'package:solducci/models/group.dart';
 
 class GroupManagementHubView extends StatelessWidget {
   const GroupManagementHubView({super.key});
@@ -14,13 +16,40 @@ class GroupManagementHubView extends StatelessWidget {
         title: const Text('Gestione Gruppi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildGroupCard(context, 'Famiglia', '3 membri', const Color(0xFF6366F1)),
-          _buildGroupCard(context, 'Coinquilini', '4 membri', const Color(0xFF10B981)),
-          _buildGroupCard(context, 'Vacanze Estive', '6 membri', const Color(0xFFF59E0B)),
-        ],
+      body: StreamBuilder<List<ExpenseGroup>>(
+        stream: GroupServiceCached().groupsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)));
+          }
+          
+          final groups = snapshot.data ?? [];
+          
+          if (groups.isEmpty) {
+            return const Center(
+              child: Text(
+                'Non fai ancora parte di alcun gruppo.\nCreane uno!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 16),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final group = groups[index];
+              return _buildGroupCard(
+                context,
+                group.id,
+                group.name,
+                '${group.memberCount ?? group.members?.length ?? 1} membri',
+                const Color(0xFF6366F1), // Può essere dinamico basato sul gruppo
+              );
+            },
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/groups/create'),
@@ -31,25 +60,25 @@ class GroupManagementHubView extends StatelessWidget {
     );
   }
 
-  Widget _buildGroupCard(BuildContext context, String name, String subtitle, Color color) {
+  Widget _buildGroupCard(BuildContext context, String groupId, String name, String subtitle, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.2),
+          backgroundColor: color.withValues(alpha: 0.2),
           child: Icon(Icons.group, color: color),
         ),
         title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
         subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54)),
         trailing: const Icon(Icons.chevron_right, color: Colors.white54),
         onTap: () {
-          // Placeholder per la pagina di dettaglio gruppo
+          context.push('/groups/$groupId');
         },
       ),
     );

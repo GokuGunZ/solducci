@@ -9,14 +9,14 @@ class CollectionFolder {
 class QuickAddItemModal extends StatefulWidget {
   final String title;
   final Color themeColor;
-  final List<CollectionFolder> folders;
+  final Future<List<CollectionFolder>> foldersFuture;
   final Function(String folderId, String itemName) onAdd;
 
   const QuickAddItemModal({
     super.key,
     required this.title,
     required this.themeColor,
-    required this.folders,
+    required this.foldersFuture,
     required this.onAdd,
   });
 
@@ -24,7 +24,7 @@ class QuickAddItemModal extends StatefulWidget {
     required BuildContext context,
     required String title,
     required Color themeColor,
-    required List<CollectionFolder> folders,
+    required Future<List<CollectionFolder>> foldersFuture,
     required Function(String folderId, String itemName) onAdd,
   }) {
     return showModalBottomSheet(
@@ -41,7 +41,7 @@ class QuickAddItemModal extends StatefulWidget {
         child: QuickAddItemModal(
           title: title,
           themeColor: themeColor,
-          folders: folders,
+          foldersFuture: foldersFuture,
           onAdd: onAdd,
         ),
       ),
@@ -57,32 +57,26 @@ class _QuickAddItemModalState extends State<QuickAddItemModal> {
   final TextEditingController _nameController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.folders.isNotEmpty) {
-      _selectedFolderId = widget.folders.first.id;
-    }
-  }
-
-  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
   }
 
-  Widget _buildFolderSelector(BuildContext context) {
-    // Euristica per le chips: se ci sono <= 6 cartelle (circa 1-2 righe di Wrap su un telefono), usa i ChoiceChip.
-    // Altrimenti passa a un Dropdown per risparmiare spazio.
-    if (widget.folders.length <= 6) {
+  Widget _buildFolderSelector(BuildContext context, List<CollectionFolder> folders) {
+    if (folders.isEmpty) {
+      return const Text('Nessuna destinazione trovata. Creane una prima.', style: TextStyle(color: Colors.white54));
+    }
+
+    if (folders.length <= 6) {
       return Wrap(
         spacing: 8.0,
         runSpacing: 8.0,
-        children: widget.folders.map((folder) {
+        children: folders.map((folder) {
           final isSelected = _selectedFolderId == folder.id;
           return ChoiceChip(
             label: Text(folder.name),
             selected: isSelected,
-            selectedColor: widget.themeColor.withOpacity(0.2),
+            selectedColor: widget.themeColor.withValues(alpha: 0.2),
             backgroundColor: const Color(0xFF2A2A2D),
             labelStyle: TextStyle(
               color: isSelected ? widget.themeColor : Colors.white70,
@@ -115,7 +109,7 @@ class _QuickAddItemModalState extends State<QuickAddItemModal> {
             isExpanded: true,
             dropdownColor: const Color(0xFF2A2A2D),
             icon: Icon(Icons.arrow_drop_down, color: widget.themeColor),
-            items: widget.folders.map((folder) {
+            items: folders.map((folder) {
               return DropdownMenuItem<String>(
                 value: folder.id,
                 child: Text(folder.name, style: const TextStyle(color: Colors.white)),
@@ -156,7 +150,35 @@ class _QuickAddItemModalState extends State<QuickAddItemModal> {
             style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
           const SizedBox(height: 8),
-          _buildFolderSelector(context),
+          FutureBuilder<List<CollectionFolder>>(
+            future: widget.foldersFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(color: widget.themeColor),
+                  ),
+                );
+              }
+              
+              final folders = snapshot.data ?? [];
+              
+              // Seleziona il primo di default se non è già stato selezionato
+              if (_selectedFolderId == null && folders.isNotEmpty) {
+                // Posticipiamo l'aggiornamento dello stato alla fine del frame
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && _selectedFolderId == null) {
+                    setState(() {
+                      _selectedFolderId = folders.first.id;
+                    });
+                  }
+                });
+              }
+              
+              return _buildFolderSelector(context, folders);
+            },
+          ),
           const SizedBox(height: 24),
           TextField(
             controller: _nameController,

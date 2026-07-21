@@ -201,6 +201,77 @@ class DocumentService {
     }
   }
 
+  /// Add item to Pantry
+  Future<void> addPantryItem(String documentId, String name) async {
+    try {
+      await _supabase.from('pantry_items').insert({
+        'document_id': documentId,
+        'name': name,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Add item to Shopping List
+  Future<void> addShoppingListItem(String documentId, String name) async {
+    try {
+      await _supabase.from('shopping_list_items').insert({
+        'document_id': documentId,
+        'name': name,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Add item to Asterisk
+  Future<void> addAsteriskItem(String documentId, String content) async {
+    try {
+      await _supabase.from('asterisk_items').insert({
+        'document_id': documentId,
+        'content': content,
+        'is_resolved': false,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Add item to Note
+  Future<void> addNoteItem(String documentId, String content) async {
+    try {
+      await _supabase.from('note_items').insert({
+        'document_id': documentId,
+        'content': content,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Add item to Resource List
+  Future<void> addResourceItem(String documentId, String title) async {
+    try {
+      await _supabase.from('resource_items').insert({
+        'document_id': documentId,
+        'title': title,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Delete a document (cascades to tasks via DB constraints)
   Future<void> deleteDocument(String documentId) async {
     try {
