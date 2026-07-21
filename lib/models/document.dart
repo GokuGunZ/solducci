@@ -88,6 +88,8 @@ abstract class Document {
         return DispensaDocument.fromMap(map);
       case 'shopping_list':
         return ShoppingListDocument.fromMap(map);
+      case 'time_scenario':
+        return TimeScenarioDocument.fromMap(map);
       case 'generic_list':
         // Future implementation
         throw UnimplementedError('GenericListDocument not yet implemented');
@@ -408,3 +410,50 @@ class ShoppingListDocument extends Document {
     );
   }
 }
+
+/// Time Scenario document (Event, Trip, Outing, Radar)
+class TimeScenarioDocument extends Document {
+  TimeScenarioDocument({
+    required super.id,
+    super.userId,
+    super.groupId,
+    required super.title,
+    super.description,
+    required super.createdAt,
+    required super.updatedAt,
+    super.metadata,
+  }) : super(documentType: 'time_scenario');
+
+  factory TimeScenarioDocument.fromMap(Map<String, dynamic> map) {
+    return TimeScenarioDocument(
+      id: map['id'] as String,
+      userId: map['user_id'] as String?,
+      groupId: map['group_id'] as String?,
+      title: map['title'] as String,
+      description: map['description'] as String?,
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: DateTime.parse(map['updated_at'] as String),
+      metadata: map['metadata'] != null
+          ? Map<String, dynamic>.from(map['metadata'] as Map)
+          : {},
+    );
+  }
+
+  factory TimeScenarioDocument.create({
+    required String? userId,
+    String? groupId,
+    required String title,
+    String? description,
+  }) {
+    return TimeScenarioDocument(
+      id: '',
+      userId: userId,
+      groupId: groupId,
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+}
+
