@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:solducci/features/space/models/canvas_node.dart';
 import 'package:solducci/features/space/controllers/canvas_tree_controller.dart';
 import 'package:solducci/features/space/services/canvas_sync_service.dart';
+import 'package:solducci/features/space/repositories/canvas_local_repository.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -28,6 +29,9 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
 
   Future<void> _initCanvas() async {
     await CanvasSyncService().initialize();
+    
+    // Esegui la Cache Eviction policy (pulisci payload più vecchi di 90 giorni)
+    await CanvasLocalRepository().clearEvictedPayloads();
     
     String? gId = widget.groupId;
     String? uId = widget.userId;
@@ -67,67 +71,138 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     super.dispose();
   }
 
-  Future<void> _showAddNodeDialog(String? parentId) async {
+  Future<void> _showOmniAddSheet(String? parentId) async {
     final TextEditingController titleController = TextEditingController();
-    String selectedType = 'folder';
+    String selectedType = 'markdown'; // default to markdown
 
-    await showDialog(
+    await showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E1E),
-              title: const Text('Aggiungi al Canvas', style: TextStyle(color: Colors.white)),
-              content: Column(
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 24,
+                left: 20,
+                right: 20,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text('Aggiungi al Canvas', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  
+                  // Type Selectors
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => selectedType = 'markdown'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: selectedType == 'markdown' ? const Color(0xFF6366F1).withValues(alpha: 0.2) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: selectedType == 'markdown' ? const Color(0xFF6366F1) : Colors.white10),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(Icons.edit_note, color: selectedType == 'markdown' ? const Color(0xFF6366F1) : Colors.white54, size: 32),
+                                const SizedBox(height: 8),
+                                Text('Appunto', style: TextStyle(color: selectedType == 'markdown' ? Colors.white : Colors.white54, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => selectedType = 'folder'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: selectedType == 'folder' ? const Color(0xFF10B981).withValues(alpha: 0.2) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: selectedType == 'folder' ? const Color(0xFF10B981) : Colors.white10),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(Icons.folder, color: selectedType == 'folder' ? const Color(0xFF10B981) : Colors.white54, size: 32),
+                                const SizedBox(height: 8),
+                                Text('Cartella', style: TextStyle(color: selectedType == 'folder' ? Colors.white : Colors.white54, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Title input
                   TextField(
                     controller: titleController,
-                    style: const TextStyle(color: Colors.white),
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Titolo',
-                      labelStyle: TextStyle(color: Colors.white54),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF6366F1))),
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    decoration: InputDecoration(
+                      hintText: selectedType == 'folder' ? 'Nome della cartella...' : 'Titolo dell\'appunto...',
+                      hintStyle: const TextStyle(color: Colors.white30),
+                      filled: true,
+                      fillColor: Colors.black26,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButton<String>(
-                    value: selectedType,
-                    dropdownColor: const Color(0xFF2C2C2E),
-                    isExpanded: true,
-                    style: const TextStyle(color: Colors.white),
-                    items: const [
-                      DropdownMenuItem(value: 'folder', child: Text('Cartella 📁')),
-                      DropdownMenuItem(value: 'markdown', child: Text('Testo / Appunto 📝')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => selectedType = val);
+                    onSubmitted: (val) {
+                      if (val.trim().isNotEmpty) {
+                        _controller.createNode(
+                          title: val.trim(),
+                          type: selectedType,
+                          parentId: parentId,
+                        );
+                        Navigator.pop(context);
+                      }
                     },
                   ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: selectedType == 'folder' ? const Color(0xFF10B981) : const Color(0xFF6366F1),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        if (titleController.text.trim().isNotEmpty) {
+                          _controller.createNode(
+                            title: titleController.text.trim(),
+                            type: selectedType,
+                            parentId: parentId,
+                          );
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text('Crea', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  )
                 ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
-                ),
-                TextButton(
-                  onPressed: () {
-                    if (titleController.text.trim().isNotEmpty) {
-                      _controller.createNode(
-                        title: titleController.text.trim(),
-                        type: selectedType,
-                        parentId: parentId,
-                      );
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text('Crea', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
-                ),
-              ],
             );
           },
         );
@@ -149,6 +224,34 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('Infinite Canvas', style: TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),
+        actions: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove, size: 20, color: Colors.white54),
+                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit - 1),
+              ),
+              Text('Livelli: ${_controller.globalDepthLimit}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: const Icon(Icons.add, size: 20, color: Colors.white54),
+                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit + 1),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                height: 24,
+                width: 1,
+                color: Colors.white24,
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF6366F1)),
+                tooltip: 'Reimposta viste custom',
+                onPressed: _controller.resetAllOverrides,
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+        ],
       ),
       body: CustomScrollView(
         // Viewport-aware overscanning
@@ -165,8 +268,8 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       node: node,
                       controller: _controller,
                       depth: 0,
-                      forceExpandLevelsRemaining: 0,
-                      onAddChild: _showAddNodeDialog,
+                      forceExpandLevelsRemaining: _controller.globalDepthLimit,
+                      onAddChild: _showOmniAddSheet,
                     );
                   } else if (node.type == 'markdown') {
                     return _MarkdownNodeWidget(
@@ -184,7 +287,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddNodeDialog(null),
+        onPressed: () => _showOmniAddSheet(null),
         backgroundColor: const Color(0xFF6366F1),
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -213,15 +316,17 @@ class _FolderNodeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final double leftPadding = depth == 0 ? 0.0 : 16.0;
     
-    final bool isManuallyExpanded = controller.isExpanded(node.id);
-    final int localLimit = controller.getDepthLimit(node.id);
-    final bool visuallyExpanded = isManuallyExpanded || forceExpandLevelsRemaining > 0;
+    final bool? explicitState = controller.getFolderState(node.id);
+    final int? localLimitOverride = controller.getDepthLimit(node.id);
     
-    int nextForceLevels = forceExpandLevelsRemaining > 0 ? forceExpandLevelsRemaining - 1 : 0;
-    if (isManuallyExpanded && localLimit > 1) {
-      if (localLimit - 1 > nextForceLevels) {
-        nextForceLevels = localLimit - 1;
-      }
+    final int effectiveLimit = localLimitOverride ?? forceExpandLevelsRemaining;
+    
+    // Specific state overrides parent inherited state
+    final bool visuallyExpanded = explicitState ?? (effectiveLimit > 1);
+    
+    int nextForceLevels = 0;
+    if (visuallyExpanded) {
+      nextForceLevels = effectiveLimit > 0 ? effectiveLimit - 1 : 0;
     }
 
     final children = visuallyExpanded ? controller.getChildren(node.id) : <CanvasNode>[];
@@ -253,17 +358,17 @@ class _FolderNodeWidget extends StatelessWidget {
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.remove, size: 16, color: Colors.white54),
-                    onPressed: () => controller.setDepthLimit(node.id, localLimit - 1),
+                    onPressed: () => controller.setDepthLimit(node.id, effectiveLimit - 1),
                   ),
-                  Text('$localLimit', style: const TextStyle(color: Colors.white)),
+                  Text('$effectiveLimit', style: const TextStyle(color: Colors.white)),
                   IconButton(
                     icon: const Icon(Icons.add, size: 16, color: Colors.white54),
-                    onPressed: () => controller.setDepthLimit(node.id, localLimit + 1),
+                    onPressed: () => controller.setDepthLimit(node.id, effectiveLimit + 1),
                   ),
                 ],
               ),
               onTap: () {
-                controller.toggleExpand(node.id);
+                controller.toggleExpand(node.id, visuallyExpanded);
               },
             ),
             AnimatedSize(
@@ -324,6 +429,11 @@ class _MarkdownNodeWidgetState extends State<_MarkdownNodeWidget> {
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.node.payload['text'] ?? '');
+    
+    // Lazy Load Payload if empty (e.g. after cache eviction or first time open)
+    if (widget.node.payload.isEmpty) {
+      CanvasSyncService().loadPayload(widget.node.id);
+    }
   }
 
   @override

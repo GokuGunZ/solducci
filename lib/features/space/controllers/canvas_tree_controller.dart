@@ -12,8 +12,11 @@ class CanvasTreeController extends ChangeNotifier {
   final CanvasLocalRepository _repo = CanvasLocalRepository();
   final CanvasSyncService _syncService = CanvasSyncService();
   
-  final Set<String> _expandedFolders = {};
+  // null = inherited, true = manually expanded, false = manually collapsed
+  final Map<String, bool> _folderState = {};
   final Map<String, int> _folderDepthLimits = {};
+  
+  int globalDepthLimit = 1;
   
   final String? userId;
   final String? groupId;
@@ -32,22 +35,29 @@ class CanvasTreeController extends ChangeNotifier {
     super.dispose();
   }
 
-  void toggleExpand(String nodeId) {
-    if (_expandedFolders.contains(nodeId)) {
-      _expandedFolders.remove(nodeId);
-    } else {
-      _expandedFolders.add(nodeId);
-    }
+  void toggleExpand(String nodeId, bool currentlyExpanded) {
+    _folderState[nodeId] = !currentlyExpanded;
+    notifyListeners();
+  }
+
+  void setGlobalDepthLimit(int limit) {
+    globalDepthLimit = limit > 0 ? limit : 1;
+    notifyListeners();
+  }
+
+  void resetAllOverrides() {
+    _folderState.clear();
+    _folderDepthLimits.clear();
     notifyListeners();
   }
 
   void setDepthLimit(String folderId, int limit) {
-    _folderDepthLimits[folderId] = limit > 0 ? limit : 1;
+    _folderDepthLimits[folderId] = limit >= 0 ? limit : 0;
     notifyListeners();
   }
 
-  int getDepthLimit(String nodeId) => _folderDepthLimits[nodeId] ?? 1;
-  bool isExpanded(String nodeId) => _expandedFolders.contains(nodeId);
+  int? getDepthLimit(String nodeId) => _folderDepthLimits[nodeId];
+  bool? getFolderState(String nodeId) => _folderState[nodeId];
   List<CanvasNode> get rootNodes => _repo.getChildren(null, groupId: groupId, userId: userId);
   List<CanvasNode> getChildren(String parentId) => _repo.getChildren(parentId, groupId: groupId, userId: userId);
 
@@ -76,7 +86,7 @@ class CanvasTreeController extends ChangeNotifier {
     );
 
     if (parentId != null) {
-      _expandedFolders.add(parentId);
+      _folderState[parentId] = true;
     }
     
     await _syncService.pushNode(newNode);
