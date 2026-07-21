@@ -1,5 +1,7 @@
 import 'package:solducci/models/task.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
+import 'package:async/async.dart';
+import 'dart:async';
 import 'package:solducci/core/logging/app_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Implements retry logic for transient failures and proper error handling.
 class SupabaseTaskRepository implements TaskRepository {
   final SupabaseClient _supabase;
+  final _refreshTrigger = StreamController<void>.broadcast();
   static const int _maxRetries = 3;
   static const Duration _retryDelay = Duration(milliseconds: 500);
 
@@ -177,6 +180,7 @@ class SupabaseTaskRepository implements TaskRepository {
       AppLogger.info(
         'Task created successfully: ${createdTask.id} - ${createdTask.title}',
       );
+      _refreshTrigger.add(null);
       return createdTask;
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error creating task', e, stackTrace);
@@ -242,6 +246,7 @@ class SupabaseTaskRepository implements TaskRepository {
 
       final updatedTask = Task.fromMap(response);
       AppLogger.info('Task updated successfully: ${updatedTask.id}');
+      _refreshTrigger.add(null);
       return updatedTask;
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error updating task', e, stackTrace);
@@ -285,6 +290,7 @@ class SupabaseTaskRepository implements TaskRepository {
         () => _supabase.from('tasks').delete().eq('id', id),
       );
 
+      _refreshTrigger.add(null);
       AppLogger.info('Task deleted successfully: $id');
     } on PostgrestException catch (e, stackTrace) {
       AppLogger.error('Database error deleting task', e, stackTrace);
@@ -402,7 +408,7 @@ class SupabaseTaskRepository implements TaskRepository {
       }
 
       // Apply ordering and map the data
-      return (streamQuery.order('position')
+      final supabaseStream = (streamQuery.order('position')
               as Stream<List<Map<String, dynamic>>>)
           .asyncMap((data) async {
             try {
@@ -413,8 +419,14 @@ class SupabaseTaskRepository implements TaskRepository {
               AppLogger.error('Error processing stream data', e, stackTrace);
               return <Task>[];
             }
-          })
-          .handleError((error, stackTrace) {
+          });
+
+      return StreamGroup.merge([
+        supabaseStream,
+        _refreshTrigger.stream.asyncMap((_) async {
+          return await getAll(documentId: documentId);
+        })
+      ]).handleError((error, stackTrace) {
             AppLogger.error('Stream error', error, stackTrace);
             throw RepositoryException(
               'Stream error occurred',

@@ -254,7 +254,7 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
     return StreamGroup.merge([
       supabaseStream,
       _cacheInvalidationController.stream.asyncMap((_) async {
-        final data = await _supabase.from('expenses').select().eq('user_id', userId).is_('group_id', null);
+        final data = await _supabase.from('expenses').select().eq('user_id', userId).isFilter('group_id', null);
         final expenses = _parseExpenses(data);
         putManyInCache(expenses);
         return expenses;

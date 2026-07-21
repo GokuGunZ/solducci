@@ -101,7 +101,7 @@ class TimeManagementService {
   }
 
   /// Update Time Scenario
-  Future<void> updateScenario(TimeScenario scenario) async {
+  Future<void> updateTimeScenario(TimeScenario scenario) async {
     try {
       await _supabase.from('time_scenarios').update(scenario.toMap()).eq('id', scenario.id);
       _triggerRefresh();
@@ -111,7 +111,7 @@ class TimeManagementService {
   }
 
   /// Delete Time Scenario (also deletes the linked document)
-  Future<void> deleteScenario(String id) async {
+  Future<void> deleteTimeScenario(String id) async {
     try {
       await _supabase.from('time_scenario_participants').delete().eq('time_scenario_id', id);
       await _supabase.from('time_scenarios').delete().eq('id', id);
