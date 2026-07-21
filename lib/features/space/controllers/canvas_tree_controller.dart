@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:solducci/features/space/models/canvas_node.dart';
 import 'package:solducci/features/space/repositories/canvas_local_repository.dart';
 import 'package:solducci/features/space/services/canvas_sync_service.dart';
+import 'package:solducci/core/templates/resource_template.dart';
 import 'package:uuid/uuid.dart';
 import 'package:solducci/utils/lexo_rank.dart';
 
@@ -66,18 +67,28 @@ class CanvasTreeController extends ChangeNotifier {
     required String type,
     String? parentId,
   }) async {
+    await createNodeAndReturnId(title: title, type: type, parentId: parentId);
+  }
+
+  Future<String> createNodeAndReturnId({
+    required String title,
+    required String type,
+    String? parentId,
+    String? payloadText,
+  }) async {
     final siblings = _repo.getChildren(parentId, groupId: groupId, userId: userId);
     final maxRank = siblings.isEmpty ? null : siblings.last.lexorank;
     final newRank = LexoRank.between(maxRank, null);
 
+    final nodeId = const Uuid().v4();
     final newNode = CanvasNode(
-      id: const Uuid().v4(),
+      id: nodeId,
       parentId: parentId,
       type: type,
       lexorank: newRank,
       title: title,
       metadata: type == 'folder' ? {'children_count': 0} : {},
-      payload: type == 'markdown' ? {'text': '# $title\n\n'} : {},
+      payload: type == 'markdown' ? {'text': payloadText ?? '# $title\n\n'} : {},
       userId: userId,
       groupId: groupId,
       lastAccessedAt: DateTime.now(),
@@ -91,6 +102,7 @@ class CanvasTreeController extends ChangeNotifier {
     
     await _syncService.pushNode(newNode);
     notifyListeners();
+    return nodeId;
   }
 
   Future<void> updateNodeText(CanvasNode node, String newText) async {
@@ -109,6 +121,25 @@ class CanvasTreeController extends ChangeNotifier {
     );
     await _syncService.pushNode(updated);
     notifyListeners();
+  }
+
+  Future<void> injectTemplate(CanvasTemplate template) async {
+    for (var node in template.nodes) {
+      await _injectTemplateNode(node, parentId: null);
+    }
+  }
+
+  Future<void> _injectTemplateNode(CanvasTemplateNode tNode, {String? parentId}) async {
+    final nodeId = await createNodeAndReturnId(
+      title: tNode.title,
+      type: tNode.type,
+      parentId: parentId,
+      payloadText: tNode.payloadText,
+    );
+    
+    for (var child in tNode.children) {
+      await _injectTemplateNode(child, parentId: nodeId);
+    }
   }
 
 }

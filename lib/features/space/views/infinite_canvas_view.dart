@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:solducci/core/templates/canvas_template_registry.dart';
 import 'package:solducci/features/space/models/canvas_node.dart';
 import 'package:solducci/features/space/controllers/canvas_tree_controller.dart';
 import 'package:solducci/features/space/services/canvas_sync_service.dart';
@@ -51,6 +53,16 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     
     // Ensure Sync Service is running
     CanvasSyncService().startSync();
+    
+    // Inject Welcome Canvas if this is a fresh empty space
+    final prefs = await SharedPreferences.getInstance();
+    final templateKey = 'template_injected_${uId ?? gId ?? 'default'}';
+    final hasInjected = prefs.getBool(templateKey) ?? false;
+    
+    if (!hasInjected && _controller.rootNodes.isEmpty) {
+      await _controller.injectTemplate(CanvasTemplateRegistry.welcomeCanvas);
+      await prefs.setBool(templateKey, true);
+    }
     
     if (mounted) {
       setState(() {
@@ -248,6 +260,13 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                 icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF6366F1)),
                 tooltip: 'Reimposta viste custom',
                 onPressed: _controller.resetAllOverrides,
+              ),
+              IconButton(
+                icon: const Icon(Icons.auto_awesome, size: 20, color: Color(0xFF10B981)),
+                tooltip: 'Genera Template di Test',
+                onPressed: () {
+                  _controller.injectTemplate(CanvasTemplateRegistry.welcomeCanvas);
+                },
               ),
               const SizedBox(width: 8),
             ],
