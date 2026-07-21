@@ -107,7 +107,7 @@ class _GroupExpenseFieldsState extends State<GroupExpenseFields> {
               borderRadius: BorderRadius.circular(8),
             ),
             filled: true,
-            fillColor: Colors.grey[50],
+            fillColor: const Color(0xFF1E1E1E),
           ),
           items: widget.members
               .toSet()

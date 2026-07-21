@@ -580,7 +580,7 @@ class _TaskFormState extends State<TaskForm> {
     return FilterChip(
       selected: isSelected,
       label: Text(label),
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Colors.white10,
       selectedColor: Colors.green,
       checkmarkColor: Colors.white,
       labelStyle: TextStyle(
@@ -696,7 +696,7 @@ class _TaskFormState extends State<TaskForm> {
     return FilterChip(
       selected: isSelected,
       label: Text(label),
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Colors.white10,
       selectedColor: color,
       checkmarkColor: Colors.white,
       labelStyle: TextStyle(

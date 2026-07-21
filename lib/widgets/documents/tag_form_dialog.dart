@@ -323,7 +323,7 @@ class _TagFormDialogState extends State<TagFormDialog> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? _selectedColor?.withValues(alpha: 0.2)
-                                : Colors.grey[200],
+                                : Colors.white10,
                             borderRadius: BorderRadius.circular(8),
                             border: isSelected
                                 ? Border.all(color: _selectedColor ?? TodoTheme.primaryPurple, width: 2)

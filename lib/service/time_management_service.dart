@@ -1,6 +1,7 @@
 import 'package:solducci/models/time_scenario.dart';
 import 'package:solducci/models/routine.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:async/async.dart';
 
@@ -11,6 +12,10 @@ class TimeManagementService {
 
   final _supabase = Supabase.instance.client;
   final _contextManager = ContextManager();
+  
+  // Manual refresh trigger for when Supabase Realtime is disabled
+  final _refreshTrigger = StreamController<void>.broadcast();
+  void _triggerRefresh() => _refreshTrigger.add(null);
 
   // ========================================
   // TIME SCENARIOS (Events, Trips, Outings, Radar)
@@ -20,18 +25,18 @@ class TimeManagementService {
   Stream<List<TimeScenario>> get timeScenariosStream {
     final context = _contextManager.currentContext;
     final userId = _supabase.auth.currentUser?.id;
-
-    if (userId == null) return Stream.value([]);
-
-    // We join with the documents table to check group_id/user_id 
-    // since time_scenarios inherits access via documents.
-    // For now, simpler: we just fetch all scenarios the user has access to
-    // (RLS handles the row filtering automatically) and then filter by context.
-    
-    return _supabase
+    final supabaseStream = _supabase
         .from('time_scenarios')
         .stream(primaryKey: ['id'])
         .map((data) => data.map((map) => TimeScenario.fromMap(map)).toList());
+
+    return StreamGroup.merge([
+      supabaseStream,
+      _refreshTrigger.stream.asyncMap((_) async {
+        final data = await _supabase.from('time_scenarios').select();
+        return data.map((m) => TimeScenario.fromMap(m)).toList();
+      })
+    ]);
   }
 
   /// Get specific TimeScenario details
@@ -51,7 +56,7 @@ class TimeManagementService {
   }
 
   /// Create a new Time Scenario detail
-  Future<void> createTimeScenario(TimeScenario scenario) async {
+  Future<void> createTimeScenario(TimeScenario scenario, {List<TimeScenarioParticipant>? participants}) async {
     try {
       final context = _contextManager.currentContext;
       final userId = _supabase.auth.currentUser?.id;
@@ -79,32 +84,38 @@ class TimeManagementService {
       final scenarioData = scenario.toMap();
       scenarioData['document_id'] = newDocumentId;
 
-      await _supabase.from('time_scenarios').insert(scenarioData);
+      final response = await _supabase.from('time_scenarios').insert(scenarioData).select().single();
+      final generatedId = response['id'] as String;
+      
+      if (participants != null && participants.isNotEmpty) {
+        for (var p in participants) {
+          final pMap = p.toMap();
+          pMap['time_scenario_id'] = generatedId;
+          await _supabase.from('time_scenario_participants').insert(pMap);
+        }
+      }
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }
   }
 
   /// Update Time Scenario
-  Future<void> updateTimeScenario(TimeScenario scenario) async {
+  Future<void> updateScenario(TimeScenario scenario) async {
     try {
-      await _supabase
-          .from('time_scenarios')
-          .update(scenario.toMap())
-          .eq('id', scenario.id);
+      await _supabase.from('time_scenarios').update(scenario.toMap()).eq('id', scenario.id);
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }
   }
 
   /// Delete Time Scenario (also deletes the linked document)
-  Future<void> deleteTimeScenario(String id) async {
+  Future<void> deleteScenario(String id) async {
     try {
-      final scenario = await _supabase.from('time_scenarios').select('document_id').eq('id', id).single();
-      final docId = scenario['document_id'] as String;
-      
-      // Deleting the document should cascade delete the scenario, or we delete both
-      await _supabase.from('documents').delete().eq('id', docId);
+      await _supabase.from('time_scenario_participants').delete().eq('time_scenario_id', id);
+      await _supabase.from('time_scenarios').delete().eq('id', id);
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }
@@ -125,17 +136,26 @@ class TimeManagementService {
         'rsvp_status': status,
         'updated_at': DateTime.now().toIso8601String(),
       });
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }
   }
 
   Stream<List<TimeScenarioParticipant>> getParticipantsStream(String timeScenarioId) {
-    return _supabase
+    final supabaseStream = _supabase
         .from('time_scenario_participants')
         .stream(primaryKey: ['time_scenario_id', 'user_id'])
         .eq('time_scenario_id', timeScenarioId)
         .map((data) => data.map((map) => TimeScenarioParticipant.fromMap(map)).toList());
+
+    return StreamGroup.merge([
+      supabaseStream,
+      _refreshTrigger.stream.asyncMap((_) async {
+        final data = await _supabase.from('time_scenario_participants').select().eq('time_scenario_id', timeScenarioId);
+        return data.map((m) => TimeScenarioParticipant.fromMap(m)).toList();
+      })
+    ]);
   }
 
   // ========================================
@@ -146,34 +166,56 @@ class TimeManagementService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return Stream.value([]);
 
-    return _supabase
+    final supabaseStream = _supabase
         .from('routine_templates')
         .stream(primaryKey: ['id'])
-        // RLS handles visibility (own + group shared)
         .map((data) => data.map((map) => RoutineTemplate.fromMap(map)).toList());
+
+    return StreamGroup.merge([
+      supabaseStream,
+      _refreshTrigger.stream.asyncMap((_) async {
+        final data = await _supabase.from('routine_templates').select();
+        return data.map((m) => RoutineTemplate.fromMap(m)).toList();
+      })
+    ]);
   }
 
   Stream<List<RoutineAlarm>> getAlarmsStream(String templateId) {
-    return _supabase
+    final supabaseStream = _supabase
         .from('routine_alarms')
         .stream(primaryKey: ['id'])
         .eq('routine_template_id', templateId)
         .order('offset_minutes', ascending: true)
         .map((data) => data.map((map) => RoutineAlarm.fromMap(map)).toList());
+
+    return StreamGroup.merge([
+      supabaseStream,
+      _refreshTrigger.stream.asyncMap((_) async {
+        final data = await _supabase.from('routine_alarms').select().eq('routine_template_id', templateId);
+        return data.map((m) => RoutineAlarm.fromMap(m)).toList();
+      })
+    ]);
   }
 
   Stream<List<RoutineSchedule>> getSchedulesStream(String templateId) {
-    return _supabase
+    final supabaseStream = _supabase
         .from('routine_schedules')
         .stream(primaryKey: ['id'])
         .eq('routine_template_id', templateId)
         .map((data) => data.map((map) => RoutineSchedule.fromMap(map)).toList());
+
+    return StreamGroup.merge([
+      supabaseStream,
+      _refreshTrigger.stream.asyncMap((_) async {
+        final data = await _supabase.from('routine_schedules').select().eq('routine_template_id', templateId);
+        return data.map((m) => RoutineSchedule.fromMap(m)).toList();
+      })
+    ]);
   }
 
   Future<void> toggleRoutinePauseForToday(RoutineSchedule schedule) async {
     try {
       final now = DateTime.now();
-      // If already paused for today, unpause. Else, pause.
       final isCurrentlyPaused = schedule.isPausedForToday != null &&
           schedule.isPausedForToday!.year == now.year &&
           schedule.isPausedForToday!.month == now.month &&
@@ -182,6 +224,7 @@ class TimeManagementService {
       await _supabase.from('routine_schedules').update({
         'is_paused_for_today': isCurrentlyPaused ? null : now.toIso8601String(),
       }).eq('id', schedule.id);
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }
@@ -203,6 +246,7 @@ class TimeManagementService {
         alarmMap['routine_template_id'] = generatedId;
         await _supabase.from('routine_alarms').insert(alarmMap);
       }
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }
@@ -212,6 +256,7 @@ class TimeManagementService {
   Future<void> updateRoutineStatus(String id, bool isActive) async {
     try {
       await _supabase.from('routine_templates').update({'is_active': isActive}).eq('id', id);
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }
@@ -223,6 +268,7 @@ class TimeManagementService {
       await _supabase.from('routine_schedules').delete().eq('routine_template_id', id);
       await _supabase.from('routine_alarms').delete().eq('routine_template_id', id);
       await _supabase.from('routine_templates').delete().eq('id', id);
+      _triggerRefresh();
     } catch (e) {
       rethrow;
     }

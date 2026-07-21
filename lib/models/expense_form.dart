@@ -625,7 +625,7 @@ class _FieldWidgetState extends State<FieldWidget> {
             hintText: 'Es. Spesa supermercato',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Colors.grey[50],
+            fillColor: const Color(0xFF1E1E1E),
             prefixIcon: Icon(Icons.description),
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
@@ -649,7 +649,7 @@ class _FieldWidgetState extends State<FieldWidget> {
           hintText: '0,00 €',
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true,
-          fillColor: Colors.grey[50],
+          fillColor: const Color(0xFF1E1E1E),
           prefixIcon: Icon(Icons.euro, color: Colors.green[700]),
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           errorMaxLines: 2,
@@ -689,8 +689,8 @@ class _FieldWidgetState extends State<FieldWidget> {
               builder: (context, child) {
                 return Theme(
                   data: Theme.of(context).copyWith(
-                    colorScheme: ColorScheme.light(
-                      primary: Colors.blue[700]!,
+                    colorScheme: const ColorScheme.dark(
+                      primary: Color(0xFF6366F1),
                       onPrimary: Colors.white,
                     ),
                   ),

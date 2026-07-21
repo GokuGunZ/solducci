@@ -8,6 +8,7 @@ import 'package:solducci/core/cache/persistent/persistent_cacheable_service.dart
 import 'package:solducci/core/cache/persistent/persistent_cache_config.dart';
 import 'package:solducci/core/cache/cache_config.dart';
 import 'package:solducci/core/cache/cache_manager.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:async/async.dart';
 
@@ -44,7 +45,10 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
   String get boxName => 'expenses_cache';
 
   final _supabase = Supabase.instance.client;
-  final _contextManager = ContextManager();
+  final ContextManager _contextManager = ContextManager();
+
+  // Manual refresh trigger for streams
+  final _cacheInvalidationController = StreamController<void>.broadcast();
 
   /// Cache for expense splits (expense_id to List of ExpenseSplit)
   /// Reduces queries for split calculations
@@ -126,6 +130,7 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
 
     // Invalidate balance cache
     _invalidateBalanceCache();
+    _cacheInvalidationController.add(null);
 
     return createdExpense;
   }
@@ -176,9 +181,10 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
           .eq('expense_id', item.id);
     }
 
-    // Invalidate caches
+    // Invalidate caches and trigger stream refresh
     _splitsCache.remove(item.id);
     _invalidateBalanceCache();
+    _cacheInvalidationController.add(null);
 
     return item;
   }
@@ -190,9 +196,10 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
         .delete()
         .eq('id', id);
 
-    // Invalidate caches
+    // Invalidate caches and trigger stream refresh
     _splitsCache.remove(id);
     _invalidateBalanceCache();
+    _cacheInvalidationController.add(null);
   }
 
   // ====================================================================
@@ -233,19 +240,26 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
   }
 
   Stream<List<Expense>> _personalExpensesStream(String userId) {
-    return _supabase
+    final supabaseStream = _supabase
         .from('expenses')
         .stream(primaryKey: ['id'])
         .eq('user_id', userId)
         .map((data) {
           final filtered = data.where((row) => row['group_id'] == null).toList();
           final expenses = _parseExpenses(filtered);
-
-          // Update cache with streamed data
           putManyInCache(expenses);
-
           return expenses;
         });
+
+    return StreamGroup.merge([
+      supabaseStream,
+      _cacheInvalidationController.stream.asyncMap((_) async {
+        final data = await _supabase.from('expenses').select().eq('user_id', userId).is_('group_id', null);
+        final expenses = _parseExpenses(data);
+        putManyInCache(expenses);
+        return expenses;
+      })
+    ]);
   }
 
   Stream<List<Expense>> _groupExpensesStream(List<String> groupIds) {
@@ -253,7 +267,7 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
       return Stream.value([]);
     }
 
-    return _supabase
+    final supabaseStream = _supabase
         .from('expenses')
         .stream(primaryKey: ['id'])
         .inFilter('group_id', groupIds)
@@ -265,6 +279,16 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
 
           return expenses;
         });
+
+    return StreamGroup.merge([
+      supabaseStream,
+      _cacheInvalidationController.stream.asyncMap((_) async {
+        final data = await _supabase.from('expenses').select().inFilter('group_id', groupIds);
+        final expenses = _parseExpenses(data);
+        putManyInCache(expenses);
+        return expenses;
+      })
+    ]);
   }
 
   Stream<List<Expense>> _mergeStreams(List<Stream<List<Expense>>> streams) {
