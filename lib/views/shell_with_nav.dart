@@ -3,6 +3,8 @@ import 'package:solducci/views/new_homepage.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
 import 'package:solducci/views/dashboard_hub.dart';
 import 'package:solducci/views/profile_page.dart';
+import 'package:solducci/models/expense_form.dart';
+import 'package:go_router/go_router.dart';
 
 /// Shell widget that provides persistent bottom navigation bar
 /// Uses IndexedStack to preserve state when switching tabs
@@ -40,27 +42,142 @@ class ShellWithNavState extends State<ShellWithNav> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: onItemTapped,
-        selectedItemColor: Colors.purple[700],
-        unselectedItemColor: Colors.grey[600],
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.attach_money_sharp),
-            label: 'Finances',
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showOmniMenu(context),
+        child: const Icon(Icons.add, size: 32),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        color: const Color(0xFF09090B),
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        height: 60,
+        padding: EdgeInsets.zero,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(0, Icons.attach_money_sharp, 'Finanze'),
+            _buildNavItem(1, Icons.space_dashboard_outlined, 'Spazio'),
+            const SizedBox(width: 48), // Spazio per il FAB
+            _buildNavItem(2, Icons.analytics, 'Dashboard'),
+            _buildNavItem(3, Icons.person, 'Profilo'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _selectedIndex == index;
+    final color = isSelected ? const Color(0xFF6366F1) : Colors.white30;
+    
+    return InkWell(
+      onTap: () => onItemTapped(index),
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color),
+            Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openExpenseForm(BuildContext context) {
+    final form = ExpenseForm.empty();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text("Nuova Spesa"),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.space_dashboard_outlined),
-            label: 'Spazio',
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: form.getExpenseView(context),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Dashboard',
+        ),
+      ),
+    );
+  }
+
+  void _showOmniMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (bottomSheetContext) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Cosa vuoi fare?', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  _buildOmniOption(bottomSheetContext, 'Spesa', Icons.attach_money, const Color(0xFF10B981), () {
+                    _openExpenseForm(context);
+                  }),
+                  const SizedBox(width: 16),
+                  _buildOmniOption(bottomSheetContext, 'Task', Icons.check_circle_outline, const Color(0xFF3B82F6), () {
+                    context.push('/space/tasks');
+                  }),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildOmniOption(bottomSheetContext, 'Evento/Viaggio', Icons.event, const Color(0xFF6366F1), () {
+                    context.push('/space/time_management');
+                  }),
+                  const SizedBox(width: 16),
+                  _buildOmniOption(bottomSheetContext, 'Nota', Icons.notes, const Color(0xFFF59E0B), () {
+                    context.push('/space/notes');
+                  }),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profilo'),
-        ],
+        );
+      }
+    );
+  }
+
+  Widget _buildOmniOption(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 32),
+              const SizedBox(height: 8),
+              Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
       ),
     );
   }

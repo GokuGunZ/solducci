@@ -40,6 +40,10 @@ class _TimeManagementHubView extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            onPressed: () => _showCreationBottomSheet(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.alarm, color: Colors.white70),
             onPressed: () {
               context.push('/space/time_management/routines');
@@ -63,11 +67,6 @@ class _TimeManagementHubView extends StatelessWidget {
 
           return const SizedBox.shrink();
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreationBottomSheet(context),
-        backgroundColor: const Color(0xFF10B981), // Emerald
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

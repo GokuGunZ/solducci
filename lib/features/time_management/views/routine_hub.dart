@@ -23,6 +23,12 @@ class RoutineHub extends StatelessWidget {
             color: Colors.white,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: () => context.push('/space/time_management/create_routine'),
+            icon: const Icon(Icons.add),
+          ),
+        ],
       ),
       body: StreamBuilder<List<RoutineTemplate>>(
         stream: TimeManagementService().routinesStream,
@@ -52,12 +58,6 @@ class RoutineHub extends StatelessWidget {
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/space/time_management/create_routine'),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Nuovo Set', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF8B5CF6),
       ),
     );
   }

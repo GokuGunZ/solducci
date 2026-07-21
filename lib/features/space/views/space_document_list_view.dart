@@ -118,10 +118,6 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateDialog(context),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 

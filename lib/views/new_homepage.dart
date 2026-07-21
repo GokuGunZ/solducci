@@ -189,12 +189,6 @@ class _NewHomepageState extends State<NewHomepage> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: addExpense,
-        tooltip: 'Aggiungi spesa',
-        heroTag: 'homepage_fab',
-        child: Icon(Icons.add),
-      ),
     );
   }
 

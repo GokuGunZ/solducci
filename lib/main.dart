@@ -11,6 +11,7 @@ import 'package:solducci/core/cache/persistent/hive_adapters.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/service/profile_service_cached.dart';
+import 'package:solducci/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Initialize caching framework with persistent cache support
@@ -215,12 +216,7 @@ class SolducciApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Solducci',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.purple,
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors
-            .white, // CRITICAL: Allow background gradients to show through
-      ),
+      theme: AppTheme.darkTheme,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
