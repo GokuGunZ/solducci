@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:solducci/features/space/models/canvas_node.dart';
 import 'package:solducci/features/space/controllers/canvas_tree_controller.dart';
@@ -21,29 +23,77 @@ class MarkdownNodeWidget extends StatefulWidget {
   State<MarkdownNodeWidget> createState() => _MarkdownNodeWidgetState();
 }
 
-class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> {
+class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProviderStateMixin {
   late TextEditingController _textController;
   late FocusNode _focusNode;
+  late ScrollController _readerScrollController;
+  late ScrollController _editorScrollController;
   Timer? _debounce;
+  
+  late AnimationController _controller;
+  late AnimationController _waveController;
+  
+  double _dragExtent = 0.0;
   bool _isEditing = false;
+  final double _flipThreshold = 150.0;
+  double _dragY = 100.0; 
+  
+  DateTime? _lastTime;
+  double _pullVelocity = 0.0;
+  double _baseWavePhase = 0.0;
+  double _rippleWavePhase = 0.0;
+  double _currentRippleSpeed = 0.05;
+  
+  double _currentHeight = 250.0;
+  double _maxWidth = 340.0;
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController(text: widget.node.payload['text'] ?? '');
     _focusNode = FocusNode();
+    _readerScrollController = ScrollController();
+    _editorScrollController = ScrollController();
     
     // Auto-save on blur
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus && _isEditing) {
         _saveContent();
-        setState(() => _isEditing = false);
       }
     });
 
     if (widget.node.payload.isEmpty) {
       CanvasSyncService().loadPayload(widget.node.id);
     }
+    
+    _controller = AnimationController(vsync: this, lowerBound: -double.infinity, upperBound: double.infinity);
+    _controller.addListener(() {
+      setState(() {
+        _dragExtent = _controller.value;
+      });
+    });
+    
+    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
+    _waveController.addListener(() {
+      setState(() {
+        double baseSpeed = 0.06;
+        _baseWavePhase += baseSpeed;
+        
+        double minRippleSpeed = 0.03;
+        double maxRippleSpeed = 0.12;
+        
+        double targetRippleSpeed = minRippleSpeed + (_pullVelocity / 1500.0) * (maxRippleSpeed - minRippleSpeed);
+        targetRippleSpeed = targetRippleSpeed.clamp(minRippleSpeed, maxRippleSpeed);
+        
+        _currentRippleSpeed += (targetRippleSpeed - _currentRippleSpeed) * 0.05;
+        _rippleWavePhase += _currentRippleSpeed;
+        
+        if (_pullVelocity > 0) {
+          _pullVelocity *= 0.92; 
+          if (_pullVelocity < 0.1) _pullVelocity = 0;
+        }
+      });
+    });
   }
 
   @override
@@ -60,6 +110,10 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> {
     _debounce?.cancel();
     _textController.dispose();
     _focusNode.dispose();
+    _readerScrollController.dispose();
+    _editorScrollController.dispose();
+    _controller.dispose();
+    _waveController.dispose();
     super.dispose();
   }
 
@@ -80,121 +134,361 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> {
     }
   }
 
-  void _startEditing() {
-    setState(() => _isEditing = true);
-    _focusNode.requestFocus();
+  void _updateHeightState(bool editing) {
+    if (_isEditing == editing) return;
+    _isEditing = editing;
+    
+    if (!_isEditing) {
+      FocusScope.of(context).unfocus();
+      _saveContent();
+      
+      if (_editorScrollController.hasClients && _readerScrollController.hasClients) {
+        _readerScrollController.jumpTo(_editorScrollController.offset);
+      }
+      
+      // Delay height shrink to let liquid close smoothly
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && !_isEditing) {
+          setState(() {
+            _currentHeight = 250.0;
+          });
+        }
+      });
+    } else {
+      if (_editorScrollController.hasClients && _readerScrollController.hasClients) {
+        _editorScrollController.jumpTo(_readerScrollController.offset);
+      }
+      
+      // Delay height expansion to sync with liquid open
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted && _isEditing) {
+          setState(() {
+            _currentHeight = 400.0;
+          });
+          
+          // Accompagniamo il movimento con uno scrolling manuale e molto morbido (lento)
+          // portando la card in alto. In questo modo quando uscirà la tastiera,
+          // il sistema non dovrà fare uno scroll violento per liberare lo schermo.
+          Scrollable.ensureVisible(
+            context,
+            duration: const Duration(milliseconds: 1200), // scroll lento e piacevole
+            curve: Curves.easeInOutCubic,
+            alignment: 0.1, // Posiziona la card in alto
+          );
+        }
+      });
+      
+      // Rollback: chiediamo il focus solo dopo che la card ha finito di ingrandirsi
+      Future.delayed(const Duration(milliseconds: 200 + 500), () {
+        if (mounted && _isEditing) {
+          _focusNode.requestFocus();
+        }
+      });
+    }
+  }
+
+  void _onPanStart(DragStartDetails details) {
+    _controller.stop();
+    setState(() {
+      _dragY = details.localPosition.dy;
+      _lastTime = DateTime.now();
+    });
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    setState(() {
+      _dragExtent += details.delta.dx;
+      if (_dragExtent > 0) _dragExtent = 0;
+      if (_dragExtent < -_maxWidth) _dragExtent = -_maxWidth;
+      _dragY = details.localPosition.dy;
+      
+      final now = DateTime.now();
+      if (_lastTime != null) {
+        final dt = now.difference(_lastTime!).inMilliseconds;
+        if (dt > 0) {
+          _pullVelocity = (details.delta.dx.abs() / dt) * 1000.0;
+        }
+      }
+      _lastTime = now;
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    double velocity = details.velocity.pixelsPerSecond.dx;
+    double target = 0.0;
+
+    if (!_isEditing) {
+      if (_dragExtent < -_flipThreshold || velocity < -500) {
+        target = -_maxWidth; 
+        _updateHeightState(true);
+      }
+    } else {
+      if (_dragExtent > -_maxWidth + _flipThreshold || velocity > 500) {
+        target = 0.0;
+        _updateHeightState(false);
+      } else {
+        target = -_maxWidth;
+      }
+    }
+
+    final spring = SpringDescription(mass: 1.0, stiffness: 150.0, damping: 15.0);
+    final simulation = SpringSimulation(spring, _dragExtent, target, velocity);
+    _controller.animateWith(simulation);
   }
 
   @override
   Widget build(BuildContext context) {
     final double leftPadding = widget.depth == 0 ? 0.0 : 16.0;
-
+    
     return Padding(
       padding: EdgeInsets.only(left: leftPadding, top: 4, bottom: 4),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2C2C2E),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          _maxWidth = constraints.maxWidth;
+          
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.fastOutSlowIn,
+            width: double.infinity,
+            height: _currentHeight,
+            child: Stack(
               children: [
-                const Icon(Icons.edit_note, color: Color(0xFF6366F1), size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.node.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                // Background (Editor)
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  padding: const EdgeInsets.only(left: 32, top: 24, right: 32, bottom: 24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2C3E),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.5)),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.1), blurRadius: 30, spreadRadius: -10),
+                    ]
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.edit_note, color: Colors.transparent, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(widget.node.title, style: const TextStyle(color: Color(0xFF6366F1), fontSize: 18, fontWeight: FontWeight.bold)),
+                          ),
+                          const Icon(Icons.arrow_back_ios, color: Colors.transparent, size: 16),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _textController,
+                          focusNode: _focusNode,
+                          scrollController: _editorScrollController,
+                          maxLines: null,
+                          style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 15, height: 1.5),
+                          decoration: const InputDecoration(
+                            hintText: 'Editor rivelato dall\'onda...',
+                            hintStyle: TextStyle(color: Colors.white24),
+                            border: InputBorder.none,
+                          ),
+                          onChanged: _onTextChanged,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Foreground (Reader) wrapped in Liquid Clipper
+                IgnorePointer(
+                  ignoring: _isEditing,
+                  child: ClipPath(
+                    clipper: LiquidClipper(
+                      pullExtent: _dragExtent, 
+                      pullY: _dragY,
+                      baseWavePhase: _baseWavePhase,
+                      rippleWavePhase: _rippleWavePhase,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      padding: const EdgeInsets.only(left: 32, top: 24, right: 32, bottom: 24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E2C),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white10),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(-10, 0)),
+                        ]
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.edit_note, color: Color(0xFF6366F1), size: 24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(widget.node.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                              ),
+                              Icon(Icons.arrow_back_ios, color: Colors.white.withOpacity(0.1), size: 16),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              controller: _readerScrollController,
+                              child: MarkdownBody(
+                                data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
+                                selectable: false,
+                                styleSheet: MarkdownStyleSheet(
+                                  p: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 15, height: 1.5),
+                                  h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
+                                  h2: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
+                                  h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
+                                  h4: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2),
+                                  h5: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2),
+                                  h6: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.2),
+                                  em: const TextStyle(fontStyle: FontStyle.italic),
+                                  strong: const TextStyle(fontWeight: FontWeight.bold),
+                                  blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+                                  blockquoteDecoration: BoxDecoration(
+                                    border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
+                                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                                  ),
+                                  code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
+                                  codeblockDecoration: BoxDecoration(
+                                    color: Colors.black45,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  listBullet: const TextStyle(color: Color(0xFF6366F1)),
+                                  checkbox: const TextStyle(color: Color(0xFF6366F1)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
+                
+                // Right Drag Area (To Open)
+                if (!_isEditing)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 60,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onPanStart: _onPanStart,
+                      onPanUpdate: _onPanUpdate,
+                      onPanEnd: _onPanEnd,
+                      child: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 8),
+                        child: const Icon(Icons.drag_indicator, color: Colors.white24),
+                      ),
+                    ),
+                  ),
+                  
+                // Left Drag Area (To Close)
+                if (_isEditing)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 60,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onPanStart: _onPanStart,
+                      onPanUpdate: _onPanUpdate,
+                      onPanEnd: _onPanEnd,
+                      child: Container(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.only(left: 8),
+                        child: const Icon(Icons.arrow_back_ios, color: Colors.white24, size: 16),
+                      ),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 12),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: _isEditing ? _buildEditor() : _buildReader(),
-            ),
-          ],
-        ),
+          );
+        }
       ),
     );
   }
+}
 
-  Widget _buildEditor() {
-    return TextField(
-      key: const ValueKey('editor'),
-      controller: _textController,
-      focusNode: _focusNode,
-      maxLines: null,
-      onChanged: _onTextChanged,
-      style: const TextStyle(
-        color: Color(0xFFE0E0E0), 
-        fontSize: 14, 
-        fontFamily: 'monospace',
-      ),
-      decoration: const InputDecoration(
-        hintText: 'Scrivi qui...',
-        hintStyle: TextStyle(color: Colors.white24),
-        border: InputBorder.none,
-        isDense: true,
-        contentPadding: EdgeInsets.zero,
-      ),
-    );
-  }
+class LiquidClipper extends CustomClipper<Path> {
+  final double pullExtent;
+  final double pullY;
+  final double baseWavePhase;
+  final double rippleWavePhase;
 
-  Widget _buildReader() {
-    final text = _textController.text;
+  LiquidClipper({
+    required this.pullExtent, 
+    required this.pullY,
+    required this.baseWavePhase,
+    required this.rippleWavePhase,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final path = Path();
     
-    return GestureDetector(
-      key: const ValueKey('reader'),
-      onTap: _startEditing,
-      behavior: HitTestBehavior.opaque,
-      child: text.trim().isEmpty 
-        ? Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: const Text(
-              'Tocca per scrivere un appunto...',
-              style: TextStyle(color: Colors.white24, fontStyle: FontStyle.italic),
-            ),
-          )
-        : MarkdownBody(
-            data: text,
-            selectable: false,
-            styleSheet: MarkdownStyleSheet(
-              p: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 15, height: 1.5),
-              h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
-              h2: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
-              h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
-              h4: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2),
-              h5: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2),
-              h6: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.2),
-              em: const TextStyle(fontStyle: FontStyle.italic),
-              strong: const TextStyle(fontWeight: FontWeight.bold),
-              blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
-              blockquoteDecoration: BoxDecoration(
-                border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
-                color: const Color(0xFF6366F1).withOpacity(0.1),
-              ),
-              code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
-              codeblockDecoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              listBullet: const TextStyle(color: Color(0xFF6366F1)),
-              checkbox: const TextStyle(color: Color(0xFF6366F1)),
-            ),
-          ),
-    );
+    if (pullExtent >= 0) {
+      path.addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+      return path;
+    }
+
+    double pull = pullExtent.abs();
+    if (pull >= size.width - 1) {
+      return Path(); 
+    }
+
+    double dragCenterY = pullY.clamp(0.0, size.height);
+    
+    double maxLag = 60.0;
+    double lag = (pull * 0.4).clamp(0.0, maxLag);
+    double rightEdgeBase = size.width - pull + lag; 
+    
+    path.lineTo(rightEdgeBase, 0);
+
+    int segments = 120; 
+    double baseAmplitude = 6.0;
+    double rippleAmp = 1.2;
+
+    for (int i = 0; i <= segments; i++) {
+      double t = i / segments; 
+      double currentY = t * size.height;
+      
+      double dist = (currentY - dragCenterY).abs();
+      
+      double baseWave = sin(t * 5 * pi + baseWavePhase);
+      double rippleWave = sin(t * 12 * pi - rippleWavePhase);
+      
+      double waveX = baseWave * (baseAmplitude + (rippleWave * rippleAmp));
+      
+      double stretch = 0;
+      double influenceRadius = 90.0; 
+      if (dist < influenceRadius) {
+         double influence = cos((dist / influenceRadius) * (pi / 2));
+         stretch = influence * lag;
+      }
+      
+      double x = rightEdgeBase - stretch - waveX;
+      path.lineTo(x, currentY);
+    }
+
+    path.lineTo(rightEdgeBase, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    
+    return path;
   }
+
+  @override
+  bool shouldReclip(LiquidClipper oldClipper) => true;
 }
