@@ -67,9 +67,11 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
       if (_dragExtent > -_flipThreshold && _dragExtent < 0 && velocity > -500) {
         target = 0;
         _isFlipped = false;
+        FocusScope.of(context).unfocus();
       } else if (_dragExtent < _flipThreshold && _dragExtent > 0 && velocity < 500) {
         target = 0;
         _isFlipped = false;
+        FocusScope.of(context).unfocus();
       } else {
         target = _dragExtent < 0 ? -_maxDrag : _maxDrag;
       }
@@ -84,6 +86,10 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
     _controller.stop();
     _isFlipped = !_isFlipped;
     double target = _isFlipped ? -_maxDrag : 0.0;
+    
+    if (!_isFlipped) {
+      FocusScope.of(context).unfocus();
+    }
     
     // Smooth programmatic flip
     final spring = SpringDescription(mass: 1.0, stiffness: 120.0, damping: 15.0);

@@ -41,7 +41,7 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
       });
     });
     
-    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
+    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
     _waveController.addListener(() {
       setState(() {
         if (_pullVelocity > 0) {
@@ -63,6 +63,10 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
   void _updateHeightState(bool editing) {
     if (_isEditing == editing) return;
     _isEditing = editing;
+    
+    if (!_isEditing) {
+      FocusScope.of(context).unfocus();
+    }
     
     // Delayed height adjustment
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -277,7 +281,6 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
     );
   }
 }
-
 class LiquidClipper extends CustomClipper<Path> {
   final double pullExtent;
   final double pullY;
@@ -306,15 +309,24 @@ class LiquidClipper extends CustomClipper<Path> {
     }
 
     double dragCenterY = pullY.clamp(0.0, size.height);
-    double rightEdgeBase = size.width - pull; 
+    
+    // Smooth, straighter drag physics:
+    // The peak of the pull corresponds exactly to the drag distance (`pull`).
+    // The top and bottom edges lag behind the drag by `lag`.
+    double maxLag = 100.0;
+    double lag = (pull * 0.5).clamp(0.0, maxLag);
+    double rightEdgeBase = size.width - pull + lag; 
     
     path.lineTo(rightEdgeBase, 0);
 
-    int segments = 60;
-    // Amplitude increases with velocity
-    double amplitude = (pullVelocity / 30.0).clamp(2.0, 30.0);
-    // Frequency increases with velocity
-    double frequency = 4 * pi + (pullVelocity / 200.0).clamp(0.0, 4 * pi); 
+    int segments = 120; 
+    
+    double baseAmplitude = 6.0;
+    
+    double rippleAmp = 0.0;
+    if (pullVelocity > 5) {
+      rippleAmp = ((pullVelocity - 20) / 100.0).clamp(0.0, 3.0)/2.0;
+    }
 
     for (int i = 0; i <= segments; i++) {
       double t = i / segments; 
@@ -322,15 +334,26 @@ class LiquidClipper extends CustomClipper<Path> {
       
       double dist = (currentY - dragCenterY).abs();
       
-      double waveX = sin(t * frequency + waveTime) * amplitude;
+      // Il moltiplicatore di waveTime deve essere un numero intero per evitare i salti (discontinuità)
+      // a fine ciclo dell'AnimationController. (ex: waveTime * 1.0)
+      double baseWave = sin(t * 9 * pi + waveTime);
       
+      // Essendo la durata 4 secondi, moltiplichiamo per 8.0 per mantenere la velocità alta
+      double rippleWave = sin(t * 40 * pi - waveTime * 8.0);
+      
+      double waveX = baseWave * (baseAmplitude + (rippleWave * rippleAmp));
+      
+      // Calcolo del picco elastico:
+      // Invece di creare un "cono" affilato, distribuiamo il lag su un raggio più ampio
       double stretch = 0;
-      double influenceRadius = 140.0;
+      double influenceRadius = 250.0; // raggio molto ampio per una linea più dritta
       if (dist < influenceRadius) {
+         // Coseno singolo per renderlo più ampio e morbido rispetto al coseno al quadrato
          double influence = cos((dist / influenceRadius) * (pi / 2));
-         stretch = influence * influence * (pull * 1.5);
+         stretch = influence * lag;
       }
       
+      // Sottraiamo lo stretch in modo che al centro (dist=0) x = rightEdgeBase - lag = size.width - pull
       double x = rightEdgeBase - stretch - waveX;
       path.lineTo(x, currentY);
     }
