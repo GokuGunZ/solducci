@@ -10,6 +10,9 @@ import 'package:solducci/features/space/widgets/nodes/markdown_node_widget.dart'
 import 'package:solducci/features/space/widgets/omni_radial_menu.dart';
 import 'package:solducci/features/space/widgets/manila_folder_painter.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/core/onboarding/services/feature_onboarding_service.dart';
+import 'package:solducci/core/onboarding/models/onboarding_config.dart';
+import 'package:solducci/core/onboarding/views/feature_onboarding_wizard.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InfiniteCanvasView extends StatefulWidget {
@@ -30,6 +33,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
   int _pointerCount = 0;
   String? _selectionMode; // 'move' or 'delete'
   Set<String> _selectedNodeIds = {};
+  bool _showWizard = false;
 
   @override
   void initState() {
@@ -58,21 +62,23 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     _controller = CanvasTreeController(groupId: gId, userId: uId);
     _controller.addListener(_onTreeUpdated);
     
-    // Ensure Sync Service is running
-    CanvasSyncService().startSync();
+    // Start sync and wait for initial skeleton fetch
+    await CanvasSyncService().startSync();
     
-    // Inject Welcome Canvas if this is a fresh empty space
-    final prefs = await SharedPreferences.getInstance();
-    final templateKey = 'template_injected_${uId ?? gId ?? 'default'}';
-    final hasInjected = prefs.getBool(templateKey) ?? false;
+    // Check if user has onboarded
+    final hasOnboarded = await FeatureOnboardingService().hasOnboarded('infinite_canvas');
     
-    if (!hasInjected && _controller.rootNodes.isEmpty) {
-      await _controller.injectTemplate(CanvasTemplateRegistry.welcomeCanvas);
-      await prefs.setBool(templateKey, true);
-    }
-    
-    if (mounted) {
+    // Wait for the UI to be ready
+    if (!mounted) return;
+
+    if (!hasOnboarded && _controller.allNodes.isEmpty) {
       setState(() {
+        _showWizard = true;
+        _isInitialized = true;
+      });
+    } else {
+      setState(() {
+        _showWizard = false;
         _isInitialized = true;
       });
     }
@@ -269,6 +275,161 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     );
   }
 
+  void _showDeleteModal() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2C),
+        title: const Text('Conferma Eliminazione', style: TextStyle(color: Colors.white)),
+        content: Text('Vuoi davvero eliminare ${_selectedNodeIds.length} elementi?\nQuesta azione non è reversibile.', style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () {
+              Navigator.pop(ctx);
+              for (final id in _selectedNodeIds) {
+                _controller.deleteNode(id);
+              }
+              setState(() {
+                _selectionMode = null;
+                _selectedNodeIds.clear();
+              });
+            },
+            child: const Text('Elimina', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMoveModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E2C),
+      isScrollControlled: true,
+      builder: (ctx) {
+        final allFolders = _controller.allNodes.where((n) => n.type == 'folder').toList();
+        
+        return Container(
+          padding: const EdgeInsets.all(16),
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Seleziona destinazione', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.home, color: Colors.white),
+                title: const Text('Root', style: TextStyle(color: Colors.white)),
+                onTap: () => _executeMove(null, ctx),
+              ),
+              const Divider(color: Colors.white10),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: allFolders.length,
+                  itemBuilder: (context, index) {
+                    final folder = allFolders[index];
+                    final isSelected = _selectedNodeIds.contains(folder.id);
+                    return ListTile(
+                      leading: const Icon(Icons.folder, color: Color(0xFF10B981)),
+                      title: Text(folder.title, style: TextStyle(color: isSelected ? Colors.white30 : Colors.white)),
+                      enabled: !isSelected,
+                      onTap: isSelected ? null : () => _executeMove(folder.id, ctx),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _executeMove(String? targetParentId, BuildContext modalContext) {
+    Navigator.pop(modalContext);
+    for (final id in _selectedNodeIds) {
+      _controller.moveNode(id, targetParentId);
+    }
+    setState(() {
+      _selectionMode = null;
+      _selectedNodeIds.clear();
+    });
+  }
+
+  void _showLayoutSettingsModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E2C),
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: StatefulBuilder(
+            builder: (context, setStateModal) {
+              return Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Impostazioni Layout', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 24),
+                    const Text('Dimensione Testo Appunti', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    Slider(
+                      value: _controller.markdownFontSize,
+                      min: 10.0,
+                      max: 24.0,
+                      divisions: 14,
+                      activeColor: const Color(0xFF6366F1),
+                      label: _controller.markdownFontSize.round().toString(),
+                      onChanged: (val) {
+                        setStateModal(() {
+                          _controller.updateMarkdownFontSize(val);
+                        });
+                      },
+                    ),
+                    const Divider(color: Colors.white10, height: 32),
+                    const Text('Mostra voci di menù', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    SwitchListTile(
+                      title: const Text('Bookmarks', style: TextStyle(color: Colors.white)),
+                      value: _controller.showBookmarksMenu,
+                      activeColor: const Color(0xFF6366F1),
+                      onChanged: (val) {
+                        setStateModal(() => _controller.updateMenuVisibility(bookmarks: val));
+                      },
+                    ),
+                    SwitchListTile(
+                      title: const Text('Genera Template Test', style: TextStyle(color: Colors.white)),
+                      value: _controller.showTemplateMenu,
+                      activeColor: const Color(0xFF6366F1),
+                      onChanged: (val) {
+                        setStateModal(() => _controller.updateMenuVisibility(template: val));
+                      },
+                    ),
+                    SwitchListTile(
+                      title: const Text('Reimposta viste', style: TextStyle(color: Colors.white)),
+                      value: _controller.showRefreshMenu,
+                      activeColor: const Color(0xFF6366F1),
+                      onChanged: (val) {
+                        setStateModal(() => _controller.updateMenuVisibility(refresh: val));
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              );
+            }
+          ),
+        );
+      }
+    );
+  }
+
   Widget _buildSubNavbar() {
     final path = _controller.navigationPath;
     return Container(
@@ -304,6 +465,38 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                         ),
                         GestureDetector(
                           onTap: () => _controller.jumpToFolder(node.id),
+                          onLongPress: node.id == _controller.currentCanvasRootId ? () {
+                            final textController = TextEditingController(text: node.title);
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: const Color(0xFF1E1E2C),
+                                title: const Text('Rinomina cartella', style: TextStyle(color: Colors.white)),
+                                content: TextField(
+                                  controller: textController,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: const InputDecoration(
+                                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF6366F1))),
+                                    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF6366F1))),
+                                  ),
+                                  autofocus: true,
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Annulla', style: TextStyle(color: Colors.white70)),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      _controller.updateNodeTitle(node, textController.text);
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('Salva', style: TextStyle(color: Color(0xFF6366F1))),
+                                  ),
+                                ],
+                              ),
+                            );
+                          } : null,
                           child: Text(node.title, style: TextStyle(color: node.id == _controller.currentCanvasRootId ? const Color(0xFF6366F1) : Colors.white70, fontWeight: node.id == _controller.currentCanvasRootId ? FontWeight.bold : FontWeight.normal)),
                         ),
                       ]
@@ -344,9 +537,49 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     if (!_isInitialized) {
       return const Scaffold(
         backgroundColor: Color(0xFF09090B),
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))),
       );
     }
+
+    if (_showWizard) {
+      return FeatureOnboardingWizard(
+        config: OnboardingConfig(
+          featureKey: 'infinite_canvas',
+          presentationTitle: 'Il tuo Spazio Mentale Infinito',
+          presentationSubtitle: 'Appunti liquidi, gerarchie infinite, zero limiti.\nDai forma al tuo pensiero.',
+          presentationImageAssetPath: 'assets/images/onboarding/canvas_boilerplate_preview.jpg',
+          infoModalTitle: 'Cos\'è l\'Infinite Canvas?',
+          infoModalContent: 'L\'Infinite Canvas è uno spazio di lavoro 3D non lineare. Puoi creare cartelle e note annidate all\'infinito. Il Boilerplate crea un set di note iniziali che ti fungeranno da tutorial pratico direttamente sul canvas.',
+          options: [
+            const OnboardingOption(
+              id: 'boilerplate',
+              title: 'Spazio Guidato',
+              description: 'Inizia con un template e note esplicative che ti guideranno.',
+              heroImageAssetPath: 'assets/images/onboarding/canvas_boilerplate_preview.jpg',
+              isDefault: true,
+            ),
+            const OnboardingOption(
+              id: 'empty',
+              title: 'Canvas Vuoto',
+              description: 'Parti da zero, un universo oscuro tutto da creare.',
+              heroImageAssetPath: 'assets/images/onboarding/canvas_empty_preview.jpg',
+            ),
+          ],
+        ),
+        onComplete: (selectedOption) async {
+          if (selectedOption == 'boilerplate') {
+            await _controller.injectTemplate(CanvasTemplateRegistry.welcomeCanvas);
+          }
+          await FeatureOnboardingService().markAsOnboarded('infinite_canvas');
+          if (mounted) {
+            setState(() {
+              _showWizard = false;
+            });
+          }
+        },
+      );
+    }
+
     return PopScope(
       canPop: _controller.currentCanvasRootId == null,
       onPopInvokedWithResult: (didPop, result) {
@@ -374,17 +607,13 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                   IconButton(
                     icon: const Icon(Icons.drive_file_move, size: 20, color: Colors.blueAccent),
                     tooltip: 'Conferma Spostamento',
-                    onPressed: _selectedNodeIds.isEmpty ? null : () {
-                      // TODO: Move modal
-                    },
+                    onPressed: _selectedNodeIds.isEmpty ? null : _showMoveModal,
                   )
                 else if (_selectionMode == 'delete')
                   IconButton(
                     icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
                     tooltip: 'Conferma Eliminazione',
-                    onPressed: _selectedNodeIds.isEmpty ? null : () {
-                      // TODO: Delete modal
-                    },
+                    onPressed: _selectedNodeIds.isEmpty ? null : _showDeleteModal,
                   ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20, color: Colors.white30),
@@ -413,18 +642,21 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     } else if (value == 'template') {
                       _controller.injectTemplate(CanvasTemplateRegistry.welcomeCanvas);
                     } else if (value == 'settings') {
-                      // TODO: Settings modal
+                      _showLayoutSettingsModal();
                     }
                   },
                   itemBuilder: (BuildContext context) => [
                     const PopupMenuItem(value: 'move', child: Text('Sposta', style: TextStyle(color: Colors.white))),
                     const PopupMenuItem(value: 'delete', child: Text('Elimina', style: TextStyle(color: Colors.redAccent))),
                     const PopupMenuDivider(),
-                    const PopupMenuItem(value: 'bookmarks', child: Text('Bookmarks', style: TextStyle(color: Colors.white))),
+                    if (_controller.showBookmarksMenu)
+                      const PopupMenuItem(value: 'bookmarks', child: Text('Bookmarks', style: TextStyle(color: Colors.white))),
                     const PopupMenuItem(value: 'settings', child: Text('Impostazioni layout', style: TextStyle(color: Colors.white))),
                     const PopupMenuDivider(),
-                    const PopupMenuItem(value: 'refresh', child: Text('Reimposta viste', style: TextStyle(color: Colors.white))),
-                    const PopupMenuItem(value: 'template', child: Text('Genera Template Test', style: TextStyle(color: Colors.white))),
+                    if (_controller.showRefreshMenu)
+                      const PopupMenuItem(value: 'refresh', child: Text('Reimposta viste', style: TextStyle(color: Colors.white))),
+                    if (_controller.showTemplateMenu)
+                      const PopupMenuItem(value: 'template', child: Text('Genera Template Test', style: TextStyle(color: Colors.white))),
                   ],
                 ),
               ],
@@ -635,7 +867,8 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final double leftPadding = widget.depth == 0 ? 0.0 : 16.0;
+    final double leftPadding = widget.depth == 0 ? 0.0 : 6.0;
+    final double rightPadding = widget.depth == 0 ? 0.0 : 6.0;
     
     final bool? explicitState = widget.controller.getFolderState(widget.node.id);
     final int? localLimitOverride = widget.controller.getDepthLimit(widget.node.id);
@@ -657,7 +890,7 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
     final children = visuallyExpanded ? widget.controller.getChildren(widget.node.id) : <CanvasNode>[];
 
     return Padding(
-      padding: EdgeInsets.only(left: leftPadding, bottom: 8.0),
+      padding: EdgeInsets.only(left: leftPadding, right: rightPadding, bottom: 8.0),
       child: GestureDetector(
         onScaleUpdate: (details) {
           if (details.pointerCount >= 2) {
@@ -693,10 +926,12 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                 children: [
                   CustomPaint(
                     painter: ManilaFolderPainter(
-                      baseColor: isHovering ? const Color(0xFF4338CA) : const Color(0xFF1E1E2C),
+                      baseColor: isHovering ? const Color(0xFF4338CA) : const Color(0xFF232336),
                       isOpen: visuallyExpanded,
                     ),
-                    child: Padding(
+                    child: Container(
+                      width: double.infinity,
+                      constraints: BoxConstraints(minHeight: visuallyExpanded ? 64 : 96),
                       padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -803,72 +1038,50 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                     height: 32, // Same height as header
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        // Zoom-in
+                        // Zoom-in Tab
                         Container(
-                          width: 28, height: 28,
+                          height: 28,
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
                             color: const Color(0xFF10B981).withValues(alpha: 0.8),
-                            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                            borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
                           ),
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.zoom_in_map, size: 16, color: Colors.white),
-                            onPressed: () => widget.controller.enterFolder(widget.node.id),
+                          child: InkWell(
+                            onTap: () => widget.controller.enterFolder(widget.node.id),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Icon(Icons.zoom_in_map, size: 16, color: Colors.white),
+                            ),
                           ),
                         ),
-                        // Levels Triangle layout
-                        SizedBox(
-                          width: 48,
-                          height: 32,
-                          child: Stack(
-                            alignment: Alignment.topCenter,
+                        // Depth Limits Tab
+                        Container(
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.8),
+                            borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Level number (top center)
-                              Positioned(
-                                top: 0,
-                                child: Container(
-                                  width: 20, height: 20,
-                                  alignment: Alignment.center,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF6366F1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text('$effectiveLimit', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                              InkWell(
+                                onTap: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit - 1),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(left: 8, right: 4), 
+                                  child: Icon(Icons.remove, size: 14, color: Colors.white70)
                                 ),
                               ),
-                              // Minus (bottom left)
-                              Positioned(
-                                bottom: 0, left: 0,
-                                child: Container(
-                                  width: 20, height: 20,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.redAccent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: IconButton(
-                                    padding: EdgeInsets.zero,
-                                    icon: const Icon(Icons.remove, size: 12, color: Colors.white),
-                                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit - 1),
-                                  ),
-                                ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: Text('$effectiveLimit', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                               ),
-                              // Plus (bottom right)
-                              Positioned(
-                                bottom: 0, right: 0,
-                                child: Container(
-                                  width: 20, height: 20,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: IconButton(
-                                    padding: EdgeInsets.zero,
-                                    icon: const Icon(Icons.add, size: 12, color: Colors.white),
-                                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit + 1),
-                                  ),
+                              InkWell(
+                                onTap: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit + 1),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(left: 4, right: 8), 
+                                  child: Icon(Icons.add, size: 14, color: Colors.white70)
                                 ),
                               ),
                             ],

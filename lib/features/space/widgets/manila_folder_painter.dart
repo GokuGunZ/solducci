@@ -11,29 +11,22 @@ class ManilaFolderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Header color is always baseColor (dark)
-    final headerPaint = Paint()
-      ..color = baseColor
+    // The back flap (full folder shape)
+    final backFlapPaint = Paint()
+      ..color = isOpen ? Color.lerp(baseColor, Colors.white, 0.05)! : baseColor
       ..style = PaintingStyle.fill;
 
-    // Body color is lighter if open
-    final bodyPaint = Paint()
-      ..color = isOpen ? baseColor.withValues(alpha: 0.5) : baseColor // Alpha blending makes it lighter against a white/light bg, wait OLED bg is black, so alpha blending makes it darker. Let's use a lighter color mathematically.
+    // The front flap (only visible when open) is slightly lighter for depth
+    final frontFlapPaint = Paint()
+      ..color = isOpen ? Color.lerp(baseColor, Colors.white, 0.12)! : baseColor
       ..style = PaintingStyle.fill;
 
-    if (isOpen) {
-      bodyPaint.color = Color.lerp(baseColor, Colors.white, 0.1) ?? baseColor; // 10% lighter
-    }
-
-    // The border for contrast
     final borderPaint = Paint()
-      ..color = isOpen ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.2)
+      ..color = isOpen ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
     final path = Path();
-    
-    // Header dimensions
     final headerWidth = size.width * 0.6;
     const headerHeight = 32.0;
     const radius = 12.0;
@@ -50,17 +43,15 @@ class ManilaFolderPainter extends CustomPainter {
     path.lineTo(size.width, headerHeight + radius);
     path.arcToPoint(Offset(size.width - radius, headerHeight), radius: const Radius.circular(radius), clockwise: false);
     
-    // Top edge right of header
-    path.lineTo(headerWidth + radius, headerHeight);
+    // Top edge of the body (right side of the tab)
+    path.lineTo(headerWidth + 24, headerHeight);
     
-    // Curve up to header
-    path.arcToPoint(Offset(headerWidth, headerHeight - radius), radius: const Radius.circular(radius), clockwise: false);
-    
-    // Header right edge
-    path.lineTo(headerWidth, radius);
-    
-    // Header top right corner
-    path.arcToPoint(Offset(headerWidth - radius, 0), radius: const Radius.circular(radius), clockwise: false);
+    // Sinuous curve to the tab
+    path.cubicTo(
+      headerWidth + 12, headerHeight, // control point 1
+      headerWidth + 12, 0,            // control point 2
+      headerWidth, 0                  // end point
+    );
     
     // Header top edge
     path.lineTo(radius, 0);
@@ -72,37 +63,35 @@ class ManilaFolderPainter extends CustomPainter {
     path.close();
 
     // Shadow around the whole shape
-    canvas.drawShadow(path, Colors.black, 8.0, true);
+    canvas.drawShadow(path, Colors.black, isOpen ? 12.0 : 8.0, true);
     
-    // Draw body first
-    final bodyPath = Path();
-    bodyPath.moveTo(0, size.height - radius);
-    bodyPath.arcToPoint(Offset(radius, size.height), radius: const Radius.circular(radius), clockwise: false);
-    bodyPath.lineTo(size.width - radius, size.height);
-    bodyPath.arcToPoint(Offset(size.width, size.height - radius), radius: const Radius.circular(radius), clockwise: false);
-    bodyPath.lineTo(size.width, headerHeight + radius);
-    bodyPath.arcToPoint(Offset(size.width - radius, headerHeight), radius: const Radius.circular(radius), clockwise: false);
-    bodyPath.lineTo(radius, headerHeight);
-    bodyPath.arcToPoint(const Offset(0, headerHeight + radius), radius: const Radius.circular(radius), clockwise: false);
-    bodyPath.close();
+    // Draw the full shape (Back flap)
+    canvas.drawPath(path, backFlapPaint);
+    
+    // Draw front flap if open
+    if (isOpen) {
+      final frontFlapPath = Path();
+      frontFlapPath.moveTo(0, size.height - radius);
+      frontFlapPath.arcToPoint(Offset(radius, size.height), radius: const Radius.circular(radius), clockwise: false);
+      frontFlapPath.lineTo(size.width - radius, size.height);
+      frontFlapPath.arcToPoint(Offset(size.width, size.height - radius), radius: const Radius.circular(radius), clockwise: false);
+      frontFlapPath.lineTo(size.width, headerHeight + radius);
+      frontFlapPath.arcToPoint(Offset(size.width - radius, headerHeight), radius: const Radius.circular(radius), clockwise: false);
+      frontFlapPath.lineTo(radius, headerHeight);
+      frontFlapPath.arcToPoint(const Offset(0, headerHeight + radius), radius: const Radius.circular(radius), clockwise: false);
+      frontFlapPath.close();
 
-    canvas.drawPath(bodyPath, bodyPaint);
+      canvas.drawPath(frontFlapPath, frontFlapPaint);
+      
+      // Inner shadow line for depth
+      final innerBorderPaint = Paint()
+        ..color = Colors.black.withValues(alpha: 0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+      canvas.drawPath(frontFlapPath, innerBorderPaint);
+    }
     
-    // Draw header
-    final hPath = Path();
-    hPath.moveTo(0, headerHeight + radius);
-    hPath.arcToPoint(const Offset(radius, headerHeight), radius: const Radius.circular(radius), clockwise: true);
-    hPath.lineTo(headerWidth - radius, headerHeight);
-    hPath.arcToPoint(Offset(headerWidth, headerHeight - radius), radius: const Radius.circular(radius), clockwise: false);
-    hPath.lineTo(headerWidth, radius);
-    hPath.arcToPoint(Offset(headerWidth - radius, 0), radius: const Radius.circular(radius), clockwise: false);
-    hPath.lineTo(radius, 0);
-    hPath.arcToPoint(const Offset(0, radius), radius: const Radius.circular(radius), clockwise: false);
-    hPath.close();
-
-    canvas.drawPath(hPath, headerPaint);
-    
-    // Draw the border over the full shape
+    // Draw the outer border over the full shape
     canvas.drawPath(path, borderPaint);
   }
 

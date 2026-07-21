@@ -23,9 +23,9 @@ class CanvasSyncService {
     await _localRepo.init();
   }
 
-  void startSync() {
+  Future<void> startSync() async {
     _channel?.unsubscribe();
-    _fetchSkeleton();
+    await _fetchSkeleton();
 
     // Listen to realtime changes using channel
     _channel = _supabase
@@ -115,6 +115,20 @@ class CanvasSyncService {
       debugPrint('Error pushing node: $e');
       // B2: On structural error (like pushing to a deleted parent), rollback
       _fetchSkeleton();
+    }
+  }
+
+  Future<void> deleteNode(String id) async {
+    // 1. Optimistic local update
+    await _localRepo.deleteNode(id);
+    _updateController.add(null);
+    
+    // 2. Server push
+    try {
+      await _supabase.from('canvas_nodes').delete().eq('id', id);
+    } catch (e) {
+      debugPrint('Error deleting node: $e');
+      _fetchSkeleton(); // rollback on error
     }
   }
 

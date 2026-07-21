@@ -63,3 +63,4 @@ flutter:
   # Production builds use --dart-define instead
   assets:
     - assets/dev/.env
+    - assets/images/onboarding/

@@ -23,6 +23,26 @@ class CanvasTreeController extends ChangeNotifier {
   final String? userId;
   final String? groupId;
   
+  // Layout Settings
+  double markdownFontSize = 15.0;
+  bool showBookmarksMenu = true;
+  bool showTemplateMenu = true;
+  bool showRefreshMenu = true;
+  
+  void updateMarkdownFontSize(double size) {
+    markdownFontSize = size;
+    notifyListeners();
+  }
+  
+  void updateMenuVisibility({bool? bookmarks, bool? template, bool? refresh}) {
+    if (bookmarks != null) showBookmarksMenu = bookmarks;
+    if (template != null) showTemplateMenu = template;
+    if (refresh != null) showRefreshMenu = refresh;
+    notifyListeners();
+  }
+  
+  List<CanvasNode> get allNodes => _repo.getAllNodes();
+
   StreamSubscription? _syncSub;
 
   CanvasTreeController({this.userId, this.groupId}) {
@@ -165,6 +185,26 @@ class CanvasTreeController extends ChangeNotifier {
       updatedAt: DateTime.now(),
     );
     await _syncService.pushNode(updated);
+    notifyListeners();
+  }
+
+  Future<void> moveNode(String nodeId, String? newParentId) async {
+    final node = getNode(nodeId);
+    if (node == null) return;
+    
+    final updated = node.copyWith(
+      parentId: newParentId,
+      updatedAt: DateTime.now(),
+    );
+    await _syncService.pushNode(updated);
+    notifyListeners();
+  }
+
+  Future<void> deleteNode(String nodeId) async {
+    // Collect all descendants to delete them too (optional, but good practice, or rely on DB cascade)
+    // Assuming DB has CASCADE on parent_id, deleting the root deletes children. 
+    // We'll just delete the root node via SyncService which handles local and remote.
+    await _syncService.deleteNode(nodeId);
     notifyListeners();
   }
 

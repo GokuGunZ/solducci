@@ -25,6 +25,9 @@ class UserProfile implements CacheableModel<String> {
   @HiveField(5)
   DateTime updatedAt;
 
+  @HiveField(6)
+  List<String> onboardedFeatures;
+
   UserProfile({
     required this.id,
     required this.email,
@@ -32,7 +35,8 @@ class UserProfile implements CacheableModel<String> {
     this.avatarUrl,
     required this.createdAt,
     required this.updatedAt,
-  });
+    List<String>? onboardedFeatures,
+  }) : onboardedFeatures = onboardedFeatures ?? [];
 
   /// Create UserProfile from Supabase map
   factory UserProfile.fromMap(Map<String, dynamic> map) {
@@ -43,6 +47,10 @@ class UserProfile implements CacheableModel<String> {
       avatarUrl: map['avatar_url'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
+      onboardedFeatures: (map['onboarded_features'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -54,6 +62,7 @@ class UserProfile implements CacheableModel<String> {
       'nickname': nickname,
       'avatar_url': avatarUrl,
       'updated_at': DateTime.now().toIso8601String(),
+      'onboarded_features': onboardedFeatures,
     };
   }
 
@@ -63,6 +72,7 @@ class UserProfile implements CacheableModel<String> {
       'nickname': nickname,
       'avatar_url': avatarUrl,
       'updated_at': DateTime.now().toIso8601String(),
+      'onboarded_features': onboardedFeatures,
     };
   }
 
@@ -84,6 +94,7 @@ class UserProfile implements CacheableModel<String> {
   UserProfile copyWith({
     String? nickname,
     String? avatarUrl,
+    List<String>? onboardedFeatures,
   }) {
     return UserProfile(
       id: id,
@@ -92,6 +103,7 @@ class UserProfile implements CacheableModel<String> {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
+      onboardedFeatures: onboardedFeatures ?? this.onboardedFeatures,
     );
   }
 

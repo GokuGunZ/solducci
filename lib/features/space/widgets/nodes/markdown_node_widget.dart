@@ -49,14 +49,14 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   
   double _maxWidth = 340.0;
 
-
-  
   String _lastSavedText = '';
+  int _previousTextLength = 0;
   
   @override
   void initState() {
     super.initState();
     _lastSavedText = widget.node.payload['text'] ?? '';
+    _previousTextLength = _lastSavedText.length;
     _textController = TextEditingController(text: _lastSavedText);
     _titleController = TextEditingController(text: widget.node.title);
     _focusNode = FocusNode();
@@ -106,6 +106,30 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
         }
       });
     });
+
+    final isNew = DateTime.now().toUtc().difference(widget.node.createdAt).inSeconds.abs() < 5;
+    if (isNew && _lastSavedText.isEmpty) {
+      _dragExtent = -(_flipThreshold + 10);
+      _isEditing = true;
+      _controller.value = _dragExtent;
+      _waveController.repeat();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          FocusScope.of(context).requestFocus(_focusNode);
+        }
+      });
+    }
+
+    // Instant autofocus for new nodes
+    if (widget.node.title.isEmpty || widget.node.title == 'Senza Titolo') {
+      _isEditing = true;
+      _dragExtent = -1000.0; // Ensure it's fully open
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _focusNode.requestFocus();
+        }
+      });
+    }
   }
 
   @override
@@ -148,8 +172,11 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   }
 
   void _onTextChanged(String value) {
-    // Check for auto-list markdown
-    if (value.endsWith('\n')) {
+    final isInsertion = value.length > _previousTextLength;
+    _previousTextLength = value.length;
+    
+    // Check for auto-list markdown on new line insertion
+    if (isInsertion && value.endsWith('\n')) {
       final lines = value.split('\n');
       if (lines.length >= 2) {
         final previousLine = lines[lines.length - 2];
@@ -187,10 +214,11 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
         _textController.text
       );
     }
-    if (_titleController.text != widget.node.title && _titleController.text.trim().isNotEmpty) {
+    if (_titleController.text != widget.node.title) {
+      final newTitle = _titleController.text.trim().isEmpty ? 'Senza Titolo' : _titleController.text.trim();
       widget.controller.updateNodeTitle(
         widget.node, 
-        _titleController.text.trim()
+        newTitle
       );
     }
   }
@@ -221,7 +249,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
             context,
             duration: const Duration(milliseconds: 1200),
             curve: Curves.easeInOutCubic,
-            alignment: 0.1,
+            alignment: 0.5,
           );
         }
       });
@@ -287,7 +315,8 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
 
   @override
   Widget build(BuildContext context) {
-    final double leftPadding = widget.depth == 0 ? 0.0 : 16.0;
+    final double leftPadding = widget.depth == 0 ? 0.0 : 12.0;
+    final double rightPadding = widget.depth == 0 ? 0.0 : 6.0;
     
     final Widget editorContent = Container(
       width: double.infinity,
@@ -300,49 +329,53 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
           BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.1), blurRadius: 30, spreadRadius: -10),
         ]
       ),
-      child: ListView(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _titleController,
-                  style: const TextStyle(color: Color(0xFF6366F1), fontSize: 18, fontWeight: FontWeight.bold),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          controller: _editorScrollController,
+          padding: EdgeInsets.zero,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _titleController,
+                    style: const TextStyle(color: Color(0xFF6366F1), fontSize: 18, fontWeight: FontWeight.bold),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: _onTextChanged,
                   ),
-                  onChanged: _onTextChanged,
                 ),
-              ),
-              const Icon(Icons.arrow_back_ios, color: Colors.transparent, size: 16),
-              const SizedBox(width: 6),
-              const Icon(Icons.edit_note, color: Colors.transparent, size: 16),
-            ],
-          ),
-          if (widget.limit > 0 || _isEditing) ...[
-            const SizedBox(height: 12),
-            TextField(
-              controller: _textController,
-              focusNode: _focusNode,
-              scrollController: _editorScrollController,
-              maxLines: null,
-              style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 15, height: 1.5),
-              decoration: const InputDecoration(
-                hintText: 'Editor rivelato dall\'onda...',
-                hintStyle: TextStyle(color: Colors.white24),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onChanged: _onTextChanged,
+                const Icon(Icons.arrow_back_ios, color: Colors.transparent, size: 16),
+                const SizedBox(width: 6),
+                const Icon(Icons.edit_note, color: Colors.transparent, size: 16),
+              ],
             ),
+            if (widget.limit > 0 || _isEditing) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _textController,
+                focusNode: _focusNode,
+                maxLines: null,
+                style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: widget.controller.markdownFontSize, height: 1.5),
+                decoration: const InputDecoration(
+                  hintText: 'Editor rivelato dall\'onda...',
+                  hintStyle: TextStyle(color: Colors.white24),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: _onTextChanged,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
 
@@ -350,7 +383,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: const Color(0xFF1E1E2C), // Match editor background so it hides the editor underneath
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
@@ -379,13 +412,13 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
               data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
               selectable: false,
               styleSheet: MarkdownStyleSheet(
-                p: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 15, height: 1.5),
-                h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
-                h2: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
-                h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
-                h4: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2),
-                h5: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2),
-                h6: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.2),
+                p: TextStyle(color: const Color(0xFFE0E0E0), fontSize: widget.controller.markdownFontSize, height: 1.5),
+                h1: TextStyle(color: Colors.white, fontSize: widget.controller.markdownFontSize + 9, fontWeight: FontWeight.bold, height: 1.2),
+                h2: TextStyle(color: Colors.white, fontSize: widget.controller.markdownFontSize + 5, fontWeight: FontWeight.bold, height: 1.2),
+                h3: TextStyle(color: Colors.white, fontSize: widget.controller.markdownFontSize + 3, fontWeight: FontWeight.bold, height: 1.2),
+                h4: TextStyle(color: Colors.white, fontSize: widget.controller.markdownFontSize + 1, fontWeight: FontWeight.bold, height: 1.2),
+                h5: TextStyle(color: Colors.white, fontSize: widget.controller.markdownFontSize, fontWeight: FontWeight.bold, height: 1.2),
+                h6: TextStyle(color: Colors.white, fontSize: widget.controller.markdownFontSize - 2, fontWeight: FontWeight.bold, height: 1.2),
                 em: const TextStyle(fontStyle: FontStyle.italic),
                 strong: const TextStyle(fontWeight: FontWeight.bold),
                 blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
@@ -393,7 +426,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                   border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
                   color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                 ),
-                code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
+                code: TextStyle(color: const Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace', fontSize: widget.controller.markdownFontSize - 1),
                 codeblockDecoration: BoxDecoration(
                   color: Colors.black45,
                   borderRadius: BorderRadius.circular(8),
@@ -410,7 +443,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
     );
 
     return Padding(
-      padding: EdgeInsets.only(left: leftPadding, top: 4, bottom: 4),
+      padding: EdgeInsets.only(left: leftPadding, right: rightPadding, top: 4, bottom: 4),
       child: LayoutBuilder(
         builder: (context, constraints) {
           _maxWidth = constraints.maxWidth;
