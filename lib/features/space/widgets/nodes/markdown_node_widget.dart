@@ -70,10 +70,14 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
     _controller.addListener(() {
       setState(() {
         _dragExtent = _controller.value;
+        _updateWaveControllerState();
       });
     });
     
-    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
+    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 4));
+    // Start only if opened (though it defaults to 0, so it stays stopped)
+    if (_dragExtent < 0) _waveController.repeat();
+    
     _waveController.addListener(() {
       setState(() {
         double baseSpeed = 0.06;
@@ -115,6 +119,14 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
     _controller.dispose();
     _waveController.dispose();
     super.dispose();
+  }
+
+  void _updateWaveControllerState() {
+    if (_dragExtent < 0 && !_waveController.isAnimating) {
+      _waveController.repeat();
+    } else if (_dragExtent >= 0 && _waveController.isAnimating) {
+      _waveController.stop();
+    }
   }
 
   void _onTextChanged(String value) {
@@ -201,6 +213,8 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       if (_dragExtent > 0) _dragExtent = 0;
       if (_dragExtent < -_maxWidth) _dragExtent = -_maxWidth;
       _dragY = details.localPosition.dy;
+      
+      _updateWaveControllerState();
       
       final now = DateTime.now();
       if (_lastTime != null) {
