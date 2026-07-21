@@ -43,7 +43,22 @@ class CanvasTreeController extends ChangeNotifier {
   }
 
   void setGlobalDepthLimit(int limit) {
-    globalDepthLimit = limit > 0 ? limit : 1;
+    globalDepthLimit = limit >= 0 ? limit : 0;
+    notifyListeners();
+  }
+
+  int get currentDepthLimit {
+    if (currentCanvasRootId == null) return globalDepthLimit;
+    return _folderDepthLimits[currentCanvasRootId] ?? 1;
+  }
+
+  void setCurrentDepthLimit(int limit) {
+    int validLimit = limit >= 0 ? limit : 0;
+    if (currentCanvasRootId == null) {
+      globalDepthLimit = validLimit;
+    } else {
+      _folderDepthLimits[currentCanvasRootId!] = validLimit;
+    }
     notifyListeners();
   }
 
@@ -64,6 +79,7 @@ class CanvasTreeController extends ChangeNotifier {
   List<CanvasNode> get currentCanvasNodes => _repo.getChildren(currentCanvasRootId, groupId: groupId, userId: userId);
   List<CanvasNode> get rootNodes => _repo.getChildren(null, groupId: groupId, userId: userId);
   List<CanvasNode> getChildren(String parentId) => _repo.getChildren(parentId, groupId: groupId, userId: userId);
+  CanvasNode? getNode(String id) => _repo.getNode(id);
 
   List<CanvasNode> get navigationPath {
     final path = <CanvasNode>[];
@@ -82,25 +98,11 @@ class CanvasTreeController extends ChangeNotifier {
 
   void enterFolder(String folderId) {
     currentCanvasRootId = folderId;
-    final folderDepth = _folderDepthLimits[folderId];
-    if (folderDepth != null) {
-      globalDepthLimit = folderDepth;
-    } else {
-      globalDepthLimit = 1;
-    }
     notifyListeners();
   }
 
   void jumpToFolder(String? folderId) {
     currentCanvasRootId = folderId;
-    if (folderId == null) {
-      globalDepthLimit = 1;
-    } else {
-      final folderDepth = _folderDepthLimits[folderId];
-      if (folderDepth != null) {
-        globalDepthLimit = folderDepth;
-      }
-    }
     notifyListeners();
   }
 
@@ -108,8 +110,9 @@ class CanvasTreeController extends ChangeNotifier {
     required String title,
     required String type,
     String? parentId,
+    String? payloadText,
   }) async {
-    await createNodeAndReturnId(title: title, type: type, parentId: parentId);
+    await createNodeAndReturnId(title: title, type: type, parentId: parentId, payloadText: payloadText);
   }
 
   Future<String> createNodeAndReturnId({

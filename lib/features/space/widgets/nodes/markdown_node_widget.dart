@@ -49,10 +49,15 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   
   double _maxWidth = 340.0;
 
+
+  
+  String _lastSavedText = '';
+  
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.node.payload['text'] ?? '');
+    _lastSavedText = widget.node.payload['text'] ?? '';
+    _textController = TextEditingController(text: _lastSavedText);
     _titleController = TextEditingController(text: widget.node.title);
     _focusNode = FocusNode();
     _readerScrollController = ScrollController();
@@ -106,10 +111,16 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   @override
   void didUpdateWidget(MarkdownNodeWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.node.payload['text'] != widget.node.payload['text'] && 
-        !_focusNode.hasFocus) {
-      _textController.text = widget.node.payload['text'] ?? '';
+    
+    final newText = widget.node.payload['text'] ?? '';
+    // If the node changed from outside (e.g. sync from another device)
+    // and it is DIFFERENT from what we last intentionally saved
+    // AND we are not currently typing, then update the controller.
+    if (newText != _lastSavedText && !_focusNode.hasFocus) {
+      _textController.text = newText;
+      _lastSavedText = newText;
     }
+    
     if (oldWidget.node.title != widget.node.title && !_focusNode.hasFocus) {
       _titleController.text = widget.node.title;
     }
@@ -137,15 +148,40 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   }
 
   void _onTextChanged(String value) {
+    // Check for auto-list markdown
+    if (value.endsWith('\n')) {
+      final lines = value.split('\n');
+      if (lines.length >= 2) {
+        final previousLine = lines[lines.length - 2];
+        if (previousLine.trimLeft().startsWith('- ')) {
+          // Calculate indentation of the previous line
+          final indentMatch = RegExp(r'^\s*').firstMatch(previousLine);
+          final indent = indentMatch?.group(0) ?? '';
+          
+          // Inject "- " with same indentation
+          final injection = '$indent- ';
+          
+          // Need a slight delay to let the controller finish its current cycle
+          Future.microtask(() {
+            final newText = value + injection;
+            _textController.value = TextEditingValue(
+              text: newText,
+              selection: TextSelection.collapsed(offset: newText.length),
+            );
+          });
+        }
+      }
+    }
+
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+    _debounce = Timer(const Duration(milliseconds: 600), () {
       _saveContent();
     });
   }
 
   void _saveContent() {
-    final currentText = widget.node.payload['text'] ?? '';
-    if (_textController.text != currentText) {
+    if (_textController.text != _lastSavedText) {
+      _lastSavedText = _textController.text;
       widget.controller.updateNodeText(
         widget.node, 
         _textController.text
@@ -314,17 +350,13 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E2C),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(-10, 0)),
-        ]
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
-      child: ListView(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -338,7 +370,12 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
           ),
           if (widget.limit > 0 || _isEditing) ...[
             const SizedBox(height: 12),
-            MarkdownBody(
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.6,
+              ),
+              child: SingleChildScrollView(
+                child: MarkdownBody(
               data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
               selectable: false,
               styleSheet: MarkdownStyleSheet(
@@ -364,6 +401,8 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                 listBullet: const TextStyle(color: Color(0xFF6366F1)),
                 checkbox: const TextStyle(color: Color(0xFF6366F1)),
               ),
+            ),
+            ),
             ),
           ],
         ],

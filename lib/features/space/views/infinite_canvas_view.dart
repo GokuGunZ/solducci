@@ -7,6 +7,8 @@ import 'package:solducci/features/space/controllers/canvas_tree_controller.dart'
 import 'package:solducci/features/space/services/canvas_sync_service.dart';
 import 'package:solducci/features/space/repositories/canvas_local_repository.dart';
 import 'package:solducci/features/space/widgets/nodes/markdown_node_widget.dart';
+import 'package:solducci/features/space/widgets/omni_radial_menu.dart';
+import 'package:solducci/features/space/widgets/manila_folder_painter.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,7 +24,12 @@ class InfiniteCanvasView extends StatefulWidget {
 
 class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
   late final CanvasTreeController _controller;
+  final ScrollController _breadcrumbsScrollController = ScrollController();
   bool _isInitialized = false;
+  double _canvasScale = 1.0;
+  int _pointerCount = 0;
+  String? _selectionMode; // 'move' or 'delete'
+  Set<String> _selectedNodeIds = {};
 
   @override
   void initState() {
@@ -158,10 +165,47 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => selectedType = 'bookmark'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: selectedType == 'bookmark' ? const Color(0xFFF59E0B).withValues(alpha: 0.2) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: selectedType == 'bookmark' ? const Color(0xFFF59E0B) : Colors.white10),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(Icons.bookmark, color: selectedType == 'bookmark' ? const Color(0xFFF59E0B) : Colors.white54, size: 32),
+                                const SizedBox(height: 8),
+                                Text('Bookmark', style: TextStyle(color: selectedType == 'bookmark' ? Colors.white : Colors.white54, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, color: Colors.white54, size: 16),
+                      const SizedBox(width: 8),
+                      Text('Posizione: ${parentId == null ? 'Root' : _controller.getNode(parentId)?.title ?? 'Sconosciuta'}', style: const TextStyle(color: Colors.white70)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {
+                          // TODO: Apri selettore posizione completo
+                        },
+                        child: const Text('Cambia'),
+                      )
+                    ]
+                  ),
+                  
+                  const SizedBox(height: 12),
                   
                   // Title input
                   TextField(
@@ -185,6 +229,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                           title: val.trim(),
                           type: selectedType,
                           parentId: parentId,
+                          payloadText: '',
                         );
                         Navigator.pop(context);
                       }
@@ -207,6 +252,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                             title: titleController.text.trim(),
                             type: selectedType,
                             parentId: parentId,
+                            payloadText: '',
                           );
                           Navigator.pop(context);
                         }
@@ -235,26 +281,36 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
         children: [
           // Breadcrumbs
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => _controller.jumpToFolder(null),
-                    child: const Text('Root', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_breadcrumbsScrollController.hasClients) {
+                    _breadcrumbsScrollController.jumpTo(_breadcrumbsScrollController.position.maxScrollExtent);
+                  }
+                });
+                return SingleChildScrollView(
+                  controller: _breadcrumbsScrollController,
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _controller.jumpToFolder(null),
+                        child: const Text('Root', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+                      ),
+                      for (var node in path) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text('/', style: TextStyle(color: Colors.white30)),
+                        ),
+                        GestureDetector(
+                          onTap: () => _controller.jumpToFolder(node.id),
+                          child: Text(node.title, style: TextStyle(color: node.id == _controller.currentCanvasRootId ? const Color(0xFF6366F1) : Colors.white70, fontWeight: node.id == _controller.currentCanvasRootId ? FontWeight.bold : FontWeight.normal)),
+                        ),
+                      ]
+                    ],
                   ),
-                  for (var node in path) ...[
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text('/', style: TextStyle(color: Colors.white30)),
-                    ),
-                    GestureDetector(
-                      onTap: () => _controller.jumpToFolder(node.id),
-                      child: Text(node.title, style: TextStyle(color: node.id == _controller.currentCanvasRootId ? const Color(0xFF6366F1) : Colors.white70, fontWeight: node.id == _controller.currentCanvasRootId ? FontWeight.bold : FontWeight.normal)),
-                    ),
-                  ]
-                ],
-              ),
+                );
+              }
             ),
           ),
           // Depth controller
@@ -263,16 +319,16 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
             children: [
               IconButton(
                 icon: const Icon(Icons.remove, size: 18, color: Colors.white54),
-                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit - 1),
+                onPressed: () => _controller.setCurrentDepthLimit(_controller.currentDepthLimit - 1),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
               const SizedBox(width: 8),
-              Text('Livelli: ${_controller.globalDepthLimit}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              Text('Livelli: ${_controller.currentDepthLimit}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.add, size: 18, color: Colors.white54),
-                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit + 1),
+                onPressed: () => _controller.setCurrentDepthLimit(_controller.currentDepthLimit + 1),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -291,8 +347,19 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    return Scaffold(
-      backgroundColor: const Color(0xFF09090B), // OLED black
+    return PopScope(
+      canPop: _controller.currentCanvasRootId == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        
+        final currentRootId = _controller.currentCanvasRootId;
+        if (currentRootId != null) {
+          final currentNode = _controller.getNode(currentRootId);
+          _controller.jumpToFolder(currentNode?.parentId);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF09090B), // OLED black
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -301,18 +368,66 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF6366F1)),
-                tooltip: 'Reimposta viste custom',
-                onPressed: _controller.resetAllOverrides,
-              ),
-              IconButton(
-                icon: const Icon(Icons.auto_awesome, size: 20, color: Color(0xFF10B981)),
-                tooltip: 'Genera Template di Test',
-                onPressed: () {
-                  _controller.injectTemplate(CanvasTemplateRegistry.welcomeCanvas);
-                },
-              ),
+              if (_selectionMode != null) ...[
+                Text('${_selectedNodeIds.length} selezionati', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                if (_selectionMode == 'move')
+                  IconButton(
+                    icon: const Icon(Icons.drive_file_move, size: 20, color: Colors.blueAccent),
+                    tooltip: 'Conferma Spostamento',
+                    onPressed: _selectedNodeIds.isEmpty ? null : () {
+                      // TODO: Move modal
+                    },
+                  )
+                else if (_selectionMode == 'delete')
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
+                    tooltip: 'Conferma Eliminazione',
+                    onPressed: _selectedNodeIds.isEmpty ? null : () {
+                      // TODO: Delete modal
+                    },
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20, color: Colors.white30),
+                  tooltip: 'Annulla selezione',
+                  onPressed: () {
+                    setState(() {
+                      _selectionMode = null;
+                      _selectedNodeIds.clear();
+                    });
+                  },
+                ),
+              ] else ...[
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFF6366F1)),
+                  tooltip: 'Opzioni',
+                  color: const Color(0xFF1E1E2C),
+                  onSelected: (value) {
+                    if (value == 'move' || value == 'delete') {
+                      setState(() {
+                        _selectionMode = value;
+                      });
+                    } else if (value == 'bookmarks') {
+                      // TODO: Apri modal bookmarks
+                    } else if (value == 'refresh') {
+                      _controller.resetAllOverrides();
+                    } else if (value == 'template') {
+                      _controller.injectTemplate(CanvasTemplateRegistry.welcomeCanvas);
+                    } else if (value == 'settings') {
+                      // TODO: Settings modal
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    const PopupMenuItem(value: 'move', child: Text('Sposta', style: TextStyle(color: Colors.white))),
+                    const PopupMenuItem(value: 'delete', child: Text('Elimina', style: TextStyle(color: Colors.redAccent))),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(value: 'bookmarks', child: Text('Bookmarks', style: TextStyle(color: Colors.white))),
+                    const PopupMenuItem(value: 'settings', child: Text('Impostazioni layout', style: TextStyle(color: Colors.white))),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(value: 'refresh', child: Text('Reimposta viste', style: TextStyle(color: Colors.white))),
+                    const PopupMenuItem(value: 'template', child: Text('Genera Template Test', style: TextStyle(color: Colors.white))),
+                  ],
+                ),
+              ],
               const SizedBox(width: 8),
             ],
           ),
@@ -356,8 +471,39 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                         child: FadeTransition(opacity: animation, child: child),
                       );
                     },
-                    child: CustomScrollView(
-                      key: ValueKey(_controller.currentCanvasRootId ?? 'root'),
+                    child: GestureDetector(
+                      onScaleStart: (details) {
+                        setState(() {
+                          _pointerCount = details.pointerCount;
+                        });
+                      },
+                      onScaleUpdate: (details) {
+                        if (details.pointerCount >= 2) {
+                          setState(() {
+                            _pointerCount = details.pointerCount;
+                            _canvasScale = details.scale;
+                          });
+                        }
+                      },
+                      onScaleEnd: (details) {
+                        // Pinch-out (zoom out) to go back to parent folder
+                        if (_canvasScale < 0.8) {
+                          final currentRootId = _controller.currentCanvasRootId;
+                          if (currentRootId != null) {
+                            final currentNode = _controller.getNode(currentRootId);
+                            _controller.jumpToFolder(currentNode?.parentId);
+                          }
+                        }
+                        setState(() {
+                          _canvasScale = 1.0;
+                          _pointerCount = 0;
+                        });
+                      },
+                      child: Transform.scale(
+                        scale: _canvasScale.clamp(0.5, 1.0),
+                        child: CustomScrollView(
+                          physics: _pointerCount >= 2 ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
+                          key: ValueKey(_controller.currentCanvasRootId ?? 'root'),
                       // Viewport-aware overscanning
                       cacheExtent: 1500, // Pre-render 1500px outside viewport
                       slivers: [
@@ -372,16 +518,47 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                     node: node,
                                     controller: _controller,
                                     depth: 0,
-                                    forceExpandLevelsRemaining: _controller.globalDepthLimit,
+                                    forceExpandLevelsRemaining: _controller.currentDepthLimit,
                                     onAddChild: _showOmniAddSheet,
+                                    isGodMode: _selectionMode != null,
+                                    isSelected: _selectedNodeIds.contains(node.id),
+                                    onSelect: (selected) {
+                                      setState(() {
+                                        if (selected) _selectedNodeIds.add(node.id);
+                                        else _selectedNodeIds.remove(node.id);
+                                      });
+                                    },
                                   );
                                 } else if (node.type == 'markdown') {
-                                  return MarkdownNodeWidget(
+                                  final child = MarkdownNodeWidget(
                                     node: node,
                                     controller: _controller,
                                     depth: 0,
-                                    limit: _controller.globalDepthLimit,
+                                    limit: _controller.currentDepthLimit,
                                   );
+
+                                  if (_selectionMode != null) {
+                                    return Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 8.0, left: 8.0),
+                                          child: Checkbox(
+                                            value: _selectedNodeIds.contains(node.id),
+                                            onChanged: (val) {
+                                              setState(() {
+                                                if (val == true) _selectedNodeIds.add(node.id);
+                                                else _selectedNodeIds.remove(node.id);
+                                              });
+                                            },
+                                            activeColor: const Color(0xFF6366F1),
+                                          ),
+                                        ),
+                                        Expanded(child: child),
+                                      ],
+                                    );
+                                  }
+                                  return child;
                                 }
                                 return const SizedBox.shrink();
                               },
@@ -389,27 +566,38 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                             ),
                           ),
                         ),
+                        // Spazio vuoto dinamico per la tastiera e l'overscroll
+                        SliverToBoxAdapter(
+                          child: SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 200),
+                        ),
                       ],
                     ),
                   ),
+                  ),
+                ),
                 );
               },
             ),
           ),
         ],
       ),
-      floatingActionButton: LongPressDraggable<String>(
-        data: 'omni-plus',
-        feedback: FloatingActionButton(
-          onPressed: null,
-          backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.8),
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
-        child: FloatingActionButton(
-          onPressed: () => _showOmniAddSheet(null),
-          backgroundColor: const Color(0xFF6366F1),
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
+      floatingActionButton: OmniRadialMenu(
+        onCreateNode: (type) async {
+          // If the user taps the radial button, we create the node in the current canvas root
+          // If it's a markdown, we should ideally trigger it to be editing.
+          final newId = await _controller.createNodeAndReturnId(
+            title: '', // Start empty as requested
+            type: type,
+            parentId: _controller.currentCanvasRootId,
+            payloadText: '',
+          );
+          
+          if (type == 'markdown') {
+            // TODO: Ensure it opens in edit mode automatically.
+            // A simple way is to dispatch an event or rely on focus, but for now we just create it.
+          }
+        },
+      ),
       ),
     );
   }
@@ -423,6 +611,9 @@ class _FolderNodeWidget extends StatefulWidget {
   final int depth;
   final int forceExpandLevelsRemaining;
   final AddChildCallback onAddChild;
+  final bool isGodMode;
+  final bool isSelected;
+  final ValueChanged<bool>? onSelect;
 
   const _FolderNodeWidget({
     required this.node,
@@ -430,6 +621,9 @@ class _FolderNodeWidget extends StatefulWidget {
     required this.depth,
     required this.forceExpandLevelsRemaining,
     required this.onAddChild,
+    this.isGodMode = false,
+    this.isSelected = false,
+    this.onSelect,
   });
 
   @override
@@ -454,6 +648,10 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
     int nextForceLevels = 0;
     if (visuallyExpanded) {
       nextForceLevels = effectiveLimit > 0 ? effectiveLimit - 1 : 0;
+      // If manually expanded but effectiveLimit was 1 or 0, ensure files inside render in extended mode
+      if (explicitState == true && nextForceLevels == 0) {
+        nextForceLevels = 1;
+      }
     }
 
     final children = visuallyExpanded ? widget.controller.getChildren(widget.node.id) : <CanvasNode>[];
@@ -478,102 +676,212 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
         },
         child: Transform.scale(
           scale: _scale,
-          child: DragTarget<String>(
-            onAcceptWithDetails: (details) {
-              if (details.data == 'omni-plus') {
-                widget.onAddChild(widget.node.id);
+          child: DragTarget<Map<String, String>>(
+            onAcceptWithDetails: (details) async {
+              final type = details.data['omni-type'];
+              if (type != null) {
+                await widget.controller.createNodeAndReturnId(
+                  title: '',
+                  type: type,
+                  parentId: widget.node.id,
+                );
               }
             },
             builder: (context, candidateData, rejectedData) {
               final isHovering = candidateData.isNotEmpty;
-              return Container(
-                decoration: BoxDecoration(
-                  color: isHovering 
-                      ? const Color(0xFF6366F1).withValues(alpha: 0.2) 
-                      : const Color(0xFF1E1E1E).withValues(alpha: 0.5),
-                  border: Border.all(
-                    color: isHovering 
-                        ? const Color(0xFF6366F1) 
-                        : const Color(0xFF6366F1).withValues(alpha: 0.3), 
-                    width: 1.5,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-            ListTile(
-              leading: Icon(
-                visuallyExpanded ? Icons.folder_open : Icons.folder,
-                color: const Color(0xFF6366F1),
-              ),
-              title: Text(widget.node.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+              return Stack(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.zoom_in_map, size: 20, color: Color(0xFF10B981)),
-                    tooltip: 'Entra nella cartella',
-                    onPressed: () => widget.controller.enterFolder(widget.node.id),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_box, size: 20, color: Color(0xFF6366F1)),
-                    onPressed: () => widget.onAddChild(widget.node.id),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.remove, size: 16, color: Colors.white54),
-                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit - 1),
-                  ),
-                  Text('$effectiveLimit', style: const TextStyle(color: Colors.white)),
-                  IconButton(
-                    icon: const Icon(Icons.add, size: 16, color: Colors.white54),
-                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit + 1),
-                  ),
-                ],
-              ),
-              onTap: () {
-                widget.controller.toggleExpand(widget.node.id, visuallyExpanded);
-              },
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutQuart,
-              alignment: Alignment.topCenter,
-              clipBehavior: Clip.hardEdge,
-              child: visuallyExpanded && children.isNotEmpty
-                ? Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: children.map((child) {
-                        if (child.type == 'folder') {
-                          return _FolderNodeWidget(
-                            node: child, 
-                            controller: widget.controller, 
-                            depth: widget.depth + 1, 
-                            forceExpandLevelsRemaining: nextForceLevels,
-                            onAddChild: widget.onAddChild,
-                          );
-                        } else if (child.type == 'markdown') {
-                          return MarkdownNodeWidget(
-                            node: child,
-                            controller: widget.controller,
-                            depth: widget.depth + 1,
-                            limit: nextForceLevels,
+                  CustomPaint(
+                    painter: ManilaFolderPainter(
+                      baseColor: isHovering ? const Color(0xFF4338CA) : const Color(0xFF1E1E2C),
+                      isOpen: visuallyExpanded,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                            child: SizedBox(
+                              width: constraints.maxWidth * 0.6 - 32, // 60% of width minus horizontal padding
+                              child: Row(
+                                children: [
+                                  if (widget.isGodMode)
+                                    Checkbox(
+                                      value: widget.isSelected,
+                                      onChanged: (val) => widget.onSelect?.call(val ?? false),
+                                      activeColor: const Color(0xFF6366F1),
+                                    ),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => widget.controller.toggleExpand(widget.node.id, visuallyExpanded),
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        // We use SingleChildScrollView to allow natural scroll if marquee is not fully implemented
+                                        // A true marquee would use an animation controller.
+                                        child: Text(
+                                          widget.node.title, 
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           );
                         }
-                        return const SizedBox.shrink();
-                      }).toList(),
+                      ),
+                        // Inner content
+                        if (visuallyExpanded && children.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: children.map((childNode) {
+                                if (childNode.type == 'folder') {
+                                  return _FolderNodeWidget(
+                                    node: childNode,
+                                    controller: widget.controller,
+                                    depth: widget.depth + 1,
+                                    forceExpandLevelsRemaining: nextForceLevels,
+                                    onAddChild: widget.onAddChild,
+                                    isGodMode: widget.isGodMode,
+                                    isSelected: widget.isSelected,
+                                    onSelect: widget.onSelect,
+                                  );
+                                } else if (childNode.type == 'markdown') {
+                                  final mChild = MarkdownNodeWidget(
+                                    node: childNode,
+                                    controller: widget.controller,
+                                    depth: widget.depth + 1,
+                                    limit: nextForceLevels,
+                                  );
+                                  if (widget.isGodMode) {
+                                    return Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 8.0, left: 8.0),
+                                          child: Checkbox(
+                                            value: false, // TODO: state management for nested selection
+                                            onChanged: (val) {},
+                                            activeColor: const Color(0xFF6366F1),
+                                          ),
+                                        ),
+                                        Expanded(child: mChild),
+                                      ],
+                                    );
+                                  }
+                                  return mChild;
+                                }
+                                return const SizedBox.shrink();
+                              }).toList(),
+                            ),
+                          ),
+                        ] else if (visuallyExpanded) ...[
+                          const SizedBox(height: 16),
+                          const Padding(
+                            padding: EdgeInsets.only(left: 16.0),
+                            child: Text('Cartella vuota', style: TextStyle(color: Colors.white30, fontStyle: FontStyle.italic)),
+                          ),
+                        ],
+                      ],
                     ),
-                  )
-                : const SizedBox(width: double.infinity, height: 0),
-            ),
-          ],
+                  ),
+                ),
+                
+                // Bookmarks in the top-right empty space (40% width area)
+                Positioned(
+                  top: 0,
+                  right: 16,
+                  child: SizedBox(
+                    height: 32, // Same height as header
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Zoom-in
+                        Container(
+                          width: 28, height: 28,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.8),
+                            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                          ),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.zoom_in_map, size: 16, color: Colors.white),
+                            onPressed: () => widget.controller.enterFolder(widget.node.id),
+                          ),
+                        ),
+                        // Levels Triangle layout
+                        SizedBox(
+                          width: 48,
+                          height: 32,
+                          child: Stack(
+                            alignment: Alignment.topCenter,
+                            children: [
+                              // Level number (top center)
+                              Positioned(
+                                top: 0,
+                                child: Container(
+                                  width: 20, height: 20,
+                                  alignment: Alignment.center,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF6366F1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text('$effectiveLimit', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              // Minus (bottom left)
+                              Positioned(
+                                bottom: 0, left: 0,
+                                child: Container(
+                                  width: 20, height: 20,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.redAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(Icons.remove, size: 12, color: Colors.white),
+                                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit - 1),
+                                  ),
+                                ),
+                              ),
+                              // Plus (bottom right)
+                              Positioned(
+                                bottom: 0, right: 0,
+                                child: Container(
+                                  width: 20, height: 20,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(Icons.add, size: 12, color: Colors.white),
+                                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit + 1),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
-      );
-      },
-      ),
       ),
       ),
     );
