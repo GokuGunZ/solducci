@@ -61,6 +61,11 @@ jobs:
           sed -i 's/applicationId = "com.gokugunz.solducci"/applicationId = "com.gokugunz.solducci.test"/' android/app/build.gradle.kts
           sed -i 's/android:label="solducci"/android:label="Solducci Test"/' android/app/src/main/AndroidManifest.xml
 
+      - name: Generate Version Information
+        run: |
+          COMMIT_TIME=$(git log -1 --format="%ct")
+          echo "BUILD_NUMBER=$COMMIT_TIME" >> $GITHUB_ENV
+
       - name: Build Android APK (Signed)
         env:
           GSHEET_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_B64 }}
@@ -68,6 +73,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           flutter build apk --release \
+            --build-number="$BUILD_NUMBER" \
             --dart-define=GSHEET_CREDENTIALS="$GSHEET_CREDENTIALS" \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
