@@ -31,6 +31,14 @@ class SpaceHomeView extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _SpaceCard(
+            title: 'Time Management',
+            description: 'Eventi, viaggi, uscite e radar',
+            icon: Icons.calendar_month,
+            color: Colors.pinkAccent,
+            onTap: () => context.push('/space/time_management'),
+          ),
+          const SizedBox(height: 12),
+          _SpaceCard(
             title: 'Task',
             description: 'To-do list e attività condivise',
             icon: Icons.checklist,

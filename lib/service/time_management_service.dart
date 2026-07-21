@@ -53,7 +53,33 @@ class TimeManagementService {
   /// Create a new Time Scenario detail
   Future<void> createTimeScenario(TimeScenario scenario) async {
     try {
-      await _supabase.from('time_scenarios').insert(scenario.toMap());
+      final context = _contextManager.currentContext;
+      final userId = _supabase.auth.currentUser?.id;
+      
+      // 1. Create the parent Document first
+      final docData = {
+        'document_type': 'time_scenario',
+        'title': scenario.title,
+        'group_id': context.isGroup ? context.groupId : null,
+        'user_id': context.isGroup ? null : userId,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+        'metadata': {},
+      };
+
+      final docResponse = await _supabase
+          .from('documents')
+          .insert(docData)
+          .select()
+          .single();
+          
+      final newDocumentId = docResponse['id'] as String;
+
+      // 2. Link the generated documentId to the scenario and insert
+      final scenarioData = scenario.toMap();
+      scenarioData['document_id'] = newDocumentId;
+
+      await _supabase.from('time_scenarios').insert(scenarioData);
     } catch (e) {
       rethrow;
     }
@@ -143,6 +169,21 @@ class TimeManagementService {
       await _supabase.from('routine_schedules').update({
         'is_paused_for_today': isCurrentlyPaused ? null : now.toIso8601String(),
       }).eq('id', schedule.id);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> createRoutineTemplate(RoutineTemplate template, List<RoutineSchedule> schedules) async {
+    try {
+      final response = await _supabase.from('routine_templates').insert(template.toMap()).select().single();
+      final generatedId = response['id'] as String;
+      
+      for (var schedule in schedules) {
+        final scheduleMap = schedule.toMap();
+        scheduleMap['routine_template_id'] = generatedId;
+        await _supabase.from('routine_schedules').insert(scheduleMap);
+      }
     } catch (e) {
       rethrow;
     }
