@@ -385,7 +385,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       ),
     );
 
-    Color cardColor = const Color(0xFF64748B).withValues(alpha: 0.12);
+    Color cardColor = const Color(0xFF94A3B8).withValues(alpha: 0.10); // Lighter blue-grey glass
     if (widget.selectionMode != null && widget.isSelected) {
       if (widget.selectionMode == 'move') cardColor = const Color(0xFF3B82F6).withValues(alpha: 0.4);
       if (widget.selectionMode == 'delete') cardColor = const Color(0xFFEF4444).withValues(alpha: 0.4);
@@ -399,7 +399,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: cardColor, // Changed background color based on selection
+          color: cardColor, // True glass because background is now transparent
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
@@ -479,14 +479,32 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                   ),
                 ),
 
-                // Background (Editor)
-                _isEditing ? editorContent : Positioned.fill(child: editorContent),
+                // Background (Editor) - Hidden when not active so glass effect on readerContent works!
+                if (_isEditing || _dragExtent != 0)
+                  _isEditing 
+                      ? Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: editorContent,
+                        ) 
+                      : Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: editorContent,
+                          ),
+                        ),
                 
                 // Foreground (Reader) wrapped in Liquid Clipper
                 _isEditing
                   ? Positioned.fill(
                       child: IgnorePointer(
-                        ignoring: _isEditing,
+                        ignoring: true,
                         child: ClipPath(
                           clipper: LiquidClipper(
                             pullExtent: _dragExtent, 
