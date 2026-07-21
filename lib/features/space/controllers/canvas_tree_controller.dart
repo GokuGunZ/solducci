@@ -18,6 +18,7 @@ class CanvasTreeController extends ChangeNotifier {
   final Map<String, int> _folderDepthLimits = {};
   
   int globalDepthLimit = 1;
+  String? currentCanvasRootId;
   
   final String? userId;
   final String? groupId;
@@ -59,8 +60,49 @@ class CanvasTreeController extends ChangeNotifier {
 
   int? getDepthLimit(String nodeId) => _folderDepthLimits[nodeId];
   bool? getFolderState(String nodeId) => _folderState[nodeId];
+  
+  List<CanvasNode> get currentCanvasNodes => _repo.getChildren(currentCanvasRootId, groupId: groupId, userId: userId);
   List<CanvasNode> get rootNodes => _repo.getChildren(null, groupId: groupId, userId: userId);
   List<CanvasNode> getChildren(String parentId) => _repo.getChildren(parentId, groupId: groupId, userId: userId);
+
+  List<CanvasNode> get navigationPath {
+    final path = <CanvasNode>[];
+    String? currentId = currentCanvasRootId;
+    while (currentId != null) {
+      final node = _repo.getNode(currentId);
+      if (node != null) {
+        path.insert(0, node);
+        currentId = node.parentId;
+      } else {
+        break;
+      }
+    }
+    return path;
+  }
+
+  void enterFolder(String folderId) {
+    currentCanvasRootId = folderId;
+    final folderDepth = _folderDepthLimits[folderId];
+    if (folderDepth != null) {
+      globalDepthLimit = folderDepth;
+    } else {
+      globalDepthLimit = 1;
+    }
+    notifyListeners();
+  }
+
+  void jumpToFolder(String? folderId) {
+    currentCanvasRootId = folderId;
+    if (folderId == null) {
+      globalDepthLimit = 1;
+    } else {
+      final folderDepth = _folderDepthLimits[folderId];
+      if (folderDepth != null) {
+        globalDepthLimit = folderDepth;
+      }
+    }
+    notifyListeners();
+  }
 
   Future<void> createNode({
     required String title,

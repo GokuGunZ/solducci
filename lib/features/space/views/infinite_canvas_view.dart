@@ -223,6 +223,66 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     );
   }
 
+  Widget _buildSubNavbar() {
+    final path = _controller.navigationPath;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E1E2C),
+        border: Border(bottom: BorderSide(color: Colors.white10)),
+      ),
+      child: Row(
+        children: [
+          // Breadcrumbs
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _controller.jumpToFolder(null),
+                    child: const Text('Root', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+                  ),
+                  for (var node in path) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text('/', style: TextStyle(color: Colors.white30)),
+                    ),
+                    GestureDetector(
+                      onTap: () => _controller.jumpToFolder(node.id),
+                      child: Text(node.title, style: TextStyle(color: node.id == _controller.currentCanvasRootId ? const Color(0xFF6366F1) : Colors.white70, fontWeight: node.id == _controller.currentCanvasRootId ? FontWeight.bold : FontWeight.normal)),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+          ),
+          // Depth controller
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove, size: 18, color: Colors.white54),
+                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit - 1),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 8),
+              Text('Livelli: ${_controller.globalDepthLimit}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.add, size: 18, color: Colors.white54),
+                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit + 1),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
@@ -242,21 +302,6 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.remove, size: 20, color: Colors.white54),
-                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit - 1),
-              ),
-              Text('Livelli: ${_controller.globalDepthLimit}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              IconButton(
-                icon: const Icon(Icons.add, size: 20, color: Colors.white54),
-                onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit + 1),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                height: 24,
-                width: 1,
-                color: Colors.white24,
-              ),
-              IconButton(
                 icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF6366F1)),
                 tooltip: 'Reimposta viste custom',
                 onPressed: _controller.resetAllOverrides,
@@ -273,51 +318,85 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
           ),
         ],
       ),
-      body: DragTarget<String>(
-        onAcceptWithDetails: (details) {
-          if (details.data == 'omni-plus') {
-            _showOmniAddSheet(null);
-          }
-        },
-        builder: (context, candidateData, rejectedData) {
-          return Container(
-            color: candidateData.isNotEmpty ? const Color(0xFF6366F1).withValues(alpha: 0.05) : Colors.transparent,
-            child: CustomScrollView(
-              // Viewport-aware overscanning
-              cacheExtent: 1500, // Pre-render 1500px outside viewport
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-                  sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final node = _controller.rootNodes[index];
-                  if (node.type == 'folder') {
-                    return _FolderNodeWidget(
-                      node: node,
-                      controller: _controller,
-                      depth: 0,
-                      forceExpandLevelsRemaining: _controller.globalDepthLimit,
-                      onAddChild: _showOmniAddSheet,
-                    );
-                  } else if (node.type == 'markdown') {
-                    return MarkdownNodeWidget(
-                      node: node,
-                      controller: _controller,
-                      depth: 0,
-                      limit: _controller.globalDepthLimit,
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-                childCount: _controller.rootNodes.length,
-              ),
+      body: Column(
+        children: [
+          _buildSubNavbar(),
+          Expanded(
+            child: DragTarget<String>(
+              onAcceptWithDetails: (details) {
+                if (details.data == 'omni-plus') {
+                  _showOmniAddSheet(_controller.currentCanvasRootId);
+                }
+              },
+              builder: (context, candidateData, rejectedData) {
+                final isHovering = candidateData.isNotEmpty;
+                final isNested = _controller.currentCanvasRootId != null;
+                
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isHovering ? const Color(0xFF6366F1).withValues(alpha: 0.05) : Colors.transparent,
+                    border: isNested 
+                        ? Border(
+                            left: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 2),
+                            right: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 2),
+                            bottom: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 2),
+                          )
+                        : null,
+                    boxShadow: isNested 
+                        ? [BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.05), blurRadius: 40, spreadRadius: 0)] 
+                        : null,
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return ScaleTransition(
+                        scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+                          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)
+                        ),
+                        child: FadeTransition(opacity: animation, child: child),
+                      );
+                    },
+                    child: CustomScrollView(
+                      key: ValueKey(_controller.currentCanvasRootId ?? 'root'),
+                      // Viewport-aware overscanning
+                      cacheExtent: 1500, // Pre-render 1500px outside viewport
+                      slivers: [
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final node = _controller.currentCanvasNodes[index];
+                                if (node.type == 'folder') {
+                                  return _FolderNodeWidget(
+                                    node: node,
+                                    controller: _controller,
+                                    depth: 0,
+                                    forceExpandLevelsRemaining: _controller.globalDepthLimit,
+                                    onAddChild: _showOmniAddSheet,
+                                  );
+                                } else if (node.type == 'markdown') {
+                                  return MarkdownNodeWidget(
+                                    node: node,
+                                    controller: _controller,
+                                    depth: 0,
+                                    limit: _controller.globalDepthLimit,
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                              childCount: _controller.currentCanvasNodes.length,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
-      ),
-      );
-      },
       ),
       floatingActionButton: LongPressDraggable<String>(
         data: 'omni-plus',
@@ -338,7 +417,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
 
 typedef AddChildCallback = void Function(String parentId);
 
-class _FolderNodeWidget extends StatelessWidget {
+class _FolderNodeWidget extends StatefulWidget {
   final CanvasNode node;
   final CanvasTreeController controller;
   final int depth;
@@ -354,13 +433,20 @@ class _FolderNodeWidget extends StatelessWidget {
   });
 
   @override
+  State<_FolderNodeWidget> createState() => _FolderNodeWidgetState();
+}
+
+class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
+  double _scale = 1.0;
+
+  @override
   Widget build(BuildContext context) {
-    final double leftPadding = depth == 0 ? 0.0 : 16.0;
+    final double leftPadding = widget.depth == 0 ? 0.0 : 16.0;
     
-    final bool? explicitState = controller.getFolderState(node.id);
-    final int? localLimitOverride = controller.getDepthLimit(node.id);
+    final bool? explicitState = widget.controller.getFolderState(widget.node.id);
+    final int? localLimitOverride = widget.controller.getDepthLimit(widget.node.id);
     
-    final int effectiveLimit = localLimitOverride ?? forceExpandLevelsRemaining;
+    final int effectiveLimit = localLimitOverride ?? widget.forceExpandLevelsRemaining;
     
     // Specific state overrides parent inherited state
     final bool visuallyExpanded = explicitState ?? (effectiveLimit > 1);
@@ -370,61 +456,84 @@ class _FolderNodeWidget extends StatelessWidget {
       nextForceLevels = effectiveLimit > 0 ? effectiveLimit - 1 : 0;
     }
 
-    final children = visuallyExpanded ? controller.getChildren(node.id) : <CanvasNode>[];
+    final children = visuallyExpanded ? widget.controller.getChildren(widget.node.id) : <CanvasNode>[];
 
     return Padding(
       padding: EdgeInsets.only(left: leftPadding, bottom: 8.0),
-      child: DragTarget<String>(
-        onAcceptWithDetails: (details) {
-          if (details.data == 'omni-plus') {
-            onAddChild(node.id);
+      child: GestureDetector(
+        onScaleUpdate: (details) {
+          if (details.pointerCount >= 2) {
+            setState(() {
+              _scale = details.scale.clamp(0.8, 1.5);
+            });
           }
         },
-        builder: (context, candidateData, rejectedData) {
-          final isHovering = candidateData.isNotEmpty;
-          return Container(
-            decoration: BoxDecoration(
-              color: isHovering 
-                  ? const Color(0xFF6366F1).withValues(alpha: 0.2) 
-                  : const Color(0xFF1E1E1E).withValues(alpha: 0.5),
-              border: Border.all(
-                color: isHovering 
-                    ? const Color(0xFF6366F1) 
-                    : const Color(0xFF6366F1).withValues(alpha: 0.3), 
-                width: 1.5,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        onScaleEnd: (details) {
+          if (_scale > 1.2) {
+            widget.controller.enterFolder(widget.node.id);
+          }
+          setState(() {
+            _scale = 1.0;
+          });
+        },
+        child: Transform.scale(
+          scale: _scale,
+          child: DragTarget<String>(
+            onAcceptWithDetails: (details) {
+              if (details.data == 'omni-plus') {
+                widget.onAddChild(widget.node.id);
+              }
+            },
+            builder: (context, candidateData, rejectedData) {
+              final isHovering = candidateData.isNotEmpty;
+              return Container(
+                decoration: BoxDecoration(
+                  color: isHovering 
+                      ? const Color(0xFF6366F1).withValues(alpha: 0.2) 
+                      : const Color(0xFF1E1E1E).withValues(alpha: 0.5),
+                  border: Border.all(
+                    color: isHovering 
+                        ? const Color(0xFF6366F1) 
+                        : const Color(0xFF6366F1).withValues(alpha: 0.3), 
+                    width: 1.5,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
             ListTile(
               leading: Icon(
                 visuallyExpanded ? Icons.folder_open : Icons.folder,
                 color: const Color(0xFF6366F1),
               ),
-              title: Text(node.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              title: Text(widget.node.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
+                    icon: const Icon(Icons.zoom_in_map, size: 20, color: Color(0xFF10B981)),
+                    tooltip: 'Entra nella cartella',
+                    onPressed: () => widget.controller.enterFolder(widget.node.id),
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.add_box, size: 20, color: Color(0xFF6366F1)),
-                    onPressed: () => onAddChild(node.id),
+                    onPressed: () => widget.onAddChild(widget.node.id),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.remove, size: 16, color: Colors.white54),
-                    onPressed: () => controller.setDepthLimit(node.id, effectiveLimit - 1),
+                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit - 1),
                   ),
                   Text('$effectiveLimit', style: const TextStyle(color: Colors.white)),
                   IconButton(
                     icon: const Icon(Icons.add, size: 16, color: Colors.white54),
-                    onPressed: () => controller.setDepthLimit(node.id, effectiveLimit + 1),
+                    onPressed: () => widget.controller.setDepthLimit(widget.node.id, effectiveLimit + 1),
                   ),
                 ],
               ),
               onTap: () {
-                controller.toggleExpand(node.id, visuallyExpanded);
+                widget.controller.toggleExpand(widget.node.id, visuallyExpanded);
               },
             ),
             AnimatedSize(
@@ -441,16 +550,16 @@ class _FolderNodeWidget extends StatelessWidget {
                         if (child.type == 'folder') {
                           return _FolderNodeWidget(
                             node: child, 
-                            controller: controller, 
-                            depth: depth + 1, 
+                            controller: widget.controller, 
+                            depth: widget.depth + 1, 
                             forceExpandLevelsRemaining: nextForceLevels,
-                            onAddChild: onAddChild,
+                            onAddChild: widget.onAddChild,
                           );
                         } else if (child.type == 'markdown') {
                           return MarkdownNodeWidget(
                             node: child,
-                            controller: controller,
-                            depth: depth + 1,
+                            controller: widget.controller,
+                            depth: widget.depth + 1,
                             limit: nextForceLevels,
                           );
                         }
@@ -464,6 +573,8 @@ class _FolderNodeWidget extends StatelessWidget {
         ),
       );
       },
+      ),
+      ),
       ),
     );
   }

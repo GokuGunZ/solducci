@@ -253,6 +253,123 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   Widget build(BuildContext context) {
     final double leftPadding = widget.depth == 0 ? 0.0 : 16.0;
     
+    final Widget editorContent = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C3E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.1), blurRadius: 30, spreadRadius: -10),
+        ]
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _titleController,
+                  style: const TextStyle(color: Color(0xFF6366F1), fontSize: 18, fontWeight: FontWeight.bold),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: _onTextChanged,
+                ),
+              ),
+              const Icon(Icons.arrow_back_ios, color: Colors.transparent, size: 16),
+              const SizedBox(width: 6),
+              const Icon(Icons.edit_note, color: Colors.transparent, size: 16),
+            ],
+          ),
+          if (widget.limit > 0 || _isEditing) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _textController,
+              focusNode: _focusNode,
+              scrollController: _editorScrollController,
+              maxLines: null,
+              style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 15, height: 1.5),
+              decoration: const InputDecoration(
+                hintText: 'Editor rivelato dall\'onda...',
+                hintStyle: TextStyle(color: Colors.white24),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: _onTextChanged,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    final Widget readerContent = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E2C),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(-10, 0)),
+        ]
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(widget.node.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              Icon(Icons.arrow_back_ios, color: Colors.white.withValues(alpha: 0.1), size: 16),
+              const SizedBox(width: 6),
+              Icon(Icons.edit_note, color: Colors.white.withValues(alpha: 0.1), size: 16),
+            ],
+          ),
+          if (widget.limit > 0 || _isEditing) ...[
+            const SizedBox(height: 12),
+            MarkdownBody(
+              data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
+              selectable: false,
+              styleSheet: MarkdownStyleSheet(
+                p: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 15, height: 1.5),
+                h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
+                h2: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
+                h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
+                h4: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2),
+                h5: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2),
+                h6: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.2),
+                em: const TextStyle(fontStyle: FontStyle.italic),
+                strong: const TextStyle(fontWeight: FontWeight.bold),
+                blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+                blockquoteDecoration: BoxDecoration(
+                  border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                ),
+                code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
+                codeblockDecoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                listBullet: const TextStyle(color: Color(0xFF6366F1)),
+                checkbox: const TextStyle(color: Color(0xFF6366F1)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
     return Padding(
       padding: EdgeInsets.only(left: leftPadding, top: 4, bottom: 4),
       child: LayoutBuilder(
@@ -265,133 +382,45 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
             alignment: Alignment.topCenter,
             child: Stack(
               children: [
-                // Background (Editor)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C2C3E),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
-                    boxShadow: [
-                      BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.1), blurRadius: 30, spreadRadius: -10),
-                    ]
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _titleController,
-                              style: const TextStyle(color: Color(0xFF6366F1), fontSize: 18, fontWeight: FontWeight.bold),
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              onChanged: _onTextChanged,
-                            ),
-                          ),
-                          const Icon(Icons.arrow_back_ios, color: Colors.transparent, size: 16),
-                          const SizedBox(width: 6),
-                          const Icon(Icons.edit_note, color: Colors.transparent, size: 16),
-                        ],
-                      ),
-                      if (widget.limit > 0 || _isEditing) ...[
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _textController,
-                          focusNode: _focusNode,
-                          scrollController: _editorScrollController,
-                          maxLines: null,
-                          style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 15, height: 1.5),
-                          decoration: const InputDecoration(
-                            hintText: 'Editor rivelato dall\'onda...',
-                            hintStyle: TextStyle(color: Colors.white24),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          onChanged: _onTextChanged,
-                        ),
-                      ],
-                    ],
+                // Invisible Size Dictator
+                Opacity(
+                  opacity: 0,
+                  child: IgnorePointer(
+                    child: _isEditing ? editorContent : readerContent,
                   ),
                 ),
+
+                // Background (Editor)
+                _isEditing ? editorContent : Positioned.fill(child: editorContent),
                 
                 // Foreground (Reader) wrapped in Liquid Clipper
-                IgnorePointer(
-                  ignoring: _isEditing,
-                  child: ClipPath(
-                    clipper: LiquidClipper(
-                      pullExtent: _dragExtent, 
-                      pullY: _dragY,
-                      baseWavePhase: _baseWavePhase,
-                      rippleWavePhase: _rippleWavePhase,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E2C),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white10),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(-10, 0)),
-                        ]
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(widget.node.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                              ),
-                              Icon(Icons.arrow_back_ios, color: Colors.white.withValues(alpha: 0.1), size: 16),
-                              const SizedBox(width: 6),
-                              Icon(Icons.edit_note, color: Colors.white.withValues(alpha: 0.1), size: 16),
-                            ],
+                _isEditing
+                  ? Positioned.fill(
+                      child: IgnorePointer(
+                        ignoring: _isEditing,
+                        child: ClipPath(
+                          clipper: LiquidClipper(
+                            pullExtent: _dragExtent, 
+                            pullY: _dragY,
+                            baseWavePhase: _baseWavePhase,
+                            rippleWavePhase: _rippleWavePhase,
                           ),
-                          if (widget.limit > 0 || _isEditing) ...[
-                            const SizedBox(height: 12),
-                            MarkdownBody(
-                              data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
-                              selectable: false,
-                              styleSheet: MarkdownStyleSheet(
-                                p: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 15, height: 1.5),
-                                h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
-                                h2: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
-                                h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
-                                h4: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2),
-                                h5: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2),
-                                h6: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.2),
-                                em: const TextStyle(fontStyle: FontStyle.italic),
-                                strong: const TextStyle(fontWeight: FontWeight.bold),
-                                blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
-                                blockquoteDecoration: BoxDecoration(
-                                  border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
-                                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                                ),
-                                code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
-                                codeblockDecoration: BoxDecoration(
-                                  color: Colors.black45,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                listBullet: const TextStyle(color: Color(0xFF6366F1)),
-                                checkbox: const TextStyle(color: Color(0xFF6366F1)),
-                              ),
-                            ),
-                          ],
-                        ],
+                          child: readerContent,
+                        ),
+                      ),
+                    )
+                  : IgnorePointer(
+                      ignoring: _isEditing,
+                      child: ClipPath(
+                        clipper: LiquidClipper(
+                          pullExtent: _dragExtent, 
+                          pullY: _dragY,
+                          baseWavePhase: _baseWavePhase,
+                          rippleWavePhase: _rippleWavePhase,
+                        ),
+                        child: readerContent,
                       ),
                     ),
-                  ),
-                ),
                 
                 // Right Drag Area (To Open)
                 if (!_isEditing)
