@@ -26,6 +26,7 @@ import 'package:solducci/features/time_management/views/create_trip_view.dart';
 import 'package:solducci/features/time_management/views/create_event_view.dart';
 import 'package:solducci/features/time_management/views/create_outing_view.dart';
 import 'package:solducci/features/time_management/views/create_availability_view.dart';
+import 'package:solducci/features/time_management/views/create_routine_view.dart';
 import 'package:solducci/features/time_management/views/trip_detail_view.dart';
 import 'package:solducci/features/time_management/views/event_detail_view.dart';
 import 'package:solducci/features/time_management/views/outing_detail_view.dart';
@@ -214,6 +215,10 @@ class AppRouter {
       GoRoute(
         path: '/space/time_management/scenario/outing/:id',
         builder: (context, state) => OutingDetailView(scenarioId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/space/time_management/create_routine',
+        builder: (context, state) => const CreateRoutineView(),
       ),
 
       // Group Management Routes

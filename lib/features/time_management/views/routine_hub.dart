@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/routine.dart';
 import 'package:uuid/uuid.dart';
@@ -53,42 +54,12 @@ class RoutineHub extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _createDummyRoutine(context),
+        onPressed: () => context.push('/space/time_management/create_routine'),
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Nuovo Set', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF8B5CF6),
       ),
     );
-  }
-
-  void _createDummyRoutine(BuildContext context) async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
-    final templateId = const Uuid().v4();
-    final template = RoutineTemplate(
-      id: templateId,
-      userId: userId,
-      name: 'Nuova Sveglia Base',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    final schedule = RoutineSchedule(
-      id: const Uuid().v4(),
-      routineTemplateId: templateId,
-      targetTime: const TimeOfDay(hour: 8, minute: 0),
-      dayOfWeek: 1, // Lunedì
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    try {
-      await TimeManagementService().createRoutineTemplate(template, [schedule]);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sveglia creata!')));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore: $e')));
-    }
   }
 }
 

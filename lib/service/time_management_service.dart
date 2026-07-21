@@ -174,7 +174,7 @@ class TimeManagementService {
     }
   }
 
-  Future<void> createRoutineTemplate(RoutineTemplate template, List<RoutineSchedule> schedules) async {
+  Future<void> createRoutineTemplate(RoutineTemplate template, List<RoutineSchedule> schedules, List<RoutineAlarm> alarms) async {
     try {
       final response = await _supabase.from('routine_templates').insert(template.toMap()).select().single();
       final generatedId = response['id'] as String;
@@ -183,6 +183,12 @@ class TimeManagementService {
         final scheduleMap = schedule.toMap();
         scheduleMap['routine_template_id'] = generatedId;
         await _supabase.from('routine_schedules').insert(scheduleMap);
+      }
+      
+      for (var alarm in alarms) {
+        final alarmMap = alarm.toMap();
+        alarmMap['routine_template_id'] = generatedId;
+        await _supabase.from('routine_alarms').insert(alarmMap);
       }
     } catch (e) {
       rethrow;
