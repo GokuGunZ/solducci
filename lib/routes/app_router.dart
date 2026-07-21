@@ -37,6 +37,11 @@ import 'package:solducci/views/groups/group_detail_page.dart';
 import 'package:solducci/views/groups/invite_member_page.dart';
 import 'package:solducci/views/groups/pending_invites_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:solducci/views/hubs/important_hub_view.dart';
+import 'package:solducci/views/hubs/economy_charts_hub_view.dart';
+import 'package:solducci/features/time_management/views/focus_hub_view.dart';
+import 'package:solducci/features/time_management/views/habit_hub_view.dart';
+import 'package:solducci/views/groups/group_management_hub_view.dart';
 
 /// Global router configuration for the app
 /// Handles authentication state and navigation
@@ -233,8 +238,28 @@ class AppRouter {
 
       // Group Management Routes
       GoRoute(
+        path: '/groups/management',
+        builder: (context, state) => const GroupManagementHubView(),
+      ),
+      GoRoute(
         path: '/groups/create',
         builder: (context, state) => const CreateGroupPage(),
+      ),
+      GoRoute(
+        path: '/important',
+        builder: (context, state) => const ImportantHubView(),
+      ),
+      GoRoute(
+        path: '/economy/charts',
+        builder: (context, state) => const EconomyChartsHubView(),
+      ),
+      GoRoute(
+        path: '/focus',
+        builder: (context, state) => const FocusHubView(),
+      ),
+      GoRoute(
+        path: '/habits',
+        builder: (context, state) => const HabitHubView(),
       ),
 
       // Group detail

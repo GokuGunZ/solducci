@@ -5,6 +5,7 @@ import 'package:solducci/views/hubs/action_hub_view.dart';
 import 'package:solducci/views/hubs/archive_hub_view.dart';
 import 'package:solducci/widgets/constellation_menu.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/widgets/quick_add_item_modal.dart';
 import 'package:go_router/go_router.dart';
 
 /// Shell widget that provides persistent bottom navigation bar
@@ -56,18 +57,14 @@ class ShellWithNavState extends State<ShellWithNav> {
       case 0: // Feed
         return [
           ConstellationAction(
-            label: 'Gruppo',
-            icon: Icons.group_add,
-            onTap: () => context.push('/groups/create'),
+            label: 'Gruppi',
+            icon: Icons.group,
+            onTap: () => context.push('/groups/management'),
           ),
           ConstellationAction(
             label: 'Importanti',
             icon: Icons.priority_high,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Hub Importanti in arrivo!')),
-              );
-            },
+            onTap: () => context.push('/important'),
           ),
         ];
       case 1: // Economia
@@ -75,17 +72,52 @@ class ShellWithNavState extends State<ShellWithNav> {
           ConstellationAction(
             label: 'Grafici',
             icon: Icons.pie_chart,
-            onTap: () => context.push('/dashboard/monthly'),
+            onTap: () => context.push('/economy/charts'),
           ),
           ConstellationAction(
-            label: 'Dispense',
+            label: 'Dispensa',
             icon: Icons.kitchen,
-            onTap: () => context.push('/space/pantry'),
+            onTap: () {
+              QuickAddItemModal.show(
+                context: context,
+                title: 'Aggiungi in Dispensa',
+                themeColor: const Color(0xFF10B981),
+                folders: [
+                  CollectionFolder('1', 'Casa'),
+                  CollectionFolder('2', 'Ufficio'),
+                ],
+                onAdd: (folderId, itemName) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Aggiunto "$itemName" alla dispensa!')),
+                  );
+                },
+              );
+            },
           ),
           ConstellationAction(
-            label: 'Liste Spesa',
+            label: 'Lista Spesa',
             icon: Icons.shopping_cart,
-            onTap: () => context.push('/space/shopping'),
+            onTap: () {
+              QuickAddItemModal.show(
+                context: context,
+                title: 'Nuovo Elemento Spesa',
+                themeColor: const Color(0xFF10B981),
+                folders: [
+                  CollectionFolder('1', 'Spesa Settimanale'),
+                  CollectionFolder('2', 'Festa Compleanno'),
+                  CollectionFolder('3', 'Farmacia'),
+                  CollectionFolder('4', 'Bricolage'),
+                  CollectionFolder('5', 'Cena Sabato'),
+                  CollectionFolder('6', 'Lavoro'),
+                  CollectionFolder('7', 'Altro (Test Dropdown)'),
+                ],
+                onAdd: (folderId, itemName) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Aggiunto "$itemName" alla lista!')),
+                  );
+                },
+              );
+            },
           ),
         ];
       case 2: // Azione
@@ -98,20 +130,12 @@ class ShellWithNavState extends State<ShellWithNav> {
           ConstellationAction(
             label: 'Focus',
             icon: Icons.timer,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Focus Mode in arrivo!')),
-              );
-            },
+            onTap: () => context.push('/focus'),
           ),
           ConstellationAction(
             label: 'Abitudini',
             icon: Icons.check_circle,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Habit Tracker in arrivo!')),
-              );
-            },
+            onTap: () => context.push('/habits'),
           ),
         ];
       case 3: // Archivio
