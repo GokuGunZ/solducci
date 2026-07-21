@@ -22,6 +22,9 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
   
   DateTime? _lastTime;
   double _pullVelocity = 0.0;
+  double _baseWavePhase = 0.0;
+  double _rippleWavePhase = 0.0;
+  double _currentRippleSpeed = 0.05;
   
   double _currentHeight = 250.0;
 
@@ -44,6 +47,21 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
     _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
     _waveController.addListener(() {
       setState(() {
+        double baseSpeed = 0.06; // Leggermente più rapida
+        _baseWavePhase += baseSpeed;
+        
+        double minRippleSpeed = 0.03;
+        double maxRippleSpeed = 0.12; // Velocità massima ridotta per l'effetto melma
+        
+        // Mappiamo la pullVelocity sull'intervallo [min, max]
+        double targetRippleSpeed = minRippleSpeed + (_pullVelocity / 1500.0) * (maxRippleSpeed - minRippleSpeed);
+        targetRippleSpeed = targetRippleSpeed.clamp(minRippleSpeed, maxRippleSpeed);
+        
+        // Interpolazione morbida per evitare variazioni frenetiche della velocità
+        _currentRippleSpeed += (targetRippleSpeed - _currentRippleSpeed) * 0.05;
+        
+        _rippleWavePhase += _currentRippleSpeed;
+        
         if (_pullVelocity > 0) {
           _pullVelocity *= 0.92; // smooth decay
           if (_pullVelocity < 0.1) _pullVelocity = 0;
@@ -187,8 +205,8 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
                   clipper: LiquidClipper(
                     pullExtent: _dragExtent, 
                     pullY: _dragY,
-                    waveTime: _waveController.value * 2 * pi,
-                    pullVelocity: _pullVelocity,
+                    baseWavePhase: _baseWavePhase,
+                    rippleWavePhase: _rippleWavePhase,
                   ),
                   child: Container(
                     width: double.infinity,
@@ -281,17 +299,18 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
     );
   }
 }
+
 class LiquidClipper extends CustomClipper<Path> {
   final double pullExtent;
   final double pullY;
-  final double waveTime;
-  final double pullVelocity;
+  final double baseWavePhase;
+  final double rippleWavePhase;
 
   LiquidClipper({
     required this.pullExtent, 
     required this.pullY,
-    required this.waveTime,
-    required this.pullVelocity,
+    required this.baseWavePhase,
+    required this.rippleWavePhase,
   });
 
   @override
@@ -310,23 +329,16 @@ class LiquidClipper extends CustomClipper<Path> {
 
     double dragCenterY = pullY.clamp(0.0, size.height);
     
-    // Smooth, straighter drag physics:
-    // The peak of the pull corresponds exactly to the drag distance (`pull`).
-    // The top and bottom edges lag behind the drag by `lag`.
-    double maxLag = 100.0;
-    double lag = (pull * 0.5).clamp(0.0, maxLag);
+    // Cono stretto: lag concentrato
+    double maxLag = 60.0;
+    double lag = (pull * 0.4).clamp(0.0, maxLag);
     double rightEdgeBase = size.width - pull + lag; 
     
     path.lineTo(rightEdgeBase, 0);
 
     int segments = 120; 
-    
     double baseAmplitude = 6.0;
-    
-    double rippleAmp = 0.0;
-    if (pullVelocity > 5) {
-      rippleAmp = ((pullVelocity - 20) / 100.0).clamp(0.0, 3.0)/2.0;
-    }
+    double rippleAmp = 1.2;
 
     for (int i = 0; i <= segments; i++) {
       double t = i / segments; 
@@ -334,21 +346,19 @@ class LiquidClipper extends CustomClipper<Path> {
       
       double dist = (currentY - dragCenterY).abs();
       
-      // Il moltiplicatore di waveTime deve essere un numero intero per evitare i salti (discontinuità)
-      // a fine ciclo dell'AnimationController. (ex: waveTime * 1.0)
-      double baseWave = sin(t * 9 * pi + waveTime);
+      // La base wave usa la sua fase indipendente e fissa. Frequenza ridotta (5*pi) per essere più sinuosa e lunga.
+      double baseWave = sin(t * 10 * pi + baseWavePhase);
       
-      // Essendo la durata 4 secondi, moltiplichiamo per 8.0 per mantenere la velocità alta
-      double rippleWave = sin(t * 40 * pi - waveTime * 8.0);
+      // Il ripple ha frequenza ridotta (12*pi) per essere meno spigoloso (non "frizzante")
+      double rippleWave = sin(t * 12 * pi - rippleWavePhase);
       
+      // AM Synthesis
       double waveX = baseWave * (baseAmplitude + (rippleWave * rippleAmp));
       
-      // Calcolo del picco elastico:
-      // Invece di creare un "cono" affilato, distribuiamo il lag su un raggio più ampio
+      // Elasticità (Cono) molto stretta attorno al dito
       double stretch = 0;
-      double influenceRadius = 250.0; // raggio molto ampio per una linea più dritta
+      double influenceRadius = 90.0; // Cono meno ampio (più appuntito ma liscio)
       if (dist < influenceRadius) {
-         // Coseno singolo per renderlo più ampio e morbido rispetto al coseno al quadrato
          double influence = cos((dist / influenceRadius) * (pi / 2));
          stretch = influence * lag;
       }
