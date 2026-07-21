@@ -336,6 +336,16 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
               if (!availableGroupIds.contains(selectedTargetGroupId)) availableGroupIds.add(selectedTargetGroupId);
             }
 
+            Color getTabColor(String tab) {
+              switch (tab) {
+                case 'Bookmarks': return const Color(0xFFFBBF24); // Amber
+                case 'Recenti': return const Color(0xFF38BDF8); // Cyan
+                case 'Nuove': return const Color(0xFF34D399); // Emerald
+                case 'Tree': return const Color(0xFF818CF8); // Indigo
+                default: return Colors.white;
+              }
+            }
+
             List<Widget> buildTree(String? parentId, int depth) {
               final children = _controller.allNodes.where((n) => n.type == 'folder' && n.groupId == selectedTargetGroupId && n.parentId == parentId).toList();
               List<Widget> widgets = [];
@@ -347,8 +357,8 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     color: isTarget ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
                     child: ListTile(
                       contentPadding: EdgeInsets.only(left: 16.0 + (depth * 24.0), right: 16.0),
-                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.amber : const Color(0xFF10B981)),
-                      title: Text(folder.title, style: TextStyle(color: isSelectedToMove ? Colors.white30 : (isTarget ? Colors.amber : Colors.white))),
+                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.white : getTabColor('Tree').withValues(alpha: 0.8)),
+                      title: Text(folder.title, style: TextStyle(color: isSelectedToMove ? Colors.white30 : (isTarget ? Colors.white : Colors.white))),
                       enabled: !isSelectedToMove,
                       onTap: isSelectedToMove ? null : () {
                         setModalState(() {
@@ -361,6 +371,23 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                 widgets.addAll(buildTree(folder.id, depth + 1));
               }
               return widgets;
+            }
+
+            List<CanvasNode> getTabFolders() {
+              final folders = _controller.allNodes.where((n) => n.type == 'folder' && n.groupId == selectedTargetGroupId).toList();
+
+              switch (selectedTab) {
+                case 'Recenti':
+                  folders.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+                  return folders.take(15).toList();
+                case 'Nuove':
+                  folders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                  return folders.take(15).toList();
+                case 'Bookmarks':
+                  return folders.where((n) => n.metadata['isBookmarked'] == true).toList();
+                default:
+                  return [];
+              }
             }
 
             return Container(
@@ -447,6 +474,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       child: Row(
                         children: ['Bookmarks', 'Recenti', 'Nuove', 'Tree'].map((tab) {
                           final isSelected = selectedTab == tab;
+                          final tabColor = getTabColor(tab);
                           return Expanded(
                             child: GestureDetector(
                               onTap: () => setModalState(() => selectedTab = tab),
@@ -459,10 +487,10 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                   color: isSelected ? const Color(0xFF2B2B36) : Colors.transparent,
                                   borderRadius: BorderRadius.circular(10),
                                   boxShadow: isSelected 
-                                      ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))]
+                                      ? [BoxShadow(color: tabColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 1))]
                                       : [],
                                   border: Border.all(
-                                    color: isSelected ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+                                    color: isSelected ? tabColor.withValues(alpha: 0.3) : Colors.transparent,
                                     width: 1,
                                   ),
                                 ),
@@ -471,7 +499,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                   duration: const Duration(milliseconds: 250),
                                   curve: Curves.easeOutCubic,
                                   style: TextStyle(
-                                    color: isSelected ? Colors.white : Colors.white38, 
+                                    color: isSelected ? tabColor : Colors.white38, 
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500, 
                                     fontSize: 13,
                                     fontFamily: 'Inter', // Assuming Inter or similar is used, falls back gracefully
@@ -487,26 +515,76 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                   ),
                   const SizedBox(height: 8),
                   Expanded(
-                    child: selectedTab == 'Tree' 
-                      ? ListView(
-                          children: [
-                            Container(
-                              color: selectedTargetFolderId == null ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
-                              child: ListTile(
-                                leading: Icon(selectedTargetFolderId == null ? Icons.home : Icons.home_outlined, color: selectedTargetFolderId == null ? Colors.amber : Colors.white),
-                                title: Text('Root (${selectedTargetGroupId == null ? "Spazio Personale" : "Gruppo"})', style: TextStyle(color: selectedTargetFolderId == null ? Colors.amber : Colors.white, fontWeight: FontWeight.bold)),
-                                onTap: () {
-                                  setModalState(() => selectedTargetFolderId = null);
-                                },
-                              ),
-                            ),
-                            const Divider(color: Colors.white10, height: 1),
-                            ...buildTree(null, 0),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            getTabColor(selectedTab).withValues(alpha: 0.08),
+                            Colors.transparent,
+                            Colors.transparent,
                           ],
-                        )
-                      : Center(
-                          child: Text('Nessun elemento in $selectedTab', style: const TextStyle(color: Colors.white54)),
+                          stops: const [0.0, 0.25, 1.0],
                         ),
+                      ),
+                      child: selectedTab == 'Tree' 
+                        ? ListView(
+                            children: [
+                              Container(
+                                color: selectedTargetFolderId == null ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                                child: ListTile(
+                                  leading: Icon(selectedTargetFolderId == null ? Icons.home : Icons.home_outlined, color: selectedTargetFolderId == null ? Colors.white : getTabColor('Tree').withValues(alpha: 0.8)),
+                                  title: Text('Root (${selectedTargetGroupId == null ? "Spazio Personale" : "Gruppo"})', style: TextStyle(color: selectedTargetFolderId == null ? Colors.white : Colors.white, fontWeight: FontWeight.bold)),
+                                  onTap: () {
+                                    setModalState(() => selectedTargetFolderId = null);
+                                  },
+                                ),
+                              ),
+                              const Divider(color: Colors.white10, height: 1),
+                              ...buildTree(null, 0),
+                            ],
+                          )
+                        : Builder(
+                            builder: (ctx) {
+                              final tabFolders = getTabFolders();
+                              if (tabFolders.isEmpty) {
+                                return Center(
+                                  child: Text('Nessun elemento in $selectedTab', style: const TextStyle(color: Colors.white54)),
+                                );
+                              }
+                              return ListView.builder(
+                                itemCount: tabFolders.length,
+                                itemBuilder: (context, index) {
+                                  final folder = tabFolders[index];
+                                  final isSelectedToMove = _selectedNodeIds.contains(folder.id);
+                                  final isTarget = selectedTargetFolderId == folder.id;
+                                  return Container(
+                                    color: isTarget ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                                    child: ListTile(
+                                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.white : getTabColor(selectedTab).withValues(alpha: 0.8)),
+                                      title: Text(folder.title, style: TextStyle(color: isSelectedToMove ? Colors.white30 : (isTarget ? Colors.white : Colors.white))),
+                                      subtitle: Text(
+                                        selectedTab == 'Nuove' 
+                                            ? 'Creata il ${folder.createdAt.day}/${folder.createdAt.month}/${folder.createdAt.year}' 
+                                            : 'Modificata il ${folder.updatedAt.day}/${folder.updatedAt.month}/${folder.updatedAt.year}', 
+                                        style: const TextStyle(color: Colors.white38, fontSize: 12)
+                                      ),
+                                      enabled: !isSelectedToMove,
+                                      onTap: isSelectedToMove ? null : () {
+                                        setModalState(() {
+                                          selectedTargetFolderId = folder.id;
+                                        });
+                                      },
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                    ),
                   ),
                 ],
               ),
