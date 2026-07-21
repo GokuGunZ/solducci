@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class DemoFlipCardView extends StatefulWidget {
   const DemoFlipCardView({super.key});
@@ -11,6 +12,7 @@ class DemoFlipCardView extends StatefulWidget {
 
 class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late TextEditingController _textController;
   double _dragExtent = 0.0;
   bool _isFlipped = false;
   final double _flipThreshold = 150.0;
@@ -19,6 +21,7 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
   @override
   void initState() {
     super.initState();
+    _textController = TextEditingController(text: '# Titolo Appunto\nQuesta è una prova di testo formattato.\n- [ ] Task 1\n- [ ] Task 2');
     _controller = AnimationController(vsync: this, lowerBound: -double.infinity, upperBound: double.infinity);
     _controller.addListener(() {
       setState(() {
@@ -30,6 +33,7 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
   @override
   void dispose() {
     _controller.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
@@ -45,6 +49,10 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
 
   void _onPanEnd(DragEndDetails details) {
     double velocity = details.velocity.pixelsPerSecond.dx;
+    _animateToTarget(velocity);
+  }
+
+  void _animateToTarget(double velocity) {
     double target = 0.0;
 
     if (!_isFlipped) {
@@ -69,6 +77,17 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
 
     final spring = SpringDescription(mass: 1.0, stiffness: 200.0, damping: 20.0);
     final simulation = SpringSimulation(spring, _dragExtent, target, velocity);
+    _controller.animateWith(simulation);
+  }
+
+  void _triggerFlip() {
+    _controller.stop();
+    _isFlipped = !_isFlipped;
+    double target = _isFlipped ? -_maxDrag : 0.0;
+    
+    // Smooth programmatic flip
+    final spring = SpringDescription(mass: 1.0, stiffness: 120.0, damping: 15.0);
+    final simulation = SpringSimulation(spring, _dragExtent, target, 0);
     _controller.animateWith(simulation);
   }
 
@@ -111,8 +130,8 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
 
   Widget _buildFront() {
     return Container(
-      width: 320,
-      height: 220,
+      width: 340,
+      height: 250,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E2C),
@@ -122,14 +141,37 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
           BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.3), blurRadius: 30, spreadRadius: -10),
         ]
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.edit_note, color: Color(0xFF6366F1), size: 36),
-          SizedBox(height: 16),
-          Text('Architettura Pulita', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-          SizedBox(height: 12),
-          Text('Swipe orizzontale sulla card per ruotare la visuale in 3D ed entrare in modalità modifica.', style: TextStyle(color: Colors.white54, fontSize: 16, height: 1.5)),
+          Row(
+            children: [
+              const Icon(Icons.description, color: Color(0xFF6366F1), size: 24),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text('Markdown', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
+                onPressed: _triggerFlip,
+                tooltip: 'Modifica',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              child: MarkdownBody(
+                data: _textController.text.isEmpty ? '*Appunto vuoto*' : _textController.text,
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(color: Colors.white70, fontSize: 15),
+                  h1: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  listBullet: const TextStyle(color: Color(0xFF6366F1)),
+                  checkbox: const TextStyle(color: Color(0xFF6366F1)),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -137,8 +179,8 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
 
   Widget _buildBack() {
     return Container(
-      width: 320,
-      height: 220,
+      width: 340,
+      height: 250,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C3E),
@@ -151,16 +193,31 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Modalità Codice', style: TextStyle(color: Color(0xFF10B981), fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          TextField(
-            autofocus: true,
-            maxLines: null,
-            style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 16),
-            decoration: const InputDecoration(
-              hintText: 'Scrivi qui il markdown...',
-              hintStyle: TextStyle(color: Colors.white24),
-              border: InputBorder.none,
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Modalità Codice', style: TextStyle(color: Color(0xFF10B981), fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.check, color: Color(0xFF10B981), size: 24),
+                onPressed: _triggerFlip,
+                tooltip: 'Fatto',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: TextField(
+              controller: _textController,
+              autofocus: false,
+              maxLines: null,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: 'Scrivi qui il markdown...',
+                hintStyle: TextStyle(color: Colors.white24),
+                border: InputBorder.none,
+              ),
             ),
           ),
         ],

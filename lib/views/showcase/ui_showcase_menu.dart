@@ -4,6 +4,7 @@ import 'package:solducci/views/documents/filter_sort_ui_preview.dart';
 import 'package:solducci/views/documents/dropdown_selector_preview.dart';
 import 'package:solducci/views/showcase/background_showcase_page.dart';
 import 'package:solducci/views/showcase/glass_morphism_showcase_page.dart';
+import 'package:solducci/views/showcase/interactive_cards_showcase_page.dart';
 
 /// Menu page that groups all UI showcase pages
 class UIShowcaseMenu extends StatelessWidget {
@@ -90,6 +91,21 @@ class UIShowcaseMenu extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const GlassMorphismShowcasePage(),
+                ),
+              );
+            },
+          ),
+          _buildShowcaseTile(
+            context: context,
+            icon: Icons.auto_awesome_motion,
+            title: 'Interactive Cards (Markdown)',
+            subtitle: 'Demo 3D Flip ed Elastic Liquid Swipe',
+            color: Colors.pinkAccent,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const InteractiveCardsShowcasePage(),
                 ),
               );
             },

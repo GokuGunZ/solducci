@@ -1,5 +1,7 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class DemoLiquidCardView extends StatefulWidget {
   const DemoLiquidCardView({super.key});
@@ -8,20 +10,44 @@ class DemoLiquidCardView extends StatefulWidget {
   State<DemoLiquidCardView> createState() => _DemoLiquidCardViewState();
 }
 
-class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTickerProviderStateMixin {
+class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _waveController;
+  late TextEditingController _textController;
+  
   double _dragExtent = 0.0;
   bool _isEditing = false;
   final double _flipThreshold = 150.0;
   double _dragY = 100.0; 
+  
+  DateTime? _lastTime;
+  double _pullVelocity = 0.0;
+  
+  double _currentHeight = 250.0;
 
   @override
   void initState() {
     super.initState();
+    _textController = TextEditingController(text: '# Appunto Liquido\nTira la card per svelare l\'editor.\n- Acqua in movimento\n- Fisica elastica');
+    
     _controller = AnimationController(vsync: this, lowerBound: -double.infinity, upperBound: double.infinity);
     _controller.addListener(() {
       setState(() {
         _dragExtent = _controller.value;
+        // When snapping, calculate velocity to keep wave bouncy
+        if (_controller.velocity.abs() > 0) {
+          _pullVelocity = _controller.velocity.abs();
+        }
+      });
+    });
+    
+    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
+    _waveController.addListener(() {
+      setState(() {
+        if (_pullVelocity > 0) {
+          _pullVelocity *= 0.92; // smooth decay
+          if (_pullVelocity < 0.1) _pullVelocity = 0;
+        }
       });
     });
   }
@@ -29,23 +55,48 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTick
   @override
   void dispose() {
     _controller.dispose();
+    _waveController.dispose();
+    _textController.dispose();
     super.dispose();
+  }
+  
+  void _updateHeightState(bool editing) {
+    if (_isEditing == editing) return;
+    _isEditing = editing;
+    
+    // Delayed height adjustment
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && _isEditing == editing) {
+        setState(() {
+          _currentHeight = editing ? 400.0 : 250.0;
+        });
+      }
+    });
   }
 
   void _onPanStart(DragStartDetails details) {
     _controller.stop();
     setState(() {
       _dragY = details.localPosition.dy;
+      _lastTime = DateTime.now();
     });
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
     setState(() {
       _dragExtent += details.delta.dx;
-      // Constrain _dragExtent to stay between -320 and 0
       if (_dragExtent > 0) _dragExtent = 0;
-      if (_dragExtent < -320) _dragExtent = -320;
+      if (_dragExtent < -340) _dragExtent = -340;
       _dragY = details.localPosition.dy;
+      
+      final now = DateTime.now();
+      if (_lastTime != null) {
+        final dt = now.difference(_lastTime!).inMilliseconds;
+        if (dt > 0) {
+          _pullVelocity = (details.delta.dx.abs() / dt) * 1000.0;
+        }
+      }
+      _lastTime = now;
     });
   }
 
@@ -55,15 +106,15 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTick
 
     if (!_isEditing) {
       if (_dragExtent < -_flipThreshold || velocity < -500) {
-        target = -320.0; 
-        _isEditing = true;
+        target = -340.0; 
+        _updateHeightState(true);
       }
     } else {
       if (_dragExtent > -(_flipThreshold) || velocity > 500) {
         target = 0.0;
-        _isEditing = false;
+        _updateHeightState(false);
       } else {
-        target = -320.0;
+        target = -340.0;
       }
     }
 
@@ -82,9 +133,11 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTick
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
-        child: SizedBox(
-          width: 320,
-          height: 220,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.fastOutSlowIn,
+          width: 340,
+          height: _currentHeight,
           child: Stack(
             children: [
               // Background (Editor)
@@ -103,16 +156,20 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTick
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Editor Segreto', style: TextStyle(color: Color(0xFFE068F1), fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('Modalità Codice', style: TextStyle(color: Color(0xFFE068F1), fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    TextField(
-                      autofocus: false, // Prevents keyboard popping immediately
-                      maxLines: null,
-                      style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 16),
-                      decoration: const InputDecoration(
-                        hintText: 'Editor rivelato dall\'onda...',
-                        hintStyle: TextStyle(color: Colors.white24),
-                        border: InputBorder.none,
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        autofocus: false,
+                        maxLines: null,
+                        style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14),
+                        decoration: const InputDecoration(
+                          hintText: 'Editor rivelato dall\'onda...',
+                          hintStyle: TextStyle(color: Colors.white24),
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (_) => setState(() {}),
                       ),
                     ),
                   ],
@@ -121,9 +178,14 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTick
               
               // Foreground (Reader) wrapped in Liquid Clipper
               IgnorePointer(
-                ignoring: _isEditing, // When editing, foreground should not block taps
+                ignoring: _isEditing,
                 child: ClipPath(
-                  clipper: LiquidClipper(pullExtent: _dragExtent, pullY: _dragY),
+                  clipper: LiquidClipper(
+                    pullExtent: _dragExtent, 
+                    pullY: _dragY,
+                    waveTime: _waveController.value * 2 * pi,
+                    pullVelocity: _pullVelocity,
+                  ),
                   child: Container(
                     width: double.infinity,
                     height: double.infinity,
@@ -136,14 +198,33 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTick
                         BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(-10, 0)),
                       ]
                     ),
-                    child: const Column(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.auto_awesome, color: Color(0xFFE068F1), size: 36),
-                        SizedBox(height: 16),
-                        Text('Tira il bordo', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                        SizedBox(height: 12),
-                        Text('Trascina da destra verso sinistra per deformare la card come fosse liquida.', style: TextStyle(color: Colors.white54, fontSize: 16, height: 1.5)),
+                        Row(
+                          children: [
+                            const Icon(Icons.waves, color: Color(0xFFE068F1), size: 24),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text('Markdown', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                            ),
+                            Icon(Icons.arrow_back_ios, color: Colors.white.withValues(alpha: 0.1), size: 16),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: MarkdownBody(
+                              data: _textController.text.isEmpty ? '*Vuoto*' : _textController.text,
+                              styleSheet: MarkdownStyleSheet(
+                                p: const TextStyle(color: Colors.white70, fontSize: 15),
+                                h1: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                                listBullet: const TextStyle(color: Color(0xFFE068F1)),
+                                checkbox: const TextStyle(color: Color(0xFFE068F1)),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -200,8 +281,15 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with SingleTick
 class LiquidClipper extends CustomClipper<Path> {
   final double pullExtent;
   final double pullY;
+  final double waveTime;
+  final double pullVelocity;
 
-  LiquidClipper({required this.pullExtent, required this.pullY});
+  LiquidClipper({
+    required this.pullExtent, 
+    required this.pullY,
+    required this.waveTime,
+    required this.pullVelocity,
+  });
 
   @override
   Path getClip(Size size) {
@@ -214,23 +302,39 @@ class LiquidClipper extends CustomClipper<Path> {
 
     double pull = pullExtent.abs();
     if (pull >= size.width - 1) {
-      return Path(); // Fully revealed
+      return Path(); 
     }
 
-    double y = pullY.clamp(0.0, size.height);
-    
-    // The base edge moves exactly with the pull
+    double dragCenterY = pullY.clamp(0.0, size.height);
     double rightEdgeBase = size.width - pull; 
     
-    // The peak of the gooey curve stretches much further left
-    double controlPointX = size.width - (pull * 2.5); 
-
     path.lineTo(rightEdgeBase, 0);
-    path.lineTo(rightEdgeBase, y - 100);
-    path.quadraticBezierTo(
-      controlPointX, y, 
-      rightEdgeBase, y + 100
-    );
+
+    int segments = 60;
+    // Amplitude increases with velocity
+    double amplitude = (pullVelocity / 30.0).clamp(2.0, 30.0);
+    // Frequency increases with velocity
+    double frequency = 4 * pi + (pullVelocity / 200.0).clamp(0.0, 4 * pi); 
+
+    for (int i = 0; i <= segments; i++) {
+      double t = i / segments; 
+      double currentY = t * size.height;
+      
+      double dist = (currentY - dragCenterY).abs();
+      
+      double waveX = sin(t * frequency + waveTime) * amplitude;
+      
+      double stretch = 0;
+      double influenceRadius = 140.0;
+      if (dist < influenceRadius) {
+         double influence = cos((dist / influenceRadius) * (pi / 2));
+         stretch = influence * influence * (pull * 1.5);
+      }
+      
+      double x = rightEdgeBase - stretch - waveX;
+      path.lineTo(x, currentY);
+    }
+
     path.lineTo(rightEdgeBase, size.height);
     path.lineTo(0, size.height);
     path.close();
