@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:solducci/views/new_homepage.dart';
-import 'package:solducci/features/space/views/space_home_view.dart';
-import 'package:solducci/views/dashboard_hub.dart';
-import 'package:solducci/views/profile_page.dart';
+import 'package:solducci/views/hubs/feed_home_view.dart';
+import 'package:solducci/views/hubs/economy_hub_view.dart';
+import 'package:solducci/views/hubs/action_hub_view.dart';
+import 'package:solducci/views/hubs/archive_hub_view.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:go_router/go_router.dart';
 
@@ -26,10 +26,10 @@ class ShellWithNavState extends State<ShellWithNav> {
 
   // List of tab pages
   static const List<Widget> _pages = [
-    NewHomepage(),
-    SpaceHomeView(),
-    DashboardHub(),
-    ProfilePage(),
+    FeedHomeView(),
+    EconomyHubView(),
+    ActionHubView(),
+    ArchiveHubView(),
   ];
 
   void onItemTapped(int index) {
@@ -56,11 +56,11 @@ class ShellWithNavState extends State<ShellWithNav> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(0, Icons.attach_money_sharp, 'Finanze'),
-            _buildNavItem(1, Icons.space_dashboard_outlined, 'Spazio'),
+            _buildNavItem(0, Icons.home_filled, 'Feed'),
+            _buildNavItem(1, Icons.account_balance_wallet, 'Economia'),
             const SizedBox(width: 48), // Spazio per il FAB
-            _buildNavItem(2, Icons.analytics, 'Dashboard'),
-            _buildNavItem(3, Icons.person, 'Profilo'),
+            _buildNavItem(2, Icons.bolt, 'Azione'),
+            _buildNavItem(3, Icons.inventory_2, 'Archivio'),
           ],
         ),
       ),
@@ -127,10 +127,12 @@ class ShellWithNavState extends State<ShellWithNav> {
               Row(
                 children: [
                   _buildOmniOption(bottomSheetContext, 'Spesa', Icons.attach_money, const Color(0xFF10B981), () {
+                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
                     _openExpenseForm(context);
                   }),
                   const SizedBox(width: 16),
                   _buildOmniOption(bottomSheetContext, 'Task', Icons.check_circle_outline, const Color(0xFF3B82F6), () {
+                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
                     context.push('/space/tasks');
                   }),
                 ],
@@ -139,10 +141,12 @@ class ShellWithNavState extends State<ShellWithNav> {
               Row(
                 children: [
                   _buildOmniOption(bottomSheetContext, 'Evento/Viaggio', Icons.event, const Color(0xFF6366F1), () {
+                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
                     context.push('/space/time_management');
                   }),
                   const SizedBox(width: 16),
                   _buildOmniOption(bottomSheetContext, 'Nota', Icons.notes, const Color(0xFFF59E0B), () {
+                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
                     context.push('/space/notes');
                   }),
                 ],

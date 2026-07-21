@@ -5,6 +5,8 @@ import 'package:solducci/views/expense_list.dart';
 import 'package:solducci/views/splash_screen.dart';
 import 'package:solducci/views/login_page.dart';
 import 'package:solducci/views/signup_page.dart';
+import 'package:solducci/views/new_homepage.dart';
+import 'package:solducci/views/profile_page.dart';
 import 'package:solducci/views/shell_with_nav.dart';
 import 'package:solducci/views/monthly_view.dart';
 import 'package:solducci/views/category_view.dart';
@@ -79,6 +81,14 @@ class AppRouter {
       // Main App Shell with Bottom Navigation (single route with IndexedStack)
       GoRoute(path: '/home', builder: (context, state) => const ShellWithNav()),
 
+      GoRoute(
+        path: '/expenses_dashboard',
+        builder: (context, state) => const NewHomepage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfilePage(),
+      ),
       GoRoute(
         path: '/expense_list',
         builder: (context, state) => const ExpenseList(),
