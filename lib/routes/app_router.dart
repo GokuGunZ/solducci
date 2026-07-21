@@ -42,6 +42,7 @@ import 'package:solducci/views/hubs/economy_charts_hub_view.dart';
 import 'package:solducci/features/time_management/views/focus_hub_view.dart';
 import 'package:solducci/features/time_management/views/habit_hub_view.dart';
 import 'package:solducci/views/groups/group_management_hub_view.dart';
+import 'package:solducci/views/mosaico_view.dart';
 
 /// Global router configuration for the app
 /// Handles authentication state and navigation
@@ -97,6 +98,10 @@ class AppRouter {
       GoRoute(
         path: '/expense_list',
         builder: (context, state) => const ExpenseList(),
+      ),
+      GoRoute(
+        path: '/mosaico',
+        builder: (context, state) => const MosaicoView(),
       ),
 
       // Dashboard Detail Routes (full screen with back button)

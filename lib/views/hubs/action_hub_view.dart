@@ -3,9 +3,26 @@ import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/time_scenario.dart';
 import 'package:solducci/models/routine.dart';
 import 'package:go_router/go_router.dart';
+import 'package:solducci/widgets/time_dial.dart';
 
-class ActionHubView extends StatelessWidget {
+class ActionHubView extends StatefulWidget {
   const ActionHubView({super.key});
+
+  @override
+  State<ActionHubView> createState() => _ActionHubViewState();
+}
+
+class _ActionHubViewState extends State<ActionHubView> {
+  TimeOfDay _selectedTime = TimeOfDay.now();
+  late final Stream<List<TimeScenario>> _scenariosStream;
+  late final Stream<List<RoutineTemplate>> _routinesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _scenariosStream = TimeManagementService().timeScenariosStream;
+    _routinesStream = TimeManagementService().routinesStream;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +33,20 @@ class ActionHubView extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          TimeDialWidget(
+            initialTime: _selectedTime,
+            onTimeChanged: (time) {
+              setState(() {
+                _selectedTime = time;
+              });
+            },
+            events: [
+              TimeDialEvent(time: const TimeOfDay(hour: 8, minute: 0), title: 'Sveglia', color: const Color(0xFFEF4444)),
+              TimeDialEvent(time: const TimeOfDay(hour: 13, minute: 30), title: 'Pranzo', color: const Color(0xFF3B82F6)),
+              TimeDialEvent(time: const TimeOfDay(hour: 18, minute: 0), title: 'Palestra', color: const Color(0xFF10B981)),
+            ],
+          ),
+          const SizedBox(height: 32),
           Row(
             children: [
               Expanded(
@@ -35,7 +66,7 @@ class ActionHubView extends StatelessWidget {
           const Text('Programmi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 16),
           StreamBuilder<List<TimeScenario>>(
-            stream: TimeManagementService().timeScenariosStream,
+            stream: _scenariosStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text('Nessuno scenario in vista', style: TextStyle(color: Colors.white54));
@@ -69,7 +100,7 @@ class ActionHubView extends StatelessWidget {
           const Text('I Tuoi Set di Sveglie', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 16),
           StreamBuilder<List<RoutineTemplate>>(
-            stream: TimeManagementService().routinesStream,
+            stream: _routinesStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text('Nessuna routine impostata', style: TextStyle(color: Colors.white54));

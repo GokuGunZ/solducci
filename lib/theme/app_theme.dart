@@ -8,7 +8,7 @@ class AppTheme {
   static const Color success = Color(0xFF10B981); // Emerald
   static const Color warning = Color(0xFFF59E0B); // Amber
   static const Color error = Color(0xFFEF4444); // Red
-  static const Color textPrimary = Colors.white;
+  static const Color textPrimary = Color(0xFFE0E0E0);
   static const Color textSecondary = Colors.white54;
 
   static ThemeData get darkTheme {

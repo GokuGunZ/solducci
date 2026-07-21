@@ -7,8 +7,11 @@ class ArchiveHubView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        title: const Text('Archivio & Spazio'),
+        title: const Text('Esploratore Spazi', style: TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -20,6 +23,7 @@ class ArchiveHubView extends StatelessWidget {
             Icons.notes,
             const Color(0xFFF59E0B),
             '/space/notes',
+            'note',
           ),
           const SizedBox(height: 16),
           _buildArchiveCard(
@@ -29,6 +33,7 @@ class ArchiveHubView extends StatelessWidget {
             Icons.star_outline,
             const Color(0xFFEAB308),
             '/space/asterisks',
+            'asterisk',
           ),
           const SizedBox(height: 16),
           _buildArchiveCard(
@@ -38,42 +43,71 @@ class ArchiveHubView extends StatelessWidget {
             Icons.link,
             const Color(0xFF8B5CF6),
             '/space/resources',
+            'resource_list',
+          ),
+          const SizedBox(height: 16),
+          _buildArchiveCard(
+            context,
+            'Liste Spesa',
+            'Cosa comprare',
+            Icons.shopping_cart_outlined,
+            const Color(0xFF10B981),
+            '/space/shopping',
+            'shopping_list',
+          ),
+          const SizedBox(height: 16),
+          _buildArchiveCard(
+            context,
+            'Dispensa',
+            'Prodotti in casa',
+            Icons.kitchen,
+            const Color(0xFF10B981),
+            '/space/pantry',
+            'dispensa',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildArchiveCard(BuildContext context, String title, String subtitle, IconData icon, Color color, String route) {
-    return Card(
-      child: InkWell(
-        onTap: () => context.push(route),
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
+  Widget _buildArchiveCard(BuildContext context, String title, String subtitle, IconData icon, Color color, String route, String heroType) {
+    return GestureDetector(
+      onTap: () => context.push(route),
+      child: Hero(
+        tag: 'hero_space_$heroType',
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E).withOpacity(0.6),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: color, width: 1.5),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 32),
                 ),
-                child: Icon(icon, color: color, size: 32),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: const TextStyle(color: Colors.white54)),
-                  ],
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: const TextStyle(color: Colors.white54)),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.white30),
-            ],
+                const Icon(Icons.chevron_right, color: Colors.white30),
+              ],
+            ),
           ),
         ),
       ),

@@ -17,6 +17,7 @@ import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/routine.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 /// Shell widget that provides persistent bottom navigation bar
 /// Uses IndexedStack to preserve state when switching tabs
@@ -36,6 +37,8 @@ class ShellWithNav extends StatefulWidget {
 class ShellWithNavState extends State<ShellWithNav> {
   int _selectedIndex = 0;
   final GlobalKey _fabKey = GlobalKey();
+  final GlobalKey<ConstellationMenuOverlayState> _overlayKey = GlobalKey();
+  final ValueNotifier<Offset?> _dragNotifier = ValueNotifier(null);
   OverlayEntry? _overlayEntry;
 
   // List of tab pages
@@ -222,11 +225,28 @@ class ShellWithNavState extends State<ShellWithNav> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
-      floatingActionButton: FloatingActionButton(
-        key: _fabKey,
-        onPressed: () => _showOmniMenu(context),
-        backgroundColor: const Color(0xFF6366F1), // Forza un colore fisso per consistenza
-        child: const Icon(Icons.add, size: 32, color: Colors.white),
+      floatingActionButton: GestureDetector(
+        onPanStart: (details) {
+          _showOmniMenu(context);
+          _dragNotifier.value = details.globalPosition;
+        },
+        onPanUpdate: (details) {
+          _dragNotifier.value = details.globalPosition;
+        },
+        onPanEnd: (details) {
+          _dragNotifier.value = null;
+          _overlayKey.currentState?.executeHoveredAction();
+        },
+        child: FloatingActionButton(
+          key: _fabKey,
+          onPressed: () => _showOmniMenu(context),
+          backgroundColor: const Color(0xFF6366F1),
+          child: const Icon(Icons.add, size: 32, color: Colors.white),
+        )
+        .animate()
+        .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.8), curve: Curves.easeOutQuad)
+        .animate(onPlay: (controller) => controller.repeat(reverse: true))
+        .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.06, 1.06), duration: 2.seconds, curve: Curves.easeInOutSine),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -305,6 +325,8 @@ class ShellWithNavState extends State<ShellWithNav> {
     _overlayEntry = OverlayEntry(
       builder: (context) {
         return ConstellationMenuOverlay(
+          key: _overlayKey,
+          dragNotifier: _dragNotifier,
           fabOffset: offset,
           fabSize: size,
           tabColor: _currentTabColor,

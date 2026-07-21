@@ -329,21 +329,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildSectionTitle('Info & Supporto'),
                   const SizedBox(height: 8),
 
-                  // UI Showcase - visible only for test@te.st
-                  if (user?.email == 'test@te.st')
+                  // Mosaico Design System - visible only in dev mode
+                  if (const String.fromEnvironment('ENVIRONMENT') == 'development')
                     _buildListTile(
                       context: context,
                       icon: Icons.dashboard_customize,
-                      title: 'UI Showcase',
-                      subtitle: 'Galleria componenti e design system',
+                      title: 'Mosaico (Design System)',
+                      subtitle: 'Galleria componenti Neon & OLED',
                       color: Colors.purple,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UIShowcaseMenu(),
-                          ),
-                        );
+                        context.push('/mosaico');
                       },
                     ),
 

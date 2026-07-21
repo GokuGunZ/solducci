@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/core/widgets/donut_progress_indicator.dart';
 import 'package:solducci/models/space_items.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:solducci/features/space/views/vectorial_notes_view.dart';
 
 class SpaceDocumentListView extends StatefulWidget {
   final String type;
@@ -25,6 +27,7 @@ class SpaceDocumentListView extends StatefulWidget {
 class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
   final _documentService = DocumentService();
   final _contextManager = ContextManager();
+  bool _isVectorial = false;
 
   @override
   void initState() {
@@ -42,81 +45,182 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
     if (mounted) setState(() {});
   }
 
+  Color _getColorForType(String type) {
+    switch (type) {
+      case 'note': return const Color(0xFFF59E0B);
+      case 'asterisk': return const Color(0xFFEAB308);
+      case 'resource_list': return const Color(0xFF8B5CF6);
+      case 'dispensa': return const Color(0xFF10B981);
+      case 'shopping_list': return const Color(0xFF10B981);
+      case 'todo': return const Color(0xFF3B82F6);
+      default: return Colors.grey;
+    }
+  }
+
+  IconData _getIconForType(String type) {
+    switch (type) {
+      case 'note': return Icons.notes;
+      case 'asterisk': return Icons.star_outline;
+      case 'resource_list': return Icons.link;
+      case 'dispensa': return Icons.kitchen;
+      case 'shopping_list': return Icons.shopping_cart_outlined;
+      case 'todo': return Icons.check_circle_outline;
+      default: return Icons.folder_open;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentContext = _contextManager.currentContext;
+    final color = _getColorForType(widget.type);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.sectionLabel),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showCreateDialog(context),
+      backgroundColor: const Color(0xFF09090B),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Hero(
+              tag: 'hero_space_${widget.type}',
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E).withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(0),
+                    border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  title: Text(widget.sectionLabel, style: const TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),
+                  iconTheme: const IconThemeData(color: Colors.white),
+                  actions: [
+                    if (widget.type == 'note')
+                      IconButton(
+                        icon: Icon(_isVectorial ? Icons.view_list : Icons.view_in_ar, color: color),
+                        tooltip: _isVectorial ? 'Vista Lista' : 'Vista Vettoriale 3D',
+                        onPressed: () {
+                          setState(() {
+                            _isVectorial = !_isVectorial;
+                          });
+                        },
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () => _showCreateDialog(context),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: StreamBuilder<List<Document>>(
+                    stream: _documentService.watchDocumentsForContext(
+                      currentContext,
+                      widget.type,
+                    ),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Errore: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+                      }
+
+                      final documents = snapshot.data ?? [];
+
+                      if (documents.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: color.withOpacity(0.3),
+                                      blurRadius: 30,
+                                      spreadRadius: 10,
+                                    )
+                                  ]
+                                ),
+                                child: Icon(_getIconForType(widget.type), size: 80, color: color),
+                              )
+                              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                              .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.1, 1.1), duration: 2.seconds)
+                              .fade(begin: 0.7, end: 1.0),
+                              
+                              const SizedBox(height: 32),
+                              Text(
+                                'Spazio vuoto',
+                                style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Contesto: ${_contextManager.contextDisplayName}',
+                                style: const TextStyle(color: Colors.white54, fontSize: 14),
+                              ),
+                              const SizedBox(height: 32),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: color,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                                ),
+                                onPressed: () => _showCreateDialog(context),
+                                child: const Text('Crea', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      
+                      if (_isVectorial) {
+                        return VectorialNotesView(
+                          documents: documents,
+                          themeColor: color,
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: documents.length,
+                        itemBuilder: (context, index) {
+                          final doc = documents[index];
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: color.withOpacity(0.3), width: 1),
+                            ),
+                            child: ListTile(
+                              title: Text(doc.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              subtitle: Text('Aggiornato il ${_formatDate(doc.updatedAt)}', style: const TextStyle(color: Colors.white54)),
+                              trailing: widget.type == 'shopping_list' 
+                                ? _ShoppingListProgress(documentId: doc.id)
+                                : Icon(Icons.chevron_right, color: color.withOpacity(0.7)),
+                              onTap: () => _navigateToDocument(context, doc),
+                              onLongPress: () => _showDeleteConfirm(context, doc),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      body: StreamBuilder<List<Document>>(
-        stream: _documentService.watchDocumentsForContext(
-          currentContext,
-          widget.type,
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Errore: ${snapshot.error}'));
-          }
-
-          final documents = snapshot.data ?? [];
-
-          if (documents.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.folder_open, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nessuna lista ${widget.sectionLabel.toLowerCase()} trovata',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Contesto: ${_contextManager.contextDisplayName}',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => _showCreateDialog(context),
-                    child: const Text('Crea la prima'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: documents.length,
-            itemBuilder: (context, index) {
-              final doc = documents[index];
-              return Card(
-                child: ListTile(
-                  title: Text(doc.title),
-                  subtitle: Text('Aggiornato il ${_formatDate(doc.updatedAt)}'),
-                  trailing: widget.type == 'shopping_list' 
-                    ? _ShoppingListProgress(documentId: doc.id)
-                    : const Icon(Icons.chevron_right),
-                  onTap: () => _navigateToDocument(context, doc),
-                  onLongPress: () => _showDeleteConfirm(context, doc),
-                ),
-              );
-            },
-          );
-        },
       ),
     );
   }
