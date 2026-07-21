@@ -4,6 +4,7 @@ import 'package:solducci/features/space/models/canvas_node.dart';
 import 'package:solducci/features/space/controllers/canvas_tree_controller.dart';
 import 'package:solducci/features/space/services/canvas_sync_service.dart';
 import 'package:solducci/features/space/repositories/canvas_local_repository.dart';
+import 'package:solducci/features/space/widgets/nodes/markdown_node_widget.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -272,10 +273,10 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       onAddChild: _showOmniAddSheet,
                     );
                   } else if (node.type == 'markdown') {
-                    return _MarkdownNodeWidget(
+                    return MarkdownNodeWidget(
                       node: node,
                       controller: _controller,
-                      leftPadding: 0,
+                      depth: 0,
                     );
                   }
                   return const SizedBox.shrink();
@@ -391,10 +392,10 @@ class _FolderNodeWidget extends StatelessWidget {
                             onAddChild: onAddChild,
                           );
                         } else if (child.type == 'markdown') {
-                          return _MarkdownNodeWidget(
-                            node: child, 
-                            controller: controller, 
-                            leftPadding: 16.0,
+                          return MarkdownNodeWidget(
+                            node: child,
+                            controller: controller,
+                            depth: depth + 1,
                           );
                         }
                         return const SizedBox.shrink();
@@ -402,93 +403,6 @@ class _FolderNodeWidget extends StatelessWidget {
                     ),
                   )
                 : const SizedBox(width: double.infinity, height: 0),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MarkdownNodeWidget extends StatefulWidget {
-  final CanvasNode node;
-  final CanvasTreeController controller;
-  final double leftPadding;
-
-  const _MarkdownNodeWidget({required this.node, required this.controller, required this.leftPadding});
-
-  @override
-  State<_MarkdownNodeWidget> createState() => _MarkdownNodeWidgetState();
-}
-
-class _MarkdownNodeWidgetState extends State<_MarkdownNodeWidget> {
-  late TextEditingController _textController;
-  Timer? _debounce;
-
-  @override
-  void initState() {
-    super.initState();
-    _textController = TextEditingController(text: widget.node.payload['text'] ?? '');
-    
-    // Lazy Load Payload if empty (e.g. after cache eviction or first time open)
-    if (widget.node.payload.isEmpty) {
-      CanvasSyncService().loadPayload(widget.node.id);
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _MarkdownNodeWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.node.payload['text'] != oldWidget.node.payload['text']) {
-      final newText = widget.node.payload['text'] ?? '';
-      if (_textController.text != newText) {
-        _textController.text = newText;
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _textController.dispose();
-    super.dispose();
-  }
-
-  void _onTextChanged(String value) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      widget.controller.updateNodeText(widget.node, value);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(left: widget.leftPadding, bottom: 8.0, top: 4.0),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.node.title, style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _textController,
-              onChanged: _onTextChanged,
-              maxLines: null,
-              style: const TextStyle(color: Colors.white70, height: 1.5),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                hintText: 'Scrivi qui...',
-                hintStyle: TextStyle(color: Colors.white24),
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
             ),
           ],
         ),
