@@ -87,10 +87,10 @@ class _OmniRadialMenuState extends State<OmniRadialMenu> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 56,
-      height: 56,
+      width: 200,
+      height: 200,
       child: Stack(
-        alignment: Alignment.center,
+        alignment: Alignment.bottomRight,
         clipBehavior: Clip.none,
         children: [
           // Items
