@@ -41,6 +41,102 @@ class ShellWithNavState extends State<ShellWithNav> {
     });
   }
 
+  Color get _currentTabColor {
+    switch (_selectedIndex) {
+      case 0: return const Color(0xFF6366F1); // Feed - Indigo
+      case 1: return const Color(0xFF10B981); // Economia - Emerald
+      case 2: return const Color(0xFFF59E0B); // Azione - Amber
+      case 3: return const Color(0xFF3B82F6); // Archivio - Blue
+      default: return const Color(0xFF6366F1);
+    }
+  }
+
+  List<ConstellationAction> _getCurrentTabActions(BuildContext context) {
+    switch (_selectedIndex) {
+      case 0: // Feed
+        return [
+          ConstellationAction(
+            label: 'Gruppo',
+            icon: Icons.group_add,
+            onTap: () => context.push('/groups/create'),
+          ),
+          ConstellationAction(
+            label: 'Importanti',
+            icon: Icons.priority_high,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Hub Importanti in arrivo!')),
+              );
+            },
+          ),
+        ];
+      case 1: // Economia
+        return [
+          ConstellationAction(
+            label: 'Grafici',
+            icon: Icons.pie_chart,
+            onTap: () => context.push('/dashboard/monthly'),
+          ),
+          ConstellationAction(
+            label: 'Dispense',
+            icon: Icons.kitchen,
+            onTap: () => context.push('/space/pantry'),
+          ),
+          ConstellationAction(
+            label: 'Liste Spesa',
+            icon: Icons.shopping_cart,
+            onTap: () => context.push('/space/shopping'),
+          ),
+        ];
+      case 2: // Azione
+        return [
+          ConstellationAction(
+            label: 'Routine',
+            icon: Icons.repeat,
+            onTap: () => context.push('/space/time_management/routines'),
+          ),
+          ConstellationAction(
+            label: 'Focus',
+            icon: Icons.timer,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Focus Mode in arrivo!')),
+              );
+            },
+          ),
+          ConstellationAction(
+            label: 'Abitudini',
+            icon: Icons.check_circle,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Habit Tracker in arrivo!')),
+              );
+            },
+          ),
+        ];
+      case 3: // Archivio
+        return [
+          ConstellationAction(
+            label: 'Asterisco',
+            icon: Icons.star,
+            onTap: () => context.push('/space/asterisks'),
+          ),
+          ConstellationAction(
+            label: 'Risorsa',
+            icon: Icons.book,
+            onTap: () => context.push('/space/resources'),
+          ),
+          ConstellationAction(
+            label: 'Note',
+            icon: Icons.note_add,
+            onTap: () => context.push('/space/notes'),
+          ),
+        ];
+      default:
+        return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,7 +170,7 @@ class ShellWithNavState extends State<ShellWithNav> {
 
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _selectedIndex == index;
-    final color = isSelected ? const Color(0xFF6366F1) : Colors.white30;
+    final color = isSelected ? _currentTabColor : Colors.white30; // Use tab specific color if selected
     
     return InkWell(
       onTap: () => onItemTapped(index),
@@ -130,6 +226,8 @@ class ShellWithNavState extends State<ShellWithNav> {
         return ConstellationMenuOverlay(
           fabOffset: offset,
           fabSize: size,
+          tabColor: _currentTabColor,
+          outerActions: _getCurrentTabActions(context),
           onClose: () {
             _overlayEntry?.remove();
             _overlayEntry = null;
