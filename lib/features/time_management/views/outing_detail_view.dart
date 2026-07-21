@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/service/time_management_service.dart' as solducci_time_service;
 
 class OutingDetailView extends StatelessWidget {
   final String scenarioId;
@@ -13,6 +14,15 @@ class OutingDetailView extends StatelessWidget {
         backgroundColor: Colors.transparent,
         title: const Text('Dettaglio Uscita', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.redAccent),
+            onPressed: () async {
+              await solducci_time_service.TimeManagementService().deleteTimeScenario(scenarioId);
+              if (context.mounted) Navigator.pop(context);
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

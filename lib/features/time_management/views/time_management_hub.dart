@@ -181,11 +181,22 @@ class _TimeManagementHubView extends StatelessWidget {
               child: Container(
                 width: 70,
                 margin: const EdgeInsets.only(right: 12),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white30, width: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 66,
+                      height: 66,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white30, width: 2),
+                      ),
+                      child: const Icon(Icons.add, color: Colors.white54),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text('Nuovo', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                  ],
                 ),
-                child: const Icon(Icons.add, color: Colors.white54),
               ),
             );
           }
@@ -193,7 +204,24 @@ class _TimeManagementHubView extends StatelessWidget {
           final scenario = radarScenarios[index - 1];
           return GestureDetector(
             onTap: () {
-              context.push('/space/time_management/scenario/availability/${scenario.id}');
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: const Color(0xFF1E1E1E),
+                  title: Text(scenario.metadata['userName'] as String? ?? 'Utente', style: const TextStyle(color: Colors.white)),
+                  content: const Text('Questa persona è disponibile. Vuoi organizzare qualcosa con lei?', style: TextStyle(color: Colors.white70)),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.white54))),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push('/space/time_management/create/outing');
+                      }, 
+                      child: const Text('Invita', style: TextStyle(color: Color(0xFF6366F1)))
+                    ),
+                  ]
+                ),
+              );
             },
             child: Container(
               width: 70,
@@ -201,24 +229,26 @@ class _TimeManagementHubView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                    Container(
+                      width: 66,
+                      height: 66,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(color: Colors.black, width: 3),
                       ),
-                      border: Border.all(color: Colors.black, width: 3),
-                    ),
-                    child: const Center(
-                      child: CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.transparent,
-                        child: Icon(Icons.person, color: Colors.white), 
+                      child: const Center(
+                        child: CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.transparent,
+                          child: Icon(Icons.person, color: Colors.white), 
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: 4),
                   Text(
                     scenario.metadata['userName'] as String? ?? 'Utente',

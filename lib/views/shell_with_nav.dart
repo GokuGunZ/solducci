@@ -24,6 +24,8 @@ class ShellWithNav extends StatefulWidget {
 
 class ShellWithNavState extends State<ShellWithNav> {
   int _selectedIndex = 0;
+  final GlobalKey _fabKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
 
   // List of tab pages
   static const List<Widget> _pages = [
@@ -44,8 +46,10 @@ class ShellWithNavState extends State<ShellWithNav> {
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
       floatingActionButton: FloatingActionButton(
+        key: _fabKey,
         onPressed: () => _showOmniMenu(context),
-        child: const Icon(Icons.add, size: 32),
+        backgroundColor: const Color(0xFF6366F1), // Forza un colore fisso per consistenza
+        child: const Icon(Icons.add, size: 32, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -113,12 +117,23 @@ class ShellWithNavState extends State<ShellWithNav> {
   }
 
   void _showOmniMenu(BuildContext context) {
-    showGeneralDialog(
-      context: context,
-      barrierColor: Colors.transparent, // Background handled by ConstellationMenu
-      transitionDuration: const Duration(milliseconds: 0), // Handled by ConstellationMenu
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return ConstellationMenu(
+    if (_overlayEntry != null) return; // Prevent double taps
+
+    final renderBox = _fabKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final offset = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return ConstellationMenuOverlay(
+          fabOffset: offset,
+          fabSize: size,
+          onClose: () {
+            _overlayEntry?.remove();
+            _overlayEntry = null;
+          },
           onSpesa: () => _openExpenseForm(context),
           onTask: () => context.push('/space/tasks'),
           onEvento: () => context.push('/space/time_management'),
@@ -126,5 +141,7 @@ class ShellWithNavState extends State<ShellWithNav> {
         );
       },
     );
+
+    Overlay.of(context).insert(_overlayEntry!);
   }
 }

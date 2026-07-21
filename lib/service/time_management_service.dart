@@ -217,9 +217,11 @@ class TimeManagementService {
     }
   }
 
-  /// Delete Routine Template (cascades to alarms and schedules usually)
+  /// Delete Routine Template (cascades manually to avoid FK constraint errors)
   Future<void> deleteRoutine(String id) async {
     try {
+      await _supabase.from('routine_schedules').delete().eq('routine_template_id', id);
+      await _supabase.from('routine_alarms').delete().eq('routine_template_id', id);
       await _supabase.from('routine_templates').delete().eq('id', id);
     } catch (e) {
       rethrow;
