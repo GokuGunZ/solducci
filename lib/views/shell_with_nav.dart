@@ -3,6 +3,7 @@ import 'package:solducci/views/hubs/feed_home_view.dart';
 import 'package:solducci/views/hubs/economy_hub_view.dart';
 import 'package:solducci/views/hubs/action_hub_view.dart';
 import 'package:solducci/views/hubs/archive_hub_view.dart';
+import 'package:solducci/widgets/constellation_menu.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:go_router/go_router.dart';
 
@@ -112,77 +113,18 @@ class ShellWithNavState extends State<ShellWithNav> {
   }
 
   void _showOmniMenu(BuildContext context) {
-    showModalBottomSheet(
+    showGeneralDialog(
       context: context,
-      isScrollControlled: true,
-      builder: (bottomSheetContext) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Cosa vuoi fare?', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  _buildOmniOption(bottomSheetContext, 'Spesa', Icons.attach_money, const Color(0xFF10B981), () {
-                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
-                    _openExpenseForm(context);
-                  }),
-                  const SizedBox(width: 16),
-                  _buildOmniOption(bottomSheetContext, 'Task', Icons.check_circle_outline, const Color(0xFF3B82F6), () {
-                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
-                    context.push('/space/tasks');
-                  }),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildOmniOption(bottomSheetContext, 'Evento/Viaggio', Icons.event, const Color(0xFF6366F1), () {
-                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
-                    context.push('/space/time_management');
-                  }),
-                  const SizedBox(width: 16),
-                  _buildOmniOption(bottomSheetContext, 'Nota', Icons.notes, const Color(0xFFF59E0B), () {
-                    if (Navigator.canPop(bottomSheetContext)) Navigator.pop(bottomSheetContext);
-                    context.push('/space/notes');
-                  }),
-                ],
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
+      barrierColor: Colors.transparent, // Background handled by ConstellationMenu
+      transitionDuration: const Duration(milliseconds: 0), // Handled by ConstellationMenu
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return ConstellationMenu(
+          onSpesa: () => _openExpenseForm(context),
+          onTask: () => context.push('/space/tasks'),
+          onEvento: () => context.push('/space/time_management'),
+          onNota: () => context.push('/space/notes'),
         );
-      }
-    );
-  }
-
-  Widget _buildOmniOption(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          Navigator.pop(context);
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-      ),
+      },
     );
   }
 }

@@ -109,9 +109,27 @@ class FeedHomeView extends StatelessWidget {
                           title: Text('Bilancio ${group.name}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                           subtitle: Text('Il tuo saldo netto: $sign${myNet.toStringAsFixed(2)} €', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
                           trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: () {
+                          onTap: () async {
+                            final previousContext = contextManager.currentContext;
+                            
+                            // Switch to specific group for the drill-down
                             contextManager.switchToGroup(group);
-                            context.push('/expenses_dashboard');
+                            
+                            // Wait for the user to pop the dashboard
+                            await context.push('/expenses_dashboard');
+                            
+                            // When returning, if the context is still the drilled-down group
+                            // (meaning they didn't manually change it while inside), restore the old context
+                            if (contextManager.currentContext.isGroup && 
+                                contextManager.currentContext.groupId == group.id) {
+                              if (previousContext.isView) {
+                                contextManager.switchToView(previousContext.view!);
+                              } else if (previousContext.isPersonal) {
+                                contextManager.switchToPersonal();
+                              } else if (previousContext.isGroup) {
+                                contextManager.switchToGroup(previousContext.group!);
+                              }
+                            }
                           }, 
                         ),
                       );
