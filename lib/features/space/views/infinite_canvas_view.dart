@@ -13,6 +13,7 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/core/onboarding/services/feature_onboarding_service.dart';
 import 'package:solducci/core/onboarding/models/onboarding_config.dart';
 import 'package:solducci/core/onboarding/views/feature_onboarding_wizard.dart';
+import 'package:solducci/service/group_service_cached.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InfiniteCanvasView extends StatefulWidget {
@@ -71,7 +72,12 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     // Wait for the UI to be ready
     if (!mounted) return;
 
-    if (!hasOnboarded && _controller.allNodes.isEmpty) {
+    final userNodes = _controller.allNodes.where((n) {
+      if (_controller.groupId != null) return n.groupId == _controller.groupId;
+      return n.userId == _controller.userId && n.groupId == null;
+    });
+
+    if (!hasOnboarded && userNodes.isEmpty) {
       setState(() {
         _showWizard = true;
         _isInitialized = true;
@@ -307,53 +313,214 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
   }
 
   void _showMoveModal() {
+    String selectedTab = 'Tree';
+    String? selectedTargetGroupId = _controller.groupId;
+    String? selectedTargetFolderId;
+    bool showAllSpaces = false;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E1E2C),
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        final allFolders = _controller.allNodes.where((n) => n.type == 'folder').toList();
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Seleziona destinazione', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.home, color: Colors.white),
-                title: const Text('Root', style: TextStyle(color: Colors.white)),
-                onTap: () => _executeMove(null, ctx),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            
+            List<String?> availableGroupIds = [];
+            if (showAllSpaces) {
+              availableGroupIds.add(null);
+              availableGroupIds.addAll(GroupServiceCached().getAllCachedGroups().map((g) => g.id));
+            } else {
+              availableGroupIds = _controller.allNodes.map((n) => n.groupId).toSet().toList();
+              if (!availableGroupIds.contains(null)) availableGroupIds.insert(0, null);
+              if (!availableGroupIds.contains(selectedTargetGroupId)) availableGroupIds.add(selectedTargetGroupId);
+            }
+
+            List<Widget> buildTree(String? parentId, int depth) {
+              final children = _controller.allNodes.where((n) => n.type == 'folder' && n.groupId == selectedTargetGroupId && n.parentId == parentId).toList();
+              List<Widget> widgets = [];
+              for (var folder in children) {
+                final isSelectedToMove = _selectedNodeIds.contains(folder.id);
+                final isTarget = selectedTargetFolderId == folder.id;
+                widgets.add(
+                  Container(
+                    color: isTarget ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.only(left: 16.0 + (depth * 24.0), right: 16.0),
+                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.amber : const Color(0xFF10B981)),
+                      title: Text(folder.title, style: TextStyle(color: isSelectedToMove ? Colors.white30 : (isTarget ? Colors.amber : Colors.white))),
+                      enabled: !isSelectedToMove,
+                      onTap: isSelectedToMove ? null : () {
+                        setModalState(() {
+                          selectedTargetFolderId = folder.id;
+                        });
+                      },
+                    ),
+                  )
+                );
+                widgets.addAll(buildTree(folder.id, depth + 1));
+              }
+              return widgets;
+            }
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: const BoxDecoration(
+                color: Color(0xFF09090B),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              const Divider(color: Colors.white10),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: allFolders.length,
-                  itemBuilder: (context, index) {
-                    final folder = allFolders[index];
-                    final isSelected = _selectedNodeIds.contains(folder.id);
-                    return ListTile(
-                      leading: const Icon(Icons.folder, color: Color(0xFF10B981)),
-                      title: Text(folder.title, style: TextStyle(color: isSelected ? Colors.white30 : Colors.white)),
-                      enabled: !isSelected,
-                      onTap: isSelected ? null : () => _executeMove(folder.id, ctx),
-                    );
-                  },
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Sposta nodi', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            if (!showAllSpaces)
+                              TextButton(
+                                onPressed: () {
+                                  setModalState(() => showAllSpaces = true);
+                                },
+                                child: const Text('Altri spazi', style: TextStyle(color: Colors.amber)),
+                              ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                              onPressed: () => _executeMove(selectedTargetFolderId, ctx, selectedTargetGroupId),
+                              child: const Text('Conferma', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: availableGroupIds.map((gId) {
+                        final isSelected = selectedTargetGroupId == gId;
+                        String label = 'Spazio Personale';
+                        if (gId != null) {
+                          final groupName = GroupServiceCached().getGroupName(gId);
+                          label = groupName != null ? 'Gruppo: $groupName' : 'Gruppo: ${gId.substring(0, 8)}';
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(label),
+                            selected: isSelected,
+                            selectedColor: Colors.amber.withValues(alpha: 0.2),
+                            backgroundColor: const Color(0xFF1E1E2C),
+                            labelStyle: TextStyle(color: isSelected ? Colors.amber : Colors.white70),
+                            avatar: Icon(Icons.home, size: 18, color: isSelected ? Colors.amber : Colors.white70),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            showCheckmark: false,
+                            onSelected: (val) {
+                              if (val) {
+                                setModalState(() {
+                                  selectedTargetGroupId = gId;
+                                  selectedTargetFolderId = null;
+                                  selectedTab = 'Tree';
+                                });
+                              }
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF13131A), // Darker recessed background
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
+                      ),
+                      child: Row(
+                        children: ['Bookmarks', 'Recenti', 'Nuove', 'Tree'].map((tab) {
+                          final isSelected = selectedTab == tab;
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() => selectedTab = tab),
+                              behavior: HitTestBehavior.opaque,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeOutCubic,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? const Color(0xFF2B2B36) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: isSelected 
+                                      ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))]
+                                      : [],
+                                  border: Border.all(
+                                    color: isSelected ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+                                    width: 1,
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeOutCubic,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.white38, 
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500, 
+                                    fontSize: 13,
+                                    fontFamily: 'Inter', // Assuming Inter or similar is used, falls back gracefully
+                                  ),
+                                  child: Text(tab),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: selectedTab == 'Tree' 
+                      ? ListView(
+                          children: [
+                            Container(
+                              color: selectedTargetFolderId == null ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                              child: ListTile(
+                                leading: Icon(selectedTargetFolderId == null ? Icons.home : Icons.home_outlined, color: selectedTargetFolderId == null ? Colors.amber : Colors.white),
+                                title: Text('Root (${selectedTargetGroupId == null ? "Spazio Personale" : "Gruppo"})', style: TextStyle(color: selectedTargetFolderId == null ? Colors.amber : Colors.white, fontWeight: FontWeight.bold)),
+                                onTap: () {
+                                  setModalState(() => selectedTargetFolderId = null);
+                                },
+                              ),
+                            ),
+                            const Divider(color: Colors.white10, height: 1),
+                            ...buildTree(null, 0),
+                          ],
+                        )
+                      : Center(
+                          child: Text('Nessun elemento in $selectedTab', style: const TextStyle(color: Colors.white54)),
+                        ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  void _executeMove(String? targetParentId, BuildContext modalContext) {
+  void _executeMove(String? targetParentId, BuildContext modalContext, String? targetGroupId) {
     Navigator.pop(modalContext);
     for (final id in _selectedNodeIds) {
-      _controller.moveNode(id, targetParentId);
+      _controller.moveNode(id, targetParentId, targetGroupId: targetGroupId);
     }
     setState(() {
       _selectionMode = null;
@@ -417,6 +584,20 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       activeColor: const Color(0xFF6366F1),
                       onChanged: (val) {
                         setStateModal(() => _controller.updateMenuVisibility(refresh: val));
+                      },
+                    ),
+                    const Divider(color: Colors.white10, height: 32),
+                    const Text('Sviluppo', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    ListTile(
+                      title: const Text('Ripristina Wizard (Reset)', style: TextStyle(color: Colors.redAccent)),
+                      onTap: () async {
+                        await FeatureOnboardingService().resetOnboarding('infinite_canvas');
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Onboarding ripristinato. Ricarica la vista!')),
+                          );
+                        }
                       },
                     ),
                     const SizedBox(height: 16),
@@ -752,12 +933,12 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                     depth: 0,
                                     forceExpandLevelsRemaining: _controller.currentDepthLimit,
                                     onAddChild: _showOmniAddSheet,
-                                    isGodMode: _selectionMode != null,
-                                    isSelected: _selectedNodeIds.contains(node.id),
-                                    onSelect: (selected) {
+                                    selectionMode: _selectionMode,
+                                    isNodeSelected: (id) => _selectedNodeIds.contains(id),
+                                    onNodeSelected: (id, selected) {
                                       setState(() {
-                                        if (selected) _selectedNodeIds.add(node.id);
-                                        else _selectedNodeIds.remove(node.id);
+                                        if (selected) _selectedNodeIds.add(id);
+                                        else _selectedNodeIds.remove(id);
                                       });
                                     },
                                   );
@@ -767,29 +948,16 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                     controller: _controller,
                                     depth: 0,
                                     limit: _controller.currentDepthLimit,
+                                    selectionMode: _selectionMode,
+                                    isSelected: _selectedNodeIds.contains(node.id),
+                                    onSelect: (selected) {
+                                      setState(() {
+                                        if (selected) _selectedNodeIds.add(node.id);
+                                        else _selectedNodeIds.remove(node.id);
+                                      });
+                                    },
                                   );
 
-                                  if (_selectionMode != null) {
-                                    return Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 8.0, left: 8.0),
-                                          child: Checkbox(
-                                            value: _selectedNodeIds.contains(node.id),
-                                            onChanged: (val) {
-                                              setState(() {
-                                                if (val == true) _selectedNodeIds.add(node.id);
-                                                else _selectedNodeIds.remove(node.id);
-                                              });
-                                            },
-                                            activeColor: const Color(0xFF6366F1),
-                                          ),
-                                        ),
-                                        Expanded(child: child),
-                                      ],
-                                    );
-                                  }
                                   return child;
                                 }
                                 return const SizedBox.shrink();
@@ -843,20 +1011,21 @@ class _FolderNodeWidget extends StatefulWidget {
   final int depth;
   final int forceExpandLevelsRemaining;
   final AddChildCallback onAddChild;
-  final bool isGodMode;
-  final bool isSelected;
-  final ValueChanged<bool>? onSelect;
+  final String? selectionMode;
+  final bool Function(String) isNodeSelected;
+  final void Function(String, bool) onNodeSelected;
 
   const _FolderNodeWidget({
+    Key? key,
     required this.node,
     required this.controller,
     required this.depth,
     required this.forceExpandLevelsRemaining,
     required this.onAddChild,
-    this.isGodMode = false,
-    this.isSelected = false,
-    this.onSelect,
-  });
+    this.selectionMode,
+    required this.isNodeSelected,
+    required this.onNodeSelected,
+  }) : super(key: key);
 
   @override
   State<_FolderNodeWidget> createState() => _FolderNodeWidgetState();
@@ -922,13 +1091,24 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
             },
             builder: (context, candidateData, rejectedData) {
               final isHovering = candidateData.isNotEmpty;
-              return Stack(
-                children: [
-                  CustomPaint(
-                    painter: ManilaFolderPainter(
-                      baseColor: isHovering ? const Color(0xFF4338CA) : const Color(0xFF232336),
-                      isOpen: visuallyExpanded,
-                    ),
+              final isSelected = widget.isNodeSelected(widget.node.id);
+              Color folderColor = isHovering ? const Color(0xFF4338CA).withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.04);
+              if (widget.selectionMode != null && isSelected) {
+                if (widget.selectionMode == 'move') folderColor = const Color(0xFF3B82F6).withValues(alpha: 0.4);
+                if (widget.selectionMode == 'delete') folderColor = const Color(0xFFEF4444).withValues(alpha: 0.4);
+              }
+              
+              return GestureDetector(
+                onTap: widget.selectionMode != null ? () {
+                  widget.onNodeSelected(widget.node.id, !isSelected);
+                } : null,
+                child: Stack(
+                  children: [
+                    CustomPaint(
+                      painter: ManilaFolderPainter(
+                        baseColor: folderColor,
+                        isOpen: visuallyExpanded,
+                      ),
                     child: Container(
                       width: double.infinity,
                       constraints: BoxConstraints(minHeight: visuallyExpanded ? 64 : 96),
@@ -944,26 +1124,31 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                               width: constraints.maxWidth * 0.6 - 32, // 60% of width minus horizontal padding
                               child: Row(
                                 children: [
-                                  if (widget.isGodMode)
-                                    Checkbox(
-                                      value: widget.isSelected,
-                                      onChanged: (val) => widget.onSelect?.call(val ?? false),
-                                      activeColor: const Color(0xFF6366F1),
-                                    ),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => widget.controller.toggleExpand(widget.node.id, visuallyExpanded),
+                                  if (widget.selectionMode == null)
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => widget.controller.toggleExpand(widget.node.id, visuallyExpanded),
+                                        child: SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          // We use SingleChildScrollView to allow natural scroll if marquee is not fully implemented
+                                          // A true marquee would use an animation controller.
+                                          child: Text(
+                                            widget.node.title, 
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Expanded(
                                       child: SingleChildScrollView(
                                         scrollDirection: Axis.horizontal,
-                                        // We use SingleChildScrollView to allow natural scroll if marquee is not fully implemented
-                                        // A true marquee would use an animation controller.
                                         child: Text(
                                           widget.node.title, 
                                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                                         ),
                                       ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -985,34 +1170,22 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                                     depth: widget.depth + 1,
                                     forceExpandLevelsRemaining: nextForceLevels,
                                     onAddChild: widget.onAddChild,
-                                    isGodMode: widget.isGodMode,
-                                    isSelected: widget.isSelected,
-                                    onSelect: widget.onSelect,
+                                    selectionMode: widget.selectionMode,
+                                    isNodeSelected: widget.isNodeSelected,
+                                    onNodeSelected: widget.onNodeSelected,
                                   );
                                 } else if (childNode.type == 'markdown') {
-                                  final mChild = MarkdownNodeWidget(
+                                  return MarkdownNodeWidget(
                                     node: childNode,
                                     controller: widget.controller,
                                     depth: widget.depth + 1,
                                     limit: nextForceLevels,
+                                    selectionMode: widget.selectionMode,
+                                    isSelected: widget.isNodeSelected(childNode.id),
+                                    onSelect: (selected) {
+                                      widget.onNodeSelected(childNode.id, selected);
+                                    },
                                   );
-                                  if (widget.isGodMode) {
-                                    return Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 8.0, left: 8.0),
-                                          child: Checkbox(
-                                            value: false, // TODO: state management for nested selection
-                                            onChanged: (val) {},
-                                            activeColor: const Color(0xFF6366F1),
-                                          ),
-                                        ),
-                                        Expanded(child: mChild),
-                                      ],
-                                    );
-                                  }
-                                  return mChild;
                                 }
                                 return const SizedBox.shrink();
                               }).toList(),
@@ -1092,8 +1265,9 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                   ),
                 ),
               ],
-            );
-          },
+            ),
+          );
+        },
         ),
       ),
       ),

@@ -4,7 +4,7 @@ import 'package:solducci/core/onboarding/models/onboarding_config.dart';
 
 class FeatureOnboardingWizard extends StatefulWidget {
   final OnboardingConfig config;
-  final Function(String selectedOptionId) onComplete;
+  final Future<void> Function(String selectedOptionId) onComplete;
 
   const FeatureOnboardingWizard({
     Key? key,
@@ -19,6 +19,7 @@ class FeatureOnboardingWizard extends StatefulWidget {
 class _FeatureOnboardingWizardState extends State<FeatureOnboardingWizard> {
   int _currentStep = 0; // 0 = Presentation, 1 = Options
   String? _selectedOptionId;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -294,26 +295,41 @@ class _FeatureOnboardingWizardState extends State<FeatureOnboardingWizard> {
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: _isLoading ? null : () async {
                 if (_selectedOptionId != null) {
-                  widget.onComplete(_selectedOptionId!);
+                  setState(() => _isLoading = true);
+                  try {
+                    await widget.onComplete(_selectedOptionId!);
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6366F1),
+                disabledBackgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Crea il mio spazio',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+              child: _isLoading 
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'Crea il mio spazio',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
             ),
           ),
         ],

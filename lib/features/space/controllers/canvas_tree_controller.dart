@@ -188,16 +188,39 @@ class CanvasTreeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> moveNode(String nodeId, String? newParentId) async {
+  Future<void> moveNode(String nodeId, String? newParentId, {String? targetGroupId, bool notify = true}) async {
     final node = getNode(nodeId);
     if (node == null) return;
     
+    final bool spaceChanged = (targetGroupId != node.groupId) && (targetGroupId != null || node.groupId != null);
+    
     final updated = node.copyWith(
       parentId: newParentId,
+      clearParentId: newParentId == null,
+      groupId: targetGroupId,
+      clearGroupId: targetGroupId == null,
       updatedAt: DateTime.now(),
     );
     await _syncService.pushNode(updated);
-    notifyListeners();
+    
+    if (spaceChanged) {
+      await _updateGroupIdRecursively(nodeId, targetGroupId);
+    }
+    
+    if (notify) notifyListeners();
+  }
+
+  Future<void> _updateGroupIdRecursively(String parentId, String? targetGroupId) async {
+    final children = allNodes.where((n) => n.parentId == parentId).toList();
+    for (var child in children) {
+      final updatedChild = child.copyWith(
+        groupId: targetGroupId,
+        clearGroupId: targetGroupId == null,
+        updatedAt: DateTime.now(),
+      );
+      await _syncService.pushNode(updatedChild);
+      await _updateGroupIdRecursively(child.id, targetGroupId);
+    }
   }
 
   Future<void> deleteNode(String nodeId) async {

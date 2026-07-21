@@ -12,14 +12,20 @@ class MarkdownNodeWidget extends StatefulWidget {
   final CanvasTreeController controller;
   final int depth;
   final int limit;
+  final String? selectionMode;
+  final bool isSelected;
+  final ValueChanged<bool>? onSelect;
 
   const MarkdownNodeWidget({
-    super.key,
+    Key? key,
     required this.node,
     required this.controller,
     required this.depth,
     required this.limit,
-  });
+    this.selectionMode,
+    this.isSelected = false,
+    this.onSelect,
+  }) : super(key: key);
 
   @override
   State<MarkdownNodeWidget> createState() => _MarkdownNodeWidgetState();
@@ -379,14 +385,24 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       ),
     );
 
-    final Widget readerContent = Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E2C), // Match editor background so it hides the editor underneath
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
+    Color cardColor = const Color(0xFF64748B).withValues(alpha: 0.12);
+    if (widget.selectionMode != null && widget.isSelected) {
+      if (widget.selectionMode == 'move') cardColor = const Color(0xFF3B82F6).withValues(alpha: 0.4);
+      if (widget.selectionMode == 'delete') cardColor = const Color(0xFFEF4444).withValues(alpha: 0.4);
+    }
+
+    final Widget readerContent = GestureDetector(
+      onTap: widget.selectionMode != null ? () {
+        widget.onSelect?.call(!widget.isSelected);
+      } : null,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: cardColor, // Changed background color based on selection
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -440,6 +456,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
           ],
         ],
       ),
+    ),
     );
 
     return Padding(
