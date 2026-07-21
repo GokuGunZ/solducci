@@ -1054,18 +1054,45 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                     },
                                   );
                                 } else if (node.type == 'markdown') {
-                                  final child = MarkdownNodeWidget(
-                                    node: node,
-                                    controller: _controller,
-                                    depth: 0,
-                                    limit: _controller.currentDepthLimit,
-                                    selectionMode: _selectionMode,
-                                    isSelected: _selectedNodeIds.contains(node.id),
-                                    onSelect: (selected) {
-                                      setState(() {
-                                        if (selected) _selectedNodeIds.add(node.id);
-                                        else _selectedNodeIds.remove(node.id);
-                                      });
+                                  final child = DragTarget<Map<String, String>>(
+                                    onAcceptWithDetails: (details) async {
+                                      final type = details.data['omni-type'];
+                                      if (type == 'bookmark') {
+                                        final isBookmarked = node.metadata['isBookmarked'] == true;
+                                        _controller.updateNodeMetadata(node.id, {'isBookmarked': !isBookmarked});
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(!isBookmarked ? 'Appunto aggiunto ai Segnalibri' : 'Appunto rimosso dai Segnalibri'),
+                                            backgroundColor: const Color(0xFF6366F1),
+                                            duration: const Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    builder: (context, candidateData, rejectedData) {
+                                      final isHovering = candidateData.isNotEmpty;
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: isHovering 
+                                            ? [BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2)] 
+                                            : null,
+                                        ),
+                                        child: MarkdownNodeWidget(
+                                          node: node,
+                                          controller: _controller,
+                                          depth: 0,
+                                          limit: _controller.currentDepthLimit,
+                                          selectionMode: _selectionMode,
+                                          isSelected: _selectedNodeIds.contains(node.id),
+                                          onSelect: (selected) {
+                                            setState(() {
+                                              if (selected) _selectedNodeIds.add(node.id);
+                                              else _selectedNodeIds.remove(node.id);
+                                            });
+                                          },
+                                        ),
+                                      );
                                     },
                                   );
 
@@ -1404,15 +1431,42 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                                     onNodeSelected: widget.onNodeSelected,
                                   );
                                 } else if (childNode.type == 'markdown') {
-                                  return MarkdownNodeWidget(
-                                    node: childNode,
-                                    controller: widget.controller,
-                                    depth: widget.depth + 1,
-                                    limit: nextForceLevels,
-                                    selectionMode: widget.selectionMode,
-                                    isSelected: widget.isNodeSelected(childNode.id),
-                                    onSelect: (selected) {
-                                      widget.onNodeSelected(childNode.id, selected);
+                                  return DragTarget<Map<String, String>>(
+                                    onAcceptWithDetails: (details) async {
+                                      final type = details.data['omni-type'];
+                                      if (type == 'bookmark') {
+                                        final isBookmarked = childNode.metadata['isBookmarked'] == true;
+                                        widget.controller.updateNodeMetadata(childNode.id, {'isBookmarked': !isBookmarked});
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(!isBookmarked ? 'Appunto aggiunto ai Segnalibri' : 'Appunto rimosso dai Segnalibri'),
+                                            backgroundColor: const Color(0xFF6366F1),
+                                            duration: const Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    builder: (context, candidateData, rejectedData) {
+                                      final isHovering = candidateData.isNotEmpty;
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: isHovering 
+                                            ? [BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2)] 
+                                            : null,
+                                        ),
+                                        child: MarkdownNodeWidget(
+                                          node: childNode,
+                                          controller: widget.controller,
+                                          depth: widget.depth + 1,
+                                          limit: nextForceLevels,
+                                          selectionMode: widget.selectionMode,
+                                          isSelected: widget.isNodeSelected(childNode.id),
+                                          onSelect: (selected) {
+                                            widget.onNodeSelected(childNode.id, selected);
+                                          },
+                                        ),
+                                      );
                                     },
                                   );
                                 }

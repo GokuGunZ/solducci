@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -400,14 +401,17 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       onTap: widget.selectionMode != null ? () {
         widget.onSelect?.call(!widget.isSelected);
       } : null,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: cardColor, // True glass because background is now transparent
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: cardColor, // True glass because background is now transparent
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -462,6 +466,8 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
         ],
       ),
     ),
+    ),
+    ),
     );
 
     return Padding(
@@ -485,7 +491,8 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                 ),
 
                 // Background (Editor) - Hidden when not active so glass effect on readerContent works!
-                if (_isEditing || _dragExtent != 0)
+                // Background (Editor) - Hidden when not active so glass effect on readerContent works!
+                if (_isEditing || _dragExtent < -1.0)
                   _isEditing 
                       ? Container(
                           width: double.infinity,
