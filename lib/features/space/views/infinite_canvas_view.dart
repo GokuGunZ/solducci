@@ -5,6 +5,8 @@ import 'package:solducci/features/space/controllers/canvas_tree_controller.dart'
 import 'package:solducci/features/space/services/canvas_sync_service.dart';
 import 'package:solducci/features/space/repositories/canvas_local_repository.dart';
 import 'package:solducci/features/space/widgets/nodes/markdown_node_widget.dart';
+import 'package:solducci/features/space/views/demos/demo_flip_card_view.dart';
+import 'package:solducci/features/space/views/demos/demo_liquid_card_view.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -237,6 +239,21 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
               IconButton(
                 icon: const Icon(Icons.add, size: 20, color: Colors.white54),
                 onPressed: () => _controller.setGlobalDepthLimit(_controller.globalDepthLimit + 1),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.threed_rotation, size: 20, color: Color(0xFF6366F1)),
+                tooltip: 'Demo 3D Flip',
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const DemoFlipCardView()));
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.waves, size: 20, color: Color(0xFFE068F1)),
+                tooltip: 'Demo Liquid Elastic',
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const DemoLiquidCardView()));
+                },
               ),
               const SizedBox(width: 8),
               Container(
