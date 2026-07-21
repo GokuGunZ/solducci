@@ -104,10 +104,9 @@ class _OmniRadialMenuState extends State<OmniRadialMenu> with SingleTickerProvid
             heroTag: 'omni_main',
             onPressed: _toggleMenu,
             backgroundColor: const Color(0xFF6366F1),
-            child: AnimatedIcon(
-              icon: AnimatedIcons.menu_close,
-              progress: _controller,
-              color: Colors.white,
+            child: RotationTransition(
+              turns: Tween<double>(begin: 0.0, end: 0.125).animate(_controller),
+              child: const Icon(Icons.add, color: Colors.white, size: 28),
             ),
           ),
         ],

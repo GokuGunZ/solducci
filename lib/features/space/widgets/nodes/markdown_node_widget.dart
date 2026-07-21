@@ -113,28 +113,33 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
       });
     });
 
-    final isNew = DateTime.now().toUtc().difference(widget.node.createdAt).inSeconds.abs() < 5;
-    if (isNew && _lastSavedText.isEmpty) {
-      _dragExtent = -(_flipThreshold + 10);
-      _isEditing = true;
-      _controller.value = _dragExtent;
-      _waveController.repeat();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          FocusScope.of(context).requestFocus(_focusNode);
-        }
-      });
-    }
-
-    // Instant autofocus for new nodes
-    if (widget.node.title.isEmpty || widget.node.title == 'Senza Titolo') {
+    if (widget.node.metadata['isDraftNew'] == true) {
       _isEditing = true;
       _dragExtent = -1000.0; // Ensure it's fully open
+      _controller.value = _dragExtent;
+      _waveController.repeat();
+      
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _focusNode.requestFocus();
+          // Clear the flag so it doesn't trigger again on rebuilds
+          widget.controller.updateNodeMetadata(widget.node.id, {'isDraftNew': false});
         }
       });
+    } else {
+      // Fallback for nodes created before this feature
+      final isNew = DateTime.now().toUtc().difference(widget.node.createdAt).inSeconds.abs() < 5;
+      if (isNew && _lastSavedText.isEmpty) {
+        _dragExtent = -(_flipThreshold + 10);
+        _isEditing = true;
+        _controller.value = _dragExtent;
+        _waveController.repeat();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            FocusScope.of(context).requestFocus(_focusNode);
+          }
+        });
+      }
     }
   }
 
@@ -321,7 +326,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
 
   @override
   Widget build(BuildContext context) {
-    final double leftPadding = widget.depth == 0 ? 0.0 : 12.0;
+    final double leftPadding = widget.depth == 0 ? 0.0 : 0.0;
     final double rightPadding = widget.depth == 0 ? 0.0 : 6.0;
     
     final Widget editorContent = Container(

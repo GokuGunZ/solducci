@@ -140,19 +140,25 @@ class CanvasTreeController extends ChangeNotifier {
     required String type,
     String? parentId,
     String? payloadText,
+    Map<String, dynamic>? metadata,
   }) async {
     final siblings = _repo.getChildren(parentId, groupId: groupId, userId: userId);
     final maxRank = siblings.isEmpty ? null : siblings.last.lexorank;
     final newRank = LexoRank.between(maxRank, null);
 
     final nodeId = const Uuid().v4();
+    
+    // Merge provided metadata with default metadata
+    final Map<String, dynamic> defaultMetadata = type == 'folder' ? {'children_count': 0} : <String, dynamic>{};
+    final Map<String, dynamic> mergedMetadata = <String, dynamic>{...defaultMetadata, ...?metadata};
+
     final newNode = CanvasNode(
       id: nodeId,
       parentId: parentId,
       type: type,
       lexorank: newRank,
       title: title,
-      metadata: type == 'folder' ? {'children_count': 0} : {},
+      metadata: mergedMetadata,
       payload: type == 'markdown' ? {'text': payloadText ?? '# $title\n\n'} : {},
       userId: userId,
       groupId: groupId,
@@ -168,6 +174,19 @@ class CanvasTreeController extends ChangeNotifier {
     await _syncService.pushNode(newNode);
     notifyListeners();
     return nodeId;
+  }
+
+  Future<void> updateNodeMetadata(String nodeId, Map<String, dynamic> metadataUpdates) async {
+    final node = getNode(nodeId);
+    if (node == null) return;
+    
+    final updatedMetadata = {...node.metadata, ...metadataUpdates};
+    final updatedNode = node.copyWith(
+      metadata: updatedMetadata,
+      updatedAt: DateTime.now(),
+    );
+    await _syncService.pushNode(updatedNode);
+    notifyListeners();
   }
 
   Future<void> updateNodeText(CanvasNode node, String newText) async {

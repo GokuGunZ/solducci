@@ -928,10 +928,43 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
         children: [
           _buildSubNavbar(),
           Expanded(
-            child: DragTarget<String>(
-              onAcceptWithDetails: (details) {
-                if (details.data == 'omni-plus') {
-                  _showOmniAddSheet(_controller.currentCanvasRootId);
+            child: DragTarget<Map<String, String>>(
+              onAcceptWithDetails: (details) async {
+                final type = details.data['omni-type'];
+                if (type == 'bookmark') {
+                  final rootId = _controller.currentCanvasRootId;
+                  if (rootId != null) {
+                    final rootNode = _controller.getNode(rootId);
+                    if (rootNode != null) {
+                      final isBookmarked = rootNode.metadata['isBookmarked'] == true;
+                      _controller.updateNodeMetadata(rootId, {'isBookmarked': !isBookmarked});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(!isBookmarked ? 'Aggiunto ai Segnalibri' : 'Rimosso dai Segnalibri'),
+                          backgroundColor: const Color(0xFF6366F1),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Non puoi aggiungere il Root ai Segnalibri'),
+                        backgroundColor: Colors.redAccent,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                if (type != null) {
+                  await _controller.createNodeAndReturnId(
+                    title: '',
+                    type: type,
+                    parentId: _controller.currentCanvasRootId,
+                    metadata: {'isDraftNew': true},
+                  );
                 }
               },
               builder: (context, candidateData, rejectedData) {
@@ -1061,19 +1094,40 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
       ),
       floatingActionButton: OmniRadialMenu(
         onCreateNode: (type) async {
-          // If the user taps the radial button, we create the node in the current canvas root
-          // If it's a markdown, we should ideally trigger it to be editing.
+          if (type == 'bookmark') {
+            final rootId = _controller.currentCanvasRootId;
+            if (rootId != null) {
+              final rootNode = _controller.getNode(rootId);
+              if (rootNode != null) {
+                final isBookmarked = rootNode.metadata['isBookmarked'] == true;
+                _controller.updateNodeMetadata(rootId, {'isBookmarked': !isBookmarked});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(!isBookmarked ? 'Aggiunto ai Segnalibri' : 'Rimosso dai Segnalibri'),
+                    backgroundColor: const Color(0xFF6366F1),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Non puoi aggiungere il Root ai Segnalibri'),
+                  backgroundColor: Colors.redAccent,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+            return;
+          }
+
           final newId = await _controller.createNodeAndReturnId(
-            title: '', // Start empty as requested
+            title: '', 
             type: type,
             parentId: _controller.currentCanvasRootId,
             payloadText: '',
+            metadata: {'isDraftNew': true}, // Used by widgets to trigger focus/edit mode
           );
-          
-          if (type == 'markdown') {
-            // TODO: Ensure it opens in edit mode automatically.
-            // A simple way is to dispatch an event or rely on focus, but for now we just create it.
-          }
         },
       ),
       ),
@@ -1111,10 +1165,55 @@ class _FolderNodeWidget extends StatefulWidget {
 
 class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
   double _scale = 1.0;
+  bool _isEditingTitle = false;
+  late TextEditingController _titleController;
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.node.title);
+    _focusNode = FocusNode();
+
+    if (widget.node.metadata['isDraftNew'] == true) {
+      _isEditingTitle = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _focusNode.requestFocus();
+          _titleController.selection = TextSelection.collapsed(offset: _titleController.text.length);
+          widget.controller.updateNodeMetadata(widget.node.id, {'isDraftNew': false});
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _FolderNodeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.title != widget.node.title && !_focusNode.hasFocus) {
+      _titleController.text = widget.node.title;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _saveTitleAndExit() {
+    setState(() {
+      _isEditingTitle = false;
+    });
+    if (_titleController.text != widget.node.title) {
+      widget.controller.updateNodeTitle(widget.node, _titleController.text);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double leftPadding = widget.depth == 0 ? 0.0 : 6.0;
+    final double leftPadding = widget.depth == 0 ? 0.0 : 16.0;
     final double rightPadding = widget.depth == 0 ? 0.0 : 6.0;
     
     final bool? explicitState = widget.controller.getFolderState(widget.node.id);
@@ -1137,7 +1236,7 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
     final children = visuallyExpanded ? widget.controller.getChildren(widget.node.id) : <CanvasNode>[];
 
     return Padding(
-      padding: EdgeInsets.only(left: leftPadding, right: rightPadding, bottom: 8.0),
+      padding: EdgeInsets.only(left: leftPadding, right: rightPadding, bottom: 0.0),
       child: GestureDetector(
         onScaleUpdate: (details) {
           if (details.pointerCount >= 2) {
@@ -1159,11 +1258,25 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
           child: DragTarget<Map<String, String>>(
             onAcceptWithDetails: (details) async {
               final type = details.data['omni-type'];
+              if (type == 'bookmark') {
+                final isBookmarked = widget.node.metadata['isBookmarked'] == true;
+                widget.controller.updateNodeMetadata(widget.node.id, {'isBookmarked': !isBookmarked});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(!isBookmarked ? 'Aggiunto ai Segnalibri' : 'Rimosso dai Segnalibri'),
+                    backgroundColor: const Color(0xFF6366F1),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
+
               if (type != null) {
                 await widget.controller.createNodeAndReturnId(
                   title: '',
                   type: type,
                   parentId: widget.node.id,
+                  metadata: {'isDraftNew': true},
                 );
               }
             },
@@ -1197,37 +1310,75 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                       LayoutBuilder(
                         builder: (context, constraints) {
                           return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                            padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 0.0, bottom: 8.0),
                             child: SizedBox(
                               width: constraints.maxWidth * 0.6 - 32, // 60% of width minus horizontal padding
-                              child: Row(
-                                children: [
-                                  if (widget.selectionMode == null)
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => widget.controller.toggleExpand(widget.node.id, visuallyExpanded),
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onHorizontalDragEnd: (details) {
+                                  if (details.primaryVelocity != null) {
+                                    if (details.primaryVelocity! < -300 && !_isEditingTitle) {
+                                      // Swipe left to edit
+                                      setState(() { _isEditingTitle = true; });
+                                      _titleController.selection = TextSelection.collapsed(offset: _titleController.text.length);
+                                      _focusNode.requestFocus();
+                                    } else if (details.primaryVelocity! > 300 && _isEditingTitle) {
+                                      // Swipe right to confirm
+                                      _saveTitleAndExit();
+                                    }
+                                  }
+                                },
+                                child: Row(
+                                  children: [
+                                    if (widget.selectionMode == null)
+                                      Expanded(
+                                        child: _isEditingTitle
+                                          ? TextFormField(
+                                              controller: _titleController,
+                                              focusNode: _focusNode,
+                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                              decoration: const InputDecoration(
+                                                isDense: true,
+                                                contentPadding: EdgeInsets.zero,
+                                                border: InputBorder.none,
+                                              ),
+                                              onFieldSubmitted: (_) => _saveTitleAndExit(),
+                                            )
+                                          : GestureDetector(
+                                              onTap: () => widget.controller.toggleExpand(widget.node.id, visuallyExpanded),
+                                              child: SingleChildScrollView(
+                                                scrollDirection: Axis.horizontal,
+                                                child: Text(
+                                                  widget.node.title.isEmpty ? 'Nuova Cartella' : widget.node.title, 
+                                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                                ),
+                                              ),
+                                            ),
+                                      )
+                                    else
+                                      Expanded(
                                         child: SingleChildScrollView(
                                           scrollDirection: Axis.horizontal,
-                                          // We use SingleChildScrollView to allow natural scroll if marquee is not fully implemented
-                                          // A true marquee would use an animation controller.
                                           child: Text(
-                                            widget.node.title, 
+                                            widget.node.title.isEmpty ? 'Nuova Cartella' : widget.node.title, 
                                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                                           ),
                                         ),
                                       ),
-                                    )
-                                  else
-                                    Expanded(
-                                      child: SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: Text(
-                                          widget.node.title, 
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                    
+                                    if (!_isEditingTitle && widget.selectionMode == null)
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 8.0),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.chevron_left, color: Colors.white54, size: 16),
+                                            Icon(Icons.edit, color: Colors.white54, size: 14),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           );
