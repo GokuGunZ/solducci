@@ -272,9 +272,9 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                   decoration: BoxDecoration(
                     color: const Color(0xFF2C2C3E),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.5)),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
                     boxShadow: [
-                      BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.1), blurRadius: 30, spreadRadius: -10),
+                      BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.1), blurRadius: 30, spreadRadius: -10),
                     ]
                   ),
                   child: Column(
@@ -340,7 +340,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.white10),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(-10, 0)),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(-10, 0)),
                         ]
                       ),
                       child: Column(
@@ -352,9 +352,9 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                               Expanded(
                                 child: Text(widget.node.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                               ),
-                              Icon(Icons.arrow_back_ios, color: Colors.white.withOpacity(0.1), size: 16),
+                              Icon(Icons.arrow_back_ios, color: Colors.white.withValues(alpha: 0.1), size: 16),
                               const SizedBox(width: 6),
-                              Icon(Icons.edit_note, color: Colors.white.withOpacity(0.1), size: 16),
+                              Icon(Icons.edit_note, color: Colors.white.withValues(alpha: 0.1), size: 16),
                             ],
                           ),
                           if (widget.limit > 0 || _isEditing) ...[
@@ -375,7 +375,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                                 blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
                                 blockquoteDecoration: BoxDecoration(
                                   border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
-                                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                                 ),
                                 code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
                                 codeblockDecoration: BoxDecoration(

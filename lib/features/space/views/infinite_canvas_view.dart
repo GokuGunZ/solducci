@@ -281,7 +281,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
         },
         builder: (context, candidateData, rejectedData) {
           return Container(
-            color: candidateData.isNotEmpty ? const Color(0xFF6366F1).withOpacity(0.05) : Colors.transparent,
+            color: candidateData.isNotEmpty ? const Color(0xFF6366F1).withValues(alpha: 0.05) : Colors.transparent,
             child: CustomScrollView(
               // Viewport-aware overscanning
               cacheExtent: 1500, // Pre-render 1500px outside viewport
@@ -323,7 +323,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
         data: 'omni-plus',
         feedback: FloatingActionButton(
           onPressed: null,
-          backgroundColor: const Color(0xFF6366F1).withOpacity(0.8),
+          backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.8),
           child: const Icon(Icons.add, color: Colors.white),
         ),
         child: FloatingActionButton(
@@ -385,7 +385,7 @@ class _FolderNodeWidget extends StatelessWidget {
           return Container(
             decoration: BoxDecoration(
               color: isHovering 
-                  ? const Color(0xFF6366F1).withOpacity(0.2) 
+                  ? const Color(0xFF6366F1).withValues(alpha: 0.2) 
                   : const Color(0xFF1E1E1E).withValues(alpha: 0.5),
               border: Border.all(
                 color: isHovering 
