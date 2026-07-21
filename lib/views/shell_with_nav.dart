@@ -3,6 +3,7 @@ import 'package:solducci/views/hubs/feed_home_view.dart';
 import 'package:solducci/views/hubs/economy_hub_view.dart';
 import 'package:solducci/views/hubs/action_hub_view.dart';
 import 'package:solducci/views/hubs/archive_hub_view.dart';
+import 'package:solducci/features/space/views/space_home_view.dart';
 import 'package:solducci/widgets/constellation_menu.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/widgets/quick_add/pantry_quick_add_sheet.dart';
@@ -47,6 +48,7 @@ class ShellWithNavState extends State<ShellWithNav> {
     EconomyHubView(),
     ActionHubView(),
     ArchiveHubView(),
+    SpaceHomeView(),
   ];
 
   void onItemTapped(int index) {
@@ -60,7 +62,8 @@ class ShellWithNavState extends State<ShellWithNav> {
       case 0: return const Color(0xFF6366F1); // Feed - Indigo
       case 1: return const Color(0xFF10B981); // Economia - Emerald
       case 2: return const Color(0xFFF59E0B); // Azione - Amber
-      case 3: return const Color(0xFF3B82F6); // Archivio - Blue
+      case 3: return const Color(0xFF3B82F6); // Spazio - Blue
+      case 4: return const Color(0xFF8B5CF6); // Lab - Purple
       default: return const Color(0xFF6366F1);
     }
   }
@@ -162,7 +165,7 @@ class ShellWithNavState extends State<ShellWithNav> {
             onTap: () => context.push('/habits'),
           ),
         ];
-      case 3: // Archivio
+      case 3: // Spazio
         return [
           ConstellationAction(
             label: 'Asterisco',
@@ -216,6 +219,8 @@ class ShellWithNavState extends State<ShellWithNav> {
             },
           ),
         ];
+      case 4: // SpaceHomeView
+        return [];
       default:
         return [];
     }
@@ -260,9 +265,10 @@ class ShellWithNavState extends State<ShellWithNav> {
           children: [
             _buildNavItem(0, Icons.home_filled, 'Feed'),
             _buildNavItem(1, Icons.account_balance_wallet, 'Economia'),
-            const SizedBox(width: 48), // Spazio per il FAB
+            const SizedBox(width: 40), // Spazio per il FAB (ridotto un po' per far spazio a 5 elementi)
             _buildNavItem(2, Icons.bolt, 'Azione'),
-            _buildNavItem(3, Icons.inventory_2, 'Archivio'),
+            _buildNavItem(3, Icons.inventory_2, 'Spazio'),
+            _buildNavItem(4, Icons.science, 'Lab'),
           ],
         ),
       ),

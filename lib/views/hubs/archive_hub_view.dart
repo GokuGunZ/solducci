@@ -18,6 +18,16 @@ class ArchiveHubView extends StatelessWidget {
         children: [
           _buildArchiveCard(
             context,
+            'Infinite Canvas (Alpha)',
+            'Il nuovo esploratore infinito',
+            Icons.account_tree_outlined,
+            const Color(0xFF6366F1),
+            '/space/infinite_canvas',
+            'infinite_canvas',
+          ),
+          const SizedBox(height: 16),
+          _buildArchiveCard(
+            context,
             'Note e Appunti',
             'Idee, liste, pensieri condivisi',
             Icons.notes,

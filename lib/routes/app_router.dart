@@ -43,6 +43,7 @@ import 'package:solducci/features/time_management/views/focus_hub_view.dart';
 import 'package:solducci/features/time_management/views/habit_hub_view.dart';
 import 'package:solducci/views/groups/group_management_hub_view.dart';
 import 'package:solducci/views/mosaico_view.dart';
+import 'package:solducci/features/space/views/infinite_canvas_view.dart';
 
 /// Global router configuration for the app
 /// Handles authentication state and navigation
@@ -128,8 +129,15 @@ class AppRouter {
         builder: (context, state) => const PersonalExpensesPage(),
       ),
       
+
+
       // Space Feature Routes
       GoRoute(path: '/space', builder: (context, state) => const SpaceHomeView()),
+      
+      GoRoute(
+        path: '/space/infinite_canvas',
+        builder: (context, state) => const InfiniteCanvasView(),
+      ),
       
       // Tasks
       GoRoute(

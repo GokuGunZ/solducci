@@ -31,6 +31,14 @@ class SpaceHomeView extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _SpaceCard(
+            title: 'Infinite Canvas (Alpha)',
+            description: 'Il nuovo file system a grafo infinito',
+            icon: Icons.account_tree_outlined,
+            color: Colors.deepPurpleAccent,
+            onTap: () => context.push('/space/infinite_canvas'),
+          ),
+          const SizedBox(height: 12),
+          _SpaceCard(
             title: 'Time Management',
             description: 'Eventi, viaggi, uscite e radar',
             icon: Icons.calendar_month,
