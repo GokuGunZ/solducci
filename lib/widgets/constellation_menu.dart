@@ -40,7 +40,9 @@ class _ConstellationMenuState extends State<ConstellationMenu> with SingleTicker
 
   void _close() {
     _controller.reverse().then((_) {
-      Navigator.pop(context);
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
     });
   }
 
@@ -73,7 +75,7 @@ class _ConstellationMenuState extends State<ConstellationMenu> with SingleTicker
             backgroundColor: color,
             elevation: 8,
             onPressed: () {
-              _close();
+              Navigator.pop(context);
               onTap();
             },
             child: Icon(icon, color: Colors.white, size: 28),
@@ -142,21 +144,8 @@ class _ConstellationMenuState extends State<ConstellationMenu> with SingleTicker
                   _buildItem('Evento', Icons.event, const Color(0xFF6366F1), angles[2], widget.onEvento),
                   _buildItem('Nota', Icons.notes, const Color(0xFFF59E0B), angles[3], widget.onNota),
                   
-                  // Central close button (replaces the FAB visually)
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      return Transform.rotate(
-                        angle: _controller.value * pi / 4, // Ruota di 45 gradi per formare una 'X'
-                        child: FloatingActionButton(
-                          heroTag: 'omni_fab_active',
-                          backgroundColor: Colors.white,
-                          onPressed: _close,
-                          child: const Icon(Icons.add, color: Colors.black, size: 32),
-                        ),
-                      );
-                    }
-                  ),
+                  // The central space is intentionally left empty so the 
+                  // underlying real FAB remains visible and acts as the anchor visually.
                 ],
               ),
             ),

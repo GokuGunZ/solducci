@@ -84,7 +84,8 @@ class RoutineCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              // TODO: Dettaglio Routine
+              // Redirect to detail / edit view
+              context.push('/space/time_management/create_routine'); // TODO: Proper detail view route if available
             },
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -173,12 +174,23 @@ class RoutineCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Switch(
-                    value: template.isActive,
-                    onChanged: (val) {
-                      // TODO: Toggle DB State
-                    },
-                    activeColor: color,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: () {
+                          TimeManagementService().deleteRoutine(template.id);
+                        },
+                      ),
+                      Switch(
+                        value: template.isActive,
+                        onChanged: (val) {
+                          TimeManagementService().updateRoutineStatus(template.id, val);
+                        },
+                        activeColor: const Color(0xFF10B981),
+                      ),
+                    ],
                   ),
                 ],
               ),

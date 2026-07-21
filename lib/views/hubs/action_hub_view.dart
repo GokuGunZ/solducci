@@ -32,7 +32,7 @@ class ActionHubView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 32),
-          const Text('Eventi e Viaggi Imminenti', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+          const Text('Programmi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 16),
           StreamBuilder<List<TimeScenario>>(
             stream: TimeManagementService().timeScenariosStream,
@@ -47,8 +47,19 @@ class ActionHubView extends StatelessWidget {
                     leading: const Icon(Icons.calendar_month, color: Color(0xFF6366F1)),
                     title: Text(s.title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                     subtitle: Text(s.scenarioType.toUpperCase(), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                    onTap: () => context.push('/space/time_management/scenario/${s.scenarioType}/${s.documentId}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.redAccent),
+                          onPressed: () {
+                            TimeManagementService().deleteTimeScenario(s.id);
+                          },
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.white),
+                      ],
+                    ),
+                    onTap: () => context.push('/space/time_management/scenario/${s.scenarioType}/${s.id}'),
                   ),
                 )).toList(),
               );
@@ -69,6 +80,13 @@ class ActionHubView extends StatelessWidget {
                   child: ListTile(
                     leading: const Icon(Icons.alarm, color: Color(0xFFEF4444)),
                     title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.redAccent),
+                      onPressed: () {
+                        TimeManagementService().deleteRoutine(r.id);
+                      },
+                    ),
+                    onTap: () => context.push('/space/time_management/routines'),
                   ),
                 )).toList(),
               );

@@ -6,6 +6,7 @@ import 'package:solducci/blocs/time_management/time_management_bloc.dart';
 import 'package:solducci/blocs/time_management/time_management_event.dart';
 import 'package:solducci/blocs/time_management/time_management_state.dart';
 import 'package:solducci/models/time_scenario.dart';
+import 'package:solducci/service/time_management_service.dart';
 
 class TimeManagementHub extends StatelessWidget {
   const TimeManagementHub({super.key});
@@ -166,7 +167,7 @@ class _TimeManagementHubView extends StatelessWidget {
 
   Widget _buildRadarRow(List<TimeScenario> radarScenarios) {
     return SizedBox(
-      height: 80,
+      height: 120, // Increased height for name text
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: radarScenarios.length + 1,
@@ -192,26 +193,40 @@ class _TimeManagementHubView extends StatelessWidget {
           final scenario = radarScenarios[index - 1];
           return GestureDetector(
             onTap: () {
-              // TODO: Convert availability to Invite
+              context.push('/space/time_management/scenario/availability/${scenario.id}');
             },
             child: Container(
               width: 70,
               margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: Border.all(color: Colors.black, width: 3),
-              ),
-              child: const Center(
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.transparent,
-                  child: Icon(Icons.person, color: Colors.white), // Could be user avatar
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(color: Colors.black, width: 3),
+                    ),
+                    child: const Center(
+                      child: CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Colors.transparent,
+                        child: Icon(Icons.person, color: Colors.white), 
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    scenario.metadata['userName'] as String? ?? 'Utente',
+                    style: const TextStyle(color: Colors.white70, fontSize: 10),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
               ),
             ),
           );
@@ -267,7 +282,12 @@ class _TimeManagementHubView extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(Icons.more_horiz, color: Colors.white54),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () {
+                    TimeManagementService().deleteTimeScenario(scenario.id);
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 12),

@@ -51,7 +51,7 @@ class FeedHomeView extends StatelessWidget {
                   title: Text(nextEvent.title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                   subtitle: const Text('Prossimo evento in programma', style: TextStyle(color: Colors.white70)),
                   trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                  onTap: () => context.push('/space/time_management/scenario/${nextEvent.scenarioType}/${nextEvent.documentId}'),
+                  onTap: () => context.push('/space/time_management/scenario/${nextEvent.scenarioType}/${nextEvent.id}'),
                 ),
               );
             },

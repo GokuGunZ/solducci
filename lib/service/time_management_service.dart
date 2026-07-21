@@ -97,6 +97,19 @@ class TimeManagementService {
     }
   }
 
+  /// Delete Time Scenario (also deletes the linked document)
+  Future<void> deleteTimeScenario(String id) async {
+    try {
+      final scenario = await _supabase.from('time_scenarios').select('document_id').eq('id', id).single();
+      final docId = scenario['document_id'] as String;
+      
+      // Deleting the document should cascade delete the scenario, or we delete both
+      await _supabase.from('documents').delete().eq('id', docId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // ========================================
   // RSVP (Participants)
   // ========================================
@@ -190,6 +203,24 @@ class TimeManagementService {
         alarmMap['routine_template_id'] = generatedId;
         await _supabase.from('routine_alarms').insert(alarmMap);
       }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Update routine template status (active/inactive)
+  Future<void> updateRoutineStatus(String id, bool isActive) async {
+    try {
+      await _supabase.from('routine_templates').update({'is_active': isActive}).eq('id', id);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Delete Routine Template (cascades to alarms and schedules usually)
+  Future<void> deleteRoutine(String id) async {
+    try {
+      await _supabase.from('routine_templates').delete().eq('id', id);
     } catch (e) {
       rethrow;
     }
