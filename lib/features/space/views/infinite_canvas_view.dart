@@ -273,13 +273,22 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
           ),
         ],
       ),
-      body: CustomScrollView(
-        // Viewport-aware overscanning
-        cacheExtent: 1500, // Pre-render 1500px outside viewport
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-            sliver: SliverList(
+      body: DragTarget<String>(
+        onAcceptWithDetails: (details) {
+          if (details.data == 'omni-plus') {
+            _showOmniAddSheet(null);
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          return Container(
+            color: candidateData.isNotEmpty ? const Color(0xFF6366F1).withOpacity(0.05) : Colors.transparent,
+            child: CustomScrollView(
+              // Viewport-aware overscanning
+              cacheExtent: 1500, // Pre-render 1500px outside viewport
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+                  sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final node = _controller.rootNodes[index];
@@ -296,6 +305,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       node: node,
                       controller: _controller,
                       depth: 0,
+                      limit: _controller.globalDepthLimit,
                     );
                   }
                   return const SizedBox.shrink();
@@ -306,10 +316,21 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showOmniAddSheet(null),
-        backgroundColor: const Color(0xFF6366F1),
-        child: const Icon(Icons.add, color: Colors.white),
+      );
+      },
+      ),
+      floatingActionButton: LongPressDraggable<String>(
+        data: 'omni-plus',
+        feedback: FloatingActionButton(
+          onPressed: null,
+          backgroundColor: const Color(0xFF6366F1).withOpacity(0.8),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+        child: FloatingActionButton(
+          onPressed: () => _showOmniAddSheet(null),
+          backgroundColor: const Color(0xFF6366F1),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
     );
   }
@@ -353,15 +374,30 @@ class _FolderNodeWidget extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(left: leftPadding, bottom: 8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E).withValues(alpha: 0.5),
-          border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 1.5),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: DragTarget<String>(
+        onAcceptWithDetails: (details) {
+          if (details.data == 'omni-plus') {
+            onAddChild(node.id);
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
+          return Container(
+            decoration: BoxDecoration(
+              color: isHovering 
+                  ? const Color(0xFF6366F1).withOpacity(0.2) 
+                  : const Color(0xFF1E1E1E).withValues(alpha: 0.5),
+              border: Border.all(
+                color: isHovering 
+                    ? const Color(0xFF6366F1) 
+                    : const Color(0xFF6366F1).withValues(alpha: 0.3), 
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             ListTile(
               leading: Icon(
                 visuallyExpanded ? Icons.folder_open : Icons.folder,
@@ -415,6 +451,7 @@ class _FolderNodeWidget extends StatelessWidget {
                             node: child,
                             controller: controller,
                             depth: depth + 1,
+                            limit: nextForceLevels,
                           );
                         }
                         return const SizedBox.shrink();
@@ -425,6 +462,8 @@ class _FolderNodeWidget extends StatelessWidget {
             ),
           ],
         ),
+      );
+      },
       ),
     );
   }

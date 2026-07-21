@@ -11,12 +11,14 @@ class MarkdownNodeWidget extends StatefulWidget {
   final CanvasNode node;
   final CanvasTreeController controller;
   final int depth;
+  final int limit;
 
   const MarkdownNodeWidget({
     super.key,
     required this.node,
     required this.controller,
     required this.depth,
+    required this.limit,
   });
 
   @override
@@ -45,7 +47,6 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
   double _rippleWavePhase = 0.0;
   double _currentRippleSpeed = 0.05;
   
-  double _currentHeight = 250.0;
   double _maxWidth = 340.0;
 
   @override
@@ -160,50 +161,36 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
 
   void _updateHeightState(bool editing) {
     if (_isEditing == editing) return;
-    _isEditing = editing;
     
-    if (!_isEditing) {
+    // Delay setting isEditing to allow liquid to close or wait for smooth layout
+    if (!editing) {
       FocusScope.of(context).unfocus();
       _saveContent();
       
-      if (_editorScrollController.hasClients && _readerScrollController.hasClients) {
-        _readerScrollController.jumpTo(_editorScrollController.offset);
-      }
-      
-      // Delay height shrink to let liquid close smoothly
       Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted && !_isEditing) {
+        if (mounted) {
           setState(() {
-            _currentHeight = 250.0;
+            _isEditing = false;
           });
         }
       });
     } else {
-      if (_editorScrollController.hasClients && _readerScrollController.hasClients) {
-        _editorScrollController.jumpTo(_readerScrollController.offset);
-      }
+      setState(() {
+        _isEditing = true;
+      });
       
-      // Delay height expansion to sync with liquid open
       Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted && _isEditing) {
-          setState(() {
-            _currentHeight = 400.0;
-          });
-          
-          // Accompagniamo il movimento con uno scrolling manuale e molto morbido (lento)
-          // portando la card in alto. In questo modo quando uscirà la tastiera,
-          // il sistema non dovrà fare uno scroll violento per liberare lo schermo.
+        if (mounted) {
           Scrollable.ensureVisible(
             context,
-            duration: const Duration(milliseconds: 1200), // scroll lento e piacevole
+            duration: const Duration(milliseconds: 1200),
             curve: Curves.easeInOutCubic,
-            alignment: 0.1, // Posiziona la card in alto
+            alignment: 0.1,
           );
         }
       });
       
-      // Rollback: chiediamo il focus solo dopo che la card ha finito di ingrandirsi
-      Future.delayed(const Duration(milliseconds: 200 + 500), () {
+      Future.delayed(const Duration(milliseconds: 700), () {
         if (mounted && _isEditing) {
           _focusNode.requestFocus();
         }
@@ -272,18 +259,16 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
         builder: (context, constraints) {
           _maxWidth = constraints.maxWidth;
           
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 600),
+          return AnimatedSize(
+            duration: const Duration(milliseconds: 400),
             curve: Curves.fastOutSlowIn,
-            width: double.infinity,
-            height: _currentHeight,
+            alignment: Alignment.topCenter,
             child: Stack(
               children: [
                 // Background (Editor)
                 Container(
                   width: double.infinity,
-                  height: double.infinity,
-                  padding: const EdgeInsets.only(left: 32, top: 24, right: 32, bottom: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2C2C3E),
                     borderRadius: BorderRadius.circular(12),
@@ -293,6 +278,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                     ]
                   ),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -314,9 +300,9 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                           const Icon(Icons.edit_note, color: Colors.transparent, size: 16),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: TextField(
+                      if (widget.limit > 0 || _isEditing) ...[
+                        const SizedBox(height: 12),
+                        TextField(
                           controller: _textController,
                           focusNode: _focusNode,
                           scrollController: _editorScrollController,
@@ -326,10 +312,12 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                             hintText: 'Editor rivelato dall\'onda...',
                             hintStyle: TextStyle(color: Colors.white24),
                             border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
                           onChanged: _onTextChanged,
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -346,8 +334,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                     ),
                     child: Container(
                       width: double.infinity,
-                      height: double.infinity,
-                      padding: const EdgeInsets.only(left: 32, top: 24, right: 32, bottom: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E1E2C),
                         borderRadius: BorderRadius.circular(12),
@@ -357,6 +344,7 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                         ]
                       ),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -369,39 +357,36 @@ class _MarkdownNodeWidgetState extends State<MarkdownNodeWidget> with TickerProv
                               Icon(Icons.edit_note, color: Colors.white.withOpacity(0.1), size: 16),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              controller: _readerScrollController,
-                              child: MarkdownBody(
-                                data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
-                                selectable: false,
-                                styleSheet: MarkdownStyleSheet(
-                                  p: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 15, height: 1.5),
-                                  h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
-                                  h2: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
-                                  h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
-                                  h4: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2),
-                                  h5: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2),
-                                  h6: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.2),
-                                  em: const TextStyle(fontStyle: FontStyle.italic),
-                                  strong: const TextStyle(fontWeight: FontWeight.bold),
-                                  blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
-                                  blockquoteDecoration: BoxDecoration(
-                                    border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
-                                    color: const Color(0xFF6366F1).withOpacity(0.1),
-                                  ),
-                                  code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
-                                  codeblockDecoration: BoxDecoration(
-                                    color: Colors.black45,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  listBullet: const TextStyle(color: Color(0xFF6366F1)),
-                                  checkbox: const TextStyle(color: Color(0xFF6366F1)),
+                          if (widget.limit > 0 || _isEditing) ...[
+                            const SizedBox(height: 12),
+                            MarkdownBody(
+                              data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
+                              selectable: false,
+                              styleSheet: MarkdownStyleSheet(
+                                p: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 15, height: 1.5),
+                                h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
+                                h2: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
+                                h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
+                                h4: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2),
+                                h5: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2),
+                                h6: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.2),
+                                em: const TextStyle(fontStyle: FontStyle.italic),
+                                strong: const TextStyle(fontWeight: FontWeight.bold),
+                                blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+                                blockquoteDecoration: BoxDecoration(
+                                  border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
+                                  color: const Color(0xFF6366F1).withOpacity(0.1),
                                 ),
+                                code: const TextStyle(color: Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace'),
+                                codeblockDecoration: BoxDecoration(
+                                  color: Colors.black45,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                listBullet: const TextStyle(color: Color(0xFF6366F1)),
+                                checkbox: const TextStyle(color: Color(0xFF6366F1)),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
