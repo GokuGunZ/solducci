@@ -125,7 +125,24 @@ class ShellWithNavState extends State<ShellWithNav> {
           ConstellationAction(
             label: 'Routine',
             icon: Icons.repeat,
-            onTap: () => context.push('/space/time_management/routines'),
+            onTap: () {
+              QuickAddItemModal.show(
+                context: context,
+                title: 'Nuova Routine',
+                themeColor: const Color(0xFFF59E0B),
+                folders: [
+                  CollectionFolder('1', 'Mattina'),
+                  CollectionFolder('2', 'Sera'),
+                  CollectionFolder('3', 'Lavoro'),
+                  CollectionFolder('4', 'Fitness'),
+                ],
+                onAdd: (folderId, itemName) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Creata routine "$itemName"!')),
+                  );
+                },
+              );
+            },
           ),
           ConstellationAction(
             label: 'Focus',
@@ -143,17 +160,66 @@ class ShellWithNavState extends State<ShellWithNav> {
           ConstellationAction(
             label: 'Asterisco',
             icon: Icons.star,
-            onTap: () => context.push('/space/asterisks'),
+            onTap: () {
+              QuickAddItemModal.show(
+                context: context,
+                title: 'Nuovo Asterisco',
+                themeColor: const Color(0xFF3B82F6),
+                folders: [
+                  CollectionFolder('1', 'Personale'),
+                  CollectionFolder('2', 'Lavoro'),
+                  CollectionFolder('3', 'Idee'),
+                ],
+                onAdd: (folderId, itemName) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Creato asterisco "$itemName"!')),
+                  );
+                },
+              );
+            },
           ),
           ConstellationAction(
             label: 'Risorsa',
             icon: Icons.book,
-            onTap: () => context.push('/space/resources'),
+            onTap: () {
+              QuickAddItemModal.show(
+                context: context,
+                title: 'Nuova Risorsa',
+                themeColor: const Color(0xFF3B82F6),
+                folders: [
+                  CollectionFolder('1', 'Documenti'),
+                  CollectionFolder('2', 'Bollette'),
+                  CollectionFolder('3', 'Ricevute'),
+                  CollectionFolder('4', 'Manuali'),
+                ],
+                onAdd: (folderId, itemName) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Creata risorsa "$itemName"!')),
+                  );
+                },
+              );
+            },
           ),
           ConstellationAction(
             label: 'Note',
             icon: Icons.note_add,
-            onTap: () => context.push('/space/notes'),
+            onTap: () {
+              QuickAddItemModal.show(
+                context: context,
+                title: 'Nuova Nota',
+                themeColor: const Color(0xFF3B82F6),
+                folders: [
+                  CollectionFolder('1', 'Generale'),
+                  CollectionFolder('2', 'Meeting'),
+                  CollectionFolder('3', 'Diario'),
+                ],
+                onAdd: (folderId, itemName) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Creata nota "$itemName"!')),
+                  );
+                },
+              );
+            },
           ),
         ];
       default:
