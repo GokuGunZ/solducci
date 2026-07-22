@@ -25,6 +25,9 @@ class ExpenseGroup implements CacheableModel<String> {
   @HiveField(5)
   DateTime updatedAt;
 
+  @HiveField(8)
+  String? imageUrl;
+
   // Denormalized data for UI (not stored in DB)
   @HiveField(6)
   List<GroupMember>? members;
@@ -39,6 +42,7 @@ class ExpenseGroup implements CacheableModel<String> {
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    this.imageUrl,
     this.members,
     this.memberCount,
   });
@@ -52,6 +56,7 @@ class ExpenseGroup implements CacheableModel<String> {
       createdBy: map['created_by'] as String,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
+      imageUrl: map['image_url'] as String?,
       memberCount: map['member_count'] as int?,
     );
   }
@@ -64,6 +69,7 @@ class ExpenseGroup implements CacheableModel<String> {
       'description': description,
       'created_by': createdBy,
       'updated_at': DateTime.now().toIso8601String(),
+      'image_url': imageUrl,
     };
   }
 
@@ -73,6 +79,7 @@ class ExpenseGroup implements CacheableModel<String> {
       'name': name,
       'description': description,
       'created_by': createdBy,
+      'image_url': imageUrl,
     };
   }
 
@@ -82,6 +89,7 @@ class ExpenseGroup implements CacheableModel<String> {
       'name': name,
       'description': description,
       'updated_at': DateTime.now().toIso8601String(),
+      'image_url': imageUrl,
     };
   }
 
@@ -103,6 +111,7 @@ class ExpenseGroup implements CacheableModel<String> {
   ExpenseGroup copyWith({
     String? name,
     String? description,
+    String? imageUrl,
     List<GroupMember>? members,
     int? memberCount,
   }) {
@@ -113,6 +122,7 @@ class ExpenseGroup implements CacheableModel<String> {
       createdBy: createdBy,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
+      imageUrl: imageUrl ?? this.imageUrl,
       members: members ?? this.members,
       memberCount: memberCount ?? this.memberCount,
     );

@@ -63,57 +63,74 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(title: Text("Login page"),),
       body: Form(
-        child: ListView(
-          padding: EdgeInsets.symmetric(vertical: 15, horizontal: 125),
-          children: [
-            SizedBox(height: 20,),
-            Center(
-              child: SolducciLogo(),
-            ),
-            SizedBox(height: 80,),
-            TextFormField(
-              decoration: InputDecoration(label: Text("eMail")),
-              controller: _emailController,
-            ),
-            SizedBox(height: 50,),
-            TextFormField(
-              decoration: InputDecoration(
-                label: Text("Password"),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isPasswordVisible = !_isPasswordVisible;
-                    });
-                  },
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+              children: [
+                const SizedBox(height: 20),
+                const Center(
+                  child: SolducciLogo(),
                 ),
-              ),
-              obscureText: !_isPasswordVisible,
-              enableSuggestions: false,
-              autocorrect: false,
-              controller: _passwordController,
-            ),
-            SizedBox(height: 50,),
-            ElevatedButton(
-              onPressed: _isLoading ? null : login,
-              child: _isLoading
-                ? SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text("Login"),
-            ),
+                const SizedBox(height: 80),
+                TextFormField(
+                  decoration: const InputDecoration(label: Text("eMail")),
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 50),
+                TextFormField(
+                  decoration: InputDecoration(
+                    label: const Text("Password"),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
+                  ),
+                  obscureText: !_isPasswordVisible,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  controller: _passwordController,
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      context.push('/forgot_password');
+                    },
+                    child: const Text("Password dimenticata?"),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : login,
+                  child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text("Login"),
+                ),
 
-            SizedBox(height: 50,),
-            ElevatedButton(
-              onPressed: () {
-                context.push("/signup");
-              },
-              child: Text("Register Here")),
-          ],
+                const SizedBox(height: 50),
+                ElevatedButton(
+                  onPressed: () {
+                    context.push("/signup");
+                  },
+                  child: const Text("Register Here"),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

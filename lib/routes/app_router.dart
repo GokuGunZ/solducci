@@ -5,6 +5,7 @@ import 'package:solducci/views/expense_list.dart';
 import 'package:solducci/views/splash_screen.dart';
 import 'package:solducci/views/login_page.dart';
 import 'package:solducci/views/signup_page.dart';
+import 'package:solducci/views/forgot_password_page.dart';
 import 'package:solducci/views/new_homepage.dart';
 import 'package:solducci/views/profile_page.dart';
 import 'package:solducci/views/shell_with_nav.dart';
@@ -59,19 +60,21 @@ class AppRouter {
           Supabase.instance.client.auth.currentSession != null;
       final isGoingToLogin = state.matchedLocation == '/login';
       final isGoingToSignup = state.matchedLocation == '/signup';
+      final isGoingToForgotPassword = state.matchedLocation == '/forgot_password';
       final isGoingToSplash = state.matchedLocation == '/';
 
       // If not authenticated and not going to auth pages, redirect to splash/login
       if (!isAuthenticated &&
           !isGoingToLogin &&
           !isGoingToSignup &&
+          !isGoingToForgotPassword &&
           !isGoingToSplash) {
         return '/login';
       }
 
       // If authenticated and going to auth pages, redirect to home
       if (isAuthenticated &&
-          (isGoingToLogin || isGoingToSignup || isGoingToSplash)) {
+          (isGoingToLogin || isGoingToSignup || isGoingToForgotPassword || isGoingToSplash)) {
         return '/home';
       }
 
@@ -84,6 +87,7 @@ class AppRouter {
       // Auth Routes (no shell)
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(path: '/signup', builder: (context, state) => const SignupPage()),
+      GoRoute(path: '/forgot_password', builder: (context, state) => const ForgotPasswordPage()),
 
       // Main App Shell with Bottom Navigation (single route with IndexedStack)
       GoRoute(path: '/home', builder: (context, state) => const ShellWithNav()),
