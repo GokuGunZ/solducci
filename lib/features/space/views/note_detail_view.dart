@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
@@ -123,7 +124,7 @@ class _NoteDetailViewState extends State<NoteDetailView> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: SolducciAppBar(
           title: Text(_document!.title),
           actions: [
             IconButton(

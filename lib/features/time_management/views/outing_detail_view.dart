@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/time_management_service.dart' as solducci_time_service;
 
@@ -10,7 +11,7 @@ class OutingDetailView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         title: const Text('Dettaglio Uscita', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),

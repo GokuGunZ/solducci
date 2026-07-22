@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
@@ -56,7 +57,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
     }
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: Text(_document!.title),
         actions: [
           IconButton(

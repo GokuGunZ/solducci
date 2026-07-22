@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -149,7 +150,7 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Soluzione 3: Elastic Liquid', style: TextStyle(color: Colors.white)), 
         backgroundColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),

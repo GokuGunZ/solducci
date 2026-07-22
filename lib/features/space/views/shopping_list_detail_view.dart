@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
@@ -289,7 +290,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
         }
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: SolducciAppBar(
           titleSpacing: 0,
           title: _isEditingTitle 
             ? TextField(

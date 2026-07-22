@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -49,7 +50,7 @@ class _CreateScenarioViewState extends State<CreateScenarioView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         title: const Text('Crea Nuovo', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),

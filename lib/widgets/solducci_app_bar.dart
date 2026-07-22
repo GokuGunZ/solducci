@@ -14,6 +14,7 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
   final IconThemeData? iconTheme;
   final Widget? flexibleSpace;
   final Color? foregroundColor;
+  final double? titleSpacing;
 
   const SolducciAppBar({
     super.key,
@@ -29,6 +30,7 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.iconTheme,
     this.flexibleSpace,
     this.foregroundColor,
+    this.titleSpacing,
   });
 
   @override
@@ -53,6 +55,7 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
       flexibleSpace: flexibleSpace,
       leading: leading,
       bottom: bottom,
+      titleSpacing: titleSpacing,
       actions: finalActions,
     );
   }

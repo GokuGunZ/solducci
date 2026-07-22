@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/service/context_manager.dart';
@@ -96,7 +97,7 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
           SafeArea(
             child: Column(
               children: [
-                AppBar(
+                SolducciAppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   title: Text(widget.sectionLabel, style: const TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),

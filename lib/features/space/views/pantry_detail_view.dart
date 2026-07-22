@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
@@ -73,7 +74,7 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
     }
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: _isSelectionMode 
           ? Text('${_selectedItemIds.length} selezionati')
           : Text(_document!.title),

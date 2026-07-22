@@ -125,85 +125,93 @@ class ContextChip extends StatelessWidget {
           ]
         : [];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: chipColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected
-              ? chipColor
-              : (isRelated ? accentColor : Colors.grey[300]!),
-          width: isSelected ? 2 : 1,
-        ),
-        boxShadow: shadows,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Main chip area (tappable)
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(12),
-              bottomLeft: Radius.circular(12),
-              topRight: onAddPersonalTap != null
-                  ? Radius.zero
-                  : Radius.circular(12),
-              bottomRight: onAddPersonalTap != null
-                  ? Radius.zero
-                  : Radius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 16, color: textColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: textColor,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bottone [+P] per gruppi e viste (non per Personale)
-          if (onAddPersonalTap != null) ...[
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Main avatar area
             Container(
-              width: 1,
-              height: 24,
-              color: isSelected
-                  ? Colors.white.withValues(alpha: 0.3)
-                  : Colors.grey[300],
-            ),
-            InkWell(
-              onTap: onAddPersonalTap,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(12),
-                bottomRight: Radius.circular(12),
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: chipColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? chipColor
+                      : (isRelated ? accentColor : Colors.grey[300]!),
+                  width: isSelected ? 2 : 1,
+                ),
+                boxShadow: shadows,
               ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Icon(
-                  includesPersonal ? Icons.person_remove : Icons.person_add,
-                  size: includesPersonal ? 20 : 16, // Più grande quando attivo
-                  color: includesPersonal
-                      ? Colors.purple[600] // Viola quando attivo
-                      : (isSelected ? Colors.white70 : Colors.grey[600]),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  customBorder: const CircleBorder(),
+                  child: Center(
+                    child: type == ContextChipType.group
+                        ? Text(
+                            label.substring(0, label.length >= 2 ? 2 : 1).toUpperCase(),
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : Icon(icon, size: 24, color: textColor),
+                  ),
                 ),
               ),
             ),
+
+            // Bottone [+P] come badge in basso a destra
+            if (onAddPersonalTap != null)
+              Positioned(
+                bottom: -4,
+                right: -4,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onAddPersonalTap,
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: includesPersonal ? Colors.purple[600] : Colors.grey[200],
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+                      ),
+                      child: Icon(
+                        includesPersonal ? Icons.person : Icons.person_add,
+                        size: 14,
+                        color: includesPersonal ? Colors.white : Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
-        ],
-      ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            style: TextStyle(
+              color: isSelected ? textColor : Colors.grey[800],
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 11,
+              height: 1.1,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +11,7 @@ class SpaceHomeView extends StatelessWidget {
     final contextManager = ContextManager();
     
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: ListenableBuilder(
           listenable: contextManager,
           builder: (context, _) {

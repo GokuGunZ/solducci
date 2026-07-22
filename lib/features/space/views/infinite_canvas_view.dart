@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -926,7 +927,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF09090B), // OLED black
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('Infinite Canvas', style: TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),

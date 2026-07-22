@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class FocusHubView extends StatelessWidget {
@@ -7,7 +8,7 @@ class FocusHubView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('Focus Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

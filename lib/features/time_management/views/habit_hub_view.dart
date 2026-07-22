@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/routine.dart';
@@ -9,7 +10,7 @@ class HabitHubView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('Abitudini / Routine', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

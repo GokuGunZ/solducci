@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -106,7 +107,7 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Soluzione 1: 3D Flip', style: TextStyle(color: Colors.white)), 
         backgroundColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),

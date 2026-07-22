@@ -15,7 +15,9 @@ class FeedHomeView extends StatelessWidget {
     final contextManager = ContextManager();
     return Scaffold(
       appBar: SolducciAppBar(
-        title: const ContextSwitcher(),
+        titleText: 'Feed',
+        centerTitle: true,
+        elevation: 2,
         actions: [
           IconButton(
             icon: const Icon(Icons.person_outline), 
