@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/theme/todo_theme.dart';
@@ -37,7 +38,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Filter & Sort UI Solutions'),
         backgroundColor: TodoTheme.primaryPurple,
         foregroundColor: Colors.white,

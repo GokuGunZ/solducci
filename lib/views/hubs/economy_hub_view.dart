@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/expense_service_cached.dart';
@@ -13,7 +14,7 @@ class EconomyHubView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Economy Hub', style: TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,

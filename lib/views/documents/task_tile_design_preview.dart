@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/task.dart';
@@ -26,7 +27,7 @@ class TaskTileDesignPreview extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Task Tile Design - Proposte'),
         backgroundColor: TodoTheme.primaryPurple,
         foregroundColor: Colors.white,

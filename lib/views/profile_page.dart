@@ -7,6 +7,7 @@ import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/views/showcase/ui_showcase_menu.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:solducci/widgets/solducci_app_bar.dart';
 
 /// Profile page with user info, settings, and links to additional features
 class ProfilePage extends StatefulWidget {
@@ -63,15 +64,18 @@ class _ProfilePageState extends State<ProfilePage> {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error loading profile data: $e');
       setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore caricamento dati: $e')),
+        );
+      }
     }
   }
 
   Future<void> _editNickname() async {
-    final controller = TextEditingController(
-      text: _userProfile?.nickname ?? '',
-    );
+    final currentNickname = _userProfile?.nickname ?? '';
+    final controller = TextEditingController(text: currentNickname);
 
     final newNickname = await showDialog<String>(
       context: context,
@@ -80,10 +84,8 @@ class _ProfilePageState extends State<ProfilePage> {
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            labelText: 'Nickname',
-            hintText: 'Il tuo nome o soprannome',
+            hintText: 'Inserisci il tuo nickname',
           ),
-          maxLength: 50,
           autofocus: true,
         ),
         actions: [
@@ -91,7 +93,7 @@ class _ProfilePageState extends State<ProfilePage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Annulla'),
           ),
-          FilledButton(
+          TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text('Salva'),
           ),
@@ -125,7 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = Supabase.instance.client.auth.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profilo'), elevation: 2),
+      appBar: const SolducciAppBar(titleText: 'Profilo'),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

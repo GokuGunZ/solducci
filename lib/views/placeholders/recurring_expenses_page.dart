@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 
 /// Placeholder page for recurring expenses management
@@ -8,7 +9,7 @@ class RecurringExpensesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Spese Ricorrenti'),
       ),
       body: Center(

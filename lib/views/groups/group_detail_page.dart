@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/group.dart';
@@ -186,20 +187,20 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Caricamento...')),
+        appBar: SolducciAppBar(title: const Text('Caricamento...')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_group == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Errore')),
+        appBar: SolducciAppBar(title: const Text('Errore')),
         body: const Center(child: Text('Gruppo non trovato')),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: Text(_group!.name),
         elevation: 2,
         actions: [

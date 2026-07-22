@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/time_scenario.dart';
@@ -27,7 +28,7 @@ class _ActionHubViewState extends State<ActionHubView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Tempo & Azione'),
       ),
       body: ListView(

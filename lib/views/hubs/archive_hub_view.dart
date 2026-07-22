@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,7 +9,7 @@ class ArchiveHubView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Esploratore Spazi', style: TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,

@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/features/space/views/demos/demo_flip_card_view.dart';
 import 'package:solducci/features/space/views/demos/demo_liquid_card_view.dart';
@@ -9,7 +10,7 @@ class InteractiveCardsShowcasePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Interactive Cards', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),

@@ -9,6 +9,7 @@ import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/widgets/expense_list_item_optimized.dart';
 import 'package:solducci/widgets/context_switcher.dart';
 import 'package:solducci/utils/category_helpers.dart';
+import 'package:solducci/widgets/solducci_app_bar.dart';
 
 class NewHomepage extends StatefulWidget {
   const NewHomepage({super.key});
@@ -96,10 +97,8 @@ class _NewHomepageState extends State<NewHomepage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const ContextSwitcher(),
-        centerTitle: true,
-        elevation: 2,
+      appBar: SolducciAppBar(
+        titleText: 'Dashboard',
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),

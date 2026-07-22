@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:solducci/theme/app_theme.dart';
@@ -9,7 +10,7 @@ class MosaicoView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Mosaico (Design System)'),
         backgroundColor: Colors.transparent,
         elevation: 0,

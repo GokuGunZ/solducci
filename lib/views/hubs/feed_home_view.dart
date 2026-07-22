@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/time_management_service.dart';
@@ -13,7 +14,7 @@ class FeedHomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     final contextManager = ContextManager();
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const ContextSwitcher(),
         actions: [
           IconButton(

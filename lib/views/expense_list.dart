@@ -5,6 +5,7 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/widgets/expense_list_item_optimized.dart';
 import 'package:solducci/widgets/context_switcher.dart';
+import 'package:solducci/widgets/solducci_app_bar.dart';
 
 class ExpenseList extends StatefulWidget {
   const ExpenseList({super.key});
@@ -23,7 +24,7 @@ class _ExpenseListState extends State<ExpenseList> {
   @override
   void initState() {
     super.initState();
-    // Listen to context changes to rebuild stream
+    // Listen to context changes to rebuild list
     _contextManager.addListener(_onContextChanged);
   }
 
@@ -77,10 +78,8 @@ class _ExpenseListState extends State<ExpenseList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const ContextSwitcher(),
-        centerTitle: true,
-        elevation: 2,
+      appBar: const SolducciAppBar(
+        titleText: 'Lista Spese',
       ),
       body: StreamBuilder<List<Expense>>(
         stream: _expenseService.stream,

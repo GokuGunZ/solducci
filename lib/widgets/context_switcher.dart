@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/widgets/context_chip.dart';
 import 'package:solducci/widgets/create_view_bubble.dart';
+import 'package:solducci/widgets/circular_context_avatar.dart';
 import 'package:solducci/models/expense_view.dart';
 
 /// Widget che mostra il contesto corrente (Personal/Gruppo/Vista) e permette di switchare
@@ -39,29 +40,10 @@ class ContextSwitcher extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () => _showContextPicker(context),
-            borderRadius: BorderRadius.circular(8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Icona contesto con colore distintivo
-                Icon(
-                  currentContext.isPersonal
-                      ? Icons.person
-                      : currentContext.isView
-                      ? (_isAllGroupsView(currentContext) ? Icons.groups : Icons.view_list_rounded)
-                      : Icons.group,
-                  size: 20,
-                  color: currentContext.isPersonal
-                      ? Colors.purple
-                      : currentContext.isView
-                      ? (_isAllGroupsView(currentContext) ? Colors.orange : Colors.blue)
-                      : Colors.green,
-                ),
-                const SizedBox(width: 8),
-                Flexible(child: _buildContextName(currentContext)),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down, size: 20),
-              ],
+            borderRadius: BorderRadius.circular(20), // More circular bounding box for ripples
+            child: CircularContextAvatar(
+              expenseContext: currentContext,
+              radius: 18.0,
             ),
           ),
         );
@@ -69,41 +51,9 @@ class ContextSwitcher extends StatelessWidget {
     );
   }
 
-  /// Build context name with purple icon for personal expenses
-  Widget _buildContextName(ExpenseContext currentContext) {
-    final baseName = currentContext.isPersonal
-        ? 'Personale'
-        : currentContext.isView
-        ? currentContext.view!.name
-        : currentContext.group!.name;
-
-    // Se include personal, aggiungi icona viola
-    if (currentContext.includesPersonal) {
-      return Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: baseName,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-            const TextSpan(text: ' '),
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Icon(Icons.person, size: 18, color: Colors.purple[600]),
-            ),
-          ],
-        ),
-        overflow: TextOverflow.ellipsis,
-      );
-    }
-
-    // Altrimenti solo testo normale
-    return Text(
-      baseName,
-      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-      overflow: TextOverflow.ellipsis,
-    );
-  }
+  // The `_buildContextName` is no longer needed in ContextSwitcher 
+  // as it's handled by CircularContextAvatar, but we can leave it or remove it.
+  // I am removing it to clean up the code.
 }
 
 /// Modal per selezionare il contesto

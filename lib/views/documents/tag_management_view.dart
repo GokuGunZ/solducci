@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/tag.dart';
@@ -366,7 +367,7 @@ class _TagManagementViewState extends State<TagManagementView> {
   }
 
   PreferredSizeWidget _buildGlassAppBar() {
-    return AppBar(
+    return SolducciAppBar(
       flexibleSpace: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),

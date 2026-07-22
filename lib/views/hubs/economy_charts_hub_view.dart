@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/models/expense.dart';
@@ -11,7 +12,7 @@ class EconomyChartsHubView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('Dashboard Grafici', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

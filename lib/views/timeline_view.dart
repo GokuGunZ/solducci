@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_data.dart';
@@ -13,7 +14,7 @@ class TimelineView extends StatelessWidget {
     final expenseService = ExpenseService();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Timeline Spese")),
+      appBar: SolducciAppBar(title: const Text("Timeline Spese")),
       body: StreamBuilder<List<Expense>>(
         stream: expenseService.stream,
         builder: (context, snapshot) {

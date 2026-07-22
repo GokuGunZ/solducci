@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/theme/todo_theme.dart';
@@ -21,7 +22,7 @@ class _DropdownSelectorPreviewState extends State<DropdownSelectorPreview> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Dropdown Selector Solutions'),
         backgroundColor: TodoTheme.primaryPurple,
         foregroundColor: Colors.white,

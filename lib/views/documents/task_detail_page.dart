@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -506,7 +507,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   }
 
   PreferredSizeWidget _buildEditableAppBar() {
-    return AppBar(
+    return SolducciAppBar(
       flexibleSpace: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),

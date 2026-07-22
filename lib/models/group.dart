@@ -141,6 +141,18 @@ class ExpenseGroup implements CacheableModel<String> {
 
   @override
   int get hashCode => id.hashCode;
+
+  /// Get initials from group name
+  String get initials {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length == 1) {
+      return parts[0].length >= 2
+          ? parts[0].substring(0, 2).toUpperCase()
+          : parts[0].toUpperCase();
+    }
+    return '${parts[0].substring(0, 1)}${parts[1].substring(0, 1)}'.toUpperCase();
+  }
 }
 
 /// Member of an expense group

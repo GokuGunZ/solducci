@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/service/group_service_cached.dart';
@@ -10,7 +11,7 @@ class GroupManagementHubView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('Gestione Gruppi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

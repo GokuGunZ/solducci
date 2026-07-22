@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:ui' show ImageFilter;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -38,7 +39,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
+        appBar: SolducciAppBar(
           title: const Text('Background Showcase'),
           elevation: 0,
           flexibleSpace: Container(

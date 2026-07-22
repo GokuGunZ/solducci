@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/views/hubs/feed_home_view.dart';
 import 'package:solducci/views/hubs/economy_hub_view.dart';
@@ -301,7 +302,7 @@ class ShellWithNavState extends State<ShellWithNav> {
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          appBar: AppBar(
+          appBar: SolducciAppBar(
             title: const Text("Nuova Spesa"),
             leading: IconButton(
               icon: const Icon(Icons.close),

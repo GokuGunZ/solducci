@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/group_invite.dart';
@@ -150,7 +151,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Inviti Pendenti'), elevation: 2),
+      appBar: SolducciAppBar(title: const Text('Inviti Pendenti'), elevation: 2),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _invites.isEmpty

@@ -1,3 +1,4 @@
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 
 /// Demo page per testare i tre stili di ombreggiatura/evidenziazione
@@ -8,7 +9,7 @@ class ShadowStyleDemoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: SolducciAppBar(
         title: const Text('Demo Stili Ombreggiatura'),
       ),
       body: ListView(
