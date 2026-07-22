@@ -36,14 +36,17 @@ class ContextSwitcher extends StatelessWidget {
         final contextManager = ContextManager();
         final currentContext = contextManager.currentContext;
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _showContextPicker(context),
-            borderRadius: BorderRadius.circular(20), // More circular bounding box for ripples
-            child: CircularContextAvatar(
-              expenseContext: currentContext,
-              radius: 18.0,
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showContextPicker(context),
+              borderRadius: BorderRadius.circular(20), // More circular bounding box for ripples
+              child: CircularContextAvatar(
+                expenseContext: currentContext,
+                radius: kToolbarHeight * 0.425,
+                showLabel: false,
+              ),
             ),
           ),
         );

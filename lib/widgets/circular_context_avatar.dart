@@ -6,11 +6,13 @@ import 'package:solducci/service/auth_service.dart';
 class CircularContextAvatar extends StatelessWidget {
   final ExpenseContext expenseContext;
   final double radius;
+  final bool showLabel;
 
   const CircularContextAvatar({
     super.key,
     required this.expenseContext,
     this.radius = 20.0,
+    this.showLabel = true,
   });
 
   @override
@@ -27,15 +29,19 @@ class CircularContextAvatar extends StatelessWidget {
   Widget _buildPersonalAvatar() {
     // We could use an avatarUrl here if the Profile model has one, 
     // for now we use the purple theme with a person icon.
+    final avatar = CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.purple.shade100,
+      foregroundColor: Colors.purple.shade800,
+      child: Icon(Icons.person, size: radius * 1.4), // increased from 1.2
+    );
+
+    if (!showLabel) return avatar;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CircleAvatar(
-          radius: radius,
-          backgroundColor: Colors.purple.shade100,
-          foregroundColor: Colors.purple.shade800,
-          child: Icon(Icons.person, size: radius * 1.2),
-        ),
+        avatar,
         const SizedBox(height: 2),
         SizedBox(
           width: radius * 2.5,
@@ -55,7 +61,7 @@ class CircularContextAvatar extends StatelessWidget {
       return CircleAvatar(
         radius: r,
         backgroundColor: Colors.grey.shade300,
-        child: const Icon(Icons.group, color: Colors.grey),
+        child: Icon(Icons.group, color: Colors.grey, size: r * 1.4),
       );
     }
 
@@ -73,13 +79,13 @@ class CircularContextAvatar extends StatelessWidget {
         foregroundColor: Colors.green.shade800,
         child: Text(
           group.initials,
-          style: TextStyle(fontSize: r * 0.8, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: r * 1.0, fontWeight: FontWeight.bold), // increased from 0.8
         ),
       );
     }
 
-    if (this.radius != r) {
-      // If it's a smaller avatar (in a view), don't show the text below
+    // Se è un sub-avatar di un cluster o showLabel è falso, restituiamo solo l'avatar
+    if (this.radius != r || !showLabel) {
       return avatar;
     }
 
@@ -113,15 +119,14 @@ class CircularContextAvatar extends StatelessWidget {
       avatarCluster = CircleAvatar(
         radius: radius,
         backgroundColor: Colors.orange.shade100,
-        child: Icon(Icons.view_list_rounded, color: Colors.orange.shade800),
+        child: Icon(Icons.view_list_rounded, color: Colors.orange.shade800, size: radius * 1.4),
       );
     } else if (groups.length == 1) {
-      avatarCluster = _buildGroupAvatar(groups[0], radius);
       // Strip text part since we handle it below for view
       avatarCluster = CircleAvatar(
         radius: radius,
         backgroundColor: Colors.orange.shade100,
-        child: Icon(Icons.view_list_rounded, color: Colors.orange.shade800),
+        child: Icon(Icons.view_list_rounded, color: Colors.orange.shade800, size: radius * 1.4),
       ); // Fallback to list icon or we can use the single group's avatar
     } else {
       // Create a stack of 2 or 3 overlapping avatars
@@ -138,7 +143,7 @@ class CircularContextAvatar extends StatelessWidget {
             backgroundColor: Colors.grey.shade300,
             child: Text(
               '+${groups.length - 2}',
-              style: TextStyle(fontSize: smallRadius * 0.8, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(fontSize: smallRadius * 0.9, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
           );
         } else {
@@ -168,6 +173,8 @@ class CircularContextAvatar extends StatelessWidget {
         ),
       );
     }
+
+    if (!showLabel) return avatarCluster;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
