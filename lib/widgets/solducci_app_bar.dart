@@ -36,12 +36,40 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     List<Widget> finalActions = actions != null ? List.from(actions!) : [];
-    
+
+    final ModalRoute<dynamic>? parentRoute = ModalRoute.of(context);
+    final bool canPop = parentRoute?.canPop ?? false;
+    final bool useCloseButton = parentRoute is PageRoute<dynamic> && parentRoute.fullscreenDialog;
+
+    Widget? currentLeading = leading;
+
+    // Se non è stato passato un leading ma possiamo fare pop, inseriamo il back button standard
+    if (currentLeading == null && canPop) {
+      currentLeading = useCloseButton ? const CloseButton() : const BackButton();
+    }
+
+    double? currentLeadingWidth;
+
     if (showContextSwitcher) {
-      finalActions.add(const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.0),
-        child: Center(child: ContextSwitcher()),
-      ));
+      if (currentLeading != null) {
+        currentLeading = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            currentLeading,
+            const Padding(
+              padding: EdgeInsets.only(left: 4.0),
+              child: ContextSwitcher(),
+            ),
+          ],
+        );
+        currentLeadingWidth = 110.0; // BackButton(48) + Padding(4) + Switcher(~55)
+      } else {
+        currentLeading = const Padding(
+          padding: EdgeInsets.only(left: 16.0),
+          child: ContextSwitcher(),
+        );
+        currentLeadingWidth = 75.0; // Padding(16) + Switcher(~55)
+      }
     }
 
     return AppBar(
@@ -53,7 +81,8 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
       foregroundColor: foregroundColor,
       iconTheme: iconTheme,
       flexibleSpace: flexibleSpace,
-      leading: leading,
+      leading: currentLeading,
+      leadingWidth: currentLeadingWidth,
       bottom: bottom,
       titleSpacing: titleSpacing,
       actions: finalActions,
