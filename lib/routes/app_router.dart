@@ -12,6 +12,7 @@ import 'package:solducci/views/shell_with_nav.dart';
 import 'package:solducci/views/monthly_view.dart';
 import 'package:solducci/views/category_view.dart';
 import 'package:solducci/views/timeline_view.dart';
+import 'package:solducci/views/bento_dashboard_page.dart';
 import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
@@ -99,6 +100,10 @@ class AppRouter {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: '/bento_dashboard',
+        builder: (context, state) => const BentoDashboardPage(),
       ),
       GoRoute(
         path: '/expense_list',
