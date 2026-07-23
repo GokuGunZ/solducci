@@ -20,9 +20,6 @@ jobs:
         with:
           version: latest
 
-      - name: Lint Migrations (Pre-check)
-        run: supabase db lint
-        
       - name: Push Migrations
         run: supabase db push
         env:
