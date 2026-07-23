@@ -1,5 +1,5 @@
 -- 20260722_dashboard_redesign_schema.sql
--- Create table for storing Bento Grid dashboard configurations per user
+-- Create table for storing Bento Grid dashboard configurations per users
 
 CREATE TABLE IF NOT EXISTS public.user_dashboards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
