@@ -1,6 +1,7 @@
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:solducci/views/hubs/feed_home_view.dart';
+import 'package:solducci/views/bento_dashboard_page.dart';
 import 'package:solducci/views/hubs/economy_hub_view.dart';
 import 'package:solducci/views/hubs/action_hub_view.dart';
 import 'package:solducci/views/hubs/archive_hub_view.dart';
@@ -45,7 +46,7 @@ class ShellWithNavState extends State<ShellWithNav> {
 
   // List of tab pages
   static const List<Widget> _pages = [
-    FeedHomeView(),
+    BentoDashboardPage(),
     EconomyHubView(),
     ActionHubView(),
     ArchiveHubView(),

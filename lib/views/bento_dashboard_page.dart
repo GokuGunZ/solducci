@@ -5,6 +5,8 @@ import 'package:solducci/blocs/dashboard/dashboard_bloc.dart';
 import 'package:solducci/blocs/dashboard/dashboard_event.dart';
 import 'package:solducci/blocs/dashboard/dashboard_state.dart';
 import 'package:solducci/widgets/dashboard/dashboard_widget_factory.dart';
+import 'package:solducci/widgets/solducci_app_bar.dart';
+import 'package:go_router/go_router.dart';
 
 class BentoDashboardPage extends StatelessWidget {
   const BentoDashboardPage({super.key});
@@ -25,10 +27,10 @@ class _BentoDashboardView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B), // OLED Dark
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Dashboard', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
+      appBar: SolducciAppBar(
+        titleText: 'Feed',
+        centerTitle: true,
+        elevation: 2,
         actions: [
           BlocBuilder<DashboardBloc, DashboardState>(
             builder: (context, state) {
@@ -45,6 +47,12 @@ class _BentoDashboardView extends StatelessWidget {
               }
               return const SizedBox.shrink();
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline, color: Colors.white), 
+            onPressed: () {
+              context.push('/profile');
+            }
           ),
         ],
       ),
