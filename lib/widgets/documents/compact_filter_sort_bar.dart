@@ -624,11 +624,13 @@ class _FadeScaleDropdownState extends State<_FadeScaleDropdown>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onClose,
-      behavior: HitTestBehavior.translucent,
-      child: Stack(
-        children: [
+    return Material(
+      type: MaterialType.transparency,
+      child: GestureDetector(
+        onTap: widget.onClose,
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
           // Transparent background to capture taps
           Container(color: Colors.transparent),
           // Positioned dropdown
@@ -656,6 +658,7 @@ class _FadeScaleDropdownState extends State<_FadeScaleDropdown>
             ),
           ),
         ],
+      ),
       ),
     );
   }

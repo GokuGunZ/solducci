@@ -332,21 +332,24 @@ class ShellWithNavState extends State<ShellWithNav> {
 
     _overlayEntry = OverlayEntry(
       builder: (context) {
-        return ConstellationMenuOverlay(
-          key: _overlayKey,
-          dragNotifier: _dragNotifier,
-          fabOffset: offset,
-          fabSize: size,
-          tabColor: _currentTabColor,
-          outerActions: _getCurrentTabActions(context),
-          onClose: () {
-            _overlayEntry?.remove();
-            _overlayEntry = null;
-          },
-          onSpesa: () => _openExpenseForm(context),
-          onTask: () => context.push('/space/tasks'),
-          onEvento: () => context.push('/space/time_management'),
-          onNota: () => context.push('/space/notes'),
+        return Material(
+          type: MaterialType.transparency,
+          child: ConstellationMenuOverlay(
+            key: _overlayKey,
+            dragNotifier: _dragNotifier,
+            fabOffset: offset,
+            fabSize: size,
+            tabColor: _currentTabColor,
+            outerActions: _getCurrentTabActions(context),
+            onClose: () {
+              _overlayEntry?.remove();
+              _overlayEntry = null;
+            },
+            onSpesa: () => _openExpenseForm(context),
+            onTask: () => context.push('/space/tasks'),
+            onEvento: () => context.push('/space/time_management'),
+            onNota: () => context.push('/space/notes'),
+          ),
         );
       },
     );

@@ -383,11 +383,13 @@ class _DropdownButton1State extends State<_DropdownButton1> {
 
   OverlayEntry _createOverlayEntry() {
     return OverlayEntry(
-      builder: (context) => GestureDetector(
-        onTap: _closeDropdown,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
+      builder: (context) => Material(
+        type: MaterialType.transparency,
+        child: GestureDetector(
+          onTap: _closeDropdown,
+          behavior: HitTestBehavior.translucent,
+          child: Stack(
+            children: [
             Positioned(
               width: 250,
               child: CompositedTransformFollower(
@@ -405,6 +407,7 @@ class _DropdownButton1State extends State<_DropdownButton1> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -624,11 +627,13 @@ class _DropdownButton2State extends State<_DropdownButton2> {
 
   OverlayEntry _createOverlayEntry() {
     return OverlayEntry(
-      builder: (context) => GestureDetector(
-        onTap: _closeDropdown,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
+      builder: (context) => Material(
+        type: MaterialType.transparency,
+        child: GestureDetector(
+          onTap: _closeDropdown,
+          behavior: HitTestBehavior.translucent,
+          child: Stack(
+            children: [
             Positioned(
               width: 250,
               child: CompositedTransformFollower(
@@ -646,6 +651,7 @@ class _DropdownButton2State extends State<_DropdownButton2> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -893,8 +899,10 @@ class _DropdownButton3State extends State<_DropdownButton3> {
 
   OverlayEntry _createOverlayEntry() {
     return OverlayEntry(
-      builder: (context) => Stack(
-        children: [
+      builder: (context) => Material(
+        type: MaterialType.transparency,
+        child: Stack(
+          children: [
           // Blur background
           GestureDetector(
             onTap: _closeDropdown,
@@ -917,6 +925,7 @@ class _DropdownButton3State extends State<_DropdownButton3> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1199,11 +1208,13 @@ class _DropdownButton4State extends State<_DropdownButton4> {
 
   OverlayEntry _createOverlayEntry() {
     return OverlayEntry(
-      builder: (context) => GestureDetector(
-        onTap: _closeDropdown,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
+      builder: (context) => Material(
+        type: MaterialType.transparency,
+        child: GestureDetector(
+          onTap: _closeDropdown,
+          behavior: HitTestBehavior.translucent,
+          child: Stack(
+            children: [
             Positioned(
               width: 250,
               child: CompositedTransformFollower(
@@ -1221,6 +1232,7 @@ class _DropdownButton4State extends State<_DropdownButton4> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
