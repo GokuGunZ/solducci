@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 
-// Placeholder imports for the specific widgets we will build in Phase 3 & 4
+// Specific widgets
 import 'package:solducci/widgets/dashboard/widgets/balance_pill_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/focus_tasks_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/quick_expense_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/monthly_burn_rate_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/daily_progress_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/unresolved_asterisks_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/shopping_quick_list_widget.dart';
 
 class DashboardWidgetFactory {
   /// Maps a widget definition string to its actual Flutter Widget
@@ -24,8 +27,14 @@ class DashboardWidgetFactory {
       case 'monthly_burn_rate':
         return MonthlyBurnRateWidget(def: def);
         
+      case 'daily_progress':
+        return DailyProgressWidget(def: def);
+        
       case 'unresolved_asterisks':
-        return _MockWidget(title: 'Asterischi', color: const Color(0xFFEF4444));
+        return UnresolvedAsterisksWidget(def: def);
+        
+      case 'shopping_quick_list':
+        return ShoppingQuickListWidget(def: def);
         
       case 'habit_tracker':
         return _MockWidget(title: 'Routine Streak', color: const Color(0xFF3B82F6));

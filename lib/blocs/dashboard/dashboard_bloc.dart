@@ -20,9 +20,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       DashboardConfig? config = await _dashboardService.getDashboardConfig(deviceType: event.deviceType);
       
+      DashboardConfig loadedConfig;
+      
       // If no config exists, create a default one
       if (config == null) {
-        config = DashboardConfig(
+        loadedConfig = DashboardConfig(
           id: const Uuid().v4(),
           userId: '', // Will be populated by service on save
           deviceType: event.deviceType,
@@ -30,9 +32,30 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
+      } else {
+        // Auto-migrate quick_expense to 2x3
+        bool changed = false;
+        final newLayout = config.layout.map((def) {
+          if (def.type == 'quick_expense' && def.size.mainAxisCellCount < 3) {
+            changed = true;
+            return BentoWidgetDef(
+              id: def.id, 
+              type: def.type, 
+              size: BentoWidgetSize(def.size.crossAxisCellCount, 3)
+            );
+          }
+          return def;
+        }).toList();
+
+        if (changed) {
+          loadedConfig = config.copyWith(layout: newLayout);
+          _dashboardService.saveDashboardConfig(loadedConfig);
+        } else {
+          loadedConfig = config;
+        }
       }
       
-      emit(DashboardLoaded(config: config));
+      emit(DashboardLoaded(config: loadedConfig));
     } catch (e) {
       emit(DashboardError('Failed to load dashboard: $e'));
     }
@@ -78,7 +101,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   List<BentoWidgetDef> _getDefaultLayout() {
     return [
       BentoWidgetDef(id: 'w1', type: 'balance', size: const BentoWidgetSize(2, 1)),
-      BentoWidgetDef(id: 'w2', type: 'quick_expense', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w2', type: 'quick_expense', size: const BentoWidgetSize(2, 3)),
       BentoWidgetDef(id: 'w3', type: 'focus_tasks', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w4', type: 'monthly_burn_rate', size: const BentoWidgetSize(2, 2)),
     ];

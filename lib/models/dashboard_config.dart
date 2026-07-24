@@ -108,6 +108,24 @@ class DashboardConfig {
     );
   }
 
+  DashboardConfig copyWith({
+    String? id,
+    String? userId,
+    String? deviceType,
+    List<BentoWidgetDef>? layout,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return DashboardConfig(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      deviceType: deviceType ?? this.deviceType,
+      layout: layout ?? this.layout,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'device_type': deviceType,

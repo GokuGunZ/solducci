@@ -91,7 +91,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
           ),
           // Keypad Area
           Expanded(
-            flex: 5,
+            flex: 9,
             child: Row(
               children: [
                 Expanded(
