@@ -89,7 +89,7 @@ class _BentoDashboardView extends StatelessWidget {
           final index = entry.key;
           final widgetDef = entry.value;
 
-          Widget content = Stack(
+          Widget baseContent = Stack(
             children: [
               Positioned.fill(
                 child: DashboardWidgetFactory.buildWidget(context, widgetDef),
@@ -109,8 +109,9 @@ class _BentoDashboardView extends StatelessWidget {
             ],
           );
 
+          Widget finalContent = baseContent;
           if (state.isEditing) {
-            content = DragTarget<int>(
+            finalContent = DragTarget<int>(
               onWillAcceptWithDetails: (details) => details.data != index,
               onAcceptWithDetails: (details) {
                 final fromIndex = details.data;
@@ -130,15 +131,15 @@ class _BentoDashboardView extends StatelessWidget {
                         // Approximate size for the dragged item
                         width: widgetDef.size.crossAxisCellCount * 90.0,
                         height: widgetDef.size.mainAxisCellCount * 90.0,
-                        child: content,
+                        child: baseContent,
                       ),
                     ),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.2,
-                    child: content,
+                    child: baseContent,
                   ),
-                  child: content,
+                  child: baseContent,
                 );
               },
             );
@@ -148,7 +149,7 @@ class _BentoDashboardView extends StatelessWidget {
             key: ValueKey(widgetDef.id),
             crossAxisCellCount: widgetDef.size.crossAxisCellCount,
             mainAxisCellCount: widgetDef.size.mainAxisCellCount,
-            child: content
+            child: finalContent
                 .animate(key: ValueKey('${widgetDef.id}_anim'))
                 .fadeIn(duration: 400.ms, curve: Curves.easeOut)
                 .scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutBack),

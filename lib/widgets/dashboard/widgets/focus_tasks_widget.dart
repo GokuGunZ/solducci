@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/domain/repositories/task_repository.dart';
+import 'package:solducci/core/di/service_locator.dart';
+import 'package:solducci/service/task_service.dart';
 
 class FocusTasksWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -13,36 +16,18 @@ class FocusTasksWidget extends StatefulWidget {
 }
 
 class _FocusTasksWidgetState extends State<FocusTasksWidget> {
-  bool _isLoading = true;
-  List<Task> _tasks = [];
+  late Stream<List<Task>> _taskStream;
 
   @override
   void initState() {
     super.initState();
-    _loadTasks();
-  }
-
-  Future<void> _loadTasks() async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 800));
-    
-    // Mock tasks for focus today
-    if (mounted) {
-      setState(() {
-        _tasks = [
-          Task.create(documentId: '1', title: 'Pagare affitto', priority: TaskPriority.urgent),
-          Task.create(documentId: '1', title: 'Fare la spesa', priority: TaskPriority.high),
-          Task.create(documentId: '1', title: 'Chiamare idraulico', priority: TaskPriority.medium),
-        ];
-        _isLoading = false;
-      });
-    }
+    _taskStream = getIt<TaskRepository>().watchAll();
   }
 
   @override
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
-      isLoading: _isLoading,
+      isLoading: false,
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -65,13 +50,80 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _tasks.length,
-                separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
-                itemBuilder: (context, index) {
-                  final task = _tasks[index];
-                  return _buildTaskRow(task);
+              child: StreamBuilder<List<Task>>(
+                stream: _taskStream,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B)));
+                  }
+
+                  final allTasks = snapshot.data ?? [];
+                  
+                  // Flatten tree to just a flat list of tasks for the dashboard
+                  List<Task> flattenTasks(List<Task> tasks) {
+                    List<Task> flat = [];
+                    for (var task in tasks) {
+                      flat.add(task);
+                      if (task.subtasks != null) {
+                        flat.addAll(flattenTasks(task.subtasks!));
+                      }
+                    }
+                    return flat;
+                  }
+                  
+                  final flatTasks = flattenTasks(allTasks);
+                  
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+                  
+                  var focusTasks = flatTasks.where((task) {
+                    if (task.status == TaskStatus.completed) return false;
+                    
+                    bool isUrgentOrHigh = task.priority == TaskPriority.urgent || task.priority == TaskPriority.high;
+                    bool isDueTodayOrOverdue = false;
+                    
+                    if (task.dueDate != null) {
+                      final dueDate = task.dueDate!.toLocal();
+                      final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
+                      if (dueDay.isBefore(today) || dueDay.isAtSameMomentAs(today)) {
+                        isDueTodayOrOverdue = true;
+                      }
+                    }
+                    
+                    return isUrgentOrHigh || isDueTodayOrOverdue;
+                  }).toList();
+
+                  // Sort by priority then due date
+                  focusTasks.sort((a, b) {
+                    // Priority sorting (urgent first)
+                    final pA = a.priority?.index ?? 99;
+                    final pB = b.priority?.index ?? 99;
+                    if (pA != pB) return pA.compareTo(pB);
+                    
+                    // Date sorting
+                    if (a.dueDate != null && b.dueDate != null) {
+                      return a.dueDate!.compareTo(b.dueDate!);
+                    }
+                    if (a.dueDate != null) return -1;
+                    if (b.dueDate != null) return 1;
+                    return 0;
+                  });
+
+                  if (focusTasks.isEmpty) {
+                    return const Center(
+                      child: Text('Nessun task urgente\no in scadenza 🎉', style: TextStyle(color: Colors.white54, fontSize: 12), textAlign: TextAlign.center),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: focusTasks.length > 5 ? 5 : focusTasks.length, // max 5 tasks
+                    separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (context, index) {
+                      final task = focusTasks[index];
+                      return _buildTaskRow(task);
+                    },
+                  );
                 },
               ),
             ),
@@ -87,11 +139,12 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () {
-              // Simulate check
-              setState(() {
-                _tasks.remove(task);
-              });
+            onTap: () async {
+              try {
+                await TaskService().completeTask(task.id);
+              } catch (e) {
+                // Ignore silent error
+              }
             },
             child: Container(
               width: 18,
