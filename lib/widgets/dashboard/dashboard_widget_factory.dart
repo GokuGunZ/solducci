@@ -43,6 +43,19 @@ class DashboardWidgetFactory {
         return _MockWidget(title: 'Unknown: ${def.type}', color: Colors.grey);
     }
   }
+
+  static List<BentoWidgetDef> getAllAvailableWidgets() {
+    return [
+      BentoWidgetDef(id: 'w_bal', type: 'balance', size: const BentoWidgetSize(2, 1)),
+      BentoWidgetDef(id: 'w_exp', type: 'quick_expense', size: const BentoWidgetSize(2, 3)),
+      BentoWidgetDef(id: 'w_foc', type: 'focus_tasks', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_brn', type: 'monthly_burn_rate', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_dpr', type: 'daily_progress', size: const BentoWidgetSize(1, 1)),
+      BentoWidgetDef(id: 'w_ast', type: 'unresolved_asterisks', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_shp', type: 'shopping_quick_list', size: const BentoWidgetSize(1, 2)),
+      BentoWidgetDef(id: 'w_hab', type: 'habit_tracker', size: const BentoWidgetSize(2, 1)),
+    ];
+  }
 }
 
 class _MockWidget extends StatelessWidget {
