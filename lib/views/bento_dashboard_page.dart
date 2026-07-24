@@ -7,6 +7,8 @@ import 'package:solducci/blocs/dashboard/dashboard_state.dart';
 import 'package:solducci/widgets/dashboard/dashboard_widget_factory.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:solducci/models/dashboard_config.dart';
 
 class BentoDashboardPage extends StatelessWidget {
   const BentoDashboardPage({super.key});
@@ -83,29 +85,73 @@ class _BentoDashboardView extends StatelessWidget {
         crossAxisCount: 4,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        children: state.config.layout.map((widgetDef) {
-          return StaggeredGridTile.count(
-            crossAxisCellCount: widgetDef.size.crossAxisCellCount,
-            mainAxisCellCount: widgetDef.size.mainAxisCellCount,
-            child: Stack(
-              children: [
+        children: state.config.layout.asMap().entries.map((entry) {
+          final index = entry.key;
+          final widgetDef = entry.value;
+
+          Widget content = Stack(
+            children: [
+              Positioned.fill(
+                child: DashboardWidgetFactory.buildWidget(context, widgetDef),
+              ),
+              if (state.isEditing)
                 Positioned.fill(
-                  child: DashboardWidgetFactory.buildWidget(context, widgetDef),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.open_with, color: Colors.white),
+                    ),
+                  ),
                 ),
-                if (state.isEditing)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.open_with, color: Colors.white),
+            ],
+          );
+
+          if (state.isEditing) {
+            content = DragTarget<int>(
+              onWillAcceptWithDetails: (details) => details.data != index,
+              onAcceptWithDetails: (details) {
+                final fromIndex = details.data;
+                final newLayout = List<BentoWidgetDef>.from(state.config.layout);
+                final item = newLayout.removeAt(fromIndex);
+                newLayout.insert(index, item);
+                context.read<DashboardBloc>().add(UpdateLayout(newLayout));
+              },
+              builder: (context, candidateData, rejectedData) {
+                return LongPressDraggable<int>(
+                  data: index,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: Opacity(
+                      opacity: 0.8,
+                      child: SizedBox(
+                        // Approximate size for the dragged item
+                        width: widgetDef.size.crossAxisCellCount * 90.0,
+                        height: widgetDef.size.mainAxisCellCount * 90.0,
+                        child: content,
                       ),
                     ),
                   ),
-              ],
-            ),
+                  childWhenDragging: Opacity(
+                    opacity: 0.2,
+                    child: content,
+                  ),
+                  child: content,
+                );
+              },
+            );
+          }
+
+          return StaggeredGridTile.count(
+            key: ValueKey(widgetDef.id),
+            crossAxisCellCount: widgetDef.size.crossAxisCellCount,
+            mainAxisCellCount: widgetDef.size.mainAxisCellCount,
+            child: content
+                .animate(key: ValueKey('${widgetDef.id}_anim'))
+                .fadeIn(duration: 400.ms, curve: Curves.easeOut)
+                .scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutBack),
           );
         }).toList(),
       ),
