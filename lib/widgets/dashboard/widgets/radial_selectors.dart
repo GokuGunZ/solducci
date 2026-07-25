@@ -1,5 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/models/group.dart';
+import 'package:solducci/widgets/circular_context_avatar.dart';
 
 class RadialUserSelector extends StatefulWidget {
   final String label;
@@ -325,8 +328,17 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
   final GlobalKey _key = GlobalKey();
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
-  String _selectedGroup = 'Personale';
-  final List<String> _allGroups = const <String>['Personale', 'Casa', 'Coinquilini', 'Viaggio'];
+  
+  // We'll store the ID of the selected group.
+  String? _selectedGroupId;
+
+  List<ExpenseGroup> get _availableGroups {
+    final ctx = ContextManager().currentContext;
+    if (ctx.isView) {
+      return ctx.view?.groups ?? [];
+    }
+    return [];
+  }
 
   void _toggleMenu() {
     if (_isOpen) {
@@ -337,6 +349,9 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
   }
 
   void _openMenu() {
+    final groups = _availableGroups;
+    if (groups.isEmpty) return;
+
     final RenderBox renderBox = _key.currentContext!.findRenderObject() as RenderBox;
     final offset = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
@@ -370,11 +385,17 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
                     builder: (context, setOverlayState) {
                       return _RadialMenuOverlay(
                         onClose: _closeMenu,
-                        items: _allGroups,
-                        selectedItems: [_selectedGroup],
-                        onSelected: (group) {
+                        items: groups.map((g) => g.name).toList(),
+                        selectedItems: [
+                          if (_selectedGroupId != null)
+                            groups.firstWhere((g) => g.id == _selectedGroupId, orElse: () => groups.first).name
+                          else
+                            groups.first.name
+                        ],
+                        onSelected: (groupName) {
                           setState(() {
-                            _selectedGroup = group;
+                            final g = groups.firstWhere((g) => g.name == groupName);
+                            _selectedGroupId = g.id;
                           });
                           _closeMenu();
                         },
@@ -405,6 +426,16 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final groups = _availableGroups;
+    if (groups.isEmpty) return const SizedBox.shrink();
+
+    // Default to first group if none selected
+    if (_selectedGroupId == null || !groups.any((g) => g.id == _selectedGroupId)) {
+      _selectedGroupId = groups.first.id;
+    }
+    
+    final selectedGroup = groups.firstWhere((g) => g.id == _selectedGroupId);
+
     return GestureDetector(
       key: _key,
       onTap: _toggleMenu,
@@ -414,20 +445,10 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
         children: [
           Text(widget.label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
           const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _selectedGroup == 'Personale' ? Icons.person : Icons.group, 
-                size: 14, 
-                color: const Color(0xFF6366F1)
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _selectedGroup,
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ],
+          CircularContextAvatar(
+            expenseContext: ExpenseContext.group(selectedGroup),
+            radius: 16,
+            showLabel: false,
           ),
         ],
       ),

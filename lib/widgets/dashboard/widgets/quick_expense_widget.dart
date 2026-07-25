@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/widgets/dashboard/widgets/radial_selectors.dart';
 
 class QuickExpenseWidget extends StatefulWidget {
@@ -37,31 +38,45 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
       child: Column(
         children: [
           // Payment Info Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.white10)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const RadialUserSelector(label: 'Paga:'),
-                // Divider
-                Container(
-                  height: 24,
-                  width: 1,
-                  color: Colors.white10,
+          ListenableBuilder(
+            listenable: ContextManager(),
+            builder: (context, _) {
+              final contextManager = ContextManager();
+              final isView = contextManager.currentContext.isView;
+              
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Colors.white10)),
                 ),
-                const RadialGroupSelector(label: 'Contesto:'),
-                // Divider
-                Container(
-                  height: 24,
-                  width: 1,
-                  color: Colors.white10,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (isView) ...[
+                      const RadialGroupSelector(label: 'Gruppi:'),
+                      Container(
+                        height: 24,
+                        width: 2,
+                        color: Colors.white24, // Vagamente più netto
+                      ),
+                    ],
+                    const RadialUserSelector(label: 'Paga:'),
+                    Container(
+                      height: 24,
+                      width: 1,
+                      color: Colors.white10,
+                    ),
+                    const RadialUserSelector(label: 'Per:', isDefaultAll: true),
+                    Container(
+                      height: 24,
+                      width: 1,
+                      color: Colors.white10,
+                    ),
+                    const RadialCategorySelector(),
+                  ],
                 ),
-                const RadialCategorySelector(),
-              ],
-            ),
+              );
+            }
           ),
           // Display Area
           Expanded(
