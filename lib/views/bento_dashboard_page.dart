@@ -9,6 +9,7 @@ import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:uuid/uuid.dart';
 
 class BentoDashboardPage extends StatelessWidget {
@@ -157,7 +158,12 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
             return Stack(
               children: [
                 Positioned.fill(
-                  child: _buildGrid(context, state),
+                  child: ListenableBuilder(
+                    listenable: ContextManager(),
+                    builder: (context, _) {
+                      return _buildGrid(context, state, ContextManager().currentContext);
+                    }
+                  ),
                 ),
                 if (state.isEditing && _isLibraryOpen)
                   Positioned(
@@ -176,7 +182,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
     );
   }
 
-  Widget _buildGrid(BuildContext context, DashboardLoaded state) {
+  Widget _buildGrid(BuildContext context, DashboardLoaded state, ExpenseContext appContext) {
     final activeLayout = _dragPreviewLayout ?? state.config.layout;
     
     return SingleChildScrollView(
@@ -339,13 +345,15 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
             );
           }
 
+          final contextKeySuffix = appContext.groupId ?? 'personal';
+          
           Widget animatedChild = finalContent
-              .animate(key: ValueKey('${widgetDef.id}_pos'))
+              .animate(key: ValueKey('${widgetDef.id}_pos_$contextKeySuffix'))
               .fadeIn(duration: 300.ms)
               .scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutQuad);
 
           return StaggeredGridTile.count(
-            key: ValueKey(widgetDef.id),
+            key: ValueKey('${widgetDef.id}_$contextKeySuffix'),
             crossAxisCellCount: widgetDef.size.crossAxisCellCount,
             mainAxisCellCount: widgetDef.size.mainAxisCellCount,
             child: WobbleWidget(
