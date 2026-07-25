@@ -20,6 +20,17 @@ class BentoWidgetSize {
       'mainAxisCellCount': mainAxisCellCount,
     };
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is BentoWidgetSize &&
+        other.crossAxisCellCount == crossAxisCellCount &&
+        other.mainAxisCellCount == mainAxisCellCount;
+  }
+
+  @override
+  int get hashCode => crossAxisCellCount.hashCode ^ mainAxisCellCount.hashCode;
 }
 
 /// Definition of a single widget in the dashboard layout
@@ -54,6 +65,20 @@ class BentoWidgetDef {
       'size': size.toMap(),
       'customProps': customProps,
     };
+  }
+
+  BentoWidgetDef copyWith({
+    String? id,
+    String? type,
+    BentoWidgetSize? size,
+    Map<String, dynamic>? customProps,
+  }) {
+    return BentoWidgetDef(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      size: size ?? this.size,
+      customProps: customProps ?? this.customProps,
+    );
   }
 }
 

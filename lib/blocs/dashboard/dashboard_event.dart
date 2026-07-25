@@ -27,3 +27,11 @@ class UpdateLayout extends DashboardEvent {
 }
 
 class SaveDashboard extends DashboardEvent {}
+
+class ResizeWidget extends DashboardEvent {
+  final String widgetId;
+  const ResizeWidget(this.widgetId);
+  
+  @override
+  List<Object?> get props => [widgetId];
+}

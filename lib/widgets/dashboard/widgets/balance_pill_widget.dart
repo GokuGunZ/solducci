@@ -5,6 +5,8 @@ import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:intl/intl.dart';
 
+import 'package:solducci/widgets/dashboard/swipeable_bento_stack.dart';
+
 class BalancePillWidget extends StatefulWidget {
   final BentoWidgetDef def;
 
@@ -16,8 +18,7 @@ class BalancePillWidget extends StatefulWidget {
 
 class _BalancePillWidgetState extends State<BalancePillWidget> {
   bool _isLoading = true;
-  double _balance = 0.0;
-  String _targetName = '';
+  List<MapEntry<String, double>> _balancesList = [];
 
   @override
   void initState() {
@@ -33,13 +34,21 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       if (currentContext.isGroup && currentContext.groupId != null) {
         final balances = await ExpenseServiceCached().calculateGroupBalance(currentContext.groupId!);
         if (balances.isNotEmpty) {
-          // Simplify logic: sum of balances or just take the first one
-          _balance = balances.values.first;
-          _targetName = balances.keys.first;
+          _balancesList = balances.entries.toList();
+        } else {
+           _balancesList = [const MapEntry('Nessun saldo', 0.0)];
         }
+      } else {
+        // For personal context, mock multiple wallets to demonstrate the swipe stack
+        _balancesList = const [
+          MapEntry('Totale', 1250.00),
+          MapEntry('Intesa SP', 800.00),
+          MapEntry('Revolut', 450.00),
+        ];
       }
     } catch (e) {
       print('Error loading balance: $e');
+      _balancesList = [const MapEntry('Errore', 0.0)];
     } finally {
       if (mounted) {
         setState(() {
@@ -53,42 +62,37 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: _isLoading,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'SALDO',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            _buildBalanceAmount(),
-            if (_targetName.isNotEmpty && _targetName != 'Unknown') ...[
-              const SizedBox(height: 4),
-              Text(
-                _balance >= 0 ? 'da $_targetName' : 'a $_targetName',
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
+      child: SwipeableBentoStack<MapEntry<String, double>>(
+        items: _balancesList.isEmpty ? [const MapEntry('', 0.0)] : _balancesList,
+        builder: (context, item, index) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  item.key.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ]
-          ],
-        ),
+                const SizedBox(height: 4),
+                _buildBalanceAmount(item.value),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBalanceAmount() {
+  Widget _buildBalanceAmount(double balance) {
     final formatter = NumberFormat.currency(locale: 'it_IT', symbol: '€');
-    final isPositive = _balance >= 0;
+    final isPositive = balance >= 0;
     final color = isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444);
     final sign = isPositive ? '+' : '';
 
@@ -97,7 +101,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       children: [
         // Neon Glow
         Text(
-          '$sign${formatter.format(_balance)}',
+          '$sign${formatter.format(balance)}',
           style: TextStyle(
             color: Colors.transparent,
             fontSize: 24,
@@ -113,7 +117,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
         ),
         // Actual Text
         Text(
-          '$sign${formatter.format(_balance)}',
+          '$sign${formatter.format(balance)}',
           style: TextStyle(
             color: color,
             fontSize: 24,

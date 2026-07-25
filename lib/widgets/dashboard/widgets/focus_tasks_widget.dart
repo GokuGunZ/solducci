@@ -6,6 +6,8 @@ import 'package:solducci/domain/repositories/task_repository.dart';
 import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/service/task_service.dart';
 
+import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
+
 class FocusTasksWidget extends StatefulWidget {
   final BentoWidgetDef def;
 
@@ -17,36 +19,55 @@ class FocusTasksWidget extends StatefulWidget {
 
 class _FocusTasksWidgetState extends State<FocusTasksWidget> {
   late Stream<List<Task>> _taskStream;
+  final List<String> _sources = ['Focus Oggi', 'Lavoro', 'Casa', 'Progetti Personali'];
+  int _currentSourceIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _taskStream = getIt<TaskRepository>().watchAll();
+    
+    if (widget.def.customProps != null && widget.def.customProps!['source'] != null) {
+      final initialSource = widget.def.customProps!['source'] as String;
+      if (initialSource == 'Tutte le attività') {
+         _currentSourceIndex = 0;
+      } else {
+        if (!_sources.contains(initialSource)) {
+          _sources.insert(1, initialSource);
+        }
+        _currentSourceIndex = _sources.indexOf(initialSource);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: false,
+      onExpand: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Apertura Pagina Task Completa...')),
+        );
+      },
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  'FOCUS OGGI',
-                  style: TextStyle(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.8),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
+            DataSourceSwitcherHeader(
+              title: _sources[_currentSourceIndex],
+              color: const Color(0xFFF59E0B),
+              icon: Icons.bolt,
+              onPrevious: () {
+                setState(() {
+                  _currentSourceIndex = (_currentSourceIndex - 1) < 0 ? _sources.length - 1 : _currentSourceIndex - 1;
+                });
+              },
+              onNext: () {
+                setState(() {
+                  _currentSourceIndex = (_currentSourceIndex + 1) % _sources.length;
+                });
+              },
             ),
             const SizedBox(height: 8),
             Expanded(

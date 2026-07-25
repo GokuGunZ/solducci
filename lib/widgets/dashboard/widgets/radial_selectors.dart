@@ -312,6 +312,129 @@ class _RadialCategorySelectorState extends State<RadialCategorySelector> {
   }
 }
 
+class RadialGroupSelector extends StatefulWidget {
+  final String label;
+
+  const RadialGroupSelector({super.key, required this.label});
+
+  @override
+  State<RadialGroupSelector> createState() => _RadialGroupSelectorState();
+}
+
+class _RadialGroupSelectorState extends State<RadialGroupSelector> {
+  final GlobalKey _key = GlobalKey();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+  String _selectedGroup = 'Personale';
+  final List<String> _allGroups = const <String>['Personale', 'Casa', 'Coinquilini', 'Viaggio'];
+
+  void _toggleMenu() {
+    if (_isOpen) {
+      _closeMenu();
+    } else {
+      _openMenu();
+    }
+  }
+
+  void _openMenu() {
+    final RenderBox renderBox = _key.currentContext!.findRenderObject() as RenderBox;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+    final screenSize = MediaQuery.of(context).size;
+
+    final double centerX = offset.dx + size.width / 2;
+    final double centerY = offset.dy + size.height / 2;
+    final double menuSize = 300.0;
+    
+    double left = centerX - menuSize / 2;
+    double top = centerY - menuSize / 2;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              GestureDetector(
+                onTap: _closeMenu,
+                behavior: HitTestBehavior.translucent,
+                child: Container(color: Colors.transparent),
+              ),
+              Positioned(
+                left: left,
+                top: top,
+                child: SizedBox(
+                  width: menuSize,
+                  height: menuSize,
+                  child: StatefulBuilder(
+                    builder: (context, setOverlayState) {
+                      return _RadialMenuOverlay(
+                        onClose: _closeMenu,
+                        items: _allGroups,
+                        selectedItems: [_selectedGroup],
+                        onSelected: (group) {
+                          setState(() {
+                            _selectedGroup = group;
+                          });
+                          _closeMenu();
+                        },
+                        radius: 70,
+                        isUser: false,
+                        centerPosition: Offset(centerX, centerY),
+                        screenSize: screenSize,
+                      );
+                    }
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _isOpen = true);
+  }
+
+  void _closeMenu() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: _key,
+      onTap: _toggleMenu,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(widget.label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _selectedGroup == 'Personale' ? Icons.person : Icons.group, 
+                size: 14, 
+                color: const Color(0xFF6366F1)
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _selectedGroup,
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RadialMenuOverlay extends StatefulWidget {
   final VoidCallback onClose;
   final List<String> items;

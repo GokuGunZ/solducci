@@ -228,6 +228,50 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                     ),
                   ),
                 ),
+              if (state.isEditing && DashboardWidgetFactory.requiresInit(widgetDef.type))
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final customProps = await _showInitModal(context, widgetDef.type);
+                      if (customProps != null && context.mounted) {
+                        final newLayout = List<BentoWidgetDef>.from(state.config.layout);
+                        final i = newLayout.indexWhere((w) => w.id == widgetDef.id);
+                        if (i != -1) {
+                          newLayout[i] = newLayout[i].copyWith(customProps: customProps);
+                          context.read<DashboardBloc>().add(UpdateLayout(newLayout));
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.settings, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              if (state.isEditing && DashboardWidgetFactory.getAllowedSizes(widgetDef.type).length > 1)
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      context.read<DashboardBloc>().add(ResizeWidget(widgetDef.id));
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.blueAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.aspect_ratio, size: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
             ],
           );
 
@@ -242,11 +286,28 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                 _onHover(index, details.data, state.config.layout);
                 return true;
               },
-              onAcceptWithDetails: (details) {
-                if (_dragPreviewLayout != null) {
-                  context.read<DashboardBloc>().add(UpdateLayout(_dragPreviewLayout!));
+              onAcceptWithDetails: (details) async {
+                final proposedLayout = _dragPreviewLayout;
+                _onDragEnded(); // Clear preview immediately
+                
+                if (proposedLayout != null) {
+                  if (details.data.sourceIndex == null && DashboardWidgetFactory.requiresInit(details.data.def.type)) {
+                    final customProps = await _showInitModal(context, details.data.def.type);
+                    if (customProps != null) {
+                      final index = proposedLayout.indexWhere((w) => w.id == details.data.def.id);
+                      if (index != -1) {
+                        proposedLayout[index] = proposedLayout[index].copyWith(customProps: customProps);
+                      }
+                      // Use mounted check ideally, but we are in a stateless widget closure, so context might be invalid if page is gone. 
+                      // However, since it's a modal over the same page, it should be fine.
+                      if (context.mounted) {
+                        context.read<DashboardBloc>().add(UpdateLayout(proposedLayout));
+                      }
+                    }
+                  } else {
+                    context.read<DashboardBloc>().add(UpdateLayout(proposedLayout));
+                  }
                 }
-                _onDragEnded();
               },
               builder: (context, candidateData, rejectedData) {
                 // To support dragging to the very end of the list, we can add a fake target at the end.
@@ -358,20 +419,55 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                     size: widgetDef.size,
                   );
 
-                  Widget previewCard = Container(
-                    width: widgetDef.size.crossAxisCellCount * 70.0,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                    ),
-                    child: Center(
-                      child: Text(
-                        widgetDef.type,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
+                  String getDescriptiveName(String type) {
+                    switch (type) {
+                      case 'balance': return 'Bilancio';
+                      case 'focus_tasks': return 'Focus Task';
+                      case 'quick_expense': return 'Spesa Rapida';
+                      case 'monthly_burn_rate': return 'Burn Rate';
+                      case 'daily_progress': return 'Progresso';
+                      case 'unresolved_asterisks': return 'Asterischi';
+                      case 'shopping_quick_list': return 'Lista Spesa';
+                      case 'habit_tracker': return 'Abitudini';
+                      default: return type.split('_').map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join(' ');
+                    }
+                  }
+
+                  final double cellScale = 50.0;
+                  final double previewWidth = widgetDef.size.crossAxisCellCount * cellScale;
+                  final double previewHeight = widgetDef.size.mainAxisCellCount * cellScale;
+
+                  Widget previewCard = Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: previewWidth,
+                          height: previewHeight,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: IgnorePointer(
+                            child: FittedBox(
+                              fit: BoxFit.contain,
+                              child: SizedBox(
+                                width: widgetDef.size.crossAxisCellCount * 90.0,
+                                height: widgetDef.size.mainAxisCellCount * 90.0,
+                                child: DashboardWidgetFactory.buildWidget(context, newDef),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          getDescriptiveName(widgetDef.type),
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
                     ),
                   );
 
@@ -400,6 +496,48 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
         ],
       ),
     ).animate().slideY(begin: 1, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
+  }
+  Future<Map<String, dynamic>?> _showInitModal(BuildContext context, String type) async {
+    String title = 'Configura Widget';
+    List<String> options = [];
+
+    if (type == 'balance') {
+      title = 'Seleziona Conto';
+      options = ['Generale', 'Wallet Personale', 'Conto Comune'];
+    } else if (type == 'focus_tasks') {
+      title = 'Seleziona Progetto/Categoria';
+      options = ['Tutte le attività', 'Lavoro', 'Casa', 'Progetti Personali'];
+    } else if (type == 'shopping_quick_list') {
+      title = 'Seleziona Lista Spesa';
+      options = ['Spesa Settimanale', 'Amazon', 'Ikea'];
+    }
+
+    return await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: const Color(0xFF18181B),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ...options.map((option) => ListTile(
+                    title: Text(option, style: const TextStyle(color: Colors.white70)),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                    onTap: () {
+                      Navigator.of(context).pop({'source': option});
+                    },
+                  )),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

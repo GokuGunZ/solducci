@@ -56,6 +56,41 @@ class DashboardWidgetFactory {
       BentoWidgetDef(id: 'w_hab', type: 'habit_tracker', size: const BentoWidgetSize(2, 1)),
     ];
   }
+
+  static List<BentoWidgetSize> getAllowedSizes(String type) {
+    switch (type) {
+      case 'balance':
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(4, 1), const BentoWidgetSize(2, 2)];
+      case 'focus_tasks':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 4), const BentoWidgetSize(4, 2), const BentoWidgetSize(4, 4)];
+      case 'quick_expense':
+        return [const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 3)];
+      case 'monthly_burn_rate':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2), const BentoWidgetSize(4, 4)];
+      case 'daily_progress':
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(1, 2)];
+      case 'unresolved_asterisks':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
+      case 'shopping_quick_list':
+        return [const BentoWidgetSize(1, 2), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 4)];
+      case 'habit_tracker':
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(4, 1), const BentoWidgetSize(2, 2)];
+      default:
+        return [const BentoWidgetSize(2, 2)]; // Default fallback
+    }
+  }
+
+  static bool requiresInit(String type) {
+    // Return true for widgets that need configuration before being added to the board
+    switch (type) {
+      case 'balance':
+      case 'focus_tasks':
+      case 'shopping_quick_list':
+        return true;
+      default:
+        return false;
+    }
+  }
 }
 
 class _MockWidget extends StatelessWidget {

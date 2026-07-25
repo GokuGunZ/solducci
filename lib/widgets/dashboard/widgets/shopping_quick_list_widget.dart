@@ -5,6 +5,8 @@ import 'package:solducci/models/space_items.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
+
 class ShoppingQuickListWidget extends StatefulWidget {
   final BentoWidgetDef def;
 
@@ -16,6 +18,8 @@ class ShoppingQuickListWidget extends StatefulWidget {
 
 class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
   late Stream<List<ShoppingListItem>> _shoppingStream;
+  final List<String> _sources = ['Da Comprare', 'Spesa Settimanale', 'Amazon', 'Ikea'];
+  int _currentSourceIndex = 0;
 
   @override
   void initState() {
@@ -27,12 +31,25 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
         .order('created_at', ascending: false)
         .limit(10)
         .map((data) => data.map((map) => ShoppingListItem.fromMap(map)).toList());
+        
+    if (widget.def.customProps != null && widget.def.customProps!['source'] != null) {
+      final initialSource = widget.def.customProps!['source'] as String;
+      if (!_sources.contains(initialSource)) {
+        _sources.insert(1, initialSource);
+      }
+      _currentSourceIndex = _sources.indexOf(initialSource);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: false,
+      onExpand: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Apertura Pagina Lista Spesa...')),
+        );
+      },
       child: Stack(
         children: [
           Positioned.fill(
@@ -55,20 +72,20 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.shopping_cart_outlined, color: Color(0xFF3B82F6), size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      'DA COMPRARE',
-                      style: TextStyle(
-                        color: const Color(0xFF3B82F6).withValues(alpha: 0.9),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
+                DataSourceSwitcherHeader(
+                  title: _sources[_currentSourceIndex],
+                  color: const Color(0xFF3B82F6),
+                  icon: Icons.shopping_cart_outlined,
+                  onPrevious: () {
+                    setState(() {
+                      _currentSourceIndex = (_currentSourceIndex - 1) < 0 ? _sources.length - 1 : _currentSourceIndex - 1;
+                    });
+                  },
+                  onNext: () {
+                    setState(() {
+                      _currentSourceIndex = (_currentSourceIndex + 1) % _sources.length;
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
                 Expanded(

@@ -5,6 +5,8 @@ import 'dashboard_event.dart';
 import 'dashboard_state.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:solducci/widgets/dashboard/dashboard_widget_factory.dart';
+
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final DashboardService _dashboardService = DashboardService();
 
@@ -13,6 +15,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<ToggleEditMode>(_onToggleEditMode);
     on<UpdateLayout>(_onUpdateLayout);
     on<SaveDashboard>(_onSaveDashboard);
+    on<ResizeWidget>(_onResizeWidget);
   }
 
   Future<void> _onLoadDashboard(LoadDashboard event, Emitter<DashboardState> emit) async {
@@ -94,6 +97,32 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       } catch (e) {
         // Handle save error silently or emit error state
         print('Error saving dashboard: $e');
+      }
+    }
+  }
+
+  void _onResizeWidget(ResizeWidget event, Emitter<DashboardState> emit) {
+    if (state is DashboardLoaded) {
+      final currentState = state as DashboardLoaded;
+      final layout = List<BentoWidgetDef>.from(currentState.config.layout);
+      
+      final index = layout.indexWhere((w) => w.id == event.widgetId);
+      if (index != -1) {
+        final widgetDef = layout[index];
+        final allowedSizes = DashboardWidgetFactory.getAllowedSizes(widgetDef.type);
+        
+        if (allowedSizes.length > 1) {
+          final currentSizeIndex = allowedSizes.indexOf(widgetDef.size);
+          final nextSizeIndex = (currentSizeIndex + 1) % allowedSizes.length;
+          
+          layout[index] = widgetDef.copyWith(size: allowedSizes[nextSizeIndex]);
+          
+          final updatedConfig = currentState.config.copyWith(
+            layout: layout,
+            updatedAt: DateTime.now(),
+          );
+          emit(currentState.copyWith(config: updatedConfig));
+        }
       }
     }
   }

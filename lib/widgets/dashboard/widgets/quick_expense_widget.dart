@@ -52,7 +52,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                   width: 1,
                   color: Colors.white10,
                 ),
-                const RadialUserSelector(label: 'Per:', isDefaultAll: true),
+                const RadialGroupSelector(label: 'Contesto:'),
                 // Divider
                 Container(
                   height: 24,
