@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
@@ -28,6 +29,9 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: false,
+      onExpand: () {
+        GoRouter.of(context).push('/focus');
+      },
       child: StreamBuilder<List<Task>>(
         stream: _taskStream,
         builder: (context, snapshot) {

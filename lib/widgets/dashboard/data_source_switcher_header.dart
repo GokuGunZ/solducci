@@ -20,8 +20,6 @@ class DataSourceSwitcherHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 16),
-        const SizedBox(width: 4),
         Expanded(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -35,17 +33,26 @@ class DataSourceSwitcherHeader extends StatelessWidget {
                 ),
               ),
               Flexible(
-                child: Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    color: color.withValues(alpha: 0.8),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, color: color, size: 14),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        title.toUpperCase(),
+                        style: TextStyle(
+                          color: color.withValues(alpha: 0.8),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               GestureDetector(

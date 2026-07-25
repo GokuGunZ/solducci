@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/space_items.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
+
+import 'package:solducci/widgets/dashboard/generic_list_widget.dart';
 
 class ShoppingQuickListWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -43,121 +46,68 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return BentoWidgetContainer(
-      isLoading: false,
-      onExpand: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Apertura Pagina Lista Spesa...')),
+    return StreamBuilder<List<ShoppingListItem>>(
+      stream: _shoppingStream,
+      builder: (context, snapshot) {
+        final items = snapshot.data ?? [];
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
+
+        return GenericListWidget<ShoppingListItem>(
+          isLoading: isLoading,
+          onExpand: () {
+            GoRouter.of(context).push('/space/shopping');
+          },
+          currentSource: _sources[_currentSourceIndex],
+          color: const Color(0xFF3B82F6),
+          icon: Icons.shopping_cart_outlined,
+          onPreviousSource: () {
+            setState(() {
+              _currentSourceIndex = (_currentSourceIndex - 1) < 0 ? _sources.length - 1 : _currentSourceIndex - 1;
+            });
+          },
+          onNextSource: () {
+            setState(() {
+              _currentSourceIndex = (_currentSourceIndex + 1) % _sources.length;
+            });
+          },
+          items: items,
+          emptyMessage: 'Lista vuota 🎉',
+          itemBuilder: (context, item, index) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white54, width: 1.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (item.quantity > 1 || item.unit != null)
+                    Text(
+                      '${item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 1)}${item.unit ?? ''}',
+                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                ],
+              ),
+            );
+          },
         );
       },
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF3B82F6).withValues(alpha: 0.1),
-                    const Color(0xFF3B82F6).withValues(alpha: 0.02),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DataSourceSwitcherHeader(
-                  title: _sources[_currentSourceIndex],
-                  color: const Color(0xFF3B82F6),
-                  icon: Icons.shopping_cart_outlined,
-                  onPrevious: () {
-                    setState(() {
-                      _currentSourceIndex = (_currentSourceIndex - 1) < 0 ? _sources.length - 1 : _currentSourceIndex - 1;
-                    });
-                  },
-                  onNext: () {
-                    setState(() {
-                      _currentSourceIndex = (_currentSourceIndex + 1) % _sources.length;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: StreamBuilder<List<ShoppingListItem>>(
-                    stream: _shoppingStream,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                        return const Center(
-                          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
-                        );
-                      }
-
-                      final items = snapshot.data ?? [];
-
-                      if (items.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'Lista vuota 🎉',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
-                            textAlign: TextAlign.center,
-                          ),
-                        );
-                      }
-
-                      return ListView.separated(
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: items.length,
-                        separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.white54, width: 1.5),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    item.name,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (item.quantity > 1 || item.unit != null)
-                                  Text(
-                                    '${item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 1)}${item.unit ?? ''}',
-                                    style: const TextStyle(color: Colors.white54, fontSize: 11),
-                                  ),
-                              ],
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

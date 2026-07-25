@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/expense_service_cached.dart';
@@ -27,6 +28,9 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: false,
+      onExpand: () {
+        GoRouter.of(context).push('/economy/charts');
+      },
       child: StreamBuilder<List<Expense>>(
         stream: _expenseStream,
         builder: (context, snapshot) {

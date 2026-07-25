@@ -8,6 +8,7 @@ import 'package:solducci/widgets/dashboard/widgets/focus_tasks_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/quick_expense_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/monthly_burn_rate_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/daily_progress_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/habit_tracker_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/unresolved_asterisks_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/shopping_quick_list_widget.dart';
 
@@ -29,6 +30,9 @@ class DashboardWidgetFactory {
         
       case 'daily_progress':
         return DailyProgressWidget(def: def);
+        
+      case 'habit_tracker':
+        return HabitTrackerWidget(def: def);
         
       case 'unresolved_asterisks':
         return UnresolvedAsterisksWidget(def: def);
@@ -60,21 +64,21 @@ class DashboardWidgetFactory {
   static List<BentoWidgetSize> getAllowedSizes(String type) {
     switch (type) {
       case 'balance':
-        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(4, 1), const BentoWidgetSize(2, 2)];
-      case 'focus_tasks':
-        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 4), const BentoWidgetSize(4, 2), const BentoWidgetSize(4, 4)];
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(1, 2)];
       case 'quick_expense':
-        return [const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 3)];
+        return [const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 3)];
+      case 'focus_tasks':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 2), const BentoWidgetSize(3, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(3, 4)];
+      case 'shopping_quick_list':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 2), const BentoWidgetSize(3, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(3, 4)];
+      case 'unresolved_asterisks':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 2), const BentoWidgetSize(3, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(3, 4)];
       case 'monthly_burn_rate':
         return [const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2), const BentoWidgetSize(4, 4)];
       case 'daily_progress':
         return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(1, 2)];
-      case 'unresolved_asterisks':
-        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
-      case 'shopping_quick_list':
-        return [const BentoWidgetSize(1, 2), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 4)];
       case 'habit_tracker':
-        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(4, 1), const BentoWidgetSize(2, 2)];
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2), const BentoWidgetSize(4, 4)];
       default:
         return [const BentoWidgetSize(2, 2)]; // Default fallback
     }

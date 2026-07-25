@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/expense_service_cached.dart';
@@ -62,6 +63,9 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: _isLoading,
+      onExpand: () {
+        GoRouter.of(context).push('/expenses_dashboard');
+      },
       child: SwipeableBentoStack<MapEntry<String, double>>(
         items: _balancesList.isEmpty ? [const MapEntry('', 0.0)] : _balancesList,
         builder: (context, item, index) {
