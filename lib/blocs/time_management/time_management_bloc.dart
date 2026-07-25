@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:solducci/service/time_management_service.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'time_management_event.dart';
 import 'time_management_state.dart';
 
 class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> {
   final TimeManagementService _service;
   StreamSubscription? _scenariosSubscription;
+  final _contextManager = ContextManager();
 
   TimeManagementBloc({TimeManagementService? service})
       : _service = service ?? TimeManagementService(),
@@ -15,6 +17,12 @@ class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> 
     on<SubscribeToTimeScenarios>(_onSubscribeToTimeScenarios);
     on<TimeScenariosUpdated>(_onTimeScenariosUpdated);
     on<CreateTimeScenarioRequested>(_onCreateTimeScenarioRequested);
+    
+    _contextManager.addListener(_onContextChanged);
+  }
+
+  void _onContextChanged() {
+    add(SubscribeToTimeScenarios());
   }
 
   void _onSubscribeToTimeScenarios(
@@ -55,6 +63,7 @@ class TimeManagementBloc extends Bloc<TimeManagementEvent, TimeManagementState> 
 
   @override
   Future<void> close() {
+    _contextManager.removeListener(_onContextChanged);
     _scenariosSubscription?.cancel();
     return super.close();
   }

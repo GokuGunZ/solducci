@@ -203,11 +203,8 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: Colors.transparent, // Blocks inner taps
                       borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.open_with, color: Colors.white),
                     ),
                   ),
                 ),
@@ -281,14 +278,20 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
             );
           }
 
+          Widget animatedChild = finalContent
+              .animate(key: ValueKey('${widgetDef.id}_pos'))
+              .fadeIn(duration: 300.ms)
+              .scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutQuad);
+
           return StaggeredGridTile.count(
             key: ValueKey(widgetDef.id),
             crossAxisCellCount: widgetDef.size.crossAxisCellCount,
             mainAxisCellCount: widgetDef.size.mainAxisCellCount,
-            child: finalContent
-                .animate(key: ValueKey('${widgetDef.id}_pos'))
-                .fadeIn(duration: 300.ms)
-                .scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutQuad),
+            child: WobbleWidget(
+              isWobbling: state.isEditing,
+              wobbleSeed: index,
+              child: animatedChild,
+            ),
           );
         }).toList(),
       ),
@@ -397,5 +400,77 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
         ],
       ),
     ).animate().slideY(begin: 1, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
+  }
+}
+
+class WobbleWidget extends StatefulWidget {
+  final bool isWobbling;
+  final int wobbleSeed;
+  final Widget child;
+
+  const WobbleWidget({
+    super.key,
+    required this.isWobbling,
+    required this.wobbleSeed,
+    required this.child,
+  });
+
+  @override
+  State<WobbleWidget> createState() => _WobbleWidgetState();
+}
+
+class _WobbleWidgetState extends State<WobbleWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 370),
+    );
+    if (widget.isWobbling) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller.value = 0.5; // Neutral position
+    }
+  }
+
+  @override
+  void didUpdateWidget(WobbleWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isWobbling && !oldWidget.isWobbling) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.isWobbling && oldWidget.isWobbling) {
+      _controller.animateTo(0.5, duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 0.003 turns ~ 1 degree
+    final double maxAngle = (widget.wobbleSeed % 2 == 0) ? 0.003 : -0.003;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        // Map 0..1 to -1..1
+        final value = (_controller.value * 2) - 1.0;
+        // Convert maxAngle (turns) to radians
+        final angle = value * maxAngle * 2 * 3.14159;
+
+        return Transform.rotate(
+          angle: angle,
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
   }
 }

@@ -28,7 +28,7 @@ class InfiniteCanvasView extends StatefulWidget {
 }
 
 class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
-  late final CanvasTreeController _controller;
+  late CanvasTreeController _controller;
   final ScrollController _breadcrumbsScrollController = ScrollController();
   bool _isInitialized = false;
   double _canvasScale = 1.0;
@@ -40,7 +40,22 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
   @override
   void initState() {
     super.initState();
+    ContextManager().addListener(_onContextChanged);
     _initCanvas();
+  }
+
+  void _onContextChanged() {
+    if (!mounted) return;
+    
+    // We only re-initialize if the view doesn't have an explicit groupId/userId passed in
+    if (widget.groupId == null && widget.userId == null && _isInitialized) {
+      _controller.removeListener(_onTreeUpdated);
+      _controller.dispose();
+      setState(() {
+        _isInitialized = false;
+      });
+      _initCanvas();
+    }
   }
 
   Future<void> _initCanvas() async {
@@ -97,6 +112,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
 
   @override
   void dispose() {
+    ContextManager().removeListener(_onContextChanged);
     if (_isInitialized) {
       _controller.removeListener(_onTreeUpdated);
       _controller.dispose();
