@@ -6,6 +6,7 @@ class DataSourceSwitcherHeader extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
+  final VoidCallback? onTitleTap;
 
   const DataSourceSwitcherHeader({
     super.key,
@@ -14,6 +15,7 @@ class DataSourceSwitcherHeader extends StatelessWidget {
     required this.icon,
     required this.onPrevious,
     required this.onNext,
+    this.onTitleTap,
   });
 
   @override
@@ -33,26 +35,30 @@ class DataSourceSwitcherHeader extends StatelessWidget {
                 ),
               ),
               Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, color: color, size: 14),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        title.toUpperCase(),
-                        style: TextStyle(
-                          color: color.withValues(alpha: 0.8),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
+                child: GestureDetector(
+                  onTap: onTitleTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: color, size: 14),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          title.toUpperCase(),
+                          style: TextStyle(
+                            color: color.withValues(alpha: 0.8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               GestureDetector(

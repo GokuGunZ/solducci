@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
 
-class GenericListWidget<T> extends StatelessWidget {
+class BaseListWidget<T> extends StatelessWidget {
   final bool isLoading;
   final VoidCallback? onExpand;
   final String currentSource;
@@ -14,7 +14,7 @@ class GenericListWidget<T> extends StatelessWidget {
   final Widget Function(BuildContext context, T item, int index) itemBuilder;
   final String emptyMessage;
 
-  const GenericListWidget({
+  const BaseListWidget({
     super.key,
     this.isLoading = false,
     this.onExpand,
@@ -32,7 +32,6 @@ class GenericListWidget<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: isLoading,
-      onExpand: onExpand,
       child: Stack(
         children: [
           // Background Gradient (optional, but looks good for generic lists)
@@ -62,6 +61,7 @@ class GenericListWidget<T> extends StatelessWidget {
                   icon: icon,
                   onPrevious: onPreviousSource,
                   onNext: onNextSource,
+                  onTitleTap: onExpand,
                 ),
                 const SizedBox(height: 12),
                 Expanded(

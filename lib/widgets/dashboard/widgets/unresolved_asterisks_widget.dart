@@ -6,7 +6,7 @@ import 'package:solducci/models/space_items.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:solducci/widgets/dashboard/generic_list_widget.dart';
+import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
 class UnresolvedAsterisksWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -79,7 +79,7 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
           displayAsterisks = displayAsterisks.sublist(0, 8);
         }
 
-        return GenericListWidget<AsteriskItem>(
+        return BaseListWidget<AsteriskItem>(
           isLoading: isLoading,
           onExpand: () {
             GoRouter.of(context).push('/space/asterisks');

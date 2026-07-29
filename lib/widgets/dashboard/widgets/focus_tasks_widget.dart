@@ -9,7 +9,7 @@ import 'package:solducci/service/task_service.dart';
 
 import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
 
-import 'package:solducci/widgets/dashboard/generic_list_widget.dart';
+import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
 class FocusTasksWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -98,7 +98,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
         // Limit to top 5
         final displayTasks = focusTasks.length > 5 ? focusTasks.sublist(0, 5) : focusTasks;
 
-        return GenericListWidget<Task>(
+        return BaseListWidget<Task>(
           isLoading: isLoading,
           onExpand: () {
             GoRouter.of(context).push('/space/tasks');

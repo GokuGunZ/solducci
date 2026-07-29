@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
 
-import 'package:solducci/widgets/dashboard/generic_list_widget.dart';
+import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
 class ShoppingQuickListWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -52,7 +52,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
         final items = snapshot.data ?? [];
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
 
-        return GenericListWidget<ShoppingListItem>(
+        return BaseListWidget<ShoppingListItem>(
           isLoading: isLoading,
           onExpand: () {
             GoRouter.of(context).push('/space/shopping');
