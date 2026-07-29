@@ -24,8 +24,7 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
   @override
   Widget build(BuildContext context) {
     // Determine the widget's layout size based on the bento size
-    final int spanX = widget.def.size.crossAxisCellCount;
-    final int spanY = widget.def.size.mainAxisCellCount;
+    final int crossAxisCellCount = widget.def.size.crossAxisCellCount;
 
     return BentoWidgetContainer(
       isLoading: false,
@@ -65,7 +64,7 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: spanX >= 4
+              child: crossAxisCellCount >= 4
                   ? _buildContributionHeatmap() // GitHub-style heatmap for wider widgets
                   : _buildWeeklyStacks(), // Stacked weekly items for smaller widgets
             ),
