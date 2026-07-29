@@ -8,6 +8,7 @@ class BentoWidgetContainer extends StatelessWidget {
   final bool isLoading;
   final bool hasError;
   final Widget? errorWidget;
+  final String? heroTag;
 
   const BentoWidgetContainer({
     super.key,
@@ -17,6 +18,7 @@ class BentoWidgetContainer extends StatelessWidget {
     this.isLoading = false,
     this.hasError = false,
     this.errorWidget,
+    this.heroTag,
   });
 
   @override
@@ -56,9 +58,19 @@ class BentoWidgetContainer extends StatelessWidget {
     );
 
     if (onTap != null) {
-      return GestureDetector(
+      content = GestureDetector(
         onTap: onTap,
         child: content,
+      );
+    }
+
+    if (heroTag != null) {
+      content = Hero(
+        tag: heroTag!,
+        child: Material(
+          type: MaterialType.transparency,
+          child: content,
+        ),
       );
     }
 

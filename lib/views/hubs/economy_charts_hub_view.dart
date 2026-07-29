@@ -6,41 +6,33 @@ import 'package:solducci/models/dashboard_data.dart';
 import 'dart:math';
 
 class EconomyChartsHubView extends StatelessWidget {
-  const EconomyChartsHubView({super.key});
+  final String? heroTag;
+  const EconomyChartsHubView({super.key, this.heroTag});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
-      appBar: SolducciAppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Dashboard Grafici', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: StreamBuilder<List<Expense>>(
-        stream: ExpenseServiceCached().stream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)));
-          }
-
+    return StreamBuilder<List<Expense>>(
+      stream: ExpenseServiceCached().stream,
+      builder: (context, snapshot) {
+        Widget bodyContent;
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          bodyContent = const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)));
+        } else {
           final expenses = snapshot.data ?? [];
           if (expenses.isEmpty) {
-            return const Center(
+            bodyContent = const Center(
               child: Text(
                 'Nessuna spesa registrata per generare i grafici.',
                 style: TextStyle(color: Colors.white54, fontSize: 16),
               ),
             );
-          }
+          } else {
+            final monthlyGroups = DashboardService.groupByMonth(expenses);
+            final categoryData = DashboardService.categoryBreakdown(expenses);
 
-          final monthlyGroups = DashboardService.groupByMonth(expenses);
-          final categoryData = DashboardService.categoryBreakdown(expenses);
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+            bodyContent = ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
               const Text(
                 'Andamento Mensile',
                 style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
@@ -64,8 +56,32 @@ class EconomyChartsHubView extends StatelessWidget {
               ),
             ],
           );
+          }
+        }
+
+          Widget content = Scaffold(
+            backgroundColor: const Color(0xFF09090B),
+            appBar: SolducciAppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('Dashboard Grafici', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+            body: bodyContent,
+          );
+
+          if (heroTag != null) {
+            content = Hero(
+              tag: heroTag!,
+              child: Material(
+                type: MaterialType.transparency,
+                child: content,
+              ),
+            );
+          }
+
+          return content;
         },
-      ),
     );
   }
 

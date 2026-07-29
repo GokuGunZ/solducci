@@ -13,6 +13,7 @@ class BaseListWidget<T> extends StatelessWidget {
   final List<T> items;
   final Widget Function(BuildContext context, T item, int index) itemBuilder;
   final String emptyMessage;
+  final String? heroTag;
 
   const BaseListWidget({
     super.key,
@@ -26,12 +27,14 @@ class BaseListWidget<T> extends StatelessWidget {
     required this.items,
     required this.itemBuilder,
     required this.emptyMessage,
+    this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: isLoading,
+      heroTag: heroTag,
       child: Stack(
         children: [
           // Background Gradient (optional, but looks good for generic lists)

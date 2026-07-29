@@ -95,7 +95,10 @@ class AppRouter {
 
       GoRoute(
         path: '/expenses_dashboard',
-        builder: (context, state) => const NewHomepage(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return NewHomepage(heroTag: extra?['heroTag'] as String?);
+        }
       ),
       GoRoute(
         path: '/profile',
@@ -151,7 +154,14 @@ class AppRouter {
       // Tasks
       GoRoute(
         path: '/space/tasks', 
-        builder: (context, state) => const SpaceDocumentListView(type: 'todo', sectionLabel: 'Task'),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SpaceDocumentListView(
+            type: 'todo', 
+            sectionLabel: 'Task',
+            heroTag: extra?['heroTag'] as String?,
+          );
+        }
       ),
       GoRoute(
         path: '/space/tasks/:id',
@@ -161,7 +171,14 @@ class AppRouter {
       // Notes
       GoRoute(
         path: '/space/notes', 
-        builder: (context, state) => const SpaceDocumentListView(type: 'note', sectionLabel: 'Note'),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SpaceDocumentListView(
+            type: 'note', 
+            sectionLabel: 'Note',
+            heroTag: extra?['heroTag'] as String?,
+          );
+        }
       ),
       GoRoute(
         path: '/space/notes/:id',
@@ -171,7 +188,14 @@ class AppRouter {
       // Asterisks
       GoRoute(
         path: '/space/asterisks', 
-        builder: (context, state) => const SpaceDocumentListView(type: 'asterisk', sectionLabel: 'Asterischi'),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SpaceDocumentListView(
+            type: 'asterisk', 
+            sectionLabel: 'Asterischi',
+            heroTag: extra?['heroTag'] as String?,
+          );
+        }
       ),
       GoRoute(
         path: '/space/asterisks/:id',
@@ -181,7 +205,14 @@ class AppRouter {
       // Resources
       GoRoute(
         path: '/space/resources', 
-        builder: (context, state) => const SpaceDocumentListView(type: 'resource_list', sectionLabel: 'Risorse'),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SpaceDocumentListView(
+            type: 'resource_list', 
+            sectionLabel: 'Risorse',
+            heroTag: extra?['heroTag'] as String?,
+          );
+        }
       ),
       GoRoute(
         path: '/space/resources/:id',
@@ -191,7 +222,14 @@ class AppRouter {
       // Shopping (Must be before Pantry to avoid pattern conflict if any)
       GoRoute(
         path: '/space/shopping', 
-        builder: (context, state) => const SpaceDocumentListView(type: 'shopping_list', sectionLabel: 'Liste Spesa'),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SpaceDocumentListView(
+            type: 'shopping_list', 
+            sectionLabel: 'Liste Spesa',
+            heroTag: extra?['heroTag'] as String?,
+          );
+        }
       ),
       GoRoute(
         path: '/space/shopping/:id',
@@ -201,7 +239,14 @@ class AppRouter {
       // Pantry
       GoRoute(
         path: '/space/pantry', 
-        builder: (context, state) => const SpaceDocumentListView(type: 'dispensa', sectionLabel: 'Dispensa'),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SpaceDocumentListView(
+            type: 'dispensa', 
+            sectionLabel: 'Dispensa',
+            heroTag: extra?['heroTag'] as String?,
+          );
+        }
       ),
       GoRoute(
         path: '/space/pantry/:id',
@@ -273,15 +318,24 @@ class AppRouter {
       ),
       GoRoute(
         path: '/economy/charts',
-        builder: (context, state) => const EconomyChartsHubView(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return EconomyChartsHubView(heroTag: extra?['heroTag'] as String?);
+        }
       ),
       GoRoute(
         path: '/focus',
-        builder: (context, state) => const FocusHubView(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return FocusHubView(heroTag: extra?['heroTag'] as String?);
+        }
       ),
       GoRoute(
         path: '/habits',
-        builder: (context, state) => const HabitHubView(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return HabitHubView(heroTag: extra?['heroTag'] as String?);
+        }
       ),
 
       // Group detail

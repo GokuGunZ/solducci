@@ -4,40 +4,31 @@ import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/routine.dart';
 
 class HabitHubView extends StatelessWidget {
-  const HabitHubView({super.key});
+  final String? heroTag;
+  const HabitHubView({super.key, this.heroTag});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
-      appBar: SolducciAppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Abitudini / Routine', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: StreamBuilder<List<RoutineTemplate>>(
-        stream: TimeManagementService().routinesStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B)));
-          }
-
+    return StreamBuilder<List<RoutineTemplate>>(
+      stream: TimeManagementService().routinesStream,
+      builder: (context, snapshot) {
+        Widget bodyContent;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          bodyContent = const Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B)));
+        } else {
           final routines = snapshot.data ?? [];
-
           if (routines.isEmpty) {
-            return const Center(
+            bodyContent = const Center(
               child: Text(
                 'Non hai ancora creato nessuna routine.\nCreala dal tasto "+"',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white54, fontSize: 16),
               ),
             );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: routines.length,
+          } else {
+            bodyContent = ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: routines.length,
             itemBuilder: (context, index) {
               final routine = routines[index];
               // Utilizziamo un colore ciclico per distinguerle
@@ -58,9 +49,33 @@ class HabitHubView extends StatelessWidget {
                 color,
               );
             },
+            );
+          }
+        }
+
+          Widget content = Scaffold(
+            backgroundColor: const Color(0xFF09090B),
+            appBar: SolducciAppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('Abitudini / Routine', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+            body: bodyContent,
           );
+
+          if (heroTag != null) {
+            content = Hero(
+              tag: heroTag!,
+              child: Material(
+                type: MaterialType.transparency,
+                child: content,
+              ),
+            );
+          }
+
+          return content;
         },
-      ),
     );
   }
 

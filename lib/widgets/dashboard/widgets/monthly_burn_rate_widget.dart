@@ -26,17 +26,19 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return BentoWidgetContainer(
-      isLoading: false,
-      onExpand: () {
-        GoRouter.of(context).push('/economy/charts');
-      },
-      child: StreamBuilder<List<Expense>>(
-        stream: _expenseStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFFE068F1)));
-          }
+    return StreamBuilder<List<Expense>>(
+      stream: _expenseStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return BentoWidgetContainer(
+            heroTag: widget.def.id,
+            isLoading: true,
+            onExpand: () {
+              GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
+            },
+            child: const Center(child: CircularProgressIndicator(color: Color(0xFFE068F1))),
+          );
+        }
 
           final expenses = snapshot.data ?? [];
           
@@ -60,78 +62,84 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
 
           final formatter = NumberFormat.currency(locale: 'it_IT', symbol: '€');
 
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        const Color(0xFFE068F1).withValues(alpha: 0.2),
-                        Colors.transparent,
-                      ],
+          return BentoWidgetContainer(
+            heroTag: widget.def.id,
+            isLoading: false,
+            onExpand: () {
+              GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
+            },
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFE068F1).withValues(alpha: 0.2),
+                          Colors.transparent,
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'BURN RATE',
-                          style: TextStyle(
-                            color: const Color(0xFFE068F1).withValues(alpha: 0.8),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'BURN RATE',
+                            style: TextStyle(
+                              color: const Color(0xFFE068F1).withValues(alpha: 0.8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
                           ),
-                        ),
-                        Icon(
-                          ratio > 1.0 ? Icons.trending_up : Icons.trending_down, 
-                          color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1), 
-                          size: 16
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Text(
-                      formatter.format(currentMonthTotal),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
+                          Icon(
+                            ratio > 1.0 ? Icons.trending_up : Icons.trending_down, 
+                            color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1), 
+                            size: 16
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Media ultimi 3 mesi: ${formatter.format(avgLast3Months)}',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
+                      const Spacer(),
+                      Text(
+                        formatter.format(currentMonthTotal),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Inter',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: displayRatio,
-                      backgroundColor: Colors.white10,
-                      color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        'Media ultimi 3 mesi: ${formatter.format(avgLast3Months)}',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: displayRatio,
+                        backgroundColor: Colors.white10,
+                        color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
-        },
-      ),
+      },
     );
   }
 }

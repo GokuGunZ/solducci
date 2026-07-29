@@ -27,17 +27,19 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return BentoWidgetContainer(
-      isLoading: false,
-      onExpand: () {
-        GoRouter.of(context).push('/focus');
-      },
-      child: StreamBuilder<List<Task>>(
-        stream: _taskStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)));
-          }
+    return StreamBuilder<List<Task>>(
+      stream: _taskStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return BentoWidgetContainer(
+            heroTag: widget.def.id,
+            isLoading: true,
+            onExpand: () {
+              GoRouter.of(context).push('/focus', extra: {'heroTag': widget.def.id});
+            },
+            child: const Center(child: CircularProgressIndicator(color: Color(0xFF10B981))),
+          );
+        }
 
           final allTasks = snapshot.data ?? [];
           
@@ -88,64 +90,70 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
 
           final double progress = totalToday > 0 ? (completedToday / totalToday) : 0.0;
 
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                top: 12,
-                left: 12,
-                child: const Icon(Icons.track_changes, color: Color(0xFF10B981), size: 16),
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 70,
-                    height: 70,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CircularProgressIndicator(
-                          value: 1.0,
-                          strokeWidth: 8,
-                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                        ),
-                        CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 8,
-                          strokeCap: StrokeCap.round,
-                          color: const Color(0xFF10B981),
-                          backgroundColor: Colors.transparent,
-                        ),
-                        Center(
-                          child: Text(
-                            '$completedToday/$totalToday',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+          return BentoWidgetContainer(
+            heroTag: widget.def.id,
+            isLoading: false,
+            onExpand: () {
+              GoRouter.of(context).push('/focus', extra: {'heroTag': widget.def.id});
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: const Icon(Icons.track_changes, color: Color(0xFF10B981), size: 16),
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 70,
+                      height: 70,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CircularProgressIndicator(
+                            value: 1.0,
+                            strokeWidth: 8,
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          ),
+                          CircularProgressIndicator(
+                            value: progress,
+                            strokeWidth: 8,
+                            strokeCap: StrokeCap.round,
+                            color: const Color(0xFF10B981),
+                            backgroundColor: Colors.transparent,
+                          ),
+                          Center(
+                            child: Text(
+                              '$completedToday/$totalToday',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'PROGRESSO OGGI',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
+                    const SizedBox(height: 8),
+                    const Text(
+                      'PROGRESSO OGGI',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           );
-        },
-      ),
+      },
     );
   }
 }

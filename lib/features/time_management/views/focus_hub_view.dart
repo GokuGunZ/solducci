@@ -2,11 +2,12 @@ import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class FocusHubView extends StatelessWidget {
-  const FocusHubView({super.key});
+  final String? heroTag;
+  const FocusHubView({super.key, this.heroTag});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    Widget content = Scaffold(
       backgroundColor: const Color(0xFF09090B),
       appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
@@ -51,5 +52,17 @@ class FocusHubView extends StatelessWidget {
         ),
       ),
     );
+
+    if (heroTag != null) {
+      content = Hero(
+        tag: heroTag!,
+        child: Material(
+          type: MaterialType.transparency,
+          child: content,
+        ),
+      );
+    }
+
+    return content;
   }
 }

@@ -27,9 +27,10 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
     final int crossAxisCellCount = widget.def.size.crossAxisCellCount;
 
     return BentoWidgetContainer(
+      heroTag: widget.def.id,
       isLoading: false,
       onExpand: () {
-        GoRouter.of(context).push('/habits');
+        GoRouter.of(context).push('/habits', extra: {'heroTag': widget.def.id});
       },
       child: Container(
         decoration: BoxDecoration(

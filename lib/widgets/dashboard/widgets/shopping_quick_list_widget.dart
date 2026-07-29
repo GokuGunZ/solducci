@@ -33,7 +33,8 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
         .eq('is_bought', false)
         .order('created_at', ascending: false)
         .limit(10)
-        .map((data) => data.map((map) => ShoppingListItem.fromMap(map)).toList());
+        .map((data) => data.map((map) => ShoppingListItem.fromMap(map)).toList())
+        .asBroadcastStream();
         
     if (widget.def.customProps != null && widget.def.customProps!['source'] != null) {
       final initialSource = widget.def.customProps!['source'] as String;
@@ -53,9 +54,10 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
 
         return BaseListWidget<ShoppingListItem>(
+          heroTag: widget.def.id,
           isLoading: isLoading,
           onExpand: () {
-            GoRouter.of(context).push('/space/shopping');
+            GoRouter.of(context).push('/space/shopping', extra: {'heroTag': widget.def.id});
           },
           currentSource: _sources[_currentSourceIndex],
           color: const Color(0xFF3B82F6),

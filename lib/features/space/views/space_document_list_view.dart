@@ -14,11 +14,13 @@ import 'package:solducci/features/space/views/vectorial_notes_view.dart';
 class SpaceDocumentListView extends StatefulWidget {
   final String type;
   final String sectionLabel;
+  final String? heroTag;
 
   const SpaceDocumentListView({
     super.key,
     required this.type,
     required this.sectionLabel,
+    this.heroTag,
   });
 
   @override
@@ -81,7 +83,7 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
         children: [
           Positioned.fill(
             child: Hero(
-              tag: 'hero_space_${widget.type}',
+              tag: widget.heroTag ?? 'hero_space_${widget.type}',
               child: Material(
                 color: Colors.transparent,
                 child: Container(

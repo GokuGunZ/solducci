@@ -28,7 +28,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
   @override
   void initState() {
     super.initState();
-    _taskStream = getIt<TaskRepository>().watchAll();
+    _taskStream = getIt<TaskRepository>().watchAll().asBroadcastStream();
     
     if (widget.def.customProps != null && widget.def.customProps!['source'] != null) {
       final initialSource = widget.def.customProps!['source'] as String;
@@ -99,9 +99,10 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
         final displayTasks = focusTasks.length > 5 ? focusTasks.sublist(0, 5) : focusTasks;
 
         return BaseListWidget<Task>(
+          heroTag: widget.def.id,
           isLoading: isLoading,
           onExpand: () {
-            GoRouter.of(context).push('/space/tasks');
+            GoRouter.of(context).push('/space/tasks', extra: {'heroTag': widget.def.id});
           },
           currentSource: _sources[_currentSourceIndex],
           color: const Color(0xFFF59E0B),

@@ -62,9 +62,10 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
   @override
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
+      heroTag: widget.def.id,
       isLoading: _isLoading,
       onExpand: () {
-        GoRouter.of(context).push('/expenses_dashboard');
+        GoRouter.of(context).push('/expenses_dashboard', extra: {'heroTag': widget.def.id});
       },
       child: SwipeableBentoStack<MapEntry<String, double>>(
         items: _balancesList.isEmpty ? [const MapEntry('', 0.0)] : _balancesList,

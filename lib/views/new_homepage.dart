@@ -12,7 +12,8 @@ import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 
 class NewHomepage extends StatefulWidget {
-  const NewHomepage({super.key});
+  final String? heroTag;
+  const NewHomepage({super.key, this.heroTag});
 
   @override
   State<NewHomepage> createState() => _NewHomepageState();
@@ -96,52 +97,36 @@ class _NewHomepageState extends State<NewHomepage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: SolducciAppBar(
-        titleText: 'Dashboard',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () => _logout(context),
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<Expense>>(
-        stream: _expenseService.stream,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Errore: ${snapshot.error}'));
-          }
-
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
+    return StreamBuilder<List<Expense>>(
+      stream: _expenseService.stream,
+      builder: (context, snapshot) {
+        Widget bodyContent;
+        if (snapshot.hasError) {
+          bodyContent = Center(child: Text('Errore: ${snapshot.error}'));
+        } else if (!snapshot.hasData) {
+          bodyContent = const Center(child: CircularProgressIndicator());
+        } else {
           final expenses = snapshot.data!;
-
           if (expenses.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.receipt_long, size: 80, color: Colors.grey),
-                  SizedBox(height: 20),
-                  Text(
-                    'Nessuna spesa registrata',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Calculate statistics
+          bodyContent = Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Nessuna spesa registrata per questo mese.'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {},
+                  child: const Text('Aggiungi Spesa'),
+                ),
+              ],
+            ),
+          );
+        } else {
           final totalExpenses = _calculateTotal(expenses);
           final currentMonthTotal = _calculateCurrentMonthTotal(expenses);
           final recentExpenses = _getRecentExpenses(expenses, 15);
 
-          return SingleChildScrollView(
+          bodyContent = SingleChildScrollView(
             child: Column(
               children: [
                 // Compact summary section - half viewport
@@ -186,8 +171,35 @@ class _NewHomepageState extends State<NewHomepage> {
               ],
             ),
           );
+        }
+        }
+
+          Widget content = Scaffold(
+            appBar: SolducciAppBar(
+              titleText: 'Dashboard',
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Logout',
+                  onPressed: () => _logout(context),
+                ),
+              ],
+            ),
+            body: bodyContent,
+          );
+
+          if (widget.heroTag != null) {
+            content = Hero(
+              tag: widget.heroTag!,
+              child: Material(
+                type: MaterialType.transparency,
+                child: content,
+              ),
+            );
+          }
+
+          return content;
         },
-      ),
     );
   }
 

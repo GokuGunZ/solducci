@@ -30,7 +30,8 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .limit(20)
-        .map((data) => data.map((map) => AsteriskItem.fromMap(map)).toList());
+        .map((data) => data.map((map) => AsteriskItem.fromMap(map)).toList())
+        .asBroadcastStream();
   }
 
   void _toggleResolve(AsteriskItem item) async {
@@ -80,9 +81,10 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
         }
 
         return BaseListWidget<AsteriskItem>(
+          heroTag: widget.def.id,
           isLoading: isLoading,
           onExpand: () {
-            GoRouter.of(context).push('/space/asterisks');
+            GoRouter.of(context).push('/space/asterisks', extra: {'heroTag': widget.def.id});
           },
           currentSource: 'Asterischi',
           color: const Color(0xFFFBBF24),
