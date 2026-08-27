@@ -615,7 +615,7 @@ class _TaskFormState extends State<TaskForm> {
             _isLoadingMembers
                 ? const Center(child: CircularProgressIndicator())
                 : DropdownButtonFormField<String?>(
-                    initialValue: _selectedAssignedTo,
+                    value: _selectedAssignedTo,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12),

@@ -196,7 +196,7 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              initialValue: selectedUnit,
+              value: selectedUnit,
               items: const [
                 DropdownMenuItem(value: 'pcs', child: Text('Pezzi (pcs)')),
                 DropdownMenuItem(value: 'kg', child: Text('Kilogrammi (kg)')),

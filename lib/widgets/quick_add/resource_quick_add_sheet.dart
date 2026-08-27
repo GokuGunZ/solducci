@@ -144,7 +144,7 @@ class _ResourceQuickAddFormState extends State<ResourceQuickAddForm> {
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          initialValue: _selectedMediaType,
+          value: _selectedMediaType,
           dropdownColor: const Color(0xFF2A2A2D),
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(

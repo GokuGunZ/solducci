@@ -256,7 +256,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
                 TextField(controller: descController, decoration: const InputDecoration(labelText: 'Descrizione')),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedMediaType,
+                  value: selectedMediaType,
                   items: const [
                     DropdownMenuItem(value: 'link', child: Text('Link generico')),
                     DropdownMenuItem(value: 'video', child: Text('Video / YouTube')),
