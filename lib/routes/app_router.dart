@@ -58,6 +58,13 @@ class AppRouter {
       Supabase.instance.client.auth.onAuthStateChange,
     ),
     redirect: (context, state) {
+      final uriStr = state.uri.toString();
+      if (uriStr.startsWith('content://') || uriStr.startsWith('file://')) {
+        // Native code handles these via MethodChannel, so fallback to a safe route to avoid GoException
+        final isAuth = Supabase.instance.client.auth.currentSession != null;
+        return isAuth ? '/home' : '/';
+      }
+
       final isAuthenticated =
           Supabase.instance.client.auth.currentSession != null;
       final isGoingToLogin = state.matchedLocation == '/login';
