@@ -324,18 +324,16 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                               payloadText: content,
                             );
                             
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('File "$name" importato con successo!')),
-                              );
-                            }
-                          }
-                        } catch (e) {
-                          if (mounted) {
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Errore durante l\\'importazione: $e')),
+                              SnackBar(content: Text('File "$name" importato con successo!')),
                             );
                           }
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Errore durante l'importazione: $e")),
+                          );
                         }
                       },
                     ),
