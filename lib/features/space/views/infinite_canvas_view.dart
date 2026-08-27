@@ -304,15 +304,15 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       onPressed: () async {
                         Navigator.pop(context); // Chiudi il modal
                         try {
-                          final result = await FilePicker.platform.pickFiles(
+                          final result = await FilePicker.pickFile(
                             type: FileType.custom,
                             allowedExtensions: ['md', 'txt'],
                           );
                           
-                          if (result != null && result.files.single.path != null) {
-                            final file = File(result.files.single.path!);
+                          if (result != null && result.path != null) {
+                            final file = File(result.path!);
                             final content = await file.readAsString();
-                            String name = result.files.single.name;
+                            String name = result.name;
                             if (name.endsWith('.md') || name.endsWith('.txt')) {
                               name = name.substring(0, name.lastIndexOf('.'));
                             }
