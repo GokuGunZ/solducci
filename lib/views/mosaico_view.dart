@@ -107,7 +107,7 @@ class GlassCard extends StatelessWidget {
     // Glassmorphism implementation with sharp neon border
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E).withOpacity(0.6), // Semi-transparent dark surface
+        color: const Color(0xFF1E1E1E).withValues(alpha: 0.6), // Semi-transparent dark surface
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: neonColor,

@@ -158,7 +158,7 @@ class ShadowStyleDemoPage extends StatelessWidget {
     } else if (styleType == 'background') {
       // Opzione B: Background semi-trasparente
       decoration = BoxDecoration(
-        color: Colors.blue[50]!.withOpacity(0.5),
+        color: Colors.blue[50]!.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue[200]!, width: 1),
       );
@@ -170,7 +170,7 @@ class ShadowStyleDemoPage extends StatelessWidget {
         border: Border.all(color: Colors.blue[300]!, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue[300]!.withOpacity(0.5),
+            color: Colors.blue[300]!.withValues(alpha: 0.5),
             blurRadius: 8,
             spreadRadius: 2,
           ),

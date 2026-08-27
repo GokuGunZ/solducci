@@ -7,10 +7,10 @@ class FeatureOnboardingWizard extends StatefulWidget {
   final Future<void> Function(String selectedOptionId) onComplete;
 
   const FeatureOnboardingWizard({
-    Key? key,
+    super.key,
     required this.config,
     required this.onComplete,
-  }) : super(key: key);
+  });
 
   @override
   State<FeatureOnboardingWizard> createState() => _FeatureOnboardingWizardState();
@@ -105,7 +105,7 @@ class _FeatureOnboardingWizardState extends State<FeatureOnboardingWizard> {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF6366F1).withOpacity(0.15),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                 ),
               ),
             ),
@@ -238,7 +238,7 @@ class _FeatureOnboardingWizardState extends State<FeatureOnboardingWizard> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : const Color(0xFF1E1E2C),
+                      color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : const Color(0xFF1E1E2C),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
                         color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,

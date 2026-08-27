@@ -1,7 +1,8 @@
+import 'dart:io';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solducci/core/templates/canvas_template_registry.dart';
 import 'package:solducci/features/space/models/canvas_node.dart';
 import 'package:solducci/features/space/controllers/canvas_tree_controller.dart';
@@ -34,7 +35,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
   double _canvasScale = 1.0;
   int _pointerCount = 0;
   String? _selectionMode; // 'move' or 'delete'
-  Set<String> _selectedNodeIds = {};
+  final Set<String> _selectedNodeIds = {};
   bool _showWizard = false;
 
   @override
@@ -287,6 +288,56 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                         }
                       },
                       child: const Text('Crea', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: const BorderSide(color: Colors.white24),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.upload_file, color: Colors.white70),
+                      label: const Text('Importa File (.md)', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600)),
+                      onPressed: () async {
+                        Navigator.pop(context); // Chiudi il modal
+                        try {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['md', 'txt'],
+                          );
+                          
+                          if (result != null && result.files.single.path != null) {
+                            final file = File(result.files.single.path!);
+                            final content = await file.readAsString();
+                            String name = result.files.single.name;
+                            if (name.endsWith('.md') || name.endsWith('.txt')) {
+                              name = name.substring(0, name.lastIndexOf('.'));
+                            }
+                            
+                            _controller.createNode(
+                              title: name,
+                              type: 'markdown',
+                              parentId: parentId,
+                              payloadText: content,
+                            );
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('File "$name" importato con successo!')),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Errore durante l\\'importazione: $e')),
+                            );
+                          }
+                        }
+                      },
                     ),
                   )
                 ],
@@ -673,6 +724,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                   if (node.parentId != null) {
                                     _controller.enterFolder(node.parentId!);
                                     Future.delayed(const Duration(milliseconds: 300), () {
+                                      if (!context.mounted) return;
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text('Appunto trovato: ${node.title.isEmpty ? "Senza titolo" : node.title}'),
@@ -734,7 +786,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     SwitchListTile(
                       title: const Text('Bookmarks', style: TextStyle(color: Colors.white)),
                       value: _controller.showBookmarksMenu,
-                      activeColor: const Color(0xFF6366F1),
+                      activeThumbColor: const Color(0xFF6366F1),
                       onChanged: (val) {
                         setStateModal(() => _controller.updateMenuVisibility(bookmarks: val));
                       },
@@ -742,7 +794,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     SwitchListTile(
                       title: const Text('Genera Template Test', style: TextStyle(color: Colors.white)),
                       value: _controller.showTemplateMenu,
-                      activeColor: const Color(0xFF6366F1),
+                      activeThumbColor: const Color(0xFF6366F1),
                       onChanged: (val) {
                         setStateModal(() => _controller.updateMenuVisibility(template: val));
                       },
@@ -750,7 +802,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     SwitchListTile(
                       title: const Text('Reimposta viste', style: TextStyle(color: Colors.white)),
                       value: _controller.showRefreshMenu,
-                      activeColor: const Color(0xFF6366F1),
+                      activeThumbColor: const Color(0xFF6366F1),
                       onChanged: (val) {
                         setStateModal(() => _controller.updateMenuVisibility(refresh: val));
                       },
@@ -761,7 +813,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       title: const Text('Ripristina Wizard (Reset)', style: TextStyle(color: Colors.redAccent)),
                       onTap: () async {
                         await FeatureOnboardingService().resetOnboarding('infinite_canvas');
-                        if (mounted) {
+                        if (context.mounted) {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Onboarding ripristinato. Ricarica la vista!')),
@@ -1139,8 +1191,11 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                     isNodeSelected: (id) => _selectedNodeIds.contains(id),
                                     onNodeSelected: (id, selected) {
                                       setState(() {
-                                        if (selected) _selectedNodeIds.add(id);
-                                        else _selectedNodeIds.remove(id);
+                                        if (selected) {
+                                          _selectedNodeIds.add(id);
+                                        } else {
+                                          _selectedNodeIds.remove(id);
+                                        }
                                       });
                                     },
                                   );
@@ -1178,8 +1233,11 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                           isSelected: _selectedNodeIds.contains(node.id),
                                           onSelect: (selected) {
                                             setState(() {
-                                              if (selected) _selectedNodeIds.add(node.id);
-                                              else _selectedNodeIds.remove(node.id);
+                                              if (selected) {
+                                                _selectedNodeIds.add(node.id);
+                                              } else {
+                                                _selectedNodeIds.remove(node.id);
+                                              }
                                             });
                                           },
                                         ),
@@ -1239,7 +1297,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
             return;
           }
 
-          final newId = await _controller.createNodeAndReturnId(
+          await _controller.createNodeAndReturnId(
             title: '', 
             type: type,
             parentId: _controller.currentCanvasRootId,
@@ -1266,7 +1324,6 @@ class _FolderNodeWidget extends StatefulWidget {
   final void Function(String, bool) onNodeSelected;
 
   const _FolderNodeWidget({
-    Key? key,
     required this.node,
     required this.controller,
     required this.depth,
@@ -1275,7 +1332,7 @@ class _FolderNodeWidget extends StatefulWidget {
     this.selectionMode,
     required this.isNodeSelected,
     required this.onNodeSelected,
-  }) : super(key: key);
+  });
 
   @override
   State<_FolderNodeWidget> createState() => _FolderNodeWidgetState();

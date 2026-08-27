@@ -5,7 +5,6 @@ import 'package:solducci/models/group.dart';
 import 'package:solducci/service/profile_service.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/context_manager.dart';
-import 'package:solducci/views/showcase/ui_showcase_menu.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 

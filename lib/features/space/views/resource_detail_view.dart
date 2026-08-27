@@ -192,7 +192,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
         content: const Text('Sei sicuro di voler eliminare questa risorsa?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Elimina'), style: TextButton.styleFrom(foregroundColor: Colors.red)),
+          TextButton(onPressed: () => Navigator.pop(context, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Elimina')),
         ],
       ),
     );
@@ -207,21 +207,14 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: tag.colorObject?.withOpacity(0.2) ?? Colors.grey.withOpacity(0.2),
+        color: tag.colorObject?.withValues(alpha: 0.2) ?? Colors.grey.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(tag.name, style: TextStyle(fontSize: 10, color: tag.colorObject ?? Colors.grey[700], fontWeight: FontWeight.bold)),
     );
   }
 
-  IconData _getIconForMediaType(String? type) {
-    switch (type) {
-      case 'video': return Icons.play_circle_outline;
-      case 'image': return Icons.image_outlined;
-      case 'document': return Icons.description_outlined;
-      default: return Icons.link;
-    }
-  }
+
 
   Future<void> _openResource(ResourceItem item) async {
     if (item.url != null) {
@@ -263,7 +256,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
                 TextField(controller: descController, decoration: const InputDecoration(labelText: 'Descrizione')),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedMediaType,
+                  initialValue: selectedMediaType,
                   items: const [
                     DropdownMenuItem(value: 'link', child: Text('Link generico')),
                     DropdownMenuItem(value: 'video', child: Text('Video / YouTube')),
@@ -309,6 +302,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
                   } else {
                     await _spaceService.updateResourceItem(newItem, selectedTagIds);
                   }
+                  if (!context.mounted) return;
                   Navigator.pop(context);
                   _loadData();
                 }

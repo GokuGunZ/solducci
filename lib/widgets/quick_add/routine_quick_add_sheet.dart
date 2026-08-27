@@ -192,14 +192,14 @@ class _RoutineQuickAddFormState extends State<RoutineQuickAddForm> {
                     ChoiceChip(
                       label: const Text('Notifica'),
                       selected: localType == 'push',
-                      selectedColor: const Color(0xFFF59E0B).withOpacity(0.2),
+                      selectedColor: const Color(0xFFF59E0B).withValues(alpha: 0.2),
                       onSelected: (val) { if(val) setDialogState(() => localType = 'push'); },
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text('Sveglia'),
                       selected: localType == 'native_aggressive',
-                      selectedColor: const Color(0xFFEF4444).withOpacity(0.2),
+                      selectedColor: const Color(0xFFEF4444).withValues(alpha: 0.2),
                       onSelected: (val) { if(val) setDialogState(() => localType = 'native_aggressive'); },
                     ),
                   ],

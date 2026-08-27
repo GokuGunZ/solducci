@@ -132,7 +132,7 @@ class TimelineView extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               // Timeline line
-                              Container(
+                              SizedBox(
                                 width: 60,
                                 child: Column(
                                   children: [
@@ -232,7 +232,7 @@ class TimelineView extends StatelessWidget {
                         ),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               );
             },

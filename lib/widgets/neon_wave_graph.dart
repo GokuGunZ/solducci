@@ -79,8 +79,8 @@ class _NeonWavePainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          color.withOpacity(0.4),
-          color.withOpacity(0.0),
+          color.withValues(alpha: 0.4),
+          color.withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.fill;

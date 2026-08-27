@@ -144,7 +144,7 @@ class _ResourceQuickAddFormState extends State<ResourceQuickAddForm> {
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          value: _selectedMediaType,
+          initialValue: _selectedMediaType,
           dropdownColor: const Color(0xFF2A2A2D),
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
@@ -175,7 +175,7 @@ class _ResourceQuickAddFormState extends State<ResourceQuickAddForm> {
               return FilterChip(
                 label: Text(tag.name),
                 selected: isSelected,
-                selectedColor: tag.colorObject?.withOpacity(0.3) ?? Colors.blue.withOpacity(0.3),
+                selectedColor: tag.colorObject?.withValues(alpha: 0.3) ?? Colors.blue.withValues(alpha: 0.3),
                 checkmarkColor: Colors.white,
                 labelStyle: TextStyle(
                   color: isSelected ? Colors.white : Colors.white70,

@@ -198,7 +198,7 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
 
   Widget _buildInviteCard(GroupInvite invite) {
     final expiryDate = invite.expiresAt;
-    final isExpired = expiryDate != null && expiryDate.isBefore(DateTime.now());
+    final isExpired = expiryDate.isBefore(DateTime.now());
 
     return Card(
       elevation: 3,

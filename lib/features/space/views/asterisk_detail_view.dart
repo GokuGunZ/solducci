@@ -170,6 +170,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
                 setState(() {
                   _document = updatedDoc;
                 });
+                if (!mounted) return;
                 Navigator.pop(context);
               }
             },

@@ -161,6 +161,7 @@ class Expense implements CacheableModel<int> {
   }
 
   // expense(model) -> map(entity)
+  @override
   Map<String, dynamic> toMap() {
     final Map<String, dynamic> map = {
       'description': description,

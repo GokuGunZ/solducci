@@ -57,7 +57,7 @@ class _CreateTripViewState extends State<CreateTripView> {
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.dark(
             primary: Color(0xFF6366F1), // Indigo
-            background: Color(0xFF121212),
+            surface: Color(0xFF121212),
           ),
         ),
         child: Stepper(
@@ -180,7 +180,7 @@ class _CreateTripViewState extends State<CreateTripView> {
                   SwitchListTile(
                     title: const Text('Abilita Ghost Pantry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     subtitle: const Text('Genera liste isolate dal gruppo principale', style: TextStyle(color: Colors.white54)),
-                    activeColor: const Color(0xFF6366F1),
+                    activeThumbColor: const Color(0xFF6366F1),
                     value: _createGhostPantry,
                     onChanged: (val) => setState(() => _createGhostPantry = val),
                     contentPadding: EdgeInsets.zero,
@@ -200,7 +200,7 @@ class _CreateTripViewState extends State<CreateTripView> {
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: const Color(0xFF6366F1).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
                     child: Row(
                       children: [
                         Icon(_createGhostPantry ? Icons.check_circle : Icons.cancel, color: const Color(0xFF6366F1)),

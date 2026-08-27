@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/task.dart';
-import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
 import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/service/task_service.dart';
-
-import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
 
 import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
@@ -128,7 +125,9 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
                     onTap: () async {
                       try {
                         await TaskService().completeTask(task.id);
-                      } catch (e) {}
+                      } catch (e) {
+                        // Ignore complete errors in widget
+                      }
                     },
                     child: Container(
                       width: 18,

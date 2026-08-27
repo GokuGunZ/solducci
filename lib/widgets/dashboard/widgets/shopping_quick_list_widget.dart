@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/space_items.dart';
-import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
 
 import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 

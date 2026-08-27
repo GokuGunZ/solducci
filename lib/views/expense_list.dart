@@ -4,7 +4,6 @@ import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/widgets/expense_list_item_optimized.dart';
-import 'package:solducci/widgets/context_switcher.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 
 class ExpenseList extends StatefulWidget {

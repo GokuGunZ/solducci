@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -208,8 +209,42 @@ class ErrorApp extends StatelessWidget {
 }
 
 /// Main app widget with GoRouter configuration
-class SolducciApp extends StatelessWidget {
+class SolducciApp extends StatefulWidget {
   const SolducciApp({super.key});
+
+  @override
+  State<SolducciApp> createState() => _SolducciAppState();
+}
+
+class _SolducciAppState extends State<SolducciApp> {
+  static const platform = MethodChannel('com.gokugunz.solducci/intent');
+
+  @override
+  void initState() {
+    super.initState();
+    _handleInitialIntent();
+    platform.setMethodCallHandler(_handleMethodCall);
+  }
+
+  Future<void> _handleInitialIntent() async {
+    try {
+      final String? initialFile = await platform.invokeMethod('getInitialFile');
+      if (initialFile != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) AppRouter.router.push('/markdown-viewer', extra: initialFile);
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to get initial intent: $e");
+    }
+  }
+
+  Future<dynamic> _handleMethodCall(MethodCall call) async {
+    if (call.method == "onNewFile") {
+      final String filePath = call.arguments;
+      if (mounted) AppRouter.router.push('/markdown-viewer', extra: filePath);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

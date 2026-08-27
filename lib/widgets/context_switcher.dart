@@ -22,11 +22,7 @@ class ContextSwitcher extends StatelessWidget {
     );
   }
 
-  /// Helper per verificare se il contesto corrente è la vista "Tutti i gruppi"
-  bool _isAllGroupsView(ExpenseContext context) {
-    if (!context.isView) return false;
-    return context.view?.id == 'all-groups-preset';
-  }
+
 
   @override
   Widget build(BuildContext context) {

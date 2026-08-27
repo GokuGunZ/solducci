@@ -1436,7 +1436,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      value: _selectedLayer.blendMode,
+      initialValue: _selectedLayer.blendMode,
       style: const TextStyle(fontSize: 11, color: Colors.black),
       items: commonBlendModes.map((mode) {
         return DropdownMenuItem(
@@ -1520,7 +1520,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
       ),
       value: value,
       onChanged: onChanged,
-      activeColor: Colors.purple,
+      activeThumbColor: Colors.purple,
       contentPadding: EdgeInsets.zero,
     );
   }
@@ -1548,7 +1548,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      value: value,
+      initialValue: value,
       style: const TextStyle(fontSize: 11, color: Colors.black),
       items: alignments.entries.map((entry) {
         return DropdownMenuItem(value: entry.value, child: Text(entry.key));

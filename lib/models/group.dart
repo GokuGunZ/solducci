@@ -62,6 +62,7 @@ class ExpenseGroup implements CacheableModel<String> {
   }
 
   /// Convert ExpenseGroup to Supabase map
+  @override
   Map<String, dynamic> toMap() {
     return {
       'id': id,

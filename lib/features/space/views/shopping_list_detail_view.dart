@@ -6,7 +6,6 @@ import 'package:solducci/models/space_items.dart';
 import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/context_manager.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ShoppingListDetailView extends StatefulWidget {
   final String documentId;
@@ -285,7 +284,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
-        if (shouldPop && mounted) {
+        if (shouldPop && context.mounted) {
           Navigator.of(context).pop();
         }
       },
@@ -480,7 +479,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
                   color: Theme.of(context).cardColor,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 15,
                       offset: const Offset(0, -5),
                     )
@@ -550,7 +549,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
         content: Text('Vuoi eliminare ${_selectedItemIds.length} elementi dalla lista?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Elimina'), style: TextButton.styleFrom(foregroundColor: Colors.red)),
+          TextButton(onPressed: () => Navigator.pop(context, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Elimina')),
         ],
       ),
     );
@@ -1065,6 +1064,7 @@ class _ProductSelectorDialogState extends State<_ProductSelectorDialog> {
         ));
       }
     }
+    if (!context.mounted) return;
     Navigator.pop(context);
     widget.onAdded();
   }

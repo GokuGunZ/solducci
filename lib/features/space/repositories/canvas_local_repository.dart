@@ -49,9 +49,7 @@ class CanvasLocalRepository {
   }
 
   List<CanvasNode> getAllNodes() {
-    if (_cachedNodes == null) {
-      _cachedNodes = _box.values.map((data) => CanvasNode.fromMap(jsonDecode(data))).toList();
-    }
+    _cachedNodes ??= _box.values.map((data) => CanvasNode.fromMap(jsonDecode(data))).toList();
     return _cachedNodes!;
   }
 

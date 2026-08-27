@@ -116,7 +116,7 @@ class _PantryQuickAddFormState extends State<PantryQuickAddForm> {
             const SizedBox(width: 16),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _selectedUnit,
+                initialValue: _selectedUnit,
                 dropdownColor: const Color(0xFF2A2A2D),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(

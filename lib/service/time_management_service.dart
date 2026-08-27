@@ -23,8 +23,7 @@ class TimeManagementService {
 
   /// Stream of Time Scenarios based on the current context
   Stream<List<TimeScenario>> get timeScenariosStream {
-    final context = _contextManager.currentContext;
-    final userId = _supabase.auth.currentUser?.id;
+
     final supabaseStream = _supabase
         .from('time_scenarios')
         .stream(primaryKey: ['id'])

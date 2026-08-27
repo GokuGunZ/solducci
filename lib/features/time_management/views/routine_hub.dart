@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/routine.dart';
-import 'package:uuid/uuid.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RoutineHub extends StatelessWidget {
   const RoutineHub({super.key});
@@ -77,7 +75,7 @@ class RoutineCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: template.isActive ? color.withOpacity(0.5) : Colors.transparent, width: 1),
+        border: Border.all(color: template.isActive ? color.withValues(alpha: 0.5) : Colors.transparent, width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -120,8 +118,9 @@ class RoutineCard extends StatelessWidget {
                             
                             final days = schedules.map((s) => s.dayOfWeek).toSet().toList()..sort();
                             String daysStr = '${days.length} giorni'; 
-                            if (days.length == 7) daysStr = 'Tutti i giorni';
-                            else if (days.length == 5 && days.contains(1) && days.contains(5)) daysStr = 'Lun - Ven';
+                            if (days.length == 7) {
+                              daysStr = 'Tutti i giorni';
+                            } else if (days.length == 5 && days.contains(1) && days.contains(5)) daysStr = 'Lun - Ven';
                             else if (days.length == 2 && days.contains(6) && days.contains(7)) daysStr = 'Sab - Dom';
                             else if (days.length == 1) daysStr = '1 giorno a settimana';
 
@@ -189,7 +188,7 @@ class RoutineCard extends StatelessWidget {
                         onChanged: (val) {
                           TimeManagementService().updateRoutineStatus(template.id, val);
                         },
-                        activeColor: const Color(0xFF10B981),
+                        activeThumbColor: const Color(0xFF10B981),
                       ),
                     ],
                   ),

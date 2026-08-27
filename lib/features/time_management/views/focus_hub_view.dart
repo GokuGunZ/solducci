@@ -24,10 +24,10 @@ class FocusHubView extends StatelessWidget {
               height: 240,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 8),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 8),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFF59E0B).withOpacity(0.1),
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
                     blurRadius: 40,
                     spreadRadius: 10,
                   ),

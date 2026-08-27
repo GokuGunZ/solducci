@@ -1,6 +1,5 @@
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:solducci/views/hubs/feed_home_view.dart';
 import 'package:solducci/views/bento_dashboard_page.dart';
 import 'package:solducci/views/hubs/economy_hub_view.dart';
 import 'package:solducci/views/hubs/action_hub_view.dart';
@@ -16,9 +15,6 @@ import 'package:solducci/widgets/quick_add/simple_content_quick_add_sheet.dart';
 import 'package:solducci/widgets/quick_add/base_quick_add_sheet.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/context_manager.dart';
-import 'package:solducci/service/time_management_service.dart';
-import 'package:solducci/models/routine.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -251,7 +247,7 @@ class ShellWithNavState extends State<ShellWithNav> {
           child: const Icon(Icons.add, size: 32, color: Colors.white),
         )
         .animate()
-        .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.8), curve: Curves.easeOutQuad)
+        .shimmer(duration: 1500.ms, color: Colors.white.withValues(alpha: 0.8), curve: Curves.easeOutQuad)
         .animate(onPlay: (controller) => controller.repeat(reverse: true))
         .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.06, 1.06), duration: 2.seconds, curve: Curves.easeInOutSine),
       ),

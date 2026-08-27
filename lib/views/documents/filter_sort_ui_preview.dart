@@ -13,14 +13,14 @@ class FilterSortUIPreview extends StatefulWidget {
 
 class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
   // State for each solution
-  Set<TaskPriority> _selectedPriorities1 = {};
-  Set<TaskPriority> _selectedPriorities2 = {};
-  Set<TaskPriority> _selectedPriorities3 = {};
-  Set<TaskPriority> _selectedPriorities4 = {};
-  Set<TaskPriority> _selectedPriorities5 = {};
-  Set<TaskPriority> _selectedPriorities6 = {};
-  Set<TaskPriority> _selectedPriorities7 = {};
-  Set<TaskPriority> _selectedPriorities8 = {};
+  final Set<TaskPriority> _selectedPriorities1 = {};
+  final Set<TaskPriority> _selectedPriorities2 = {};
+  final Set<TaskPriority> _selectedPriorities3 = {};
+  final Set<TaskPriority> _selectedPriorities4 = {};
+  final Set<TaskPriority> _selectedPriorities5 = {};
+  final Set<TaskPriority> _selectedPriorities6 = {};
+  final Set<TaskPriority> _selectedPriorities7 = {};
+  final Set<TaskPriority> _selectedPriorities8 = {};
 
   String? _sortBy1;
   String? _sortBy2;

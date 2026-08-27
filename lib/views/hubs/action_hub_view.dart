@@ -136,9 +136,9 @@ class _ActionHubViewState extends State<ActionHubView> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [

@@ -75,7 +75,7 @@ class _CreateScenarioViewState extends State<CreateScenarioView> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _scenarioType,
+                initialValue: _scenarioType,
                 dropdownColor: const Color(0xFF1E1E1E),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(

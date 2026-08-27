@@ -157,7 +157,7 @@ class ConstellationMenuOverlayState extends State<ConstellationMenuOverlay> with
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -190,7 +190,7 @@ class ConstellationMenuOverlayState extends State<ConstellationMenuOverlay> with
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.4),
+            color: color.withValues(alpha: 0.4),
             blurRadius: 16,
             spreadRadius: 2,
           ),
@@ -200,7 +200,7 @@ class ConstellationMenuOverlayState extends State<ConstellationMenuOverlay> with
         heroTag: null,
         backgroundColor: const Color(0xFF1E1E1E),
         elevation: 0,
-        shape: CircleBorder(side: BorderSide(color: color.withOpacity(0.5), width: 1.5)),
+        shape: CircleBorder(side: BorderSide(color: color.withValues(alpha: 0.5), width: 1.5)),
         onPressed: () => close(onTap),
         child: Icon(icon, color: color, size: 24),
       ),
@@ -233,7 +233,7 @@ class ConstellationMenuOverlayState extends State<ConstellationMenuOverlay> with
               animation: _controller,
               builder: (context, child) {
                 return Container(
-                  color: Colors.black.withOpacity(0.85 * _controller.value),
+                  color: Colors.black.withValues(alpha: 0.85 * _controller.value),
                 );
               },
             ),

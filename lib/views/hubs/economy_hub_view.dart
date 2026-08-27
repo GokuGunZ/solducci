@@ -1,5 +1,4 @@
 import 'package:solducci/widgets/solducci_app_bar.dart';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/models/expense.dart';
@@ -50,12 +49,12 @@ class EconomyHubView extends StatelessWidget {
               Container(
                 height: 240,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E).withOpacity(0.4),
+                  color: const Color(0xFF1E1E1E).withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3), width: 1.5),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.05),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.05),
                       blurRadius: 20,
                       spreadRadius: 5,
                     )
@@ -102,13 +101,13 @@ class EconomyHubView extends StatelessWidget {
                 ...expenses.take(10).map((e) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF10B981).withOpacity(0.1),
+                      backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.1),
                       child: const Icon(Icons.attach_money, color: Color(0xFF10B981)),
                     ),
                     title: Text(e.description, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),

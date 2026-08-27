@@ -214,14 +214,14 @@ class _CreateRoutineViewState extends State<CreateRoutineView> {
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E1E),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.5)),
+                border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Ora X (Target)', style: TextStyle(color: Colors.white70, fontSize: 16)),
                   Text('${_targetTime.hour.toString().padLeft(2, '0')}:${_targetTime.minute.toString().padLeft(2, '0')}', 
-                    style: const TextStyle(color: const Color(0xFF8B5CF6), fontSize: 24, fontWeight: FontWeight.w900)),
+                    style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 24, fontWeight: FontWeight.w900)),
                 ],
               ),
             ),
@@ -273,7 +273,7 @@ class _CreateRoutineViewState extends State<CreateRoutineView> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E1E),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: color.withOpacity(0.3)),
+                  border: Border.all(color: color.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -298,7 +298,7 @@ class _CreateRoutineViewState extends State<CreateRoutineView> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
             
           const SizedBox(height: 48),
           ElevatedButton(
@@ -322,8 +322,11 @@ class _CreateRoutineViewState extends State<CreateRoutineView> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          if (isSelected) _selectedDays.remove(dayIndex);
-          else _selectedDays.add(dayIndex);
+          if (isSelected) {
+            _selectedDays.remove(dayIndex);
+          } else {
+            _selectedDays.add(dayIndex);
+          }
         });
       },
       child: Container(

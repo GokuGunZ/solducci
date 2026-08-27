@@ -129,7 +129,7 @@ class TaskTileDesignPreview extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -151,18 +151,18 @@ class TaskTileDesignPreview extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withOpacity(0.9),
-            Colors.white.withOpacity(0.7),
+            Colors.white.withValues(alpha: 0.9),
+            Colors.white.withValues(alpha: 0.7),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: TodoTheme.primaryPurple.withOpacity(0.1),
+            color: TodoTheme.primaryPurple.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -195,7 +195,7 @@ class TaskTileDesignPreview extends StatelessWidget {
             blurRadius: 8,
           ),
           BoxShadow(
-            color: Colors.grey.withOpacity(0.4),
+            color: Colors.grey.withValues(alpha: 0.4),
             offset: const Offset(4, 4),
             blurRadius: 8,
           ),
@@ -217,18 +217,18 @@ class TaskTileDesignPreview extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            TodoTheme.primaryPurple.withOpacity(0.05),
-            Colors.blue.withOpacity(0.05),
+            TodoTheme.primaryPurple.withValues(alpha: 0.05),
+            Colors.blue.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: TodoTheme.primaryPurple.withOpacity(0.2),
+          color: TodoTheme.primaryPurple.withValues(alpha: 0.2),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: TodoTheme.primaryPurple.withOpacity(0.1),
+            color: TodoTheme.primaryPurple.withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -256,7 +256,7 @@ class TaskTileDesignPreview extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -278,12 +278,12 @@ class TaskTileDesignPreview extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 1,
             offset: const Offset(0, 1),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -304,12 +304,12 @@ class TaskTileDesignPreview extends StatelessWidget {
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: TodoTheme.primaryPurple.withOpacity(0.3),
+          color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: TodoTheme.primaryPurple.withOpacity(0.2),
+            color: TodoTheme.primaryPurple.withValues(alpha: 0.2),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -331,7 +331,7 @@ class TaskTileDesignPreview extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: Colors.grey.withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -425,9 +425,9 @@ class TaskTileDesignPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -319,7 +319,7 @@ abstract class CacheableService<M extends CacheableModel<K>, K> {
 
   /// Print cache diagnostics
   void printDiagnostics() {
-    print('=== Cache Diagnostics: ${runtimeType} ===');
+    print('=== Cache Diagnostics: $runtimeType ===');
     print('Size: ${_cache.length}${config.maxSize != null ? ' / ${config.maxSize}' : ''}');
     print('Initialized: $_initialized');
     if (config.enableStats) {

@@ -96,7 +96,7 @@ class _GroupExpenseFieldsState extends State<GroupExpenseFields> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _selectedPaidBy != null &&
+          initialValue: _selectedPaidBy != null &&
                   widget.members.any((m) => m.userId == _selectedPaidBy)
               ? _selectedPaidBy
               : null,
@@ -121,7 +121,7 @@ class _GroupExpenseFieldsState extends State<GroupExpenseFields> {
                     radius: 12,
                     backgroundColor: Colors.blue[200],
                     child: Text(
-                      member.initials ?? '?',
+                      member.initials,
                       style: const TextStyle(fontSize: 10),
                     ),
                   ),

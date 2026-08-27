@@ -90,7 +90,7 @@ class ArchiveHubView extends StatelessWidget {
           color: Colors.transparent,
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E).withOpacity(0.6),
+              color: const Color(0xFF1E1E1E).withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: color, width: 1.5),
             ),
@@ -100,7 +100,7 @@ class ArchiveHubView extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 32),

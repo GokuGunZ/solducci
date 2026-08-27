@@ -46,6 +46,7 @@ import 'package:solducci/features/time_management/views/habit_hub_view.dart';
 import 'package:solducci/views/groups/group_management_hub_view.dart';
 import 'package:solducci/views/mosaico_view.dart';
 import 'package:solducci/features/space/views/infinite_canvas_view.dart';
+import 'package:solducci/views/standalone_markdown_page.dart';
 
 /// Global router configuration for the app
 /// Handles authentication state and navigation
@@ -115,6 +116,13 @@ class AppRouter {
       GoRoute(
         path: '/mosaico',
         builder: (context, state) => const MosaicoView(),
+      ),
+      GoRoute(
+        path: '/markdown-viewer',
+        builder: (context, state) {
+          final filePath = state.extra as String;
+          return StandaloneMarkdownPage(filePath: filePath);
+        },
       ),
 
       // Dashboard Detail Routes (full screen with back button)

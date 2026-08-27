@@ -97,8 +97,7 @@ class RepositoryException implements Exception {
 
 /// Thrown when a requested resource is not found
 class NotFoundException extends RepositoryException {
-  NotFoundException(String message, [dynamic error, StackTrace? stackTrace])
-      : super(message, error, stackTrace);
+  NotFoundException(super.message, [super.error, super.stackTrace]);
 
   @override
   String toString() => 'NotFoundException: $message';

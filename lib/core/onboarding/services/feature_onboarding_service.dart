@@ -1,5 +1,3 @@
-import 'package:solducci/models/user_profile.dart';
-import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/profile_service_cached.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,7 +8,6 @@ class FeatureOnboardingService {
 
   final SupabaseClient _supabase = Supabase.instance.client;
   final ProfileServiceCached _profileService = ProfileServiceCached();
-  final AuthService _authService = AuthService();
 
   /// Check if the current user has onboarded a specific feature
   Future<bool> hasOnboarded(String featureKey) async {

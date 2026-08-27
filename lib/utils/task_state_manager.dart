@@ -28,10 +28,10 @@ class _ReferenceCountedNotifier<T> extends AlwaysNotifyValueNotifier<T> {
   final VoidCallback onLastReferenceRemoved;
 
   _ReferenceCountedNotifier(
-    T value,
+    super.value,
     this.taskId,
     this.onLastReferenceRemoved,
-  ) : super(value);
+  );
 
   @override
   void dispose() {

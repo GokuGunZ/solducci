@@ -108,7 +108,7 @@ class _CreateOutingViewState extends State<CreateOutingView> {
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E1E),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFF43F5E).withOpacity(0.3)),
+              border: Border.all(color: const Color(0xFFF43F5E).withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [

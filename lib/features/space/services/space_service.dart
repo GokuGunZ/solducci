@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:solducci/models/space_items.dart';
-import 'package:solducci/service/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
 
 /// Service for managing space items (Notes, Asterisks, Resources, Pantry)
 class SpaceService {

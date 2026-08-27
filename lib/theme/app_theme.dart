@@ -20,7 +20,6 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: primary,
         surface: surface,
-        background: background,
         error: error,
       ),
       cardTheme: CardThemeData(

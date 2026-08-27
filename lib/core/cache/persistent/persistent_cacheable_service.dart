@@ -1,7 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_service.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
-import 'package:solducci/core/cache/cache_config.dart';
 import 'package:solducci/core/cache/persistent/persistent_cache_config.dart';
 import 'package:solducci/core/cache/persistent/persistent_cache_entry.dart';
 
@@ -34,9 +33,9 @@ abstract class PersistentCacheableService<M extends CacheableModel<K>, K>
   final PersistentCacheConfig persistentConfig;
 
   PersistentCacheableService({
-    required CacheConfig config,
+    required super.config,
     this.persistentConfig = PersistentCacheConfig.defaultConfig,
-  }) : super(config: config);
+  });
 
   // ====================================================================
   // INITIALIZATION
@@ -142,16 +141,7 @@ abstract class PersistentCacheableService<M extends CacheableModel<K>, K>
     await metaBox.delete(key);
   }
 
-  /// Mark item as dirty (local change not synced)
-  Future<void> _markDirty(K key) async {
-    final metaBox = _metadataBox;
-    if (metaBox == null) return;
 
-    final metadata = metaBox.get(key);
-    if (metadata != null) {
-      await metaBox.put(key, metadata.markDirty());
-    }
-  }
 
   /// Mark item as synced (clean)
   Future<void> _markSynced(K key) async {

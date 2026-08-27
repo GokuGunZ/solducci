@@ -145,7 +145,7 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.3), blurRadius: 30, spreadRadius: -10),
+          BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.3), blurRadius: 30, spreadRadius: -10),
         ]
       ),
       child: Column(
@@ -194,7 +194,7 @@ class _DemoFlipCardViewState extends State<DemoFlipCardView> with SingleTickerPr
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFF10B981)),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF10B981).withOpacity(0.3), blurRadius: 30, spreadRadius: -10),
+          BoxShadow(color: const Color(0xFF10B981).withValues(alpha: 0.3), blurRadius: 30, spreadRadius: -10),
         ]
       ),
       child: Column(

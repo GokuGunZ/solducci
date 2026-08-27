@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/group.dart';
-import 'package:solducci/service/auth_service.dart';
 
 class CircularContextAvatar extends StatelessWidget {
   final ExpenseContext expenseContext;
@@ -85,7 +84,7 @@ class CircularContextAvatar extends StatelessWidget {
     }
 
     // Se è un sub-avatar di un cluster o showLabel è falso, restituiamo solo l'avatar
-    if (this.radius != r || !showLabel) {
+    if (radius != r || !showLabel) {
       return avatar;
     }
 

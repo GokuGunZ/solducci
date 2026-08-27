@@ -88,9 +88,9 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
                 color: Colors.transparent,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E).withOpacity(0.6),
+                    color: const Color(0xFF1E1E1E).withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(0),
-                    border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+                    border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
                   ),
                 ),
               ),
@@ -148,7 +148,7 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: color.withOpacity(0.3),
+                                      color: color.withValues(alpha: 0.3),
                                       blurRadius: 30,
                                       spreadRadius: 10,
                                     )
@@ -201,16 +201,16 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
                           return Container(
                             margin: const EdgeInsets.symmetric(vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: color.withOpacity(0.3), width: 1),
+                              border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
                             ),
                             child: ListTile(
                               title: Text(doc.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                               subtitle: Text('Aggiornato il ${_formatDate(doc.updatedAt)}', style: const TextStyle(color: Colors.white54)),
                               trailing: widget.type == 'shopping_list' 
                                 ? _ShoppingListProgress(documentId: doc.id)
-                                : Icon(Icons.chevron_right, color: color.withOpacity(0.7)),
+                                : Icon(Icons.chevron_right, color: color.withValues(alpha: 0.7)),
                               onTap: () => _navigateToDocument(context, doc),
                               onLongPress: () => _showDeleteConfirm(context, doc),
                             ),

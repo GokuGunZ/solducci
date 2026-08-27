@@ -262,12 +262,19 @@ class _RadialCategorySelectorState extends State<RadialCategorySelector> {
                   selectedItems: const <String>[],
                   onSelected: (cat) {
                     setState(() {
-                      if (cat == 'Spesa') _selectedIcon = Icons.shopping_cart;
-                      else if (cat == 'Trasporti') _selectedIcon = Icons.directions_car;
-                      else if (cat == 'Casa') _selectedIcon = Icons.home;
-                      else if (cat == 'Svago') _selectedIcon = Icons.movie;
-                      else if (cat == 'Salute') _selectedIcon = Icons.favorite;
-                      else _selectedIcon = Icons.more_horiz;
+                      if (cat == 'Spesa') {
+                        _selectedIcon = Icons.shopping_cart;
+                      } else if (cat == 'Trasporti') {
+                        _selectedIcon = Icons.directions_car;
+                      } else if (cat == 'Casa') {
+                        _selectedIcon = Icons.home;
+                      } else if (cat == 'Svago') {
+                        _selectedIcon = Icons.movie;
+                      } else if (cat == 'Salute') {
+                        _selectedIcon = Icons.favorite;
+                      } else {
+                        _selectedIcon = Icons.more_horiz;
+                      }
                     });
                     _closeMenu();
                   },

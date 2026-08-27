@@ -55,6 +55,7 @@ class UserProfile implements CacheableModel<String> {
   }
 
   /// Convert UserProfile to Supabase map
+  @override
   Map<String, dynamic> toMap() {
     return {
       'id': id,

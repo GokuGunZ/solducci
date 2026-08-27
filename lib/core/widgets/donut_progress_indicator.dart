@@ -23,7 +23,7 @@ class DonutProgressIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final activeColor = color ?? theme.primaryColor;
-    final inactiveColor = backgroundColor ?? theme.dividerColor.withOpacity(0.1);
+    final inactiveColor = backgroundColor ?? theme.dividerColor.withValues(alpha: 0.1);
     
     // Total is 0 or completed is 0, still show the donut as requested
     final double progress = total > 0 ? completed / total : 0.0;

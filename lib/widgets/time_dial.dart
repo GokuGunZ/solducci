@@ -103,7 +103,7 @@ class _TimeDialWidgetState extends State<TimeDialWidget> {
                           color: _isMinutesMode ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6),
                           shadows: [
                             Shadow(
-                              color: (_isMinutesMode ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6)).withOpacity(0.5),
+                              color: (_isMinutesMode ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6)).withValues(alpha: 0.5),
                               blurRadius: 20,
                             )
                           ],

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:solducci/theme/app_theme.dart';
 
 class BentoWidgetContainer extends StatelessWidget {
   final Widget child;

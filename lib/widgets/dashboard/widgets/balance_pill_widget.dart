@@ -48,7 +48,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
         ];
       }
     } catch (e) {
-      print('Error loading balance: $e');
+      debugPrint('Error loading balance: $e');
       _balancesList = [const MapEntry('Errore', 0.0)];
     } finally {
       if (mounted) {

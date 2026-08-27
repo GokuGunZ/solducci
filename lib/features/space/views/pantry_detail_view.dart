@@ -196,7 +196,7 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: selectedUnit,
+              initialValue: selectedUnit,
               items: const [
                 DropdownMenuItem(value: 'pcs', child: Text('Pezzi (pcs)')),
                 DropdownMenuItem(value: 'kg', child: Text('Kilogrammi (kg)')),
@@ -228,6 +228,7 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
                   updatedAt: DateTime.now(),
                 );
                 await _spaceService.createPantryItem(newItem);
+                if (!context.mounted) return;
                 Navigator.pop(context);
               }
             },

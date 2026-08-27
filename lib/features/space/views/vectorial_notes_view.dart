@@ -101,12 +101,12 @@ class _VectorialNotesViewState extends State<VectorialNotesView> with TickerProv
                           },
                           child: Container(
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E1E1E).withOpacity(0.8),
+                              color: const Color(0xFF1E1E1E).withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: widget.themeColor.withOpacity(0.8), width: 1.5),
+                              border: Border.all(color: widget.themeColor.withValues(alpha: 0.8), width: 1.5),
                               boxShadow: [
                                 BoxShadow(
-                                  color: widget.themeColor.withOpacity(0.2),
+                                  color: widget.themeColor.withValues(alpha: 0.2),
                                   blurRadius: 15,
                                   spreadRadius: 2,
                                 )

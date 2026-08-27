@@ -4,7 +4,6 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/models/time_scenario.dart';
-import 'package:solducci/widgets/context_switcher.dart';
 import 'package:go_router/go_router.dart';
 
 class FeedHomeView extends StatelessWidget {
@@ -48,7 +47,7 @@ class FeedHomeView extends StatelessWidget {
               }
               final nextEvent = snapshot.data!.first; 
               return Card(
-                color: const Color(0xFF6366F1).withOpacity(0.2),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.2),
                 child: ListTile(
                   leading: const Icon(Icons.event, color: Color(0xFF6366F1)),
                   title: Text(nextEvent.title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
@@ -106,7 +105,7 @@ class FeedHomeView extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: const Color(0xFF10B981).withOpacity(0.2),
+                            backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.2),
                             child: const Icon(Icons.group, color: Color(0xFF10B981)),
                           ),
                           title: Text('Bilancio ${group.name}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),

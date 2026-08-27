@@ -12,11 +12,9 @@ import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 import 'package:solducci/widgets/common/todo_app_bar.dart';
 import 'package:solducci/theme/todo_theme.dart';
 
-import 'package:solducci/models/user_profile.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/service/group_service.dart';
 
-import 'package:solducci/service/context_manager.dart';
 
 /// Form for creating or editing a task
 /// Handles all task fields: title, description, tags, priority, due date, size
@@ -617,7 +615,7 @@ class _TaskFormState extends State<TaskForm> {
             _isLoadingMembers
                 ? const Center(child: CircularProgressIndicator())
                 : DropdownButtonFormField<String?>(
-                    value: _selectedAssignedTo,
+                    initialValue: _selectedAssignedTo,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12),

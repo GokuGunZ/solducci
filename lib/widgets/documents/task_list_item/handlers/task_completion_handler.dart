@@ -42,7 +42,7 @@ class TaskCompletionHandler {
       }
       return true;
     } catch (e) {
-      if (isMounted()) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore: $e')),
         );
@@ -85,14 +85,14 @@ class TaskCompletionHandler {
     // Delete the task
     try {
       await taskService.deleteTask(taskId);
-      if (isMounted()) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task eliminata')),
         );
       }
       return true;
     } catch (e) {
-      if (isMounted()) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore: $e')),
         );
@@ -109,13 +109,13 @@ class TaskCompletionHandler {
   }) async {
     try {
       await taskService.duplicateTask(taskId);
-      if (isMounted()) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task duplicata')),
         );
       }
     } catch (e) {
-      if (isMounted()) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore: $e')),
         );
