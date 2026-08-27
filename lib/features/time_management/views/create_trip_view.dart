@@ -180,7 +180,7 @@ class _CreateTripViewState extends State<CreateTripView> {
                   SwitchListTile(
                     title: const Text('Abilita Ghost Pantry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     subtitle: const Text('Genera liste isolate dal gruppo principale', style: TextStyle(color: Colors.white54)),
-                    activeThumbColor: const Color(0xFF6366F1),
+                    activeColor: const Color(0xFF6366F1),
                     value: _createGhostPantry,
                     onChanged: (val) => setState(() => _createGhostPantry = val),
                     contentPadding: EdgeInsets.zero,

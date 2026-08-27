@@ -188,7 +188,7 @@ class RoutineCard extends StatelessWidget {
                         onChanged: (val) {
                           TimeManagementService().updateRoutineStatus(template.id, val);
                         },
-                        activeThumbColor: const Color(0xFF10B981),
+                        activeColor: const Color(0xFF10B981),
                       ),
                     ],
                   ),

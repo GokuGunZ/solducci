@@ -784,7 +784,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     SwitchListTile(
                       title: const Text('Bookmarks', style: TextStyle(color: Colors.white)),
                       value: _controller.showBookmarksMenu,
-                      activeThumbColor: const Color(0xFF6366F1),
+                      activeColor: const Color(0xFF6366F1),
                       onChanged: (val) {
                         setStateModal(() => _controller.updateMenuVisibility(bookmarks: val));
                       },
@@ -792,7 +792,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     SwitchListTile(
                       title: const Text('Genera Template Test', style: TextStyle(color: Colors.white)),
                       value: _controller.showTemplateMenu,
-                      activeThumbColor: const Color(0xFF6366F1),
+                      activeColor: const Color(0xFF6366F1),
                       onChanged: (val) {
                         setStateModal(() => _controller.updateMenuVisibility(template: val));
                       },
@@ -800,7 +800,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                     SwitchListTile(
                       title: const Text('Reimposta viste', style: TextStyle(color: Colors.white)),
                       value: _controller.showRefreshMenu,
-                      activeThumbColor: const Color(0xFF6366F1),
+                      activeColor: const Color(0xFF6366F1),
                       onChanged: (val) {
                         setStateModal(() => _controller.updateMenuVisibility(refresh: val));
                       },

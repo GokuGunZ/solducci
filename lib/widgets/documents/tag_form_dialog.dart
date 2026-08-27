@@ -348,7 +348,7 @@ class _TagFormDialogState extends State<TagFormDialog> {
                     ),
                     value: _showCompleted,
                     onChanged: (value) => setState(() => _showCompleted = value),
-                    activeThumbColor: TodoTheme.primaryPurple,
+                    activeColor: TodoTheme.primaryPurple,
                   ),
 
                   const SizedBox(height: 8),
@@ -361,7 +361,7 @@ class _TagFormDialogState extends State<TagFormDialog> {
                     ),
                     value: _useAdvancedStates,
                     onChanged: (value) => setState(() => _useAdvancedStates = value),
-                    activeThumbColor: TodoTheme.primaryPurple,
+                    activeColor: TodoTheme.primaryPurple,
                   ),
                       ],
                     ),
