@@ -1,65 +1,70 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'expense_form.dart';
+part of 'asset_class.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class TipologiaAdapter extends TypeAdapter<Tipologia> {
+class AssetClassAdapter extends TypeAdapter<AssetClass> {
   @override
-  final int typeId = 3;
+  final int typeId = 15;
 
   @override
-  Tipologia read(BinaryReader reader) {
+  AssetClass read(BinaryReader reader) {
     switch (reader.readByte()) {
       case 0:
-        return Tipologia.affitto;
+        return AssetClass.etf;
       case 1:
-        return Tipologia.cibo;
+        return AssetClass.stock;
       case 2:
-        return Tipologia.utenze;
+        return AssetClass.crypto;
       case 3:
-        return Tipologia.prodottiCasa;
+        return AssetClass.bond;
       case 4:
-        return Tipologia.ristorante;
+        return AssetClass.commodity;
       case 5:
-        return Tipologia.tempoLibero;
+        return AssetClass.realEstate;
       case 6:
-        return Tipologia.altro;
+        return AssetClass.pension;
       case 7:
-        return Tipologia.investimento;
+        return AssetClass.cashEquivalent;
+      case 8:
+        return AssetClass.other;
       default:
-        return Tipologia.affitto;
+        return AssetClass.etf;
     }
   }
 
   @override
-  void write(BinaryWriter writer, Tipologia obj) {
+  void write(BinaryWriter writer, AssetClass obj) {
     switch (obj) {
-      case Tipologia.affitto:
+      case AssetClass.etf:
         writer.writeByte(0);
         break;
-      case Tipologia.cibo:
+      case AssetClass.stock:
         writer.writeByte(1);
         break;
-      case Tipologia.utenze:
+      case AssetClass.crypto:
         writer.writeByte(2);
         break;
-      case Tipologia.prodottiCasa:
+      case AssetClass.bond:
         writer.writeByte(3);
         break;
-      case Tipologia.ristorante:
+      case AssetClass.commodity:
         writer.writeByte(4);
         break;
-      case Tipologia.tempoLibero:
+      case AssetClass.realEstate:
         writer.writeByte(5);
         break;
-      case Tipologia.altro:
+      case AssetClass.pension:
         writer.writeByte(6);
         break;
-      case Tipologia.investimento:
+      case AssetClass.cashEquivalent:
         writer.writeByte(7);
+        break;
+      case AssetClass.other:
+        writer.writeByte(8);
         break;
     }
   }
@@ -70,7 +75,7 @@ class TipologiaAdapter extends TypeAdapter<Tipologia> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is TipologiaAdapter &&
+      other is AssetClassAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

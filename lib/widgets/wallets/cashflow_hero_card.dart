@@ -90,11 +90,11 @@ class CashflowHeroCard extends StatelessWidget {
                     ],
                   ),
 
-                  // Uscite Mese
+                  // Uscite Mese (Consumo)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Uscite', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                      const Text('Consumi', style: TextStyle(color: Colors.white38, fontSize: 11)),
                       const SizedBox(height: 2),
                       Text(
                         '-€${summary.monthlyExpenses.toStringAsFixed(2)}',
@@ -102,6 +102,20 @@ class CashflowHeroCard extends StatelessWidget {
                       ),
                     ],
                   ),
+
+                  // Investiti Mese
+                  if (summary.monthlyInvested > 0)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Investiti', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '€${summary.monthlyInvested.toStringAsFixed(2)}',
+                          style: const TextStyle(color: Color(0xFF818CF8), fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ],
+                    ),
 
                   // Risparmio Netto & Tasso
                   Container(

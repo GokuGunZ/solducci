@@ -43,6 +43,9 @@ class Expense implements CacheableModel<int> {
   @HiveField(11)
   String? walletId; // UUID of wallet debited
 
+  @HiveField(12)
+  String? portfolioId; // UUID of investment portfolio if type == Tipologia.investimento
+
   Expense({
     required this.id,
     required this.description,
@@ -55,6 +58,7 @@ class Expense implements CacheableModel<int> {
     this.splitType,
     this.splitData,
     this.walletId,
+    this.portfolioId,
   });
 
   /// Check if expense is personal (not in a group)
@@ -89,6 +93,7 @@ class Expense implements CacheableModel<int> {
     SplitType? splitType,
     Map<String, double>? splitData,
     String? walletId,
+    String? portfolioId,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -102,6 +107,7 @@ class Expense implements CacheableModel<int> {
       splitType: splitType ?? this.splitType,
       splitData: splitData ?? this.splitData,
       walletId: walletId ?? this.walletId,
+      portfolioId: portfolioId ?? this.portfolioId,
     );
   }
 
@@ -145,6 +151,7 @@ class Expense implements CacheableModel<int> {
           ? _parseSplitData(map['split_data'] as Map)
           : null,
       walletId: map['wallet_id'] as String?,
+      portfolioId: map['portfolio_id'] as String?,
     );
   }
 
@@ -194,6 +201,9 @@ class Expense implements CacheableModel<int> {
     }
     if (walletId != null) {
       map['wallet_id'] = walletId!;
+    }
+    if (portfolioId != null) {
+      map['portfolio_id'] = portfolioId!;
     }
 
     // Don't send ID for new records (let Supabase auto-generate)

@@ -861,8 +861,8 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
   // BACKWARD COMPATIBILITY (Legacy Methods)
   // ====================================================================
 
-  Future<void> createExpense(Expense newExpense) async {
-    await create(newExpense);
+  Future<Expense> createExpense(Expense newExpense) async {
+    return await create(newExpense);
   }
 
   Future<void> updateExpense(Expense updatedExpense) async {

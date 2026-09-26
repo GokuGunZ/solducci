@@ -790,7 +790,9 @@ enum Tipologia {
   @HiveField(5)
   tempoLibero('Tempo Libero'),
   @HiveField(6)
-  altro('Altro');
+  altro('Altro'),
+  @HiveField(7)
+  investimento('Investimento');
 
   final String label;
   const Tipologia(this.label);

@@ -47,6 +47,7 @@ import 'package:solducci/views/groups/group_management_hub_view.dart';
 import 'package:solducci/views/mosaico_view.dart';
 import 'package:solducci/features/space/views/infinite_canvas_view.dart';
 import 'package:solducci/views/standalone_markdown_page.dart';
+import 'package:solducci/features/investments/views/investments_hub_view.dart';
 
 /// Global router configuration for the app
 /// Handles authentication state and navigation
@@ -337,6 +338,10 @@ class AppRouter {
           final extra = state.extra as Map<String, dynamic>?;
           return EconomyChartsHubView(heroTag: extra?['heroTag'] as String?);
         }
+      ),
+      GoRoute(
+        path: '/investments',
+        builder: (context, state) => const InvestmentsHubView(),
       ),
       GoRoute(
         path: '/focus',

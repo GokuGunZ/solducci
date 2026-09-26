@@ -9,6 +9,11 @@ import 'package:solducci/models/wallet_type.dart';
 import 'package:solducci/models/income.dart';
 import 'package:solducci/models/income_category.dart';
 import 'package:solducci/models/wallet_transfer.dart';
+import 'package:solducci/models/investment_portfolio.dart';
+import 'package:solducci/models/asset_class.dart';
+import 'package:solducci/models/investment_asset.dart';
+import 'package:solducci/models/asset_price_snapshot.dart';
+import 'package:solducci/models/expense_asset_allocation.dart';
 import 'package:solducci/core/cache/persistent/persistent_cache_entry.dart';
 
 /// Register all Hive type adapters
@@ -30,6 +35,11 @@ import 'package:solducci/core/cache/persistent/persistent_cache_entry.dart';
 /// - Income (typeId: 11)
 /// - IncomeCategory enum (typeId: 12)
 /// - WalletTransfer (typeId: 13)
+/// - InvestmentPortfolio (typeId: 14)
+/// - AssetClass enum (typeId: 15)
+/// - InvestmentAsset (typeId: 16)
+/// - AssetPriceSnapshot (typeId: 17)
+/// - ExpenseAssetAllocation (typeId: 18)
 Future<void> registerHiveAdapters() async {
   // Initialize Hive
   await Hive.initFlutter();
@@ -89,6 +99,26 @@ Future<void> registerHiveAdapters() async {
 
   if (!Hive.isAdapterRegistered(13)) {
     Hive.registerAdapter(WalletTransferAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(14)) {
+    Hive.registerAdapter(InvestmentPortfolioAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(15)) {
+    Hive.registerAdapter(AssetClassAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(16)) {
+    Hive.registerAdapter(InvestmentAssetAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(17)) {
+    Hive.registerAdapter(AssetPriceSnapshotAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(18)) {
+    Hive.registerAdapter(ExpenseAssetAllocationAdapter());
   }
 
   print('✅ Hive adapters registered successfully');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/features/csv_importer/services/csv_import_flow.dart';
+import 'package:solducci/features/investments/views/investments_hub_view.dart';
 import 'package:solducci/features/wallets/views/wallets_management_view.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/service/expense_service_cached.dart';
@@ -31,6 +32,16 @@ class _EconomyHubViewState extends State<EconomyHubView> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.trending_up_rounded, color: Color(0xFF10B981)),
+            tooltip: 'Portafogli & Asset Investiti',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (ctx) => const InvestmentsHubView()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF10B981)),
             tooltip: 'Gestisci Portafogli',
@@ -163,7 +174,59 @@ class _EconomyHubViewState extends State<EconomyHubView> {
 
               const SizedBox(height: 20),
 
-              // 4. Card Rapida: Importa Estratto Conto (CSV)
+              // 4. Card Rapida: Portafogli & Investimenti
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF18181B),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (ctx) => const InvestmentsHubView()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.trending_up_rounded, color: Color(0xFF10B981), size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text('Portafogli & Asset Investiti', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                SizedBox(height: 2),
+                                Text('Gestisci asset, quote, storico prezzi e rendimenti', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // 5. Card Rapida: Importa Estratto Conto (CSV)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(

@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/features/csv_importer/views/widgets/category_picker_sheet.dart';
+import 'package:solducci/models/asset_class.dart';
 import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/expense_asset_allocation.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/income.dart';
 import 'package:solducci/models/income_category.dart';
+import 'package:solducci/models/investment_asset.dart';
+import 'package:solducci/models/investment_portfolio.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/models/wallet_transfer.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/income_service.dart';
+import 'package:solducci/service/investment_asset_service.dart';
+import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/wallet_transfer_service.dart';
 import 'package:solducci/theme/app_theme.dart';
@@ -39,7 +45,8 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   late TransactionMode _mode;
   final _amountController = TextEditingController();
   final _descController = TextEditingController();
-  DateTime _date = DateTime.now();
+  final _quantityController = TextEditingController();
+  final DateTime _date = DateTime.now();
 
   Wallet? _selectedWallet;
   Wallet? _toWallet; // Per giroconto
@@ -47,11 +54,53 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   IncomeCategory _incomeCategory = IncomeCategory.stipendio;
   bool _isLoading = false;
 
+  // Stato per Spese Investimento
+  List<InvestmentPortfolio> _portfolios = [];
+  InvestmentPortfolio? _selectedPortfolio;
+  List<InvestmentAsset> _portfolioAssets = [];
+  InvestmentAsset? _selectedAsset;
+
   @override
   void initState() {
     super.initState();
     _mode = widget.initialMode;
     _initWallets();
+    _initInvestments();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _descController.dispose();
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initInvestments() async {
+    final portfolios = await InvestmentPortfolioService().fetchPortfolios();
+    await InvestmentAssetService().fetchAllAssets();
+    if (mounted && portfolios.isNotEmpty) {
+      setState(() {
+        _portfolios = portfolios;
+        _selectedPortfolio = portfolios.first;
+        _loadPortfolioAssets();
+      });
+    }
+  }
+
+  void _loadPortfolioAssets() {
+    if (_selectedPortfolio == null) {
+      setState(() {
+        _portfolioAssets = [];
+        _selectedAsset = null;
+      });
+      return;
+    }
+    final assets = InvestmentAssetService().getAssetsForPortfolio(_selectedPortfolio!.id);
+    setState(() {
+      _portfolioAssets = assets;
+      _selectedAsset = assets.isNotEmpty ? assets.first : null;
+    });
   }
 
   Future<void> _initWallets() async {
@@ -107,8 +156,30 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
           date: _date,
           type: _expenseCategory,
           walletId: _selectedWallet?.id,
+          portfolioId: _expenseCategory == Tipologia.investimento ? _selectedPortfolio?.id : null,
         );
-        await ExpenseServiceCached().createExpense(newExp);
+        final created = await ExpenseServiceCached().createExpense(newExp);
+
+        // Se è un investimento ed è stato selezionato un asset, registriamo l'allocazione
+        if (_expenseCategory == Tipologia.investimento && _selectedAsset != null) {
+          final cleanQty = _quantityController.text.replaceAll(',', '.').trim();
+          final qty = double.tryParse(cleanQty) ?? 1.0;
+          final unitPrice = qty > 0 ? (amount / qty) : amount;
+
+          await InvestmentAssetService().recordExpenseAllocations(
+            expenseId: created.id,
+            allocations: [
+              ExpenseAssetAllocation(
+                id: '',
+                expenseId: created.id,
+                assetId: _selectedAsset!.id,
+                amount: amount,
+                quantity: qty > 0 ? qty : 1.0,
+                pricePerUnit: unitPrice > 0 ? unitPrice : amount,
+              ),
+            ],
+          );
+        }
       } else if (_mode == TransactionMode.income) {
         final newInc = Income(
           id: '',
@@ -356,8 +427,13 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                       ),
                     ),
                   ],
-                )
-              else
+                ),
+
+              // Sezione Dettaglio Investimento
+              if (_mode == TransactionMode.expense && _expenseCategory == Tipologia.investimento) ...[
+                const SizedBox(height: 14),
+                _buildInvestmentAllocationSection(),
+              ] else if (_mode == TransactionMode.transfer)
                 // Giroconto: Da Wallet -> A Wallet
                 Row(
                   children: [
@@ -514,6 +590,350 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvestmentAllocationSection() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF6366F1).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.trending_up_rounded, color: Color(0xFF818CF8), size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'DESTINAZIONE INVESTIMENTO',
+                    style: TextStyle(
+                      color: Color(0xFF818CF8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () => _showCreatePortfolioDialog(context),
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    children: [
+                      Icon(Icons.add, size: 14, color: Color(0xFF818CF8)),
+                      SizedBox(width: 4),
+                      Text('+ Portafoglio', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Selettore Portafoglio
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E22),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<InvestmentPortfolio>(
+                value: _portfolios.any((p) => p.id == _selectedPortfolio?.id) ? _selectedPortfolio : null,
+                dropdownColor: const Color(0xFF27272A),
+                hint: const Text('Seleziona Portafoglio...', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                isExpanded: true,
+                items: _portfolios.map((p) {
+                  return DropdownMenuItem<InvestmentPortfolio>(
+                    value: p,
+                    child: Row(
+                      children: [
+                        Icon(p.iconData, size: 15, color: p.color),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                        if (p.brokerName != null)
+                          Text('(${p.brokerName})', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (newP) {
+                  if (newP != null) {
+                    setState(() {
+                      _selectedPortfolio = newP;
+                      _loadPortfolioAssets();
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+
+          if (_selectedPortfolio != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                // Selettore Asset
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E22),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<InvestmentAsset>(
+                        value: _portfolioAssets.any((a) => a.id == _selectedAsset?.id) ? _selectedAsset : null,
+                        dropdownColor: const Color(0xFF27272A),
+                        hint: const Text('Asset (opzionale)', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                        isExpanded: true,
+                        items: _portfolioAssets.map((a) {
+                          return DropdownMenuItem<InvestmentAsset>(
+                            value: a,
+                            child: Row(
+                              children: [
+                                Icon(a.assetClass.icon, size: 14, color: a.assetClass.color),
+                                const SizedBox(width: 6),
+                                Expanded(child: Text(a.name, style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                                if (a.ticker != null)
+                                  Text(a.ticker!, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newA) => setState(() => _selectedAsset = newA),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () => _showCreateAssetDialog(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27272A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.add, size: 14, color: Colors.white70),
+                        SizedBox(width: 4),
+                        Text('Asset', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            if (_selectedAsset != null) ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _quantityController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Quantità / Quote acquistate (es. 2.50)...',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                  filled: true,
+                  fillColor: const Color(0xFF1E1E22),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showCreatePortfolioDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final brokerCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Nuovo Portafoglio Investimenti', style: TextStyle(color: Colors.white, fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Nome (es. PAC ETF, Crypto...)',
+                hintStyle: const TextStyle(color: Colors.white38),
+                filled: true,
+                fillColor: const Color(0xFF27272A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: brokerCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Broker / Piattaforma (es. Degiro, Binance...)',
+                hintStyle: const TextStyle(color: Colors.white38),
+                filled: true,
+                fillColor: const Color(0xFF27272A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isNotEmpty) {
+                Navigator.pop(ctx);
+                final created = await InvestmentPortfolioService().createPortfolio(
+                  name: name,
+                  brokerName: brokerCtrl.text.trim().isNotEmpty ? brokerCtrl.text.trim() : null,
+                );
+                setState(() {
+                  _portfolios = InvestmentPortfolioService().currentPortfolios;
+                  _selectedPortfolio = created;
+                  _loadPortfolioAssets();
+                });
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Crea', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateAssetDialog(BuildContext context) {
+    if (_selectedPortfolio == null) return;
+    final nameCtrl = TextEditingController();
+    final tickerCtrl = TextEditingController();
+    AssetClass selectedClass = AssetClass.etf;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E22),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Nuovo Asset nel Portafoglio', style: TextStyle(color: Colors.white, fontSize: 18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Nome (es. Vanguard All-World, Bitcoin...)',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: const Color(0xFF27272A),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: tickerCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Ticker / Simbolo opzionale (es. VWCE, BTC...)',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: const Color(0xFF27272A),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<AssetClass>(
+                  value: selectedClass,
+                  dropdownColor: const Color(0xFF27272A),
+                  isExpanded: true,
+                  items: AssetClass.values.map((ac) {
+                    return DropdownMenuItem<AssetClass>(
+                      value: ac,
+                      child: Row(
+                        children: [
+                          Icon(ac.icon, size: 16, color: ac.color),
+                          const SizedBox(width: 8),
+                          Text(ac.label, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (newClass) {
+                    if (newClass != null) {
+                      setDialogState(() => selectedClass = newClass);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameCtrl.text.trim();
+                if (name.isNotEmpty) {
+                  Navigator.pop(ctx);
+                  final created = await InvestmentAssetService().createAsset(
+                    portfolioId: _selectedPortfolio!.id,
+                    name: name,
+                    ticker: tickerCtrl.text.trim().isNotEmpty ? tickerCtrl.text.trim() : null,
+                    assetClass: selectedClass,
+                  );
+                  setState(() {
+                    _loadPortfolioAssets();
+                    _selectedAsset = created;
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Aggiungi', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
       ),
     );

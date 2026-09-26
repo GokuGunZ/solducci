@@ -28,6 +28,8 @@ class CategoryPickerSheet extends StatelessWidget {
         return Icons.sports_esports_rounded;
       case Tipologia.altro:
         return Icons.category_rounded;
+      case Tipologia.investimento:
+        return Icons.trending_up_rounded;
     }
   }
 
@@ -47,6 +49,8 @@ class CategoryPickerSheet extends StatelessWidget {
         return const Color(0xFF8B5CF6);
       case Tipologia.altro:
         return const Color(0xFF6B7280);
+      case Tipologia.investimento:
+        return const Color(0xFF6366F1);
     }
   }
 

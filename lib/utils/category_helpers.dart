@@ -20,6 +20,8 @@ class CategoryHelpers {
         return Colors.pink;
       case Tipologia.altro:
         return Colors.grey;
+      case Tipologia.investimento:
+        return const Color(0xFF6366F1);
     }
   }
 
@@ -40,6 +42,8 @@ class CategoryHelpers {
         return Icons.sports_esports;
       case Tipologia.altro:
         return Icons.more_horiz;
+      case Tipologia.investimento:
+        return Icons.trending_up_rounded;
     }
   }
 }

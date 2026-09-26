@@ -12,6 +12,8 @@ import 'package:solducci/core/cache/persistent/hive_adapters.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/service/profile_service_cached.dart';
+import 'package:solducci/service/investment_portfolio_service.dart';
+import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -35,6 +37,8 @@ Future<void> _initializeCaching() async {
     expenseService.initPersistentCache(),
     groupService.initPersistentCache(),
     profileService.initPersistentCache(),
+    InvestmentPortfolioService().init(),
+    InvestmentAssetService().init(),
   ]);
 
   // 4. Setup cross-service invalidation rules
