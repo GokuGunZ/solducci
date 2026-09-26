@@ -176,18 +176,18 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withValues(alpha: 0.95),
-            Colors.white.withValues(alpha: 0.85),
+            Colors.white.withOpacity(0.95),
+            Colors.white.withOpacity(0.85),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
+          color: TodoTheme.primaryPurple.withOpacity(0.3),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: TodoTheme.primaryPurple.withValues(alpha: 0.15),
+            color: TodoTheme.primaryPurple.withOpacity(0.15),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),

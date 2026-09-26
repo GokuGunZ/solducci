@@ -243,7 +243,7 @@ class AppAnimations {
         boxShadow: opacity > 0.05
             ? [
                 BoxShadow(
-                  color: color.withValues(alpha: opacity * 0.3),
+                  color: color.withOpacity(opacity * 0.3),
                   blurRadius: 12 * opacity,
                   spreadRadius: 2 * opacity,
                 ),

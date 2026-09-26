@@ -161,7 +161,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                             child: Container(
                               padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.1),
+                                color: Colors.red.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
@@ -284,8 +284,8 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
         ),
         decoration: BoxDecoration(
           color: hasActiveFilter
-              ? color.withValues(alpha: 0.15)
-              : Colors.white.withValues(alpha: 0.7),
+              ? color.withOpacity(0.15)
+              : Colors.white.withOpacity(0.7),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: hasActiveFilter ? color : Colors.grey[300]!,
@@ -294,7 +294,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
           boxShadow: hasActiveFilter
               ? [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.3),
+                    color: color.withOpacity(0.3),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -349,8 +349,8 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
         ),
         decoration: BoxDecoration(
           color: isActive
-              ? Colors.green.withValues(alpha: 0.15)
-              : Colors.white.withValues(alpha: 0.7),
+              ? Colors.green.withOpacity(0.15)
+              : Colors.white.withOpacity(0.7),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isActive ? Colors.green : Colors.grey[300]!,
@@ -359,7 +359,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.green.withValues(alpha: 0.3),
+                    color: Colors.green.withOpacity(0.3),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -645,7 +645,7 @@ class _FadeScaleDropdownState extends State<_FadeScaleDropdown>
                 child: Material(
                   elevation: 12,
                   borderRadius: BorderRadius.circular(16),
-                  shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
+                  shadowColor: Colors.deepPurple.withOpacity(0.3),
                   child: Container(
                     constraints: const BoxConstraints(
                       minWidth: 200,
@@ -697,11 +697,11 @@ class _PriorityFilterContentState extends State<_PriorityFilterContent> {
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            Colors.purple.withValues(alpha: 0.02),
+            Colors.purple.withOpacity(0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2), width: 2),
+        border: Border.all(color: Colors.deepPurple.withOpacity(0.2), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -738,7 +738,7 @@ class _PriorityFilterContentState extends State<_PriorityFilterContent> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? priority.color.withValues(alpha: 0.1)
+                      ? priority.color.withOpacity(0.1)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -750,7 +750,7 @@ class _PriorityFilterContentState extends State<_PriorityFilterContent> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? priority.color
-                            : Colors.grey.withValues(alpha: 0.2),
+                            : Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: isSelected ? priority.color : Colors.grey,
@@ -827,11 +827,11 @@ class _StatusFilterContentState extends State<_StatusFilterContent> {
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            Colors.blue.withValues(alpha: 0.02),
+            Colors.blue.withOpacity(0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.2), width: 2),
+        border: Border.all(color: Colors.blue.withOpacity(0.2), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -872,7 +872,7 @@ class _StatusFilterContentState extends State<_StatusFilterContent> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? color.withValues(alpha: 0.1)
+                      ? color.withOpacity(0.1)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -884,7 +884,7 @@ class _StatusFilterContentState extends State<_StatusFilterContent> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? color
-                            : Colors.grey.withValues(alpha: 0.2),
+                            : Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: isSelected ? color : Colors.grey,
@@ -957,11 +957,11 @@ class _SizeFilterContentState extends State<_SizeFilterContent> {
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            Colors.orange.withValues(alpha: 0.02),
+            Colors.orange.withOpacity(0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.2), width: 2),
+        border: Border.all(color: Colors.orange.withOpacity(0.2), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -998,7 +998,7 @@ class _SizeFilterContentState extends State<_SizeFilterContent> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? color.withValues(alpha: 0.1)
+                      ? color.withOpacity(0.1)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1010,7 +1010,7 @@ class _SizeFilterContentState extends State<_SizeFilterContent> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? color
-                            : Colors.grey.withValues(alpha: 0.2),
+                            : Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: isSelected ? color : Colors.grey,
@@ -1061,11 +1061,11 @@ class _DateFilterContent extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            Colors.teal.withValues(alpha: 0.02),
+            Colors.teal.withOpacity(0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.teal.withValues(alpha: 0.2), width: 2),
+        border: Border.all(color: Colors.teal.withOpacity(0.2), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1095,7 +1095,7 @@ class _DateFilterContent extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? color.withValues(alpha: 0.1)
+                      ? color.withOpacity(0.1)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1107,7 +1107,7 @@ class _DateFilterContent extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? color
-                            : Colors.grey.withValues(alpha: 0.2),
+                            : Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: isSelected ? color : Colors.grey,
@@ -1173,11 +1173,11 @@ class _TagFilterContentState extends State<_TagFilterContent> {
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            Colors.green.withValues(alpha: 0.02),
+            Colors.green.withOpacity(0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.2), width: 2),
+        border: Border.all(color: Colors.green.withOpacity(0.2), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1219,7 +1219,7 @@ class _TagFilterContentState extends State<_TagFilterContent> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? color.withValues(alpha: 0.1)
+                            ? color.withOpacity(0.1)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1231,7 +1231,7 @@ class _TagFilterContentState extends State<_TagFilterContent> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? color
-                                  : Colors.grey.withValues(alpha: 0.2),
+                                  : Colors.grey.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
                                 color: isSelected ? color : Colors.grey,

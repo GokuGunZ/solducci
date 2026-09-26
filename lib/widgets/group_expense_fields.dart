@@ -96,7 +96,7 @@ class _GroupExpenseFieldsState extends State<GroupExpenseFields> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          initialValue: _selectedPaidBy != null &&
+          value: _selectedPaidBy != null &&
                   widget.members.any((m) => m.userId == _selectedPaidBy)
               ? _selectedPaidBy
               : null,

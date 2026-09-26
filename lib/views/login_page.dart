@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/ui_elements/solducci_logo.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -42,9 +43,12 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       if (mounted) {
+        final message = e is AuthException
+            ? e.message
+            : "Login fallito: ${e.toString()}";
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Login fallito. Verifica email e password."),
+            content: Text(message),
             backgroundColor: Colors.red,
           ),
         );

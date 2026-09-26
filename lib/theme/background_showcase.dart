@@ -272,8 +272,8 @@ class BackgroundShowcase {
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                const Color(0xFFE8E8FF).withValues(alpha: 0.15),
-                const Color(0xFFFFFFFF).withValues(alpha: 0.0),
+                const Color(0xFFE8E8FF).withOpacity(0.15),
+                const Color(0xFFFFFFFF).withOpacity(0.0),
               ],
             ),
           ),
@@ -289,8 +289,8 @@ class BackgroundShowcase {
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                const Color(0xFFFFF0F5).withValues(alpha: 0.15),
-                const Color(0xFFFFFFFF).withValues(alpha: 0.0),
+                const Color(0xFFFFF0F5).withOpacity(0.15),
+                const Color(0xFFFFFFFF).withOpacity(0.0),
               ],
             ),
           ),
@@ -329,8 +329,8 @@ class BackgroundShowcase {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFFFFFFFF).withValues(alpha: 0.4),
-                const Color(0xFFFFFFFF).withValues(alpha: 0.1),
+                const Color(0xFFFFFFFF).withOpacity(0.4),
+                const Color(0xFFFFFFFF).withOpacity(0.1),
               ],
             ),
           ),

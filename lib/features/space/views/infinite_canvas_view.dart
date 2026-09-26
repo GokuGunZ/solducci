@@ -160,7 +160,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
-                              color: selectedType == 'markdown' ? const Color(0xFF6366F1).withValues(alpha: 0.2) : Colors.transparent,
+                              color: selectedType == 'markdown' ? const Color(0xFF6366F1).withOpacity(0.2) : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: selectedType == 'markdown' ? const Color(0xFF6366F1) : Colors.white10),
                             ),
@@ -181,7 +181,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
-                              color: selectedType == 'folder' ? const Color(0xFF10B981).withValues(alpha: 0.2) : Colors.transparent,
+                              color: selectedType == 'folder' ? const Color(0xFF10B981).withOpacity(0.2) : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: selectedType == 'folder' ? const Color(0xFF10B981) : Colors.white10),
                             ),
@@ -202,7 +202,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
-                              color: selectedType == 'bookmark' ? const Color(0xFFF59E0B).withValues(alpha: 0.2) : Colors.transparent,
+                              color: selectedType == 'bookmark' ? const Color(0xFFF59E0B).withOpacity(0.2) : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: selectedType == 'bookmark' ? const Color(0xFFF59E0B) : Colors.white10),
                             ),
@@ -420,10 +420,10 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                 final isTarget = selectedTargetFolderId == folder.id;
                 widgets.add(
                   Container(
-                    color: isTarget ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                    color: isTarget ? Colors.white.withOpacity(0.05) : Colors.transparent,
                     child: ListTile(
                       contentPadding: EdgeInsets.only(left: 16.0 + (depth * 24.0), right: 16.0),
-                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.white : getTabColor('Tree').withValues(alpha: 0.8)),
+                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.white : getTabColor('Tree').withOpacity(0.8)),
                       title: Text(folder.title, style: TextStyle(color: isSelectedToMove ? Colors.white30 : (isTarget ? Colors.white : Colors.white))),
                       enabled: !isSelectedToMove,
                       onTap: isSelectedToMove ? null : () {
@@ -507,7 +507,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                           child: ChoiceChip(
                             label: Text(label),
                             selected: isSelected,
-                            selectedColor: Colors.amber.withValues(alpha: 0.2),
+                            selectedColor: Colors.amber.withOpacity(0.2),
                             backgroundColor: const Color(0xFF1E1E2C),
                             labelStyle: TextStyle(color: isSelected ? Colors.amber : Colors.white70),
                             avatar: Icon(Icons.home, size: 18, color: isSelected ? Colors.amber : Colors.white70),
@@ -535,7 +535,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF13131A), // Darker recessed background
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
+                        border: Border.all(color: Colors.white.withOpacity(0.03)),
                       ),
                       child: Row(
                         children: ['Bookmarks', 'Recenti', 'Nuove', 'Tree'].map((tab) {
@@ -553,10 +553,10 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                   color: isSelected ? const Color(0xFF2B2B36) : Colors.transparent,
                                   borderRadius: BorderRadius.circular(10),
                                   boxShadow: isSelected 
-                                      ? [BoxShadow(color: tabColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 1))]
+                                      ? [BoxShadow(color: tabColor.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 1))]
                                       : [],
                                   border: Border.all(
-                                    color: isSelected ? tabColor.withValues(alpha: 0.3) : Colors.transparent,
+                                    color: isSelected ? tabColor.withOpacity(0.3) : Colors.transparent,
                                     width: 1,
                                   ),
                                 ),
@@ -589,7 +589,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            getTabColor(selectedTab).withValues(alpha: 0.08),
+                            getTabColor(selectedTab).withOpacity(0.08),
                             Colors.transparent,
                             Colors.transparent,
                           ],
@@ -600,9 +600,9 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                         ? ListView(
                             children: [
                               Container(
-                                color: selectedTargetFolderId == null ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                                color: selectedTargetFolderId == null ? Colors.white.withOpacity(0.05) : Colors.transparent,
                                 child: ListTile(
-                                  leading: Icon(selectedTargetFolderId == null ? Icons.home : Icons.home_outlined, color: selectedTargetFolderId == null ? Colors.white : getTabColor('Tree').withValues(alpha: 0.8)),
+                                  leading: Icon(selectedTargetFolderId == null ? Icons.home : Icons.home_outlined, color: selectedTargetFolderId == null ? Colors.white : getTabColor('Tree').withOpacity(0.8)),
                                   title: Text('Root (${selectedTargetGroupId == null ? "Spazio Personale" : "Gruppo"})', style: TextStyle(color: selectedTargetFolderId == null ? Colors.white : Colors.white, fontWeight: FontWeight.bold)),
                                   onTap: () {
                                     setModalState(() => selectedTargetFolderId = null);
@@ -628,9 +628,9 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                   final isSelectedToMove = _selectedNodeIds.contains(folder.id);
                                   final isTarget = selectedTargetFolderId == folder.id;
                                   return Container(
-                                    color: isTarget ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                                    color: isTarget ? Colors.white.withOpacity(0.05) : Colors.transparent,
                                     child: ListTile(
-                                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.white : getTabColor(selectedTab).withValues(alpha: 0.8)),
+                                      leading: Icon(isTarget ? Icons.folder_open : Icons.folder, color: isTarget ? Colors.white : getTabColor(selectedTab).withOpacity(0.8)),
                                       title: Text(folder.title, style: TextStyle(color: isSelectedToMove ? Colors.white30 : (isTarget ? Colors.white : Colors.white))),
                                       subtitle: Text(
                                         selectedTab == 'Nuove' 
@@ -1114,16 +1114,16 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                 
                 return Container(
                   decoration: BoxDecoration(
-                    color: isHovering ? const Color(0xFF6366F1).withValues(alpha: 0.05) : Colors.transparent,
+                    color: isHovering ? const Color(0xFF6366F1).withOpacity(0.05) : Colors.transparent,
                     border: isNested 
                         ? Border(
-                            left: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 2),
-                            right: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 2),
-                            bottom: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 2),
+                            left: BorderSide(color: const Color(0xFF6366F1).withOpacity(0.3), width: 2),
+                            right: BorderSide(color: const Color(0xFF6366F1).withOpacity(0.3), width: 2),
+                            bottom: BorderSide(color: const Color(0xFF6366F1).withOpacity(0.3), width: 2),
                           )
                         : null,
                     boxShadow: isNested 
-                        ? [BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.05), blurRadius: 40, spreadRadius: 0)] 
+                        ? [BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.05), blurRadius: 40, spreadRadius: 0)] 
                         : null,
                   ),
                   child: AnimatedSwitcher(
@@ -1219,7 +1219,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(12),
                                           boxShadow: isHovering 
-                                            ? [BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2)] 
+                                            ? [BoxShadow(color: const Color(0xFFF59E0B).withOpacity(0.4), blurRadius: 20, spreadRadius: 2)] 
                                             : null,
                                         ),
                                         child: MarkdownNodeWidget(
@@ -1456,10 +1456,10 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
             builder: (context, candidateData, rejectedData) {
               final isHovering = candidateData.isNotEmpty;
               final isSelected = widget.isNodeSelected(widget.node.id);
-              Color folderColor = isHovering ? const Color(0xFF4338CA).withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.04);
+              Color folderColor = isHovering ? const Color(0xFF4338CA).withOpacity(0.2) : Colors.white.withOpacity(0.04);
               if (widget.selectionMode != null && isSelected) {
-                if (widget.selectionMode == 'move') folderColor = const Color(0xFF3B82F6).withValues(alpha: 0.4);
-                if (widget.selectionMode == 'delete') folderColor = const Color(0xFFEF4444).withValues(alpha: 0.4);
+                if (widget.selectionMode == 'move') folderColor = const Color(0xFF3B82F6).withOpacity(0.4);
+                if (widget.selectionMode == 'delete') folderColor = const Color(0xFFEF4444).withOpacity(0.4);
               }
               
               return GestureDetector(
@@ -1598,7 +1598,7 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(12),
                                           boxShadow: isHovering 
-                                            ? [BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2)] 
+                                            ? [BoxShadow(color: const Color(0xFFF59E0B).withOpacity(0.4), blurRadius: 20, spreadRadius: 2)] 
                                             : null,
                                         ),
                                         child: MarkdownNodeWidget(
@@ -1647,7 +1647,7 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                           height: 28,
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.8),
+                            color: const Color(0xFF10B981).withOpacity(0.8),
                             borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
                           ),
                           child: InkWell(
@@ -1662,7 +1662,7 @@ class _FolderNodeWidgetState extends State<_FolderNodeWidget> {
                         Container(
                           height: 28,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.8),
+                            color: const Color(0xFF6366F1).withOpacity(0.8),
                             borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
                           ),
                           child: Row(

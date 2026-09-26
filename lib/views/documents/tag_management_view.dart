@@ -187,8 +187,8 @@ class _TagManagementViewState extends State<TagManagementView> {
 
   Widget _buildTagCard(Tag tag) {
     final tagColor = tag.colorObject ?? Colors.grey[300]!;
-    final borderColor = Color.lerp(tagColor, Colors.white, 0.3)!.withValues(alpha: 0.7);
-    final highlightColor = Color.lerp(tagColor, Colors.white, 0.5)!.withValues(alpha: 0.5);
+    final borderColor = Color.lerp(tagColor, Colors.white, 0.3)!.withOpacity(0.7);
+    final highlightColor = Color.lerp(tagColor, Colors.white, 0.5)!.withOpacity(0.5);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
@@ -202,23 +202,23 @@ class _TagManagementViewState extends State<TagManagementView> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.white.withValues(alpha: 0.08),
-                  Colors.white.withValues(alpha: 0.03),
+                  Colors.white.withOpacity(0.08),
+                  Colors.white.withOpacity(0.03),
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.5),
+                color: Colors.white.withOpacity(0.5),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: TodoTheme.primaryPurple.withValues(alpha: 0.12),
+                  color: TodoTheme.primaryPurple.withOpacity(0.12),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Colors.white.withOpacity(0.4),
                   blurRadius: 2,
                   offset: const Offset(-1, -1),
                 ),
@@ -229,8 +229,8 @@ class _TagManagementViewState extends State<TagManagementView> {
               child: InkWell(
                 onTap: () => _showTagFormDialog(tag),
                 borderRadius: BorderRadius.circular(16),
-                splashColor: tagColor.withValues(alpha: 0.1),
-                highlightColor: tagColor.withValues(alpha: 0.05),
+                splashColor: tagColor.withOpacity(0.1),
+                highlightColor: tagColor.withOpacity(0.05),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -244,8 +244,8 @@ class _TagManagementViewState extends State<TagManagementView> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              tagColor.withValues(alpha: 0.9),
-                              tagColor.withValues(alpha: 0.7),
+                              tagColor.withOpacity(0.9),
+                              tagColor.withOpacity(0.7),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -255,7 +255,7 @@ class _TagManagementViewState extends State<TagManagementView> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: tagColor.withValues(alpha: 0.5),
+                              color: tagColor.withOpacity(0.5),
                               blurRadius: 12,
                               spreadRadius: 1,
                               offset: const Offset(0, 4),
@@ -319,7 +319,7 @@ class _TagManagementViewState extends State<TagManagementView> {
                                       ? Icons.visibility
                                       : Icons.visibility_off,
                                   size: 16,
-                                  color: TodoTheme.primaryPurple.withValues(alpha: 0.7),
+                                  color: TodoTheme.primaryPurple.withOpacity(0.7),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -328,7 +328,7 @@ class _TagManagementViewState extends State<TagManagementView> {
                                       : 'Nascondi completate',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: TodoTheme.primaryPurple.withValues(alpha: 0.7),
+                                    color: TodoTheme.primaryPurple.withOpacity(0.7),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -394,9 +394,9 @@ class _TagManagementViewState extends State<TagManagementView> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                TodoTheme.primaryPurple.withValues(alpha: 0.3),
+                TodoTheme.primaryPurple.withOpacity(0.3),
                 TodoTheme.primaryPurple,
-                TodoTheme.primaryPurple.withValues(alpha: 0.3),
+                TodoTheme.primaryPurple.withOpacity(0.3),
               ],
             ),
           ),

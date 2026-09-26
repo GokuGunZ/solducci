@@ -112,7 +112,7 @@ class HabitHubView extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: isCompleted ? color.withValues(alpha: 0.8) : const Color(0xFF2A2A2D),
+                  color: isCompleted ? color.withOpacity(0.8) : const Color(0xFF2A2A2D),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: isCompleted ? const Icon(Icons.check, color: Colors.white, size: 16) : null,

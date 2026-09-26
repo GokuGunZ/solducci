@@ -50,24 +50,24 @@ class DragHandle extends StatelessWidget {
                     174,
                     174,
                     174,
-                  ).withValues(alpha: 0.4),
+                  ).withOpacity(0.4),
                   const Color.fromARGB(129, 177, 163, 184),
                   const Color.fromARGB(
                     255,
                     168,
                     168,
                     168,
-                  ).withValues(alpha: 0.2),
+                  ).withOpacity(0.2),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
+                  color: TodoTheme.primaryPurple.withOpacity(0.3),
                   blurRadius: 1,
                   offset: const Offset(0, 1),
                 ),
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Colors.white.withOpacity(0.4),
                   blurRadius: 4,
                   offset: const Offset(0, -1),
                 ),

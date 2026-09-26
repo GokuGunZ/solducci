@@ -171,9 +171,9 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
                 decoration: BoxDecoration(
                   color: const Color(0xFF2C2C3E),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE068F1).withValues(alpha: 0.5)),
+                  border: Border.all(color: const Color(0xFFE068F1).withOpacity(0.5)),
                   boxShadow: [
-                    BoxShadow(color: const Color(0xFFE068F1).withValues(alpha: 0.2), blurRadius: 30, spreadRadius: -10),
+                    BoxShadow(color: const Color(0xFFE068F1).withOpacity(0.2), blurRadius: 30, spreadRadius: -10),
                   ]
                 ),
                 child: Column(
@@ -218,7 +218,7 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: Colors.white10),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(-10, 0)),
+                        BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(-10, 0)),
                       ]
                     ),
                     child: Column(
@@ -231,7 +231,7 @@ class _DemoLiquidCardViewState extends State<DemoLiquidCardView> with TickerProv
                             const Expanded(
                               child: Text('Markdown', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                             ),
-                            Icon(Icons.arrow_back_ios, color: Colors.white.withValues(alpha: 0.1), size: 16),
+                            Icon(Icons.arrow_back_ios, color: Colors.white.withOpacity(0.1), size: 16),
                           ],
                         ),
                         const SizedBox(height: 12),

@@ -255,8 +255,8 @@ class _PendingInvitesPageState extends State<PendingInvitesPage> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isExpired
-                    ? Colors.red.withValues(alpha: 0.1)
-                    : Colors.orange.withValues(alpha: 0.1),
+                    ? Colors.red.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(

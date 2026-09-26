@@ -311,7 +311,7 @@ class _RadialCategorySelectorState extends State<RadialCategorySelector> {
         height: 32,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF10B981).withValues(alpha: 0.2),
+          color: const Color(0xFF10B981).withOpacity(0.2),
           border: Border.all(color: const Color(0xFF10B981), width: 1.5),
         ),
         child: Center(
@@ -568,7 +568,7 @@ class _RadialMenuOverlayState extends State<_RadialMenuOverlay> with SingleTicke
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.06), 
+                      color: Colors.white.withOpacity(0.06), 
                       width: borderThickness,
                     ),
                   ),
@@ -664,7 +664,7 @@ class _RadialMenuOverlayState extends State<_RadialMenuOverlay> with SingleTicke
           height: 30,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withValues(alpha: 0.2),
+            color: color.withOpacity(0.2),
             border: Border.all(color: color, width: 1.5),
           ),
           child: Center(

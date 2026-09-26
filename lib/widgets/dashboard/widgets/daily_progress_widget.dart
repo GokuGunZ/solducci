@@ -116,7 +116,7 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
                           CircularProgressIndicator(
                             value: 1.0,
                             strokeWidth: 8,
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            color: const Color(0xFF10B981).withOpacity(0.15),
                           ),
                           CircularProgressIndicator(
                             value: progress,

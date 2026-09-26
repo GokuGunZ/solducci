@@ -143,7 +143,7 @@ class _TagFormDialogState extends State<TagFormDialog> {
   /// Convert Color to hex string (without '#')
   String? _colorToHexString(Color? color) {
     if (color == null) return null;
-    final argb = color.toARGB32();
+    final argb = color.value;
     return argb.toRadixString(16).substring(2).toUpperCase();
   }
 
@@ -278,7 +278,7 @@ class _TagFormDialogState extends State<TagFormDialog> {
                     spacing: 8,
                     runSpacing: 8,
                     children: _availableColors.map((color) {
-                      final isSelected = _selectedColor?.toARGB32() == color.toARGB32();
+                      final isSelected = _selectedColor?.value == color.value;
                       return GestureDetector(
                         onTap: () => setState(() => _selectedColor = color),
                         child: Container(
@@ -322,7 +322,7 @@ class _TagFormDialogState extends State<TagFormDialog> {
                           height: 48,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? _selectedColor?.withValues(alpha: 0.2)
+                                ? _selectedColor?.withOpacity(0.2)
                                 : Colors.white10,
                             borderRadius: BorderRadius.circular(8),
                             border: isSelected
@@ -374,13 +374,13 @@ class _TagFormDialogState extends State<TagFormDialog> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.white.withValues(alpha: 0.1),
-                        Colors.white.withValues(alpha: 0.05),
+                        Colors.white.withOpacity(0.1),
+                        Colors.white.withOpacity(0.05),
                       ],
                     ),
                     border: Border(
                       top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.3),
+                        color: Colors.white.withOpacity(0.3),
                         width: 1,
                       ),
                     ),

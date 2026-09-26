@@ -140,7 +140,7 @@ class _GranularTaskItemState extends State<GranularTaskItem>
                           color: Theme.of(context)
                               .colorScheme
                               .primary
-                              .withValues(alpha: highlightOpacity * 0.3),
+                              .withOpacity(highlightOpacity * 0.3),
                           blurRadius: 12 * highlightOpacity,
                           spreadRadius: 2 * highlightOpacity,
                         ),

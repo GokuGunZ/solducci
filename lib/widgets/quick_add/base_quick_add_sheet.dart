@@ -74,7 +74,7 @@ class _BaseQuickAddSheetState extends State<BaseQuickAddSheet> {
           return ChoiceChip(
             label: Text(folder.name),
             selected: isSelected,
-            selectedColor: widget.themeColor.withValues(alpha: 0.2),
+            selectedColor: widget.themeColor.withOpacity(0.2),
             backgroundColor: const Color(0xFF2A2A2D),
             labelStyle: TextStyle(
               color: isSelected ? widget.themeColor : Colors.white70,

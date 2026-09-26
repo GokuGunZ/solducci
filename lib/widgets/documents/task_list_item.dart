@@ -185,8 +185,7 @@ class _TaskListItemState extends State<TaskListItem> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: TodoTheme.primaryPurple.withValues(
-                            alpha: 0.08,
+                          color: TodoTheme.primaryPurple.withOpacity(0.08,
                           ),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
@@ -200,14 +199,13 @@ class _TaskListItemState extends State<TaskListItem> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: TodoTheme.primaryPurple.withValues(
-                            alpha: 0.12,
+                          color: TodoTheme.primaryPurple.withOpacity(0.12,
                           ),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                         BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: Colors.white.withOpacity(0.4),
                           blurRadius: 2,
                           offset: const Offset(-1, -1),
                         ),
@@ -409,8 +407,8 @@ class _TaskListItemState extends State<TaskListItem> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              TodoTheme.primaryPurple.withValues(alpha: 0.25),
-              Colors.white.withValues(alpha: 0.15),
+              TodoTheme.primaryPurple.withOpacity(0.25),
+              Colors.white.withOpacity(0.15),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
@@ -419,12 +417,12 @@ class _TaskListItemState extends State<TaskListItem> {
               TodoTheme.primaryPurple,
               Colors.white,
               0.3,
-            )!.withValues(alpha: 0.7),
+            )!.withOpacity(0.7),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
+              color: TodoTheme.primaryPurple.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -433,7 +431,7 @@ class _TaskListItemState extends State<TaskListItem> {
                 TodoTheme.primaryPurple,
                 Colors.white,
                 0.5,
-              )!.withValues(alpha: 0.5),
+              )!.withOpacity(0.5),
               blurRadius: 1,
               offset: const Offset(-1, -1),
             ),
@@ -480,8 +478,8 @@ class _TaskListItemState extends State<TaskListItem> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    TodoTheme.primaryPurple.withValues(alpha: 0.4),
-                    Colors.white.withValues(alpha: 0.3),
+                    TodoTheme.primaryPurple.withOpacity(0.4),
+                    Colors.white.withOpacity(0.3),
                   ],
                 ),
               ),

@@ -128,7 +128,7 @@ class _DropdownSelectorPreviewState extends State<DropdownSelectorPreview> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
+                color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -218,7 +218,7 @@ class _DropdownSelectorPreviewState extends State<DropdownSelectorPreview> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            TodoTheme.primaryPurple.withValues(alpha: 0.1),
+            TodoTheme.primaryPurple.withOpacity(0.1),
             TodoTheme.lightPurple,
           ],
         ),
@@ -250,15 +250,15 @@ class _DropdownSelectorPreviewState extends State<DropdownSelectorPreview> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.amber.withValues(alpha: 0.2),
-                  Colors.orange.withValues(alpha: 0.15),
+                  Colors.amber.withOpacity(0.2),
+                  Colors.orange.withOpacity(0.15),
                 ],
               ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.amber.shade700, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.amber.withValues(alpha: 0.3),
+                  color: Colors.amber.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -430,7 +430,7 @@ class _DropdownButton1State extends State<_DropdownButton1> {
           decoration: BoxDecoration(
             color: widget.selectedPriorities.isEmpty
                 ? Colors.grey[200]
-                : Colors.deepPurple.withValues(alpha: 0.15),
+                : Colors.deepPurple.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: widget.selectedPriorities.isEmpty
@@ -674,7 +674,7 @@ class _DropdownButton2State extends State<_DropdownButton2> {
           decoration: BoxDecoration(
             color: widget.selectedPriorities.isEmpty
                 ? Colors.grey[200]
-                : Colors.deepPurple.withValues(alpha: 0.15),
+                : Colors.deepPurple.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: widget.selectedPriorities.isEmpty
@@ -775,7 +775,7 @@ class _FadeScaleMenuState extends State<_FadeScaleMenu>
         child: Material(
           elevation: 12,
           borderRadius: BorderRadius.circular(16),
-          shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
+          shadowColor: Colors.deepPurple.withOpacity(0.3),
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -784,11 +784,11 @@ class _FadeScaleMenuState extends State<_FadeScaleMenu>
                 end: Alignment.bottomRight,
                 colors: [
                   Colors.white,
-                  Colors.purple.withValues(alpha: 0.02),
+                  Colors.purple.withOpacity(0.02),
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2), width: 2),
+              border: Border.all(color: Colors.deepPurple.withOpacity(0.2), width: 2),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -809,7 +809,7 @@ class _FadeScaleMenuState extends State<_FadeScaleMenu>
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? priority.color.withValues(alpha: 0.1)
+                          ? priority.color.withOpacity(0.1)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -821,7 +821,7 @@ class _FadeScaleMenuState extends State<_FadeScaleMenu>
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? priority.color
-                                : Colors.grey.withValues(alpha: 0.2),
+                                : Colors.grey.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: isSelected ? priority.color : Colors.grey,
@@ -948,7 +948,7 @@ class _DropdownButton3State extends State<_DropdownButton3> {
           decoration: BoxDecoration(
             color: widget.selectedPriorities.isEmpty
                 ? Colors.grey[200]
-                : Colors.deepPurple.withValues(alpha: 0.15),
+                : Colors.deepPurple.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: widget.selectedPriorities.isEmpty
@@ -1028,7 +1028,7 @@ class _BlurBackgroundState extends State<_BlurBackground>
     return FadeTransition(
       opacity: _animation,
       child: Container(
-        color: Colors.black.withValues(alpha: 0.3),
+        color: Colors.black.withOpacity(0.3),
       ),
     );
   }
@@ -1088,7 +1088,7 @@ class _ExpandBlurMenuState extends State<_ExpandBlurMenu>
         child: Material(
           elevation: 16,
           borderRadius: BorderRadius.circular(16),
-          shadowColor: Colors.deepPurple.withValues(alpha: 0.5),
+          shadowColor: Colors.deepPurple.withOpacity(0.5),
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -1097,11 +1097,11 @@ class _ExpandBlurMenuState extends State<_ExpandBlurMenu>
                 end: Alignment.bottomRight,
                 colors: [
                   Colors.white,
-                  Colors.purple.withValues(alpha: 0.05),
+                  Colors.purple.withOpacity(0.05),
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3), width: 2),
+              border: Border.all(color: Colors.deepPurple.withOpacity(0.3), width: 2),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1124,14 +1124,14 @@ class _ExpandBlurMenuState extends State<_ExpandBlurMenu>
                       gradient: isSelected
                           ? LinearGradient(
                               colors: [
-                                priority.color.withValues(alpha: 0.15),
-                                priority.color.withValues(alpha: 0.05),
+                                priority.color.withOpacity(0.15),
+                                priority.color.withOpacity(0.05),
                               ],
                             )
                           : null,
                       borderRadius: BorderRadius.circular(10),
                       border: isSelected
-                          ? Border.all(color: priority.color.withValues(alpha: 0.3))
+                          ? Border.all(color: priority.color.withOpacity(0.3))
                           : null,
                     ),
                     child: Row(
@@ -1255,7 +1255,7 @@ class _DropdownButton4State extends State<_DropdownButton4> {
           decoration: BoxDecoration(
             color: widget.selectedPriorities.isEmpty
                 ? Colors.grey[200]
-                : Colors.deepPurple.withValues(alpha: 0.15),
+                : Colors.deepPurple.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: widget.selectedPriorities.isEmpty
@@ -1380,7 +1380,7 @@ class _SideSlideMenuState extends State<_SideSlideMenu>
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? priority.color.withValues(alpha: 0.1)
+                          ? priority.color.withOpacity(0.1)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1475,7 +1475,7 @@ class _DropdownButton5State extends State<_DropdownButton5>
         return Material(
           elevation: _elevationAnimation.value,
           borderRadius: BorderRadius.circular(_borderRadiusAnimation.value),
-          shadowColor: Colors.deepPurple.withValues(alpha: 0.3),
+          shadowColor: Colors.deepPurple.withOpacity(0.3),
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -1485,15 +1485,15 @@ class _DropdownButton5State extends State<_DropdownButton5>
                 colors: widget.selectedPriorities.isEmpty
                     ? [Colors.grey[200]!, Colors.grey[100]!]
                     : [
-                        Colors.deepPurple.withValues(alpha: 0.15),
-                        Colors.deepPurple.withValues(alpha: 0.05),
+                        Colors.deepPurple.withOpacity(0.15),
+                        Colors.deepPurple.withOpacity(0.05),
                       ],
               ),
               borderRadius: BorderRadius.circular(_borderRadiusAnimation.value),
               border: Border.all(
                 color: widget.selectedPriorities.isEmpty
                     ? Colors.grey[300]!
-                    : Colors.deepPurple.withValues(alpha: 0.5),
+                    : Colors.deepPurple.withOpacity(0.5),
                 width: _isOpen ? 2 : 1,
               ),
             ),
@@ -1565,15 +1565,15 @@ class _DropdownButton5State extends State<_DropdownButton5>
                               gradient: isSelected
                                   ? LinearGradient(
                                       colors: [
-                                        priority.color.withValues(alpha: 0.2),
-                                        priority.color.withValues(alpha: 0.1),
+                                        priority.color.withOpacity(0.2),
+                                        priority.color.withOpacity(0.1),
                                       ],
                                     )
                                   : null,
-                              color: isSelected ? null : Colors.white.withValues(alpha: 0.5),
+                              color: isSelected ? null : Colors.white.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(10),
                               border: isSelected
-                                  ? Border.all(color: priority.color.withValues(alpha: 0.4))
+                                  ? Border.all(color: priority.color.withOpacity(0.4))
                                   : Border.all(color: Colors.grey[300]!),
                             ),
                             child: Row(

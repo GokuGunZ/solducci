@@ -77,7 +77,7 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          const Color(0xFFE068F1).withValues(alpha: 0.2),
+                          const Color(0xFFE068F1).withOpacity(0.2),
                           Colors.transparent,
                         ],
                       ),
@@ -95,7 +95,7 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
                           Text(
                             'BURN RATE',
                             style: TextStyle(
-                              color: const Color(0xFFE068F1).withValues(alpha: 0.8),
+                              color: const Color(0xFFE068F1).withOpacity(0.8),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.2,

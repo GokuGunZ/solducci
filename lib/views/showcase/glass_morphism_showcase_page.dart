@@ -84,7 +84,7 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -283,13 +283,13 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                _backgroundColor.withValues(alpha: opacity * 1.2),
-                _backgroundColor.withValues(alpha: opacity * 0.8),
+                _backgroundColor.withOpacity(opacity * 1.2),
+                _backgroundColor.withOpacity(opacity * 0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.4),
+              color: Colors.white.withOpacity(0.4),
               width: 1.5,
             ),
           ),
@@ -334,13 +334,13 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                color.withValues(alpha: _opacity * 1.2),
-                color.withValues(alpha: _opacity * 0.8),
+                color.withOpacity(_opacity * 1.2),
+                color.withOpacity(_opacity * 0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.4),
+              color: Colors.white.withOpacity(0.4),
               width: 1.5,
             ),
           ),
@@ -374,13 +374,13 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  _backgroundColor.withValues(alpha: _opacity * 1.2),
-                  _backgroundColor.withValues(alpha: _opacity * 0.8),
+                  _backgroundColor.withOpacity(_opacity * 1.2),
+                  _backgroundColor.withOpacity(_opacity * 0.8),
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.4),
+                color: Colors.white.withOpacity(0.4),
                 width: 1.5,
               ),
             ),
@@ -408,7 +408,7 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withValues(alpha: 0.3), // Semi-transparent
+                      color: Colors.purple.withOpacity(0.3), // Semi-transparent
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -454,13 +454,13 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _backgroundColor.withValues(alpha: _opacity * 1.2),
-                    _backgroundColor.withValues(alpha: _opacity * 0.8),
+                    _backgroundColor.withOpacity(_opacity * 1.2),
+                    _backgroundColor.withOpacity(_opacity * 0.8),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Colors.white.withOpacity(0.4),
                   width: 1.5,
                 ),
               ),
@@ -490,13 +490,13 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _backgroundColor.withValues(alpha: _opacity * 1.2),
-                    _backgroundColor.withValues(alpha: _opacity * 0.8),
+                    _backgroundColor.withOpacity(_opacity * 1.2),
+                    _backgroundColor.withOpacity(_opacity * 0.8),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Colors.white.withOpacity(0.4),
                   width: 1.5,
                 ),
               ),
@@ -535,13 +535,13 @@ class _GlassMorphismShowcasePageState extends State<GlassMorphismShowcasePage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _backgroundColor.withValues(alpha: _opacity * 1.2),
-                    _backgroundColor.withValues(alpha: _opacity * 0.8),
+                    _backgroundColor.withOpacity(_opacity * 1.2),
+                    _backgroundColor.withOpacity(_opacity * 0.8),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Colors.white.withOpacity(0.4),
                   width: 1.5,
                 ),
               ),

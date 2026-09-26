@@ -100,7 +100,7 @@ class ContextChip extends StatelessWidget {
         ? [
             // Glow più forte per selezionati
             BoxShadow(
-              color: accentColor.withValues(alpha: 0.4),
+              color: accentColor.withOpacity(0.4),
               blurRadius: 12,
               spreadRadius: 2,
             ),
@@ -109,7 +109,7 @@ class ContextChip extends StatelessWidget {
         ? [
             // Glow medio per lightly selected (doppio tap)
             BoxShadow(
-              color: accentColor.withValues(alpha: 0.35),
+              color: accentColor.withOpacity(0.35),
               blurRadius: 10,
               spreadRadius: 1.5,
             ),
@@ -118,7 +118,7 @@ class ContextChip extends StatelessWidget {
         ? [
             // Glow leggero per correlati (tap singolo)
             BoxShadow(
-              color: accentColor.withValues(alpha: 0.25),
+              color: accentColor.withOpacity(0.25),
               blurRadius: 8,
               spreadRadius: 1,
             ),

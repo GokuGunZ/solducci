@@ -144,9 +144,9 @@ class _PropertyChip extends StatelessWidget {
     final iconColor = isSet ? color : Colors.black;
 
     final borderColor = Color.lerp(chipColor, Colors.white, 0.3)!
-        .withValues(alpha: 0.7);
+        .withOpacity(0.7);
     final highlightColor = Color.lerp(chipColor, Colors.white, 0.5)!
-        .withValues(alpha: 0.5);
+        .withOpacity(0.5);
 
     return InkWell(
       onTap: onTap,
@@ -158,15 +158,15 @@ class _PropertyChip extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              chipColor.withValues(alpha: 0.25),
-              Colors.white.withValues(alpha: 0.15),
+              chipColor.withOpacity(0.25),
+              Colors.white.withOpacity(0.15),
             ],
           ),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: chipColor.withValues(alpha: 0.3),
+              color: chipColor.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -242,9 +242,9 @@ class _RecurrenceChip extends StatelessWidget {
         : Colors.black;
 
     final borderColor = Color.lerp(chipColor, Colors.white, 0.3)!
-        .withValues(alpha: 0.7);
+        .withOpacity(0.7);
     final highlightColor = Color.lerp(chipColor, Colors.white, 0.5)!
-        .withValues(alpha: 0.5);
+        .withOpacity(0.5);
 
     return InkWell(
       onTap: onTap,
@@ -257,15 +257,15 @@ class _RecurrenceChip extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              chipColor.withValues(alpha: 0.25),
-              Colors.white.withValues(alpha: 0.15),
+              chipColor.withOpacity(0.25),
+              Colors.white.withOpacity(0.15),
             ],
           ),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: chipColor.withValues(alpha: 0.3),
+              color: chipColor.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

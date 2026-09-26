@@ -46,8 +46,8 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.purple.withValues(alpha: 0.8),
-                  Colors.blue.withValues(alpha: 0.6),
+                  Colors.purple.withOpacity(0.8),
+                  Colors.blue.withOpacity(0.6),
                 ],
               ),
             ),
@@ -285,7 +285,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.deepPurple.withValues(alpha: 0.3),
+                    color: Colors.deepPurple.withOpacity(0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -301,7 +301,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: Colors.white.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -358,7 +358,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.deepPurple.withValues(alpha: 0.3),
+                    color: Colors.deepPurple.withOpacity(0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -377,7 +377,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -459,11 +459,11 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: Colors.white.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -544,10 +544,10 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.8),
+                color: Colors.white.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.deepPurple.withValues(alpha: 0.2),
+                  color: Colors.deepPurple.withOpacity(0.2),
                   width: 1,
                 ),
               ),
@@ -586,11 +586,11 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -640,7 +640,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
         color: Colors.grey[100],
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -692,7 +692,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: isSelected
-              ? Colors.purple.withValues(alpha: 0.1)
+              ? Colors.purple.withOpacity(0.1)
               : Colors.white,
           border: Border.all(
             color: isSelected ? Colors.purple : Colors.grey[300]!,
@@ -839,8 +839,8 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
           begin: layer.linearBegin,
           end: layer.linearEnd,
           colors: [
-            layer.color1.withValues(alpha: layer.opacity),
-            layer.color2.withValues(alpha: layer.opacity * 0.7),
+            layer.color1.withOpacity(layer.opacity),
+            layer.color2.withOpacity(layer.opacity * 0.7),
             layer.color3,
           ],
         ),
@@ -855,8 +855,8 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
           center: layer.radialCenter,
           radius: layer.radialRadius,
           colors: [
-            layer.color1.withValues(alpha: layer.opacity),
-            layer.color2.withValues(alpha: layer.opacity * 0.7),
+            layer.color1.withOpacity(layer.opacity),
+            layer.color2.withOpacity(layer.opacity * 0.7),
             layer.color3,
           ],
           tileMode: layer.radialTileMode,
@@ -875,8 +875,8 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
           startAngle: layer.sweepStartAngle * math.pi / 180,
           endAngle: layer.sweepEndAngle * math.pi / 180,
           colors: [
-            layer.color1.withValues(alpha: layer.opacity),
-            layer.color2.withValues(alpha: layer.opacity * 0.7),
+            layer.color1.withOpacity(layer.opacity),
+            layer.color2.withOpacity(layer.opacity * 0.7),
             layer.color3,
           ],
         ),
@@ -901,7 +901,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
   }
 
   CustomPainter _getPatternPainter(BackgroundLayer layer) {
-    final color = layer.color1.withValues(alpha: layer.opacity);
+    final color = layer.color1.withOpacity(layer.opacity);
     switch (layer.patternType) {
       case PatternType.dots:
         return DotsPatternPainter(
@@ -946,7 +946,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: layer.complexColors
-              .map((c) => c.withValues(alpha: layer.opacity))
+              .map((c) => c.withOpacity(layer.opacity))
               .toList(),
           stops: _generateStops(layer.complexColors.length),
         ),
@@ -1436,7 +1436,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      initialValue: _selectedLayer.blendMode,
+      value: _selectedLayer.blendMode,
       style: const TextStyle(fontSize: 11, color: Colors.black),
       items: commonBlendModes.map((mode) {
         return DropdownMenuItem(
@@ -1520,7 +1520,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
       ),
       value: value,
       onChanged: onChanged,
-      activeThumbColor: Colors.purple,
+      activeColor: Colors.purple,
       contentPadding: EdgeInsets.zero,
     );
   }
@@ -1548,7 +1548,7 @@ class _BackgroundShowcasePageState extends State<BackgroundShowcasePage> {
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      initialValue: value,
+      value: value,
       style: const TextStyle(fontSize: 11, color: Colors.black),
       items: alignments.entries.map((entry) {
         return DropdownMenuItem(value: entry.value, child: Text(entry.key));

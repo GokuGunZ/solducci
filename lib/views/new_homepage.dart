@@ -407,7 +407,7 @@ class _NewHomepageState extends State<NewHomepage> {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.2),
+                    color: categoryColor.withOpacity(0.2),
                     shape: BoxShape.circle,
                     border: Border.all(color: categoryColor, width: 1.5),
                   ),

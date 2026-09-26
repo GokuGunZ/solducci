@@ -47,7 +47,7 @@ class DataSourceSwitcherHeader extends StatelessWidget {
                         child: Text(
                           title.toUpperCase(),
                           style: TextStyle(
-                            color: color.withValues(alpha: 0.8),
+                            color: color.withOpacity(0.8),
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,

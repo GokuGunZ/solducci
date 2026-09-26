@@ -75,7 +75,7 @@ class RoutineCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: template.isActive ? color.withValues(alpha: 0.5) : Colors.transparent, width: 1),
+        border: Border.all(color: template.isActive ? color.withOpacity(0.5) : Colors.transparent, width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),

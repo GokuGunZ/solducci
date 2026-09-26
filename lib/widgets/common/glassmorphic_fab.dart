@@ -37,32 +37,32 @@ class GlassmorphicFAB extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                primaryColor.withValues(alpha: 0.4), // Increased transparency
-                primaryColor.withValues(alpha: 0.2),
+                primaryColor.withOpacity(0.4), // Increased transparency
+                primaryColor.withOpacity(0.2),
               ],
             ),
             borderRadius: BorderRadius.circular(size / 2),
             border: Border.all(
-              color: primaryColor.withValues(alpha: 0.7), // Brighter border
+              color: primaryColor.withOpacity(0.7), // Brighter border
               width: 1.5,
             ),
             boxShadow: [
               // Main glow shadow
               BoxShadow(
-                color: primaryColor.withValues(alpha: 0.6), // Stronger glow
+                color: primaryColor.withOpacity(0.6), // Stronger glow
                 blurRadius: 28,
                 spreadRadius: 3,
                 offset: const Offset(0, 8),
               ),
               // Highlight shadow
               BoxShadow(
-                color: Colors.white.withValues(alpha: 0.5), // Brighter highlight
+                color: Colors.white.withOpacity(0.5), // Brighter highlight
                 blurRadius: 4,
                 offset: const Offset(-2, -2),
               ),
               // Subtle depth shadow
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
+                color: Colors.black.withOpacity(0.2),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -73,8 +73,8 @@ class GlassmorphicFAB extends StatelessWidget {
             child: InkWell(
               onTap: onPressed,
               borderRadius: BorderRadius.circular(size / 2),
-              splashColor: Colors.white.withValues(alpha: 0.4),
-              highlightColor: Colors.white.withValues(alpha: 0.3),
+              splashColor: Colors.white.withOpacity(0.4),
+              highlightColor: Colors.white.withOpacity(0.3),
               child: SizedBox(
                 width: size,
                 height: size,
@@ -89,8 +89,8 @@ class GlassmorphicFAB extends StatelessWidget {
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            Colors.white.withValues(alpha: 0.5), // Brighter center
-                            Colors.white.withValues(alpha: 0.0),
+                            Colors.white.withOpacity(0.5), // Brighter center
+                            Colors.white.withOpacity(0.0),
                           ],
                           stops: const [0.0, 1.0],
                         ),

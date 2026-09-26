@@ -201,13 +201,13 @@ class _CategoryScrollBarState<T, C extends Enum>
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? chipColor.withValues(alpha: 0.2)
-              : Colors.grey.withValues(alpha: 0.1),
+              ? chipColor.withOpacity(0.2)
+              : Colors.grey.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? chipColor
-                : Colors.grey.withValues(alpha: 0.3),
+                : Colors.grey.withOpacity(0.3),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -237,7 +237,7 @@ class _CategoryScrollBarState<T, C extends Enum>
                 decoration: BoxDecoration(
                   color: isSelected
                       ? chipColor
-                      : Colors.grey.withValues(alpha: 0.3),
+                      : Colors.grey.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

@@ -175,7 +175,7 @@ class _ResourceQuickAddFormState extends State<ResourceQuickAddForm> {
               return FilterChip(
                 label: Text(tag.name),
                 selected: isSelected,
-                selectedColor: tag.colorObject?.withValues(alpha: 0.3) ?? Colors.blue.withValues(alpha: 0.3),
+                selectedColor: tag.colorObject?.withOpacity(0.3) ?? Colors.blue.withOpacity(0.3),
                 checkmarkColor: Colors.white,
                 labelStyle: TextStyle(
                   color: isSelected ? Colors.white : Colors.white70,
@@ -205,7 +205,7 @@ class _ResourceQuickAddFormState extends State<ResourceQuickAddForm> {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            disabledBackgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.5),
+            disabledBackgroundColor: const Color(0xFF3B82F6).withOpacity(0.5),
           ),
           child: _isSaving
               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

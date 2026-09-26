@@ -96,7 +96,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                   fontFamily: 'Inter',
                   shadows: _amount.isNotEmpty ? [
                     Shadow(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.5),
+                      color: const Color(0xFF6366F1).withOpacity(0.5),
                       blurRadius: 10,
                     ),
                   ] : [],
@@ -151,7 +151,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                               }
                             },
                             child: Container(
-                              color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                              color: const Color(0xFF6366F1).withOpacity(0.1),
                               child: Center(
                                 child: Icon(
                                   Icons.check_circle,

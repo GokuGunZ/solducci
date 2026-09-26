@@ -93,7 +93,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
+                  color: Colors.green.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -151,7 +151,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
             // Info card
             Card(
-              color: Colors.blue.withValues(alpha: 0.1),
+              color: Colors.blue.withOpacity(0.1),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

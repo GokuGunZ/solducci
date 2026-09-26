@@ -66,7 +66,7 @@ class _OmniRadialMenuState extends State<OmniRadialMenu> with SingleTickerProvid
         feedback: FloatingActionButton(
           mini: true,
           onPressed: null,
-          backgroundColor: color.withValues(alpha: 0.8),
+          backgroundColor: color.withOpacity(0.8),
           child: Icon(icon, color: Colors.white, size: 20),
         ),
         onDragStarted: () => _toggleMenu(),

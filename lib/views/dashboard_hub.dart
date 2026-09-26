@@ -98,8 +98,8 @@ class DashboardHub extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    color.withValues(alpha: 0.8),
-                    color.withValues(alpha: 0.6),
+                    color.withOpacity(0.8),
+                    color.withOpacity(0.6),
                   ],
                 ),
               ),
@@ -124,7 +124,7 @@ class DashboardHub extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.white.withOpacity(0.9),
                       ),
                       textAlign: TextAlign.center,
                     ),

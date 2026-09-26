@@ -27,13 +27,14 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       paidBy: fields[8] as String?,
       splitType: fields[9] as SplitType?,
       splitData: (fields[10] as Map?)?.cast<String, double>(),
+      walletId: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Expense obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       ..writeByte(9)
       ..write(obj.splitType)
       ..writeByte(10)
-      ..write(obj.splitData);
+      ..write(obj.splitData)
+      ..writeByte(11)
+      ..write(obj.walletId);
   }
 
   @override

@@ -520,8 +520,8 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    dotColor.withValues(alpha: 0.7),
-                    dotColor.withValues(alpha: 0.5),
+                    dotColor.withOpacity(0.7),
+                    dotColor.withOpacity(0.5),
                   ],
                 )
               : null,
@@ -529,7 +529,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: dotColor.withValues(alpha: 0.5),
+                    color: dotColor.withOpacity(0.5),
                     blurRadius: 12,
                     spreadRadius: 1,
                     offset: const Offset(0, 4),
@@ -554,27 +554,27 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                       end: Alignment.bottomRight,
                       colors: isActive
                           ? [
-                              Colors.white.withValues(alpha: 0.4),
-                              Colors.white.withValues(alpha: 0.2),
+                              Colors.white.withOpacity(0.4),
+                              Colors.white.withOpacity(0.2),
                             ]
                           : [
-                              dotColor.withValues(alpha: 0.8),
-                              dotColor.withValues(alpha: 0.6),
+                              dotColor.withOpacity(0.8),
+                              dotColor.withOpacity(0.6),
                             ],
                     ),
                     border: Border.all(
                       color: isActive
-                          ? Colors.white.withValues(alpha: 0.7)
+                          ? Colors.white.withOpacity(0.7)
                           : Color.lerp(
                               dotColor,
                               Colors.white,
                               0.3,
-                            )!.withValues(alpha: 0.7),
+                            )!.withOpacity(0.7),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: dotColor.withValues(alpha: isActive ? 0.3 : 0.5),
+                        color: dotColor.withOpacity(isActive ? 0.3 : 0.5),
                         blurRadius: isActive ? 6 : 8,
                         offset: Offset(0, isActive ? 2 : 3),
                       ),
@@ -666,17 +666,17 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.purple[700]!.withValues(alpha: 0.8),
-                  Colors.purple[900]!.withValues(alpha: 0.6),
+                  Colors.purple[700]!.withOpacity(0.8),
+                  Colors.purple[900]!.withOpacity(0.6),
                 ],
               ),
               border: Border.all(
-                color: Colors.purple[400]!.withValues(alpha: 0.6),
+                color: Colors.purple[400]!.withOpacity(0.6),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.withValues(alpha: 0.4),
+                  color: Colors.purple.withOpacity(0.4),
                   blurRadius: 6,
                   spreadRadius: 0.5,
                   offset: const Offset(0, 2),

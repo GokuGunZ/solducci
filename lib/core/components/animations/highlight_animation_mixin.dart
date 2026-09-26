@@ -109,7 +109,7 @@ mixin HighlightAnimationMixin<T extends StatefulWidget>
                   boxShadow: [
                     BoxShadow(
                       color: theme.colorScheme.primary
-                          .withValues(alpha: opacity * maxOpacity),
+                          .withOpacity(opacity * maxOpacity),
                       blurRadius: maxBlur * opacity,
                       spreadRadius: maxSpread * opacity,
                     ),

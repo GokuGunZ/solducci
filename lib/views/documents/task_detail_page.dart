@@ -551,9 +551,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                TodoTheme.primaryPurple.withValues(alpha: 0.3),
+                TodoTheme.primaryPurple.withOpacity(0.3),
                 TodoTheme.primaryPurple,
-                TodoTheme.primaryPurple.withValues(alpha: 0.3),
+                TodoTheme.primaryPurple.withOpacity(0.3),
               ],
             ),
           ),
@@ -618,12 +618,12 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       chipColor,
       Colors.white,
       0.3,
-    )!.withValues(alpha: 0.7);
+    )!.withOpacity(0.7);
     final highlightColor = Color.lerp(
       chipColor,
       Colors.white,
       0.5,
-    )!.withValues(alpha: 0.5);
+    )!.withOpacity(0.5);
 
     return InkWell(
       onTap: onTap,
@@ -639,15 +639,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  chipColor.withValues(alpha: 0.25),
-                  Colors.white.withValues(alpha: 0.15),
+                  chipColor.withOpacity(0.25),
+                  Colors.white.withOpacity(0.15),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: borderColor, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: chipColor.withValues(alpha: 0.3),
+                  color: chipColor.withOpacity(0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -717,12 +717,12 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       chipColor,
       Colors.white,
       0.3,
-    )!.withValues(alpha: 0.7);
+    )!.withOpacity(0.7);
     final highlightColor = Color.lerp(
       chipColor,
       Colors.white,
       0.5,
-    )!.withValues(alpha: 0.5);
+    )!.withOpacity(0.5);
 
     return InkWell(
       onTap: _showRecurrencePicker,
@@ -739,15 +739,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  chipColor.withValues(alpha: 0.25),
-                  Colors.white.withValues(alpha: 0.15),
+                  chipColor.withOpacity(0.25),
+                  Colors.white.withOpacity(0.15),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: borderColor, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: chipColor.withValues(alpha: 0.3),
+                  color: chipColor.withOpacity(0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -833,10 +833,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: TodoTheme.primaryPurple.withValues(alpha: 0.1),
+              color: TodoTheme.primaryPurple.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
+                color: TodoTheme.primaryPurple.withOpacity(0.3),
               ),
             ),
             child: Row(
@@ -883,7 +883,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: TodoTheme.primaryPurple.withValues(alpha: 0.5),
+                    color: TodoTheme.primaryPurple.withOpacity(0.5),
                     width: 2,
                   ),
                 ),
@@ -914,7 +914,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.4),
+                color: color.withOpacity(0.4),
                 blurRadius: 8,
                 spreadRadius: 1,
               ),

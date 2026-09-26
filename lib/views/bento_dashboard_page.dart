@@ -377,10 +377,10 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
       decoration: BoxDecoration(
         color: const Color(0xFF18181B),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Colors.black.withOpacity(0.5),
             blurRadius: 20,
             spreadRadius: 5,
             offset: const Offset(0, -5),
@@ -454,9 +454,9 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                           width: previewWidth,
                           height: previewHeight,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
+                            color: Colors.white.withOpacity(0.05),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: IgnorePointer(

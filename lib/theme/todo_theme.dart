@@ -247,7 +247,7 @@ class TodoTheme {
     borderRadius: BorderRadius.circular(12),
     boxShadow: [
       BoxShadow(
-        color: primaryPurple.withValues(alpha: 0.1),
+        color: primaryPurple.withOpacity(0.1),
         blurRadius: 8,
         offset: const Offset(0, 2),
       ),
@@ -267,7 +267,7 @@ class TodoTheme {
 
   /// Returns a color with specified opacity from primary purple
   static Color getPrimaryWithOpacity(double opacity) {
-    return primaryPurple.withValues(alpha: opacity);
+    return primaryPurple.withOpacity(opacity);
   }
 
   /// Returns a BoxDecoration with gradient background
@@ -302,25 +302,25 @@ class TodoTheme {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          (backgroundColor ?? Colors.white).withValues(alpha: opacity * 1.5),
-          (backgroundColor ?? Colors.white).withValues(alpha: opacity * 0.5),
+          (backgroundColor ?? Colors.white).withOpacity(opacity * 1.5),
+          (backgroundColor ?? Colors.white).withOpacity(opacity * 0.5),
         ],
       ),
       borderRadius: borderRadius ?? BorderRadius.circular(16),
       border: Border.all(
-        color: (borderColor ?? Colors.white).withValues(alpha: borderOpacity),
+        color: (borderColor ?? Colors.white).withOpacity(borderOpacity),
         width: 1.5,
       ),
       boxShadow:
           boxShadow ??
           [
             BoxShadow(
-              color: primaryPurple.withValues(alpha: 0.1),
+              color: primaryPurple.withOpacity(0.1),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: Colors.white.withValues(alpha: 0.3),
+              color: Colors.white.withOpacity(0.3),
               blurRadius: 2,
               offset: const Offset(-1, -1),
             ),
@@ -336,20 +336,20 @@ class TodoTheme {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Colors.white.withValues(alpha: 0.25),
-          Colors.white.withValues(alpha: 0.15),
+          Colors.white.withOpacity(0.25),
+          Colors.white.withOpacity(0.15),
         ],
       ),
       borderRadius: borderRadius,
       border: Border(
         bottom: BorderSide(
-          color: Colors.white.withValues(alpha: 0.4),
+          color: Colors.white.withOpacity(0.4),
           width: 1.5,
         ),
       ),
       boxShadow: [
         BoxShadow(
-          color: primaryPurple.withValues(alpha: 0.08),
+          color: primaryPurple.withOpacity(0.08),
           blurRadius: 16,
           offset: const Offset(0, 4),
         ),
@@ -368,18 +368,18 @@ class TodoTheme {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.white.withValues(alpha: 0.25),
-          (accentColor ?? Colors.white).withValues(alpha: 0.15),
+          Colors.white.withOpacity(0.25),
+          (accentColor ?? Colors.white).withOpacity(0.15),
         ],
       ),
       borderRadius: borderRadius ?? BorderRadius.circular(16),
       border: Border.all(
-        color: Colors.white.withValues(alpha: 0.4),
+        color: Colors.white.withOpacity(0.4),
         width: 1.5,
       ),
       boxShadow: [
         BoxShadow(
-          color: (accentColor ?? primaryPurple).withValues(alpha: 0.12),
+          color: (accentColor ?? primaryPurple).withOpacity(0.12),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),

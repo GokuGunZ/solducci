@@ -353,7 +353,7 @@ class _SlidableSwitchState<T extends Enum> extends State<SlidableSwitch<T>>
                                 BorderRadius.circular(widget.borderRadius - 4),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
+                                color: Colors.black.withOpacity(0.15),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),

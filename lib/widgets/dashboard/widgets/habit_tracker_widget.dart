@@ -39,8 +39,8 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-              const Color(0xFF8B5CF6).withValues(alpha: 0.02),
+              const Color(0xFF8B5CF6).withOpacity(0.1),
+              const Color(0xFF8B5CF6).withOpacity(0.02),
             ],
           ),
         ),
@@ -55,7 +55,7 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
                 Text(
                   'ROUTINE',
                   style: TextStyle(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.9),
+                    color: const Color(0xFF8B5CF6).withOpacity(0.9),
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
@@ -103,7 +103,7 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
                     decoration: BoxDecoration(
                       color: isCompleted
                           ? _routineColors[routineIndex]
-                          : Colors.white.withValues(alpha: 0.05),
+                          : Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
@@ -137,7 +137,7 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(3),
                     color: routinesCompleted == 0
-                        ? Colors.white.withValues(alpha: 0.05)
+                        ? Colors.white.withOpacity(0.05)
                         : null,
                     gradient: routinesCompleted > 0
                         ? LinearGradient(

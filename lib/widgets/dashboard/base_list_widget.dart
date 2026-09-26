@@ -46,8 +46,8 @@ class BaseListWidget<T> extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    color.withValues(alpha: 0.1),
-                    color.withValues(alpha: 0.02),
+                    color.withOpacity(0.1),
+                    color.withOpacity(0.02),
                   ],
                 ),
               ),
@@ -72,7 +72,7 @@ class BaseListWidget<T> extends StatelessWidget {
                       ? Center(
                           child: Text(
                             emptyMessage,
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
+                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
                             textAlign: TextAlign.center,
                           ),
                         )

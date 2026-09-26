@@ -22,7 +22,7 @@ class ManilaFolderPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final borderPaint = Paint()
-      ..color = isOpen ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.25)
+      ..color = isOpen ? Colors.white.withOpacity(0.15) : Colors.white.withOpacity(0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
@@ -85,7 +85,7 @@ class ManilaFolderPainter extends CustomPainter {
       
       // Inner shadow line for depth
       final innerBorderPaint = Paint()
-        ..color = Colors.black.withValues(alpha: 0.3)
+        ..color = Colors.black.withOpacity(0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.0;
       canvas.drawPath(frontFlapPath, innerBorderPaint);

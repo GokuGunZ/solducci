@@ -132,9 +132,9 @@ class _TaskTagsRowState extends State<TaskTagsRow> {
           children: _tags.map((tag) {
             final color = tag.colorObject ?? Colors.grey;
             final borderColor =
-                Color.lerp(color, Colors.white, 0.3)!.withValues(alpha: 0.7);
+                Color.lerp(color, Colors.white, 0.3)!.withOpacity(0.7);
             final highlightColor =
-                Color.lerp(color, Colors.white, 0.5)!.withValues(alpha: 0.5);
+                Color.lerp(color, Colors.white, 0.5)!.withOpacity(0.5);
 
             return GestureDetector(
               onTap: _showTagPicker,
@@ -151,15 +151,15 @@ class _TaskTagsRowState extends State<TaskTagsRow> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        color.withValues(alpha: 0.9),
-                        color.withValues(alpha: 0.7),
+                        color.withOpacity(0.9),
+                        color.withOpacity(0.7),
                       ],
                     ),
                     shape: BoxShape.circle,
                     border: Border.all(color: borderColor, width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: color.withValues(alpha: 0.5),
+                        color: color.withOpacity(0.5),
                         blurRadius: 6,
                         spreadRadius: 0.5,
                         offset: const Offset(0, 2),
@@ -206,8 +206,8 @@ class _TaskTagsRowState extends State<TaskTagsRow> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              TodoTheme.primaryPurple.withValues(alpha: 0.15),
-              Colors.white.withValues(alpha: 0.1),
+              TodoTheme.primaryPurple.withOpacity(0.15),
+              Colors.white.withOpacity(0.1),
             ],
           ),
           border: Border.all(
@@ -216,12 +216,12 @@ class _TaskTagsRowState extends State<TaskTagsRow> {
               Colors.white,
               0.4,
             )!
-                .withValues(alpha: 0.6),
+                .withOpacity(0.6),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: TodoTheme.primaryPurple.withValues(alpha: 0.2),
+              color: TodoTheme.primaryPurple.withOpacity(0.2),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),

@@ -89,7 +89,7 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
+                  color: Colors.blue.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -104,7 +104,7 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
 
             // Group info
             Card(
-              color: Colors.blue.withValues(alpha: 0.05),
+              color: Colors.blue.withOpacity(0.05),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -174,7 +174,7 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
 
             // Info card
             Card(
-              color: Colors.orange.withValues(alpha: 0.1),
+              color: Colors.orange.withOpacity(0.1),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

@@ -547,10 +547,10 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.purple.withValues(alpha: 0.05), Colors.blue.withValues(alpha: 0.05)],
+              colors: [Colors.purple.withOpacity(0.05), Colors.blue.withOpacity(0.05)],
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
+            border: Border.all(color: Colors.purple.withOpacity(0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -599,10 +599,10 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.green.withValues(alpha: 0.05), Colors.teal.withValues(alpha: 0.05)],
+              colors: [Colors.green.withOpacity(0.05), Colors.teal.withOpacity(0.05)],
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+            border: Border.all(color: Colors.green.withOpacity(0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -690,13 +690,13 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.purple.withValues(alpha: 0.08), Colors.blue.withValues(alpha: 0.05)],
+                colors: [Colors.purple.withOpacity(0.08), Colors.blue.withOpacity(0.05)],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.purple.withValues(alpha: 0.25), width: 1.5),
+              border: Border.all(color: Colors.purple.withOpacity(0.25), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.withValues(alpha: 0.1),
+                  color: Colors.purple.withOpacity(0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -744,13 +744,13 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.green.withValues(alpha: 0.08), Colors.teal.withValues(alpha: 0.05)],
+                colors: [Colors.green.withOpacity(0.08), Colors.teal.withOpacity(0.05)],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.green.withValues(alpha: 0.25), width: 1.5),
+              border: Border.all(color: Colors.green.withOpacity(0.25), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.green.withValues(alpha: 0.1),
+                  color: Colors.green.withOpacity(0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -833,7 +833,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [TodoTheme.primaryPurple.withValues(alpha: 0.1), TodoTheme.lightPurple],
+          colors: [TodoTheme.primaryPurple.withOpacity(0.1), TodoTheme.lightPurple],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: TodoTheme.primaryPurple, width: 2),
@@ -862,13 +862,13 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.amber.withValues(alpha: 0.2), Colors.orange.withValues(alpha: 0.15)],
+                colors: [Colors.amber.withOpacity(0.2), Colors.orange.withOpacity(0.15)],
               ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.amber.shade700, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.amber.withValues(alpha: 0.3),
+                  color: Colors.amber.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -945,7 +945,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.2) : Colors.transparent,
+          color: selected ? color.withOpacity(0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected ? color : Colors.grey[300]!,
@@ -965,7 +965,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: selected ? TodoTheme.primaryPurple.withValues(alpha: 0.2) : Colors.transparent,
+          color: selected ? TodoTheme.primaryPurple.withOpacity(0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected ? TodoTheme.primaryPurple : Colors.grey[300]!,
@@ -984,7 +984,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.2) : Colors.grey[200],
+          color: selected ? color.withOpacity(0.2) : Colors.grey[200],
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? color : Colors.transparent,
@@ -1018,7 +1018,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? TodoTheme.primaryPurple.withValues(alpha: 0.2) : Colors.grey[200],
+          color: selected ? TodoTheme.primaryPurple.withOpacity(0.2) : Colors.grey[200],
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? TodoTheme.primaryPurple : Colors.transparent,
@@ -1049,7 +1049,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: color.withValues(alpha: 0.3),
+      selectedColor: color.withOpacity(0.3),
       checkmarkColor: color,
       labelStyle: TextStyle(
         color: selected ? color : Colors.grey[700],
@@ -1089,7 +1089,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: hasActiveFilter ? color.withValues(alpha: 0.15) : Colors.grey[200],
+          color: hasActiveFilter ? color.withOpacity(0.15) : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: hasActiveFilter ? color : Colors.grey[300]!,
@@ -1097,7 +1097,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           ),
           boxShadow: hasActiveFilter ? [
             BoxShadow(
-              color: color.withValues(alpha: 0.3),
+              color: color.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1149,7 +1149,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: isActive ? TodoTheme.primaryPurple.withValues(alpha: 0.15) : Colors.grey[200],
+          color: isActive ? TodoTheme.primaryPurple.withOpacity(0.15) : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isActive ? TodoTheme.primaryPurple : Colors.grey[300]!,
@@ -1157,7 +1157,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           ),
           boxShadow: isActive ? [
             BoxShadow(
-              color: TodoTheme.primaryPurple.withValues(alpha: 0.3),
+              color: TodoTheme.primaryPurple.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1212,7 +1212,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: hasSelection ? color.withValues(alpha: 0.15) : Colors.grey[100],
+          color: hasSelection ? color.withOpacity(0.15) : Colors.grey[100],
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: hasSelection ? color : Colors.grey[300]!,
@@ -1220,7 +1220,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           ),
           boxShadow: hasSelection ? [
             BoxShadow(
-              color: color.withValues(alpha: 0.25),
+              color: color.withOpacity(0.25),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -1268,7 +1268,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: isActive ? TodoTheme.primaryPurple.withValues(alpha: 0.15) : Colors.grey[100],
+          color: isActive ? TodoTheme.primaryPurple.withOpacity(0.15) : Colors.grey[100],
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isActive ? TodoTheme.primaryPurple : Colors.grey[300]!,
@@ -1276,7 +1276,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           ),
           boxShadow: isActive ? [
             BoxShadow(
-              color: TodoTheme.primaryPurple.withValues(alpha: 0.25),
+              color: TodoTheme.primaryPurple.withOpacity(0.25),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -1328,8 +1328,8 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           gradient: selected
               ? LinearGradient(
                   colors: [
-                    color.withValues(alpha: 0.25),
-                    color.withValues(alpha: 0.15),
+                    color.withOpacity(0.25),
+                    color.withOpacity(0.15),
                   ],
                 )
               : null,
@@ -1342,14 +1342,14 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.4),
+                    color: color.withOpacity(0.4),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -1401,8 +1401,8 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           gradient: isActive
               ? LinearGradient(
                   colors: [
-                    activeColor.withValues(alpha: 0.25),
-                    activeColor.withValues(alpha: 0.15),
+                    activeColor.withOpacity(0.25),
+                    activeColor.withOpacity(0.15),
                   ],
                 )
               : null,
@@ -1415,14 +1415,14 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: activeColor.withValues(alpha: 0.4),
+                    color: activeColor.withOpacity(0.4),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -1478,7 +1478,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: hasActiveFilter ? color.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.7),
+          color: hasActiveFilter ? color.withOpacity(0.15) : Colors.white.withOpacity(0.7),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: hasActiveFilter ? color : Colors.grey[300]!,
@@ -1486,7 +1486,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           ),
           boxShadow: hasActiveFilter ? [
             BoxShadow(
-              color: color.withValues(alpha: 0.3),
+              color: color.withOpacity(0.3),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -1538,7 +1538,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: isActive ? Colors.green.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.7),
+          color: isActive ? Colors.green.withOpacity(0.15) : Colors.white.withOpacity(0.7),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isActive ? Colors.green : Colors.grey[300]!,
@@ -1546,7 +1546,7 @@ class _FilterSortUIPreviewState extends State<FilterSortUIPreview> {
           ),
           boxShadow: isActive ? [
             BoxShadow(
-              color: Colors.green.withValues(alpha: 0.3),
+              color: Colors.green.withOpacity(0.3),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),

@@ -887,4 +887,9 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
         .where((e) => e.userId == userId && e.groupId == null)
         .toList();
   }
+
+  void invalidateCache() {
+    _invalidateBalanceCache();
+    _cacheInvalidationController.add(null);
+  }
 }

@@ -104,7 +104,7 @@ class _ShoppingQuickAddFormState extends State<ShoppingQuickAddForm> {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            disabledBackgroundColor: const Color(0xFF10B981).withValues(alpha: 0.5),
+            disabledBackgroundColor: const Color(0xFF10B981).withOpacity(0.5),
           ),
           child: _isSaving
               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

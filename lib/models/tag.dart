@@ -64,7 +64,7 @@ class Tag {
       color = null;
     } else {
       // Convert to hex without '#' and alpha channel using toARGB32
-      final argb = newColor.toARGB32();
+      final argb = newColor.value;
       color = argb.toRadixString(16).substring(2).toUpperCase();
     }
   }

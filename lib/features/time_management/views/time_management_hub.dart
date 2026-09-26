@@ -104,7 +104,7 @@ class _TimeManagementHubView extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.2), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
         child: Icon(icon, color: color),
       ),
       title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -281,10 +281,10 @@ class _TimeManagementHubView extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.1),
+              color: color.withOpacity(0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -299,7 +299,7 @@ class _TimeManagementHubView extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.2),
+                    color: color.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(

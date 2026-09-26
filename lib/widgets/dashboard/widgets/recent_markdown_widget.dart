@@ -51,7 +51,7 @@ class _RecentMarkdownWidgetState extends State<RecentMarkdownWidget> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                    color: const Color(0xFF6366F1).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.description, color: Color(0xFF6366F1), size: 16),
@@ -86,7 +86,7 @@ class _RecentMarkdownWidgetState extends State<RecentMarkdownWidget> {
                   : ListView.separated(
                       padding: EdgeInsets.zero,
                       itemCount: _recentFiles.length,
-                      separatorBuilder: (context, index) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 8),
+                      separatorBuilder: (context, index) => Divider(color: Colors.white.withOpacity(0.05), height: 8),
                       itemBuilder: (context, index) {
                         final file = _recentFiles[index];
                         return InkWell(

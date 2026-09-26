@@ -200,7 +200,7 @@ class _CreateTripViewState extends State<CreateTripView> {
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFF6366F1).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
                     child: Row(
                       children: [
                         Icon(_createGhostPantry ? Icons.check_circle : Icons.cancel, color: const Color(0xFF6366F1)),

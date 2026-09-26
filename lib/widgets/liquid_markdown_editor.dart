@@ -317,9 +317,9 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C3E),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.5)),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF6366F1).withValues(alpha: 0.1), blurRadius: 30, spreadRadius: -10),
+          BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.1), blurRadius: 30, spreadRadius: -10),
         ]
       ),
       child: ConstrainedBox(
@@ -372,10 +372,10 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
       ),
     );
 
-    Color cardColor = const Color(0xFF94A3B8).withValues(alpha: 0.10); 
+    Color cardColor = const Color(0xFF94A3B8).withOpacity(0.10); 
     if (widget.selectionMode != null && widget.isSelected) {
-      if (widget.selectionMode == 'move') cardColor = const Color(0xFF3B82F6).withValues(alpha: 0.4);
-      if (widget.selectionMode == 'delete') cardColor = const Color(0xFFEF4444).withValues(alpha: 0.4);
+      if (widget.selectionMode == 'move') cardColor = const Color(0xFF3B82F6).withOpacity(0.4);
+      if (widget.selectionMode == 'delete') cardColor = const Color(0xFFEF4444).withOpacity(0.4);
     }
 
     final Widget readerContent = GestureDetector(
@@ -391,7 +391,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: cardColor, 
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,9 +402,9 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
                     Expanded(
                       child: Text(_titleController.text.isNotEmpty ? _titleController.text : widget.initialTitle, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
-                    Icon(Icons.arrow_back_ios, color: Colors.white.withValues(alpha: 0.1), size: 16),
+                    Icon(Icons.arrow_back_ios, color: Colors.white.withOpacity(0.1), size: 16),
                     const SizedBox(width: 6),
-                    Icon(Icons.edit_note, color: Colors.white.withValues(alpha: 0.1), size: 16),
+                    Icon(Icons.edit_note, color: Colors.white.withOpacity(0.1), size: 16),
                   ],
                 ),
                 if (widget.limit > 0 || _isEditing) ...[
@@ -430,7 +430,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
                           blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
                           blockquoteDecoration: BoxDecoration(
                             border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            color: const Color(0xFF6366F1).withOpacity(0.1),
                           ),
                           code: TextStyle(color: const Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace', fontSize: widget.markdownFontSize - 1),
                           codeblockDecoration: BoxDecoration(

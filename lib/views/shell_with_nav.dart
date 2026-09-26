@@ -247,7 +247,7 @@ class ShellWithNavState extends State<ShellWithNav> {
           child: const Icon(Icons.add, size: 32, color: Colors.white),
         )
         .animate()
-        .shimmer(duration: 1500.ms, color: Colors.white.withValues(alpha: 0.8), curve: Curves.easeOutQuad)
+        .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.8), curve: Curves.easeOutQuad)
         .animate(onPlay: (controller) => controller.repeat(reverse: true))
         .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.06, 1.06), duration: 2.seconds, curve: Curves.easeInOutSine),
       ),

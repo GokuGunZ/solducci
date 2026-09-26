@@ -4,6 +4,11 @@ import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/user_profile.dart';
 import 'package:solducci/models/group.dart';
+import 'package:solducci/models/wallet.dart';
+import 'package:solducci/models/wallet_type.dart';
+import 'package:solducci/models/income.dart';
+import 'package:solducci/models/income_category.dart';
+import 'package:solducci/models/wallet_transfer.dart';
 import 'package:solducci/core/cache/persistent/persistent_cache_entry.dart';
 
 /// Register all Hive type adapters
@@ -20,6 +25,11 @@ import 'package:solducci/core/cache/persistent/persistent_cache_entry.dart';
 /// - ExpenseGroup (typeId: 6)
 /// - GroupMember (typeId: 7)
 /// - GroupRole enum (typeId: 8)
+/// - Wallet (typeId: 9)
+/// - WalletType enum (typeId: 10)
+/// - Income (typeId: 11)
+/// - IncomeCategory enum (typeId: 12)
+/// - WalletTransfer (typeId: 13)
 Future<void> registerHiveAdapters() async {
   // Initialize Hive
   await Hive.initFlutter();
@@ -59,6 +69,26 @@ Future<void> registerHiveAdapters() async {
 
   if (!Hive.isAdapterRegistered(8)) {
     Hive.registerAdapter(GroupRoleAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(9)) {
+    Hive.registerAdapter(WalletAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(10)) {
+    Hive.registerAdapter(WalletTypeAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(11)) {
+    Hive.registerAdapter(IncomeAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(12)) {
+    Hive.registerAdapter(IncomeCategoryAdapter());
+  }
+
+  if (!Hive.isAdapterRegistered(13)) {
+    Hive.registerAdapter(WalletTransferAdapter());
   }
 
   print('✅ Hive adapters registered successfully');

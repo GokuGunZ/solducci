@@ -7,6 +7,7 @@ import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
+import 'package:solducci/features/csv_importer/views/merchant_rules_manager_view.dart';
 
 /// Profile page with user info, settings, and links to additional features
 class ProfilePage extends StatefulWidget {
@@ -243,7 +244,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: Colors.blue.withValues(alpha: 0.2),
+                            backgroundColor: Colors.blue.withOpacity(0.2),
                             child: const Icon(Icons.group, color: Colors.blue),
                           ),
                           title: Text(group.name),
@@ -324,6 +325,22 @@ class _ProfilePageState extends State<ProfilePage> {
                     },
                   ),
 
+                  _buildListTile(
+                    context: context,
+                    icon: Icons.auto_fix_high_rounded,
+                    title: 'Regole Esercenti Bancari',
+                    subtitle: 'Personalizza alias e categorie automatiche',
+                    color: const Color(0xFF10B981),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MerchantRulesManagerView(),
+                        ),
+                      );
+                    },
+                  ),
+
                   const SizedBox(height: 24),
 
                   // Info Section
@@ -396,7 +413,7 @@ class _ProfilePageState extends State<ProfilePage> {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.2),
+          backgroundColor: color.withOpacity(0.2),
           child: Icon(icon, color: color),
         ),
         title: Row(
