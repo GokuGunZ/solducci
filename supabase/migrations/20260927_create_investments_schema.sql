@@ -94,13 +94,13 @@ DROP POLICY IF EXISTS "Users can view own or group portfolios" ON public.investm
 CREATE POLICY "Users can view own or group portfolios"
     ON public.investment_portfolios FOR SELECT
     USING (
-        auth.uid() = user_id
+        auth.uid()::text = user_id::text
         OR (
             group_id IS NOT NULL 
             AND EXISTS (
                 SELECT 1 FROM public.group_members 
                 WHERE group_members.group_id = investment_portfolios.group_id 
-                AND group_members.user_id = auth.uid()
+                AND group_members.user_id::text = auth.uid()::text
             )
         )
     );
@@ -108,19 +108,19 @@ CREATE POLICY "Users can view own or group portfolios"
 DROP POLICY IF EXISTS "Users can insert own or group portfolios" ON public.investment_portfolios;
 CREATE POLICY "Users can insert own or group portfolios"
     ON public.investment_portfolios FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (auth.uid()::text = user_id::text);
 
 DROP POLICY IF EXISTS "Users can update own or group portfolios" ON public.investment_portfolios;
 CREATE POLICY "Users can update own or group portfolios"
     ON public.investment_portfolios FOR UPDATE
     USING (
-        auth.uid() = user_id
+        auth.uid()::text = user_id::text
         OR (
             group_id IS NOT NULL 
             AND EXISTS (
                 SELECT 1 FROM public.group_members 
                 WHERE group_members.group_id = investment_portfolios.group_id 
-                AND group_members.user_id = auth.uid()
+                AND group_members.user_id::text = auth.uid()::text
             )
         )
     );
@@ -128,7 +128,7 @@ CREATE POLICY "Users can update own or group portfolios"
 DROP POLICY IF EXISTS "Users can delete own portfolios" ON public.investment_portfolios;
 CREATE POLICY "Users can delete own portfolios"
     ON public.investment_portfolios FOR DELETE
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id::text);
 
 -- Policies per investment_assets
 DROP POLICY IF EXISTS "Users can view assets of accessible portfolios" ON public.investment_assets;
@@ -139,13 +139,13 @@ CREATE POLICY "Users can view assets of accessible portfolios"
             SELECT 1 FROM public.investment_portfolios p
             WHERE p.id = investment_assets.portfolio_id
             AND (
-                p.user_id = auth.uid()
+                p.user_id::text = auth.uid()::text
                 OR (
                     p.group_id IS NOT NULL 
                     AND EXISTS (
                         SELECT 1 FROM public.group_members gm
                         WHERE gm.group_id = p.group_id 
-                        AND gm.user_id = auth.uid()
+                        AND gm.user_id::text = auth.uid()::text
                     )
                 )
             )
@@ -160,13 +160,13 @@ CREATE POLICY "Users can manage assets of accessible portfolios"
             SELECT 1 FROM public.investment_portfolios p
             WHERE p.id = investment_assets.portfolio_id
             AND (
-                p.user_id = auth.uid()
+                p.user_id::text = auth.uid()::text
                 OR (
                     p.group_id IS NOT NULL 
                     AND EXISTS (
                         SELECT 1 FROM public.group_members gm
                         WHERE gm.group_id = p.group_id 
-                        AND gm.user_id = auth.uid()
+                        AND gm.user_id::text = auth.uid()::text
                     )
                 )
             )
@@ -183,13 +183,13 @@ CREATE POLICY "Users can view price history of accessible assets"
             JOIN public.investment_portfolios p ON p.id = a.portfolio_id
             WHERE a.id = asset_price_history.asset_id
             AND (
-                p.user_id = auth.uid()
+                p.user_id::text = auth.uid()::text
                 OR (
                     p.group_id IS NOT NULL 
                     AND EXISTS (
                         SELECT 1 FROM public.group_members gm
                         WHERE gm.group_id = p.group_id 
-                        AND gm.user_id = auth.uid()
+                        AND gm.user_id::text = auth.uid()::text
                     )
                 )
             )
@@ -205,13 +205,13 @@ CREATE POLICY "Users can manage allocations of their expenses"
             SELECT 1 FROM public.expenses e
             WHERE e.id = expense_asset_allocations.expense_id
             AND (
-                e.user_id = auth.uid()
+                e.user_id::text = auth.uid()::text
                 OR (
                     e.group_id IS NOT NULL 
                     AND EXISTS (
                         SELECT 1 FROM public.group_members gm
                         WHERE gm.group_id = e.group_id 
-                        AND gm.user_id = auth.uid()
+                        AND gm.user_id::text = auth.uid()::text
                     )
                 )
             )
