@@ -13,6 +13,7 @@ class IncomeService {
   Stream<List<Income>> get stream => _incomesStreamController.stream;
   List<Income> _cachedIncomes = [];
   List<Income> get currentIncomes => _cachedIncomes;
+  List<Income> get cachedIncomes => _cachedIncomes;
 
   /// Recupera tutte le entrate dell'utente autenticato
   Future<List<Income>> fetchIncomes() async {

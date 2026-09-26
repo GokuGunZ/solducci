@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/features/investments/views/asset_detail_view.dart';
 import 'package:solducci/models/asset_class.dart';
+import 'package:solducci/service/income_service.dart';
 import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/widgets/neon_wave_graph.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 
 class InvestmentsHubView extends StatefulWidget {
@@ -16,6 +18,7 @@ class InvestmentsHubView extends StatefulWidget {
 class _InvestmentsHubViewState extends State<InvestmentsHubView> {
   final _portfolioService = InvestmentPortfolioService();
   final _assetService = InvestmentAssetService();
+  Map<AssetClass, double> _targetAllocation = {};
   bool _isLoading = true;
 
   @override
@@ -27,6 +30,7 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
   Future<void> _loadData() async {
     await _portfolioService.fetchPortfolios();
     await _assetService.fetchAllAssets();
+    _targetAllocation = await _portfolioService.getTargetAllocation();
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -196,6 +200,188 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
     );
   }
 
+  void _showTargetAllocationSheet(BuildContext context) {
+    final tempTargets = Map<AssetClass, double>.from(_targetAllocation);
+    for (final ac in AssetClass.values) {
+      tempTargets.putIfAbsent(ac, () => 0.0);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final totalTarget = tempTargets.values.fold<double>(0.0, (s, v) => s + v);
+          final isValid = (totalTarget - 100.0).abs() <= 1.0;
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: Color(0xFF18181B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Target Asset Allocation',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isValid ? AppTheme.success.withOpacity(0.15) : AppTheme.error.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: isValid ? AppTheme.success.withOpacity(0.4) : AppTheme.error.withOpacity(0.4)),
+                        ),
+                        child: Text(
+                          'Totale: ${totalTarget.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            color: isValid ? AppTheme.success : AppTheme.error,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Imposta le percentuali obiettivo del tuo portafoglio. Solducci ti suggerirà come riequilibrare gli asset nei prossimi acquisti o PAC.',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Presets veloci
+                  Row(
+                    children: [
+                      ActionChip(
+                        label: const Text('Bilanciato (60/20/10/10)', style: TextStyle(fontSize: 11)),
+                        backgroundColor: const Color(0xFF27272A),
+                        side: BorderSide.none,
+                        onPressed: () {
+                          setSheetState(() {
+                            for (final ac in AssetClass.values) {
+                              tempTargets[ac] = 0.0;
+                            }
+                            tempTargets[AssetClass.etf] = 60.0;
+                            tempTargets[AssetClass.bond] = 20.0;
+                            tempTargets[AssetClass.stock] = 10.0;
+                            tempTargets[AssetClass.crypto] = 10.0;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ActionChip(
+                        label: const Text('100% ETF', style: TextStyle(fontSize: 11)),
+                        backgroundColor: const Color(0xFF27272A),
+                        side: BorderSide.none,
+                        onPressed: () {
+                          setSheetState(() {
+                            for (final ac in AssetClass.values) {
+                              tempTargets[ac] = 0.0;
+                            }
+                            tempTargets[AssetClass.etf] = 100.0;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Sliders per ogni classe
+                  ...AssetClass.values.map((ac) {
+                    final val = tempTargets[ac] ?? 0.0;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(ac.icon, size: 16, color: ac.color),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 100,
+                            child: Text(
+                              ac.label,
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            child: Slider(
+                              value: val.clamp(0.0, 100.0),
+                              min: 0,
+                              max: 100,
+                              divisions: 20,
+                              activeColor: ac.color,
+                              inactiveColor: Colors.white12,
+                              onChanged: (newVal) {
+                                setSheetState(() {
+                                  tempTargets[ac] = newVal;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 44,
+                            child: Text(
+                              '${val.toStringAsFixed(0)}%',
+                              textAlign: TextAlign.end,
+                              style: TextStyle(color: ac.color, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _portfolioService.saveTargetAllocation(tempTargets);
+                        setState(() {
+                          _targetAllocation = tempTargets;
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Salva Obiettivi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -209,6 +395,15 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
         final isProfitable = pnl >= 0;
         final pnlColor = isProfitable ? AppTheme.success : AppTheme.error;
 
+        // Storico e dividendi
+        final wavePoints = _portfolioService.getHistoricalPerformancePoints();
+        final totalDividends = IncomeService().cachedIncomes
+            .where((i) => i.portfolioId != null || i.assetId != null)
+            .fold<double>(0.0, (sum, i) => sum + i.amount);
+        final totalReturn = pnl + totalDividends;
+        final totalReturnRoi = investedCapital > 0 ? (totalReturn / investedCapital) * 100 : 0.0;
+        final rebalanceMsg = _portfolioService.getRebalancingSuggestion(_targetAllocation);
+
         // Ripartizione per Asset Class per l'Allocation bar
         final allAssets = _assetService.currentAssets;
         final allocationMap = <AssetClass, double>{};
@@ -221,6 +416,11 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
           appBar: SolducciAppBar(
             titleText: 'Investimenti & Asset',
             actions: [
+              IconButton(
+                icon: const Icon(Icons.tune_rounded, color: Color(0xFF818CF8)),
+                tooltip: 'Target Allocation',
+                onPressed: () => _showTargetAllocationSheet(context),
+              ),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF818CF8)),
                 tooltip: 'Nuovo Portafoglio',
@@ -239,84 +439,130 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 1. Hero Card Patrimonio Investito
+                        // 1. Hero Card Patrimonio Investito con NeonWaveGraph
                         Container(
-                          padding: const EdgeInsets.all(20),
+                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             color: const Color(0xFF18181B),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(color: Colors.white12),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Stack(
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'CONTROVALORE TOTALE INVESTITO',
-                                    style: TextStyle(
-                                      color: Colors.white38,
-                                      fontSize: 11,
-                                      letterSpacing: 1.5,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              Positioned.fill(
+                                child: Opacity(
+                                  opacity: 0.5,
+                                  child: NeonWaveGraph(
+                                    color: pnlColor,
+                                    dataPoints: wavePoints,
+                                    height: 220,
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: pnlColor.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: pnlColor.withOpacity(0.3)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Icon(isProfitable ? Icons.trending_up_rounded : Icons.trending_down_rounded, size: 14, color: pnlColor),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${isProfitable ? '+' : ''}${roi.toStringAsFixed(1)}%',
-                                          style: TextStyle(color: pnlColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                        const Text(
+                                          'CONTROVALORE TOTALE INVESTITO',
+                                          style: TextStyle(
+                                            color: Colors.white38,
+                                            fontSize: 11,
+                                            letterSpacing: 1.5,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: pnlColor.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: pnlColor.withOpacity(0.4)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(isProfitable ? Icons.trending_up_rounded : Icons.trending_down_rounded, size: 14, color: pnlColor),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${isProfitable ? '+' : ''}${roi.toStringAsFixed(1)}%',
+                                                style: TextStyle(color: pnlColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '€ ${totalValue.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('Capitale Versato', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                                      const SizedBox(height: 2),
-                                      Text('€ ${investedCapital.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                  const SizedBox(width: 24),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('Plusvalenza Netta', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${isProfitable ? '+' : ''}€ ${pnl.toStringAsFixed(2)}',
-                                        style: TextStyle(color: pnlColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '€ ${totalValue.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Capitale Versato', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                            const SizedBox(height: 2),
+                                            Text('€ ${investedCapital.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 24),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Plusvalenza Netta', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${isProfitable ? '+' : ''}€ ${pnl.toStringAsFixed(2)}',
+                                              style: TextStyle(color: pnlColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    if (totalDividends > 0) ...[
+                                      const SizedBox(height: 12),
+                                      const Divider(color: Colors.white10, height: 1),
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Cedole / Dividendi', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                              const SizedBox(height: 2),
+                                              Text('+€ ${totalDividends.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.success, fontSize: 13, fontWeight: FontWeight.bold)),
+                                            ],
+                                          ),
+                                          const SizedBox(width: 24),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Total Return', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '${totalReturn >= 0 ? '+' : ''}€ ${totalReturn.toStringAsFixed(2)} (${totalReturnRoi >= 0 ? '+' : ''}${totalReturnRoi.toStringAsFixed(1)}%)',
+                                                style: TextStyle(color: totalReturn >= 0 ? AppTheme.success : AppTheme.error, fontSize: 13, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ],
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -335,9 +581,28 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'ASSET ALLOCATION',
-                                  style: TextStyle(color: Colors.white38, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.bold),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'ASSET ALLOCATION',
+                                      style: TextStyle(color: Colors.white38, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.bold),
+                                    ),
+                                    InkWell(
+                                      onTap: () => _showTargetAllocationSheet(context),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.tune_rounded, size: 13, color: Color(0xFF818CF8)),
+                                            SizedBox(width: 4),
+                                            Text('Obiettivi Target', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
 
@@ -360,24 +625,84 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
 
                                 const SizedBox(height: 12),
 
-                                // Legenda
+                                // Legenda con confronto Target
                                 Wrap(
                                   spacing: 12,
                                   runSpacing: 8,
                                   children: allocationMap.entries.map((entry) {
                                     final pct = (entry.value / totalValue) * 100;
+                                    final targetPct = _targetAllocation[entry.key];
+                                    final targetStr = targetPct != null && targetPct > 0 ? ' (tgt ${targetPct.toStringAsFixed(0)}%)' : '';
                                     return Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Container(width: 8, height: 8, decoration: BoxDecoration(color: entry.key.color, shape: BoxShape.circle)),
                                         const SizedBox(width: 6),
                                         Text(
-                                          '${entry.key.label} (${pct.toStringAsFixed(0)}%)',
+                                          '${entry.key.label} ${pct.toStringAsFixed(0)}%$targetStr',
                                           style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
                                         ),
                                       ],
                                     );
                                   }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Rebalancing Guidance Banner (se presente)
+                        if (rebalanceMsg != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFF6366F1).withOpacity(0.15),
+                                  const Color(0xFF10B981).withOpacity(0.08),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.auto_graph_rounded, color: Color(0xFF818CF8), size: 16),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'CONSIGLIO RIBILANCIAMENTO',
+                                        style: TextStyle(color: Color(0xFF818CF8), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        rebalanceMsg,
+                                        style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.3),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                TextButton(
+                                  onPressed: () => _showTargetAllocationSheet(context),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text('Target', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),

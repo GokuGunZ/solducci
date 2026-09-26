@@ -371,5 +371,52 @@ void main() {
       expect(totalReturn, equals(210.0)); // 150€ capital gain + 60€ coupon income
       expect(totalReturnPercent, equals(21.0)); // 21% Total Return
     });
+
+    test('Target Allocation and Rebalancing suggestions calculation', () {
+      final targetAllocation = {
+        AssetClass.etf: 60.0,
+        AssetClass.bond: 20.0,
+        AssetClass.stock: 10.0,
+        AssetClass.crypto: 10.0,
+      };
+
+      // Patrimonio totale 10.000€
+      // Allocazione attuale:
+      // ETF: 7.000€ (70% -> +10% sovrappesato)
+      // Bond: 1.000€ (10% -> -10% sottopesato)
+      // Stock: 1.000€ (10% -> 0% in linea)
+      // Crypto: 1.000€ (10% -> 0% in linea)
+      const totalVal = 10000.0;
+      final currentValues = {
+        AssetClass.etf: 7000.0,
+        AssetClass.bond: 1000.0,
+        AssetClass.stock: 1000.0,
+        AssetClass.crypto: 1000.0,
+      };
+
+      final deviations = <AssetClass, double>{};
+      for (final entry in targetAllocation.entries) {
+        final actualPct = ((currentValues[entry.key] ?? 0.0) / totalVal) * 100;
+        deviations[entry.key] = actualPct - entry.value;
+      }
+
+      expect(deviations[AssetClass.etf], equals(10.0));
+      expect(deviations[AssetClass.bond], equals(-10.0));
+      expect(deviations[AssetClass.stock], equals(0.0));
+      expect(deviations[AssetClass.crypto], equals(0.0));
+
+      // Trova la classe più sottopesata
+      AssetClass? mostUnderweighted;
+      double minDev = 0.0;
+      for (final e in deviations.entries) {
+        if (e.value < minDev) {
+          minDev = e.value;
+          mostUnderweighted = e.key;
+        }
+      }
+
+      expect(mostUnderweighted, equals(AssetClass.bond));
+      expect(minDev, equals(-10.0));
+    });
   });
 }

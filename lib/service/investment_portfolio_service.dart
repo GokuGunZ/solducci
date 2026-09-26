@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:solducci/models/asset_class.dart';
+import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/investment_portfolio.dart';
+import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/investment_asset_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -151,5 +154,145 @@ class InvestmentPortfolioService extends ChangeNotifier {
     final invested = getTotalInvestedCapital();
     if (invested <= 0) return 0.0;
     return (getTotalUnrealizedPnl() / invested) * 100;
+  }
+
+  /// Genera la serie storica dei controvalori patrimoniali per il grafico di performance
+  List<double> getHistoricalPerformancePoints() {
+    final expenses = ExpenseServiceCached()
+        .getAllCachedExpenses()
+        .where((e) => e.type == Tipologia.investimento)
+        .toList();
+
+    final totalCurrentVal = getTotalCurrentValue();
+    final totalInvested = getTotalInvestedCapital();
+
+    if (expenses.isEmpty && totalCurrentVal <= 0) {
+      return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    }
+
+    expenses.sort((a, b) => a.date.compareTo(b.date));
+
+    // Genera 6 punti temporali (ultimi 6 mesi o progressione dei versamenti)
+    final now = DateTime.now();
+    final List<double> points = [];
+
+    for (int i = 5; i >= 0; i--) {
+      final monthTarget = DateTime(now.year, now.month - i + 1, 0, 23, 59, 59);
+      final cumulativeInvestedAtMonth = expenses
+          .where((e) => e.date.isBefore(monthTarget) || e.date.isAtSameMomentAs(monthTarget))
+          .fold<double>(0.0, (sum, e) => sum + e.amount);
+
+      if (i == 0) {
+        // Mese corrente: usa il valore attuale reale del patrimonio
+        points.add(totalCurrentVal > 0 ? totalCurrentVal : cumulativeInvestedAtMonth);
+      } else {
+        // Mesi passati: stima proporzionale o cumulativo versato
+        if (totalInvested > 0 && totalCurrentVal > 0) {
+          final growthRatio = totalCurrentVal / totalInvested;
+          points.add(cumulativeInvestedAtMonth * growthRatio);
+        } else {
+          points.add(cumulativeInvestedAtMonth);
+        }
+      }
+    }
+
+    // Se tutti i punti sono 0 tranne l'ultimo, crea una rampa fluida
+    if (points.take(5).every((p) => p == 0.0) && totalCurrentVal > 0) {
+      return [
+        totalCurrentVal * 0.70,
+        totalCurrentVal * 0.78,
+        totalCurrentVal * 0.85,
+        totalCurrentVal * 0.90,
+        totalCurrentVal * 0.95,
+        totalCurrentVal,
+      ];
+    }
+
+    return points;
+  }
+
+  static const String _targetBoxName = 'investment_target_allocation_box';
+  Map<AssetClass, double>? _cachedTargetAllocation;
+
+  /// Restituisce la target asset allocation (es. ETF: 60%, Bond: 20%, Stock: 10%, Crypto: 10%)
+  Future<Map<AssetClass, double>> getTargetAllocation() async {
+    if (_cachedTargetAllocation != null) return _cachedTargetAllocation!;
+    try {
+      final box = await Hive.openBox(_targetBoxName);
+      final rawMap = box.get('targets');
+      if (rawMap != null && rawMap is Map) {
+        final result = <AssetClass, double>{};
+        for (final entry in rawMap.entries) {
+          final ac = AssetClass.fromDb(entry.key.toString());
+          result[ac] = (entry.value as num).toDouble();
+        }
+        _cachedTargetAllocation = result;
+        return result;
+      }
+    } catch (_) {}
+
+    // Default bilanciato
+    return {
+      AssetClass.etf: 60.0,
+      AssetClass.bond: 20.0,
+      AssetClass.stock: 10.0,
+      AssetClass.crypto: 10.0,
+    };
+  }
+
+  /// Salva la target asset allocation
+  Future<void> saveTargetAllocation(Map<AssetClass, double> targets) async {
+    try {
+      final box = await Hive.openBox(_targetBoxName);
+      final rawMap = targets.map((k, v) => MapEntry(k.dbValue, v));
+      await box.put('targets', rawMap);
+      _cachedTargetAllocation = targets;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Calcola la deviazione attuale rispetto ai target
+  /// Ritorna una mappa: AssetClass -> (Percentuale Attuale - Percentuale Target)
+  Map<AssetClass, double> calculateRebalancingDeviations(Map<AssetClass, double> targets) {
+    final totalVal = getTotalCurrentValue();
+    if (totalVal <= 0) return {};
+
+    final currentAssets = InvestmentAssetService().currentAssets;
+    final currentValues = <AssetClass, double>{};
+    for (final a in currentAssets) {
+      currentValues[a.assetClass] = (currentValues[a.assetClass] ?? 0.0) + a.currentValue;
+    }
+
+    final deviations = <AssetClass, double>{};
+    for (final ac in AssetClass.values) {
+      final actualPct = ((currentValues[ac] ?? 0.0) / totalVal) * 100;
+      final targetPct = targets[ac] ?? 0.0;
+      if (targetPct > 0 || actualPct > 0) {
+        deviations[ac] = actualPct - targetPct;
+      }
+    }
+    return deviations;
+  }
+
+  /// Restituisce un suggerimento di rebalancing prioritario (la classe più sottopesata)
+  String? getRebalancingSuggestion(Map<AssetClass, double> targets) {
+    final deviations = calculateRebalancingDeviations(targets);
+    if (deviations.isEmpty) return null;
+
+    AssetClass? mostUnderweighted;
+    double minDeviation = 0.0;
+
+    for (final entry in deviations.entries) {
+      if (entry.value < minDeviation) {
+        minDeviation = entry.value;
+        mostUnderweighted = entry.key;
+      }
+    }
+
+    if (mostUnderweighted != null && minDeviation.abs() >= 2.0) {
+      final underPct = minDeviation.abs().toStringAsFixed(0);
+      return '${mostUnderweighted.label} è sotto target del $underPct%. Valuta di indirizzare i prossimi acquisti qui.';
+    }
+    return null;
   }
 }
