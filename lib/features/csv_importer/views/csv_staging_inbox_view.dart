@@ -6,13 +6,19 @@ import 'package:solducci/features/csv_importer/services/csv_parser_service.dart'
 import 'package:solducci/features/csv_importer/services/deduplication_service.dart';
 import 'package:solducci/features/csv_importer/services/merchant_rule_service.dart';
 import 'package:solducci/features/csv_importer/views/widgets/bulk_rule_sheet.dart';
+import 'package:solducci/features/csv_importer/views/widgets/context_picker_sheet.dart';
 import 'package:solducci/features/csv_importer/views/widgets/staging_card.dart';
 import 'package:solducci/features/csv_importer/views/widgets/staging_summary_bar.dart';
+import 'package:solducci/features/csv_importer/views/widgets/volume_split_sheet.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/group.dart';
+import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/wallet.dart';
+import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum InboxFilter { all, toReview, ready, duplicates }
 
@@ -35,6 +41,8 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   bool _isCommitting = false;
   List<Wallet> _wallets = [];
   String? _selectedWalletId;
+  List<ExpenseGroup> _groups = [];
+  String _currentUserId = '';
 
   @override
   void initState() {
@@ -42,6 +50,18 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     _transactions = widget.parseResult.transactions;
     _runEnrichmentAndDeduplication();
     _loadWallets();
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    final currentId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    final groups = await GroupServiceCached().getUserGroups();
+    if (mounted) {
+      setState(() {
+        _groups = groups;
+        _currentUserId = currentId;
+      });
+    }
   }
 
   Future<void> _loadWallets() async {
@@ -119,6 +139,90 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     });
 
     _checkForSimilarTransactions(tx, proposedName: newName);
+  }
+
+  // --- Gestione Contesto (Personale vs Gruppo) & Volume Split ---
+  void _openContextPicker(StagingTransaction tx) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => ContextPickerSheet(
+        groups: _groups,
+        currentGroupId: tx.groupId,
+        count: 1,
+        onContextSelected: (newGroupId) {
+          setState(() {
+            tx.groupId = newGroupId;
+            tx.splitType = SplitType.equal;
+            tx.customSplitData = null;
+          });
+        },
+      ),
+    );
+  }
+
+  Future<void> _openVolumeSplit(StagingTransaction tx) async {
+    if (tx.groupId == null) return;
+    final group = _groups.where((g) => g.id == tx.groupId).firstOrNull;
+    if (group == null) return;
+
+    // Carica membri aggiornati
+    final members = await GroupServiceCached().getGroupMembers(group.id);
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => VolumeSplitSheet(
+        transaction: tx,
+        group: group,
+        members: members,
+        currentUserId: _currentUserId,
+        onSplitConfirmed: (splitType, splitData) {
+          setState(() {
+            tx.splitType = splitType;
+            tx.customSplitData = splitData;
+          });
+        },
+      ),
+    );
+  }
+
+  void _openBatchContextPicker() {
+    final selected = _transactions.where((t) => t.isSelected).toList();
+    if (selected.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => ContextPickerSheet(
+        groups: _groups,
+        currentGroupId: null,
+        count: selected.length,
+        onContextSelected: (newGroupId) {
+          setState(() {
+            for (final tx in selected) {
+              tx.groupId = newGroupId;
+              tx.splitType = SplitType.equal;
+              tx.customSplitData = null;
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                newGroupId == null
+                    ? 'Impostato contesto Personale per ${selected.length} spese'
+                    : 'Impostato gruppo per ${selected.length} spese',
+              ),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _checkForSimilarTransactions(
@@ -341,10 +445,13 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                             return StagingCard(
                               key: ValueKey(tx.id),
                               transaction: tx,
+                              availableGroups: _groups,
                               onToggleSelection: (val) => setState(() => tx.isSelected = val),
                               onCategoryChanged: (cat) => _onCategoryChanged(tx, cat),
                               onNameEdited: (name) => _onNameEdited(tx, name),
                               onAlignWithExisting: () => _alignFuzzyMatch(tx),
+                              onOpenContextPicker: () => _openContextPicker(tx),
+                              onOpenVolumeSplit: tx.groupId != null ? () => _openVolumeSplit(tx) : null,
                             );
                           },
                         ),
@@ -356,6 +463,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                   selectedTotal: _selectedTotal,
                   isLoading: _isCommitting,
                   onConfirm: _commitImport,
+                  onBatchContext: _selectedCount > 0 ? _openBatchContextPicker : null,
                 ),
               ],
             ),

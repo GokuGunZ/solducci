@@ -6,6 +6,7 @@ class StagingSummaryBar extends StatelessWidget {
   final double selectedTotal;
   final bool isLoading;
   final VoidCallback onConfirm;
+  final VoidCallback? onBatchContext;
 
   const StagingSummaryBar({
     super.key,
@@ -13,6 +14,7 @@ class StagingSummaryBar extends StatelessWidget {
     required this.selectedTotal,
     required this.isLoading,
     required this.onConfirm,
+    this.onBatchContext,
   });
 
   @override
@@ -60,7 +62,22 @@ class StagingSummaryBar extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
+
+            // Pulsante rapido Assegna Contesto (se ci sono spese selezionate)
+            if (onBatchContext != null && selectedCount > 0) ...[
+              IconButton(
+                onPressed: onBatchContext,
+                tooltip: 'Assegna Contesto ($selectedCount selezionate)',
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFF27272A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.all(12),
+                ),
+                icon: const Icon(Icons.group_work_rounded, color: Color(0xFF818CF8), size: 22),
+              ),
+              const SizedBox(width: 8),
+            ],
 
             // Pulsante Importa a destra
             SizedBox(

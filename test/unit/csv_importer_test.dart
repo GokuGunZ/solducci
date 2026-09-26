@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
-import 'package:solducci/features/csv_importer/models/merchant_rule.dart';
 import 'package:solducci/features/csv_importer/services/csv_parser_service.dart';
 import 'package:solducci/features/csv_importer/services/merchant_rule_service.dart';
 import 'package:solducci/models/expense.dart';

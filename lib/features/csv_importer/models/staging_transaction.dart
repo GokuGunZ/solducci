@@ -1,5 +1,6 @@
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/split_type.dart';
 
 enum DuplicateStatus {
   none,       // Nessuna corrispondenza: nuova spesa
@@ -18,6 +19,11 @@ class StagingTransaction {
   Tipologia category;
   bool isSelected;
 
+  // Contesto di spesa (Personale vs Gruppo)
+  String? groupId; // null = Personale (default)
+  SplitType splitType; // default SplitType.equal se groupId != null
+  Map<String, double>? customSplitData; // Se personalizzato tramite Volume Slider
+
   DuplicateStatus duplicateStatus;
   Expense? matchedExistingExpense;
   double? amountDifference; // Per fuzzy match (+-0.09 €)
@@ -31,17 +37,27 @@ class StagingTransaction {
     required this.cleanDescription,
     required this.category,
     this.isSelected = true,
+    this.groupId,
+    this.splitType = SplitType.equal,
+    this.customSplitData,
     this.duplicateStatus = DuplicateStatus.none,
     this.matchedExistingExpense,
     this.amountDifference,
   });
 
   bool get isDuplicate => duplicateStatus != DuplicateStatus.none;
+  bool get isGroup => groupId != null;
+  bool get isPersonal => groupId == null;
 
   StagingTransaction copyWith({
     String? cleanDescription,
     Tipologia? category,
     bool? isSelected,
+    String? groupId,
+    bool clearGroupId = false,
+    SplitType? splitType,
+    Map<String, double>? customSplitData,
+    bool clearCustomSplitData = false,
     DuplicateStatus? duplicateStatus,
     Expense? matchedExistingExpense,
     double? amountDifference,
@@ -55,9 +71,13 @@ class StagingTransaction {
       cleanDescription: cleanDescription ?? this.cleanDescription,
       category: category ?? this.category,
       isSelected: isSelected ?? this.isSelected,
+      groupId: clearGroupId ? null : (groupId ?? this.groupId),
+      splitType: splitType ?? this.splitType,
+      customSplitData: clearCustomSplitData ? null : (customSplitData ?? this.customSplitData),
       duplicateStatus: duplicateStatus ?? this.duplicateStatus,
       matchedExistingExpense: matchedExistingExpense ?? this.matchedExistingExpense,
       amountDifference: amountDifference ?? this.amountDifference,
     );
   }
 }
+

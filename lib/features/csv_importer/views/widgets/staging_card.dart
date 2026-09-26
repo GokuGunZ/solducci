@@ -3,22 +3,29 @@ import 'package:intl/intl.dart';
 import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
 import 'package:solducci/features/csv_importer/views/widgets/category_picker_sheet.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/group.dart';
 import 'package:solducci/theme/app_theme.dart';
 
 class StagingCard extends StatelessWidget {
   final StagingTransaction transaction;
+  final List<ExpenseGroup> availableGroups;
   final ValueChanged<bool> onToggleSelection;
   final ValueChanged<Tipologia> onCategoryChanged;
   final ValueChanged<String> onNameEdited;
   final VoidCallback onAlignWithExisting;
+  final VoidCallback onOpenContextPicker;
+  final VoidCallback? onOpenVolumeSplit;
 
   const StagingCard({
     super.key,
     required this.transaction,
+    this.availableGroups = const [],
     required this.onToggleSelection,
     required this.onCategoryChanged,
     required this.onNameEdited,
     required this.onAlignWithExisting,
+    required this.onOpenContextPicker,
+    this.onOpenVolumeSplit,
   });
 
   void _showEditNameDialog(BuildContext context) {
@@ -243,6 +250,77 @@ class StagingCard extends StatelessWidget {
                           ),
                         ),
                       ),
+
+                      // Chip Contesto Spesa (Personale vs Gruppo)
+                      Builder(builder: (ctx) {
+                        final isGroup = transaction.groupId != null;
+                        final group = isGroup
+                            ? availableGroups.where((g) => g.id == transaction.groupId).firstOrNull
+                            : null;
+                        final contextColor = isGroup ? const Color(0xFF818CF8) : const Color(0xFF10B981);
+                        final hasCustomSplit = transaction.customSplitData != null;
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: contextColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: contextColor.withOpacity(0.35), width: 1),
+                          ),
+                          child: InkWell(
+                            onTap: onOpenContextPicker,
+                            onLongPress: isGroup ? onOpenVolumeSplit : null,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isGroup ? Icons.group_rounded : Icons.person_rounded,
+                                    size: 13,
+                                    color: contextColor,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    isGroup ? (group?.name ?? 'Gruppo') : 'Personale',
+                                    style: TextStyle(
+                                      color: contextColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (isGroup) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      hasCustomSplit ? '• Custom' : '• Equa',
+                                      style: TextStyle(
+                                        color: contextColor.withOpacity(0.8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    GestureDetector(
+                                      onTap: onOpenVolumeSplit,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          color: contextColor.withOpacity(0.2),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.tune_rounded, size: 11, color: contextColor),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    const SizedBox(width: 2),
+                                    Icon(Icons.keyboard_arrow_down_rounded, size: 13, color: contextColor),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
 
                       // Badge Duplicato Esatto
                       if (transaction.duplicateStatus == DuplicateStatus.exactMatch)

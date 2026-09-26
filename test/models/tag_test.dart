@@ -74,7 +74,7 @@ void main() {
       expect(color, isNotNull);
       expect(color, isA<Color>());
       // FF5733 with FF alpha = 0xFFFF5733
-      expect(color!.toARGB32(), 0xFFFF5733);
+      expect(color!.value, 0xFFFF5733);
     });
 
     test('Tag.colorObject setter should convert Color to hex', () {

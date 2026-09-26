@@ -2,7 +2,9 @@ import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/income.dart';
 import 'package:solducci/models/income_category.dart';
+import 'package:solducci/models/split_type.dart';
 import 'package:solducci/service/expense_service_cached.dart';
+import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/service/income_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,6 +19,7 @@ class CsvImportCommitter {
   /// - Spese (isIncome == false) nella tabella `expenses`
   /// - Accrediti/Entrate (isIncome == true) nella tabella `incomes`
   /// Assegna il walletId selezionato a tutti i movimenti creati.
+  /// Se una spesa appartiene a un gruppo, genera automaticamente gli `expense_splits`.
   Future<int> commitTransactions(
     List<StagingTransaction> transactions, {
     String? walletId,
@@ -70,6 +73,10 @@ class CsvImportCommitter {
           type: t.category,
           userId: currentUserId,
           walletId: walletId,
+          groupId: t.groupId,
+          paidBy: t.groupId != null ? currentUserId : null,
+          splitType: t.groupId != null ? t.splitType : null,
+          splitData: t.groupId != null ? t.customSplitData : null,
         );
         expensesToInsert.add(expense.toMap());
       }
@@ -82,7 +89,58 @@ class CsvImportCommitter {
           ? i + chunkSize
           : expensesToInsert.length;
       final chunk = expensesToInsert.sublist(i, end);
-      await _supabase.from('expenses').insert(chunk);
+      
+      final insertedRows = await _supabase.from('expenses').insert(chunk).select();
+
+      // Per ciascuna spesa di gruppo inserita, creiamo i record di ripartizione in expense_splits
+      for (final row in insertedRows) {
+        final gId = row['group_id'] as String?;
+        if (gId != null) {
+          final expId = row['id'] as int;
+          final splitTypeStr = row['split_type'] as String?;
+          final splitType = splitTypeStr != null ? SplitType.fromValue(splitTypeStr) : SplitType.equal;
+          final amt = (row['amount'] as num).toDouble();
+          final payerId = row['paid_by'] as String? ?? currentUserId ?? '';
+
+          final members = await GroupServiceCached().getGroupMembers(gId);
+          if (members.isNotEmpty) {
+            final splits = <Map<String, dynamic>>[];
+            if (splitType == SplitType.equal) {
+              final perPerson = amt / members.length;
+              final rounded = double.parse(perPerson.toStringAsFixed(2));
+              for (final m in members) {
+                splits.add({
+                  'expense_id': expId,
+                  'user_id': m.userId,
+                  'amount': rounded,
+                  'is_paid': m.userId == payerId,
+                });
+              }
+            } else if (splitType == SplitType.custom && row['split_data'] != null) {
+              final customMap = row['split_data'] as Map;
+              customMap.forEach((uId, val) {
+                final numVal = (val as num).toDouble();
+                if (numVal > 0) {
+                  splits.add({
+                    'expense_id': expId,
+                    'user_id': uId.toString(),
+                    'amount': numVal,
+                    'is_paid': uId.toString() == payerId,
+                  });
+                }
+              });
+            }
+
+            if (splits.isNotEmpty) {
+              try {
+                await _supabase.from('expense_splits').insert(splits);
+              } catch (_) {
+                // Ignore split insert errors if already present
+              }
+            }
+          }
+        }
+      }
     }
 
     // Inserimento batch in Supabase per le entrate
