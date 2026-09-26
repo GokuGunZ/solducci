@@ -74,6 +74,7 @@ class CsvImportCommitter {
           userId: currentUserId,
           walletId: walletId,
           groupId: t.groupId,
+          portfolioId: t.portfolioId,
           paidBy: t.groupId != null ? currentUserId : null,
           splitType: t.groupId != null ? t.splitType : null,
           splitData: t.groupId != null ? t.customSplitData : null,

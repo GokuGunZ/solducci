@@ -16,6 +16,8 @@ import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/service/wallet_service.dart';
+import 'package:solducci/models/investment_portfolio.dart';
+import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -42,6 +44,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   List<Wallet> _wallets = [];
   String? _selectedWalletId;
   List<ExpenseGroup> _groups = [];
+  List<InvestmentPortfolio> _portfolios = [];
   String _currentUserId = '';
 
   @override
@@ -51,6 +54,26 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     _runEnrichmentAndDeduplication();
     _loadWallets();
     _loadGroups();
+    _loadPortfolios();
+  }
+
+  Future<void> _loadPortfolios() async {
+    final portfolios = await InvestmentPortfolioService().fetchPortfolios();
+    if (mounted) {
+      setState(() {
+        _portfolios = portfolios;
+        // Auto-match portfolio se ci sono transazioni di tipo investimento
+        for (final tx in _transactions) {
+          if (tx.category == Tipologia.investimento && tx.portfolioId == null && _portfolios.isNotEmpty) {
+            final match = _portfolios.firstWhere(
+              (p) => p.brokerName != null && tx.cleanDescription.toLowerCase().contains(p.brokerName!.toLowerCase()),
+              orElse: () => _portfolios.first,
+            );
+            tx.portfolioId = match.id;
+          }
+        }
+      });
+    }
   }
 
   Future<void> _loadGroups() async {
@@ -128,6 +151,13 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   void _onCategoryChanged(StagingTransaction tx, Tipologia newCat) {
     setState(() {
       tx.category = newCat;
+      if (newCat == Tipologia.investimento && tx.portfolioId == null && _portfolios.isNotEmpty) {
+        final match = _portfolios.firstWhere(
+          (p) => p.brokerName != null && tx.cleanDescription.toLowerCase().contains(p.brokerName!.toLowerCase()),
+          orElse: () => _portfolios.first,
+        );
+        tx.portfolioId = match.id;
+      }
     });
 
     _checkForSimilarTransactions(tx, proposedCategory: newCat);
@@ -446,12 +476,14 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                               key: ValueKey(tx.id),
                               transaction: tx,
                               availableGroups: _groups,
+                              availablePortfolios: _portfolios,
                               onToggleSelection: (val) => setState(() => tx.isSelected = val),
                               onCategoryChanged: (cat) => _onCategoryChanged(tx, cat),
                               onNameEdited: (name) => _onNameEdited(tx, name),
                               onAlignWithExisting: () => _alignFuzzyMatch(tx),
                               onOpenContextPicker: () => _openContextPicker(tx),
                               onOpenVolumeSplit: tx.groupId != null ? () => _openVolumeSplit(tx) : null,
+                              onPortfolioChanged: (pId) => setState(() => tx.portfolioId = pId),
                             );
                           },
                         ),

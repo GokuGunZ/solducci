@@ -4,28 +4,33 @@ import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
 import 'package:solducci/features/csv_importer/views/widgets/category_picker_sheet.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/group.dart';
+import 'package:solducci/models/investment_portfolio.dart';
 import 'package:solducci/theme/app_theme.dart';
 
 class StagingCard extends StatelessWidget {
   final StagingTransaction transaction;
   final List<ExpenseGroup> availableGroups;
+  final List<InvestmentPortfolio> availablePortfolios;
   final ValueChanged<bool> onToggleSelection;
   final ValueChanged<Tipologia> onCategoryChanged;
   final ValueChanged<String> onNameEdited;
   final VoidCallback onAlignWithExisting;
   final VoidCallback onOpenContextPicker;
   final VoidCallback? onOpenVolumeSplit;
+  final ValueChanged<String?>? onPortfolioChanged;
 
   const StagingCard({
     super.key,
     required this.transaction,
     this.availableGroups = const [],
+    this.availablePortfolios = const [],
     required this.onToggleSelection,
     required this.onCategoryChanged,
     required this.onNameEdited,
     required this.onAlignWithExisting,
     required this.onOpenContextPicker,
     this.onOpenVolumeSplit,
+    this.onPortfolioChanged,
   });
 
   void _showEditNameDialog(BuildContext context) {
@@ -81,6 +86,82 @@ class StagingCard extends StatelessWidget {
       builder: (ctx) => CategoryPickerSheet(
         currentCategory: transaction.category,
         onCategorySelected: onCategoryChanged,
+      ),
+    );
+  }
+
+  void _openPortfolioPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        decoration: const BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Destinazione Investimento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Icon(Icons.trending_up_rounded, color: Color(0xFF818CF8)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (availablePortfolios.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('Nessun portafoglio configurato in Solducci', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                )
+              else
+                ...availablePortfolios.map((p) {
+                  final isSelected = p.id == transaction.portfolioId;
+                  return InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onPortfolioChanged?.call(p.id);
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF6366F1).withOpacity(0.18) : const Color(0xFF27272A),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF818CF8) : Colors.white10,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(p.iconData, size: 16, color: p.color),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(p.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                if (p.brokerName != null)
+                                  Text(p.brokerName!, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF818CF8), size: 18),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -321,6 +402,52 @@ class StagingCard extends StatelessWidget {
                           ),
                         );
                       }),
+
+                      // Chip Portafoglio Investimento (se categoria == Investimento)
+                      if (transaction.category == Tipologia.investimento) ...[
+                        Builder(builder: (ctx) {
+                          final portfolio = availablePortfolios
+                              .where((p) => p.id == transaction.portfolioId)
+                              .firstOrNull;
+                          const pColor = Color(0xFF818CF8);
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: pColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: pColor.withOpacity(0.4), width: 1),
+                            ),
+                            child: InkWell(
+                              onTap: () => _openPortfolioPicker(context),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      portfolio?.iconData ?? Icons.trending_up_rounded,
+                                      size: 13,
+                                      color: pColor,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      portfolio?.name ?? 'Scegli Portafoglio',
+                                      style: const TextStyle(
+                                        color: pColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    const Icon(Icons.keyboard_arrow_down_rounded, size: 13, color: pColor),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
 
                       // Badge Duplicato Esatto
                       if (transaction.duplicateStatus == DuplicateStatus.exactMatch)

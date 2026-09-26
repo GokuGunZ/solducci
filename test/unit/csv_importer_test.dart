@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solducci/features/csv_importer/models/merchant_rule.dart';
 import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
 import 'package:solducci/features/csv_importer/services/csv_parser_service.dart';
 import 'package:solducci/features/csv_importer/services/merchant_rule_service.dart';
@@ -174,6 +175,42 @@ Data operazione;Data valuta;Causale / Descrizione operazione;Importo (EUR)
 
       final daysDiffFar = (txFar.date.difference(existingExpense.date).inDays).abs();
       expect(daysDiffFar <= 2, isFalse);
+    });
+
+    test('Riconoscimento broker e PAC con assegnazione automatica Tipologia.investimento e portfolioId', () {
+      final rules = MerchantRule.defaultRules;
+      final degiroRule = MerchantRuleService().findMatchingRule('BONIFICO A FAVORE DI DEGIRO CUSTODY', rules);
+      expect(degiroRule, isNotNull);
+      expect(degiroRule!.defaultCategory, equals(Tipologia.investimento));
+
+      final scalableRule = MerchantRuleService().findMatchingRule('ADDEBITO DIRETTO SCALABLE CAPITAL BROKER', rules);
+      expect(scalableRule, isNotNull);
+      expect(scalableRule!.defaultCategory, equals(Tipologia.investimento));
+
+      final tradeRepRule = MerchantRuleService().findMatchingRule('TRADE REPUBLIC BANK GMBH PAC', rules);
+      expect(tradeRepRule, isNotNull);
+      expect(tradeRepRule!.defaultCategory, equals(Tipologia.investimento));
+
+      // Test assegnazione portfolioId e copyWith
+      final tx = StagingTransaction(
+        id: 'tx_pac_1',
+        date: DateTime(2026, 9, 20),
+        amount: 400.0,
+        isIncome: false,
+        rawDescription: 'BONIFICO DEGIRO',
+        cleanDescription: 'Degiro PAC',
+        category: Tipologia.investimento,
+        portfolioId: 'port_degiro_pac',
+      );
+
+      expect(tx.portfolioId, equals('port_degiro_pac'));
+      expect(tx.category, equals(Tipologia.investimento));
+
+      final updated = tx.copyWith(portfolioId: 'port_trade_rep');
+      expect(updated.portfolioId, equals('port_trade_rep'));
+
+      final cleared = updated.copyWith(clearPortfolioId: true);
+      expect(cleared.portfolioId, isNull);
     });
   });
 }

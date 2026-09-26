@@ -141,5 +141,47 @@ class MerchantRule {
       cleanName: 'Enel Energia',
       defaultCategory: Tipologia.utenze,
     ),
+    MerchantRule(
+      id: 'rule_degiro',
+      pattern: 'degiro',
+      cleanName: 'DEGIRO PAC',
+      defaultCategory: Tipologia.investimento,
+    ),
+    MerchantRule(
+      id: 'rule_scalable',
+      pattern: 'scalable',
+      cleanName: 'Scalable Capital PAC',
+      defaultCategory: Tipologia.investimento,
+    ),
+    MerchantRule(
+      id: 'rule_traderepublic',
+      pattern: 'trade republic',
+      cleanName: 'Trade Republic',
+      defaultCategory: Tipologia.investimento,
+    ),
+    MerchantRule(
+      id: 'rule_directa',
+      pattern: 'directa',
+      cleanName: 'Directa SIM',
+      defaultCategory: Tipologia.investimento,
+    ),
+    MerchantRule(
+      id: 'rule_pac',
+      pattern: 'fondo pac',
+      cleanName: 'PAC Investimenti',
+      defaultCategory: Tipologia.investimento,
+    ),
+    MerchantRule(
+      id: 'rule_ishares',
+      pattern: 'ishares',
+      cleanName: 'iShares ETF',
+      defaultCategory: Tipologia.investimento,
+    ),
+    MerchantRule(
+      id: 'rule_vanguard',
+      pattern: 'vanguard',
+      cleanName: 'Vanguard ETF',
+      defaultCategory: Tipologia.investimento,
+    ),
   ];
 }

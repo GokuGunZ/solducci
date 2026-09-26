@@ -24,6 +24,9 @@ class StagingTransaction {
   SplitType splitType; // default SplitType.equal se groupId != null
   Map<String, double>? customSplitData; // Se personalizzato tramite Volume Slider
 
+  // Contesto Investimenti (se category == Tipologia.investimento)
+  String? portfolioId;
+
   DuplicateStatus duplicateStatus;
   Expense? matchedExistingExpense;
   double? amountDifference; // Per fuzzy match (+-0.09 €)
@@ -40,6 +43,7 @@ class StagingTransaction {
     this.groupId,
     this.splitType = SplitType.equal,
     this.customSplitData,
+    this.portfolioId,
     this.duplicateStatus = DuplicateStatus.none,
     this.matchedExistingExpense,
     this.amountDifference,
@@ -58,6 +62,8 @@ class StagingTransaction {
     SplitType? splitType,
     Map<String, double>? customSplitData,
     bool clearCustomSplitData = false,
+    String? portfolioId,
+    bool clearPortfolioId = false,
     DuplicateStatus? duplicateStatus,
     Expense? matchedExistingExpense,
     double? amountDifference,
@@ -74,6 +80,7 @@ class StagingTransaction {
       groupId: clearGroupId ? null : (groupId ?? this.groupId),
       splitType: splitType ?? this.splitType,
       customSplitData: clearCustomSplitData ? null : (customSplitData ?? this.customSplitData),
+      portfolioId: clearPortfolioId ? null : (portfolioId ?? this.portfolioId),
       duplicateStatus: duplicateStatus ?? this.duplicateStatus,
       matchedExistingExpense: matchedExistingExpense ?? this.matchedExistingExpense,
       amountDifference: amountDifference ?? this.amountDifference,
