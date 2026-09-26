@@ -76,6 +76,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   InvestmentPortfolio? _selectedPortfolio;
   List<InvestmentAsset> _portfolioAssets = [];
   final List<_ModalAllocationEntry> _allocationEntries = [];
+  InvestmentAsset? _selectedIncomeAsset;
 
   @override
   void initState() {
@@ -111,6 +112,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
     if (_selectedPortfolio == null) {
       setState(() {
         _portfolioAssets = [];
+        _selectedIncomeAsset = null;
         for (final e in _allocationEntries) {
           e.asset = null;
         }
@@ -120,6 +122,9 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
     final assets = InvestmentAssetService().getAssetsForPortfolio(_selectedPortfolio!.id);
     setState(() {
       _portfolioAssets = assets;
+      if (_selectedIncomeAsset == null || !assets.any((a) => a.id == _selectedIncomeAsset!.id)) {
+        _selectedIncomeAsset = assets.isNotEmpty ? assets.first : null;
+      }
       if (_allocationEntries.isEmpty) {
         _allocationEntries.add(_ModalAllocationEntry(
           asset: assets.isNotEmpty ? assets.first : null,
@@ -286,6 +291,8 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
           id: '',
           userId: '',
           walletId: _selectedWallet?.id,
+          portfolioId: _incomeCategory == IncomeCategory.rendita ? _selectedPortfolio?.id : null,
+          assetId: _incomeCategory == IncomeCategory.rendita ? _selectedIncomeAsset?.id : null,
           amount: amount,
           description: desc,
           date: _date,
@@ -534,6 +541,9 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
               if (_mode == TransactionMode.expense && _expenseCategory == Tipologia.investimento) ...[
                 const SizedBox(height: 14),
                 _buildInvestmentAllocationSection(),
+              ] else if (_mode == TransactionMode.income && _incomeCategory == IncomeCategory.rendita) ...[
+                const SizedBox(height: 14),
+                _buildIncomeInvestmentSection(),
               ] else if (_mode == TransactionMode.transfer)
                 // Giroconto: Da Wallet -> A Wallet
                 Row(
@@ -1222,6 +1232,110 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildIncomeInvestmentSection() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.success.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.success.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.savings_outlined, color: AppTheme.success, size: 16),
+              SizedBox(width: 6),
+              Text(
+                'COLLEGA AD ASSET (Cedola / Dividendo)',
+                style: TextStyle(
+                  color: AppTheme.success,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // Portafoglio
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<InvestmentPortfolio>(
+                      value: _portfolios.any((p) => p.id == _selectedPortfolio?.id) ? _selectedPortfolio : null,
+                      dropdownColor: const Color(0xFF27272A),
+                      hint: const Text('Portafoglio', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                      isExpanded: true,
+                      items: _portfolios.map((p) {
+                        return DropdownMenuItem(
+                          value: p,
+                          child: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 12), overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedPortfolio = val;
+                          _loadPortfolioAssets();
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Asset specifico
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<InvestmentAsset>(
+                      value: _portfolioAssets.any((a) => a.id == _selectedIncomeAsset?.id) ? _selectedIncomeAsset : null,
+                      dropdownColor: const Color(0xFF27272A),
+                      hint: const Text('Asset (opzionale)', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem<InvestmentAsset>(
+                          value: null,
+                          child: Text('Tutto il portafoglio', style: TextStyle(color: Colors.white54, fontSize: 12), overflow: TextOverflow.ellipsis),
+                        ),
+                        ..._portfolioAssets.map((a) {
+                          return DropdownMenuItem(
+                            value: a,
+                            child: Text(
+                              a.ticker != null ? '${a.name} (${a.ticker})' : a.name,
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) => setState(() => _selectedIncomeAsset = val),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

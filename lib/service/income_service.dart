@@ -85,4 +85,18 @@ class IncomeService {
         .where((i) => i.date.year == month.year && i.date.month == month.month)
         .fold(0.0, (sum, i) => sum + i.amount);
   }
+
+  /// Ritorna la somma dei dividendi e cedole incassati per un asset specifico
+  double getTotalDividendsForAsset(String assetId) {
+    return _cachedIncomes
+        .where((i) => i.assetId == assetId)
+        .fold<double>(0.0, (sum, i) => sum + i.amount);
+  }
+
+  /// Ritorna la somma dei dividendi incassati per un intero portafoglio
+  double getTotalDividendsForPortfolio(String portfolioId) {
+    return _cachedIncomes
+        .where((i) => i.portfolioId == portfolioId)
+        .fold<double>(0.0, (sum, i) => sum + i.amount);
+  }
 }

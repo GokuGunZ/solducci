@@ -27,13 +27,15 @@ class IncomeAdapter extends TypeAdapter<Income> {
       isRecurring: fields[7] as bool,
       createdAt: fields[8] as DateTime,
       updatedAt: fields[9] as DateTime,
+      portfolioId: fields[10] as String?,
+      assetId: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Income obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +55,11 @@ class IncomeAdapter extends TypeAdapter<Income> {
       ..writeByte(8)
       ..write(obj.createdAt)
       ..writeByte(9)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(10)
+      ..write(obj.portfolioId)
+      ..writeByte(11)
+      ..write(obj.assetId);
   }
 
   @override

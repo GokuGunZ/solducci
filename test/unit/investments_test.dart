@@ -4,6 +4,8 @@ import 'package:solducci/models/asset_price_snapshot.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_asset_allocation.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/income.dart';
+import 'package:solducci/models/income_category.dart';
 import 'package:solducci/models/investment_asset.dart';
 import 'package:solducci/models/investment_portfolio.dart';
 
@@ -285,6 +287,89 @@ void main() {
 
       final btcUnitPrice = (allocations[1]['amount'] as double) / (allocations[1]['qty'] as double);
       expect(btcUnitPrice, equals(60000.0));
+    });
+
+    test('Income with portfolioId and assetId serialization (Dividends / Coupons)', () {
+      final now = DateTime(2026, 9, 27);
+      final income = Income(
+        id: 'inc-100',
+        userId: 'u1',
+        amount: 45.50,
+        description: 'Dividendo VWCE trimestrale',
+        date: now,
+        category: IncomeCategory.rendita,
+        portfolioId: 'port-123',
+        assetId: 'asset-vwce',
+      );
+
+      expect(income.category, equals(IncomeCategory.rendita));
+      expect(income.portfolioId, equals('port-123'));
+      expect(income.assetId, equals('asset-vwce'));
+
+      final map = income.toMap();
+      expect(map['portfolio_id'], equals('port-123'));
+      expect(map['asset_id'], equals('asset-vwce'));
+      expect(map['amount'], equals(45.50));
+
+      final restored = Income.fromMap(map);
+      expect(restored.id, equals('inc-100'));
+      expect(restored.portfolioId, equals('port-123'));
+      expect(restored.assetId, equals('asset-vwce'));
+      expect(restored.category, equals(IncomeCategory.rendita));
+    });
+
+    test('Total Return calculation combining Unrealized PnL and Dividends', () {
+      final now = DateTime(2026, 9, 27);
+      // Asset acquistato a 1000€, valore attuale 1150€ (+150€ unrealized pnl, +15%)
+      final asset = InvestmentAsset(
+        id: 'asset-btp',
+        portfolioId: 'port-123',
+        ticker: 'IT0005',
+        name: 'BTP Valore',
+        assetClass: AssetClass.bond,
+        totalQuantity: 1000.0,
+        investedCapital: 1000.0,
+        currentPrice: 1.15,
+        lastPriceUpdate: now,
+      );
+
+      expect(asset.unrealizedPnl, equals(150.0));
+      expect(asset.roiPercent, equals(15.0));
+
+      // 2 cedole incassate nel tempo: 30€ e 30€
+      final dividends = [
+        Income(
+          id: 'div-1',
+          userId: 'u1',
+          amount: 30.0,
+          description: 'Cedola 1 semestrale',
+          date: now.subtract(const Duration(days: 180)),
+          category: IncomeCategory.rendita,
+          portfolioId: 'port-123',
+          assetId: 'asset-btp',
+        ),
+        Income(
+          id: 'div-2',
+          userId: 'u1',
+          amount: 30.0,
+          description: 'Cedola 2 semestrale',
+          date: now,
+          category: IncomeCategory.rendita,
+          portfolioId: 'port-123',
+          assetId: 'asset-btp',
+        ),
+      ];
+
+      final totalDividends = dividends
+          .where((i) => i.assetId == asset.id)
+          .fold<double>(0.0, (sum, i) => sum + i.amount);
+
+      final totalReturn = asset.unrealizedPnl + totalDividends;
+      final totalReturnPercent = (totalReturn / asset.investedCapital) * 100;
+
+      expect(totalDividends, equals(60.0));
+      expect(totalReturn, equals(210.0)); // 150€ capital gain + 60€ coupon income
+      expect(totalReturnPercent, equals(21.0)); // 21% Total Return
     });
   });
 }

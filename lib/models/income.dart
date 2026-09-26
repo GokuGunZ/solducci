@@ -36,6 +36,12 @@ class Income implements CacheableModel<String> {
   @HiveField(9)
   final DateTime updatedAt;
 
+  @HiveField(10)
+  final String? portfolioId;
+
+  @HiveField(11)
+  final String? assetId;
+
   Income({
     required this.id,
     required this.userId,
@@ -45,6 +51,8 @@ class Income implements CacheableModel<String> {
     required this.date,
     required this.category,
     this.isRecurring = false,
+    this.portfolioId,
+    this.assetId,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -73,6 +81,8 @@ class Income implements CacheableModel<String> {
     DateTime? date,
     IncomeCategory? category,
     bool? isRecurring,
+    String? portfolioId,
+    String? assetId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -85,6 +95,8 @@ class Income implements CacheableModel<String> {
       date: date ?? this.date,
       category: category ?? this.category,
       isRecurring: isRecurring ?? this.isRecurring,
+      portfolioId: portfolioId ?? this.portfolioId,
+      assetId: assetId ?? this.assetId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -92,7 +104,7 @@ class Income implements CacheableModel<String> {
 
   @override
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'user_id': userId,
       'wallet_id': walletId,
@@ -104,6 +116,9 @@ class Income implements CacheableModel<String> {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    if (portfolioId != null) map['portfolio_id'] = portfolioId;
+    if (assetId != null) map['asset_id'] = assetId;
+    return map;
   }
 
   factory Income.fromMap(Map<String, dynamic> map) {
@@ -111,6 +126,8 @@ class Income implements CacheableModel<String> {
       id: map['id'] as String,
       userId: map['user_id'] as String? ?? '',
       walletId: map['wallet_id'] as String?,
+      portfolioId: map['portfolio_id'] as String?,
+      assetId: map['asset_id'] as String?,
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       description: map['description'] as String? ?? '',
       date: DateTime.tryParse(map['date'] as String? ?? '') ?? DateTime.now(),

@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.expense_asset_allocations (
 CREATE INDEX IF NOT EXISTS idx_expense_asset_allocations_expense_id ON public.expense_asset_allocations(expense_id);
 CREATE INDEX IF NOT EXISTS idx_expense_asset_allocations_asset_id ON public.expense_asset_allocations(asset_id);
 
--- 5. Aggiunta colonna portfolio_id su tabella expenses (se non presente)
+-- 5. Aggiunta colonne portfolio_id su tabella expenses e incomes (se non presenti)
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -78,6 +78,24 @@ BEGIN
         AND column_name = 'portfolio_id'
     ) THEN
         ALTER TABLE public.expenses ADD COLUMN portfolio_id UUID REFERENCES public.investment_portfolios(id) ON DELETE SET NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'incomes' 
+        AND column_name = 'portfolio_id'
+    ) THEN
+        ALTER TABLE public.incomes ADD COLUMN portfolio_id UUID REFERENCES public.investment_portfolios(id) ON DELETE SET NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'incomes' 
+        AND column_name = 'asset_id'
+    ) THEN
+        ALTER TABLE public.incomes ADD COLUMN asset_id UUID REFERENCES public.investment_assets(id) ON DELETE SET NULL;
     END IF;
 END $$;
 

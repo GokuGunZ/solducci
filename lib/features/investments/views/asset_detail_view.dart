@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/investment_asset.dart';
 import 'package:solducci/models/asset_price_snapshot.dart';
+import 'package:solducci/service/income_service.dart';
 import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
@@ -131,6 +132,10 @@ class _AssetDetailViewState extends State<AssetDetailView> {
     final isProfitable = _asset.isProfitable;
     final pnlColor = isProfitable ? AppTheme.success : AppTheme.error;
     final lastUpdateStr = DateFormat('dd MMM yyyy, HH:mm', 'it_IT').format(_asset.lastPriceUpdate);
+    final totalDividends = IncomeService().getTotalDividendsForAsset(_asset.id);
+    final totalReturn = _asset.unrealizedPnl + totalDividends;
+    final totalReturnPercent = _asset.investedCapital > 0 ? (totalReturn / _asset.investedCapital) * 100 : 0.0;
+    final isTotalReturnProfitable = totalReturn >= 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F12),
@@ -227,6 +232,63 @@ class _AssetDetailViewState extends State<AssetDetailView> {
                       ),
                     ],
                   ),
+
+                  // Total Return & Dividendi (se presenti)
+                  if (totalDividends > 0) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF27272A).withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.success.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.savings_outlined, size: 16, color: AppTheme.success),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'TOTAL RETURN (Plusv. + Dividendi)',
+                                  style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${isTotalReturnProfitable ? '+' : ''}€ ${totalReturn.toStringAsFixed(2)} (${isTotalReturnProfitable ? '+' : ''}${totalReturnPercent.toStringAsFixed(1)}%)',
+                                  style: TextStyle(
+                                    color: isTotalReturnProfitable ? AppTheme.success : AppTheme.error,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text('Cedole/Dividendi', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                              const SizedBox(height: 2),
+                              Text(
+                                '+€ ${totalDividends.toStringAsFixed(2)}',
+                                style: const TextStyle(color: AppTheme.success, fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 18),
                   const Divider(color: Colors.white10, height: 1),
