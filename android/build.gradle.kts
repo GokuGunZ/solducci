@@ -14,6 +14,11 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    project.extra["flutter"] = mapOf(
+        "compileSdkVersion" to 35,
+        "minSdkVersion" to 21,
+        "targetSdkVersion" to 35
+    )
 }
 
 tasks.register<Delete>("clean") {
