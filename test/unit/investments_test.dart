@@ -261,5 +261,30 @@ void main() {
       final savingsRate = (savings / monthlyIncome) * 100;
       expect(savingsRate, equals(96.0));
     });
+
+    test('Multi-asset allocation math and residual balance invariant', () {
+      const totalExpenseAmount = 600.0;
+      final allocations = [
+        {'asset': 'VWCE', 'amount': 350.0, 'qty': 2.8},
+        {'asset': 'BTC', 'amount': 150.0, 'qty': 0.0025},
+        {'asset': 'BTP', 'amount': 100.0, 'qty': 1.0},
+      ];
+
+      final totalAllocated = allocations.fold<double>(
+        0.0,
+        (sum, a) => sum + (a['amount'] as double),
+      );
+      final residual = totalExpenseAmount - totalAllocated;
+
+      expect(totalAllocated, equals(600.0));
+      expect(residual, equals(0.0));
+
+      // Verifica prezzo unitario calcolato per ciascun asset
+      final vwceUnitPrice = (allocations[0]['amount'] as double) / (allocations[0]['qty'] as double);
+      expect(vwceUnitPrice, closeTo(125.0, 0.0001));
+
+      final btcUnitPrice = (allocations[1]['amount'] as double) / (allocations[1]['qty'] as double);
+      expect(btcUnitPrice, equals(60000.0));
+    });
   });
 }

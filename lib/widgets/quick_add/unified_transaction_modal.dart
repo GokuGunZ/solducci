@@ -41,11 +41,28 @@ class UnifiedTransactionModal extends StatefulWidget {
   State<UnifiedTransactionModal> createState() => _UnifiedTransactionModalState();
 }
 
+class _ModalAllocationEntry {
+  InvestmentAsset? asset;
+  final TextEditingController amountController;
+  final TextEditingController quantityController;
+
+  _ModalAllocationEntry({
+    this.asset,
+    String initialAmount = '',
+    String initialQty = '',
+  })  : amountController = TextEditingController(text: initialAmount),
+        quantityController = TextEditingController(text: initialQty);
+
+  void dispose() {
+    amountController.dispose();
+    quantityController.dispose();
+  }
+}
+
 class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   late TransactionMode _mode;
   final _amountController = TextEditingController();
   final _descController = TextEditingController();
-  final _quantityController = TextEditingController();
   final DateTime _date = DateTime.now();
 
   Wallet? _selectedWallet;
@@ -54,11 +71,11 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   IncomeCategory _incomeCategory = IncomeCategory.stipendio;
   bool _isLoading = false;
 
-  // Stato per Spese Investimento
+  // Stato per Spese Investimento & Allocazione Multi-Asset
   List<InvestmentPortfolio> _portfolios = [];
   InvestmentPortfolio? _selectedPortfolio;
   List<InvestmentAsset> _portfolioAssets = [];
-  InvestmentAsset? _selectedAsset;
+  final List<_ModalAllocationEntry> _allocationEntries = [];
 
   @override
   void initState() {
@@ -72,7 +89,9 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   void dispose() {
     _amountController.dispose();
     _descController.dispose();
-    _quantityController.dispose();
+    for (final entry in _allocationEntries) {
+      entry.dispose();
+    }
     super.dispose();
   }
 
@@ -92,14 +111,65 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
     if (_selectedPortfolio == null) {
       setState(() {
         _portfolioAssets = [];
-        _selectedAsset = null;
+        for (final e in _allocationEntries) {
+          e.asset = null;
+        }
       });
       return;
     }
     final assets = InvestmentAssetService().getAssetsForPortfolio(_selectedPortfolio!.id);
     setState(() {
       _portfolioAssets = assets;
-      _selectedAsset = assets.isNotEmpty ? assets.first : null;
+      if (_allocationEntries.isEmpty) {
+        _allocationEntries.add(_ModalAllocationEntry(
+          asset: assets.isNotEmpty ? assets.first : null,
+          initialQty: '1.0',
+        ));
+      } else {
+        for (final e in _allocationEntries) {
+          if (e.asset == null || !assets.any((a) => a.id == e.asset!.id)) {
+            e.asset = assets.isNotEmpty ? assets.first : null;
+          }
+        }
+      }
+    });
+  }
+
+  void _addAllocationEntry() {
+    final cleanTotal = _amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
+    final totalAmount = double.tryParse(cleanTotal) ?? 0.0;
+
+    double alreadyAllocated = 0.0;
+    for (final e in _allocationEntries) {
+      final amt = double.tryParse(e.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+      alreadyAllocated += amt;
+    }
+    final residual = totalAmount - alreadyAllocated;
+
+    // Seleziona il prossimo asset non ancora assegnato se disponibile
+    InvestmentAsset? nextAsset;
+    final usedAssetIds = _allocationEntries.map((e) => e.asset?.id).toSet();
+    final unusedAssets = _portfolioAssets.where((a) => !usedAssetIds.contains(a.id)).toList();
+    if (unusedAssets.isNotEmpty) {
+      nextAsset = unusedAssets.first;
+    } else if (_portfolioAssets.isNotEmpty) {
+      nextAsset = _portfolioAssets.first;
+    }
+
+    setState(() {
+      _allocationEntries.add(_ModalAllocationEntry(
+        asset: nextAsset,
+        initialAmount: residual > 0.01 ? residual.toStringAsFixed(2) : '',
+        initialQty: '1.0',
+      ));
+    });
+  }
+
+  void _removeAllocationEntry(int index) {
+    if (_allocationEntries.length <= 1) return;
+    setState(() {
+      final removed = _allocationEntries.removeAt(index);
+      removed.dispose();
     });
   }
 
@@ -160,25 +230,56 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
         );
         final created = await ExpenseServiceCached().createExpense(newExp);
 
-        // Se è un investimento ed è stato selezionato un asset, registriamo l'allocazione
-        if (_expenseCategory == Tipologia.investimento && _selectedAsset != null) {
-          final cleanQty = _quantityController.text.replaceAll(',', '.').trim();
-          final qty = double.tryParse(cleanQty) ?? 1.0;
-          final unitPrice = qty > 0 ? (amount / qty) : amount;
+        // Se è un investimento e sono stati selezionati asset, registriamo le allocazioni
+        if (_expenseCategory == Tipologia.investimento && _allocationEntries.isNotEmpty) {
+          final validAllocations = <ExpenseAssetAllocation>[];
 
-          await InvestmentAssetService().recordExpenseAllocations(
-            expenseId: created.id,
-            allocations: [
-              ExpenseAssetAllocation(
+          if (_allocationEntries.length == 1) {
+            final entry = _allocationEntries.first;
+            if (entry.asset != null) {
+              final rawAmt = entry.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
+              final allocAmt = double.tryParse(rawAmt) ?? amount;
+              final rawQty = entry.quantityController.text.replaceAll(',', '.').trim();
+              final qty = (double.tryParse(rawQty) ?? 1.0).clamp(0.00000001, double.infinity);
+              final unitPrice = allocAmt / qty;
+
+              validAllocations.add(ExpenseAssetAllocation(
                 id: '',
                 expenseId: created.id,
-                assetId: _selectedAsset!.id,
-                amount: amount,
-                quantity: qty > 0 ? qty : 1.0,
-                pricePerUnit: unitPrice > 0 ? unitPrice : amount,
-              ),
-            ],
-          );
+                assetId: entry.asset!.id,
+                amount: allocAmt,
+                quantity: qty,
+                pricePerUnit: unitPrice,
+              ));
+            }
+          } else {
+            for (final entry in _allocationEntries) {
+              if (entry.asset == null) continue;
+              final rawAmt = entry.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
+              final allocAmt = double.tryParse(rawAmt) ?? 0.0;
+              if (allocAmt <= 0) continue;
+
+              final rawQty = entry.quantityController.text.replaceAll(',', '.').trim();
+              final qty = (double.tryParse(rawQty) ?? 1.0).clamp(0.00000001, double.infinity);
+              final unitPrice = allocAmt / qty;
+
+              validAllocations.add(ExpenseAssetAllocation(
+                id: '',
+                expenseId: created.id,
+                assetId: entry.asset!.id,
+                amount: allocAmt,
+                quantity: qty,
+                pricePerUnit: unitPrice,
+              ));
+            }
+          }
+
+          if (validAllocations.isNotEmpty) {
+            await InvestmentAssetService().recordExpenseAllocations(
+              expenseId: created.id,
+              allocations: validAllocations,
+            );
+          }
         }
       } else if (_mode == TransactionMode.income) {
         final newInc = Income(
@@ -596,6 +697,16 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   }
 
   Widget _buildInvestmentAllocationSection() {
+    final cleanTotal = _amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
+    final totalAmount = double.tryParse(cleanTotal) ?? 0.0;
+
+    double allocatedSum = 0.0;
+    for (final e in _allocationEntries) {
+      final amt = double.tryParse(e.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+      allocatedSum += amt;
+    }
+    final residual = totalAmount - allocatedSum;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -683,81 +794,255 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
           ),
 
           if (_selectedPortfolio != null) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                // Selettore Asset
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E22),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white10),
+            const SizedBox(height: 12),
+
+            if (_portfolioAssets.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.white54, size: 16),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Nessun asset in questo portafoglio', style: TextStyle(color: Colors.white70, fontSize: 12)),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<InvestmentAsset>(
-                        value: _portfolioAssets.any((a) => a.id == _selectedAsset?.id) ? _selectedAsset : null,
-                        dropdownColor: const Color(0xFF27272A),
-                        hint: const Text('Asset (opzionale)', style: TextStyle(color: Colors.white38, fontSize: 13)),
-                        isExpanded: true,
-                        items: _portfolioAssets.map((a) {
-                          return DropdownMenuItem<InvestmentAsset>(
-                            value: a,
-                            child: Row(
-                              children: [
-                                Icon(a.assetClass.icon, size: 14, color: a.assetClass.color),
-                                const SizedBox(width: 6),
-                                Expanded(child: Text(a.name, style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis)),
-                                if (a.ticker != null)
-                                  Text(a.ticker!, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (newA) => setState(() => _selectedAsset = newA),
+                    InkWell(
+                      onTap: () => _showCreateAssetDialog(context),
+                      child: const Text('+ Crea Primo Asset', style: TextStyle(color: Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              // Intestazione Sezione Allocazioni
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'STRUMENTI ALLOCATI (${_allocationEntries.length})',
+                    style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                  ),
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () => _showCreateAssetDialog(context),
+                        borderRadius: BorderRadius.circular(6),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Text('+ Nuovo Asset', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                        ),
                       ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: _addAllocationEntry,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.4)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.add, size: 12, color: Color(0xFF818CF8)),
+                              SizedBox(width: 2),
+                              Text('Strumento', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Lista schede allocazione
+              ..._allocationEntries.asMap().entries.map((item) {
+                final idx = item.key;
+                final entry = item.value;
+                final entryAmt = double.tryParse(entry.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ??
+                    (_allocationEntries.length == 1 ? totalAmount : 0.0);
+                final entryQty = double.tryParse(entry.quantityController.text.replaceAll(',', '.').trim()) ?? 0.0;
+                final estUnitPrice = entryQty > 0 ? (entryAmt / entryQty) : 0.0;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF18181B),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Riferimento Asset + Rimuovi
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<InvestmentAsset>(
+                                value: _portfolioAssets.any((a) => a.id == entry.asset?.id) ? entry.asset : null,
+                                dropdownColor: const Color(0xFF27272A),
+                                hint: const Text('Seleziona strumento...', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                                isExpanded: true,
+                                items: _portfolioAssets.map((a) {
+                                  return DropdownMenuItem<InvestmentAsset>(
+                                    value: a,
+                                    child: Row(
+                                      children: [
+                                        Icon(a.assetClass.icon, size: 14, color: a.assetClass.color),
+                                        const SizedBox(width: 8),
+                                        Expanded(child: Text(a.name, style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                                        if (a.ticker != null)
+                                          Text(a.ticker!, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (newA) => setState(() => entry.asset = newA),
+                              ),
+                            ),
+                          ),
+                          if (_allocationEntries.length > 1)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white38),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Rimuovi strumento',
+                              onPressed: () => _removeAllocationEntry(idx),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Campi Importo e Quote
+                      Row(
+                        children: [
+                          // Importo €
+                          Expanded(
+                            flex: 5,
+                            child: TextField(
+                              controller: entry.amountController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                              onChanged: (_) => setState(() {}),
+                              decoration: InputDecoration(
+                                prefixText: '€ ',
+                                prefixStyle: const TextStyle(color: Colors.white70, fontSize: 13),
+                                hintText: _allocationEntries.length == 1
+                                    ? (totalAmount > 0 ? totalAmount.toStringAsFixed(2) : 'Importo')
+                                    : 'Importo',
+                                hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                                filled: true,
+                                fillColor: const Color(0xFF27272A),
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Quote / Unità
+                          Expanded(
+                            flex: 5,
+                            child: TextField(
+                              controller: entry.quantityController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                              onChanged: (_) => setState(() {}),
+                              decoration: InputDecoration(
+                                hintText: 'Quote (es. 1.5)',
+                                hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                                filled: true,
+                                fillColor: const Color(0xFF27272A),
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (estUnitPrice > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Prezzo unitario stimato: €${estUnitPrice.toStringAsFixed(2)} / quota',
+                              style: const TextStyle(color: Colors.white38, fontSize: 11),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+
+              // Barra di avanzamento residuo (se ci sono allocazioni multiple)
+              if (_allocationEntries.length > 1 && totalAmount > 0) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E22),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: residual.abs() < 0.01
+                          ? AppTheme.success.withOpacity(0.3)
+                          : (residual < -0.01 ? AppTheme.error.withOpacity(0.3) : AppTheme.warning.withOpacity(0.3)),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () => _showCreateAssetDialog(context),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF27272A),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.add, size: 14, color: Colors.white70),
-                        SizedBox(width: 4),
-                        Text('Asset', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        residual.abs() < 0.01
+                            ? Icons.check_circle_rounded
+                            : (residual < -0.01 ? Icons.warning_amber_rounded : Icons.pie_chart_rounded),
+                        size: 15,
+                        color: residual.abs() < 0.01
+                            ? AppTheme.success
+                            : (residual < -0.01 ? AppTheme.error : AppTheme.warning),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          residual.abs() < 0.01
+                              ? 'Totale allocato al 100% (€${totalAmount.toStringAsFixed(2)})'
+                              : (residual > 0
+                                  ? 'Allocati €${allocatedSum.toStringAsFixed(2)} di €${totalAmount.toStringAsFixed(2)} (Residuo: €${residual.toStringAsFixed(2)})'
+                                  : 'Supera il totale di €${(-residual).toStringAsFixed(2)}'),
+                          style: TextStyle(
+                            color: residual.abs() < 0.01
+                                ? AppTheme.success
+                                : (residual < -0.01 ? AppTheme.error : Colors.white70),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (residual > 0.01)
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              final lastEntry = _allocationEntries.last;
+                              final cur = double.tryParse(lastEntry.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+                              lastEntry.amountController.text = (cur + residual).toStringAsFixed(2);
+                            });
+                          },
+                          child: const Text('Riempi', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
                   ),
                 ),
               ],
-            ),
-
-            if (_selectedAsset != null) ...[
-              const SizedBox(height: 10),
-              TextField(
-                controller: _quantityController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Quantità / Quote acquistate (es. 2.50)...',
-                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                  filled: true,
-                  fillColor: const Color(0xFF1E1E22),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                ),
-              ),
             ],
           ],
         ],
@@ -922,7 +1207,9 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                   );
                   setState(() {
                     _loadPortfolioAssets();
-                    _selectedAsset = created;
+                    if (_allocationEntries.isNotEmpty) {
+                      _allocationEntries.last.asset = created;
+                    }
                   });
                 }
               },
