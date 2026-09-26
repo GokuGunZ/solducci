@@ -3,7 +3,10 @@ import 'package:solducci/theme/app_theme.dart';
 
 class StagingSummaryBar extends StatelessWidget {
   final int selectedCount;
-  final double selectedTotal;
+  final int selectedExpensesCount;
+  final int selectedIncomesCount;
+  final double totalExpenses;
+  final double totalIncomes;
   final bool isLoading;
   final VoidCallback onConfirm;
   final VoidCallback? onBatchContext;
@@ -11,7 +14,10 @@ class StagingSummaryBar extends StatelessWidget {
   const StagingSummaryBar({
     super.key,
     required this.selectedCount,
-    required this.selectedTotal,
+    this.selectedExpensesCount = 0,
+    this.selectedIncomesCount = 0,
+    this.totalExpenses = 0.0,
+    this.totalIncomes = 0.0,
     required this.isLoading,
     required this.onConfirm,
     this.onBatchContext,
@@ -19,6 +25,9 @@ class StagingSummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final net = totalIncomes - totalExpenses;
+    final hasBoth = selectedExpensesCount > 0 && selectedIncomesCount > 0;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -43,32 +52,60 @@ class StagingSummaryBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$selectedCount spese selezionate',
+                    hasBoth
+                        ? '$selectedExpensesCount spese • $selectedIncomesCount entrate'
+                        : (selectedIncomesCount > 0
+                            ? '$selectedIncomesCount entrate selezionate'
+                            : '$selectedExpensesCount spese selezionate'),
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       color: AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    '€ ${selectedTotal.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        hasBoth
+                            ? (net >= 0 ? '+€ ${net.toStringAsFixed(2)}' : '-€ ${(-net).toStringAsFixed(2)}')
+                            : (selectedIncomesCount > 0
+                                ? '+€ ${totalIncomes.toStringAsFixed(2)}'
+                                : '-€ ${totalExpenses.toStringAsFixed(2)}'),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: (hasBoth && net >= 0) || selectedIncomesCount > 0 && selectedExpensesCount == 0
+                              ? AppTheme.success
+                              : Colors.white,
+                        ),
+                      ),
+                      if (hasBoth) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white10,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Netto',
+                            style: TextStyle(fontSize: 10, color: Colors.white70, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
 
-            // Pulsante rapido Assegna Contesto (se ci sono spese selezionate)
-            if (onBatchContext != null && selectedCount > 0) ...[
+            // Pulsante rapido Assegna Contesto Gruppo (se ci sono spese di gruppo selezionabili)
+            if (onBatchContext != null && selectedExpensesCount > 0) ...[
               IconButton(
                 onPressed: onBatchContext,
-                tooltip: 'Assegna Contesto ($selectedCount selezionate)',
+                tooltip: 'Assegna Contesto ($selectedExpensesCount spese)',
                 style: IconButton.styleFrom(
                   backgroundColor: const Color(0xFF27272A),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -90,7 +127,7 @@ class StagingSummaryBar extends StatelessWidget {
                   disabledBackgroundColor: Colors.white12,
                   disabledForegroundColor: Colors.white30,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -106,12 +143,12 @@ class StagingSummaryBar extends StatelessWidget {
                       )
                     : Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.download_done_rounded, size: 20),
-                          SizedBox(width: 8),
+                        children: [
+                          const Icon(Icons.download_done_rounded, size: 20),
+                          const SizedBox(width: 6),
                           Text(
-                            'Importa Spese',
-                            style: TextStyle(
+                            selectedCount > 0 ? 'Importa ($selectedCount)' : 'Importa',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),

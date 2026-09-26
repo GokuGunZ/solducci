@@ -5,6 +5,7 @@ import 'package:solducci/features/csv_importer/services/csv_parser_service.dart'
 import 'package:solducci/features/csv_importer/services/merchant_rule_service.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/income_category.dart';
 
 void main() {
   group('CsvParserService Tests', () {
@@ -52,7 +53,42 @@ Data operazione;Data valuta;Causale / Descrizione operazione;Importo (EUR)
       final t3 = result.transactions[2];
       expect(t3.amount, equals(1800.00));
       expect(t3.isIncome, isTrue);
-      expect(t3.isSelected, isFalse); // Entrate deselezionate di default
+      expect(t3.isSelected, isTrue); // Entrate selezionate di default per importazione completa
+      expect(t3.incomeCategory, equals(IncomeCategory.stipendio));
+    });
+
+    test('Distingue chiaramente entrate e spese e assegna IncomeCategory corretto', () {
+      expect(parser.detectIncomeCategory('BONIFICO EMOLUMENTI STIPENDIO SETTEMBRE'), equals(IncomeCategory.stipendio));
+      expect(parser.detectIncomeCategory('DIVIDENDO AZIONI APPLE INC'), equals(IncomeCategory.rendita));
+      expect(parser.detectIncomeCategory('PAGAMENTO CEDOLA BTP ITALIA 2030'), equals(IncomeCategory.rendita));
+      expect(parser.detectIncomeCategory('RIMBORSO SPESE TRASFERTA REFUND'), equals(IncomeCategory.rimborso));
+      expect(parser.detectIncomeCategory('BONIFICO REGALO COMPLEANNO NONNA'), equals(IncomeCategory.regalo));
+      expect(parser.detectIncomeCategory('ACCREDITO VINTED PAYMENTS SALDO'), equals(IncomeCategory.vendite));
+      expect(parser.detectIncomeCategory('BONIFICO GIROCONTO PERSONALE'), equals(IncomeCategory.altro));
+    });
+
+    test('Supporta assegnazione portfolioId e assetId su StagingTransaction di rendita', () {
+      final txRendita = StagingTransaction(
+        id: 'tx_rendita_1',
+        date: DateTime(2026, 9, 20),
+        amount: 85.50,
+        isIncome: true,
+        rawDescription: 'DIVIDENDO VWCE ISHARES ETF',
+        cleanDescription: 'Dividendo VWCE',
+        category: Tipologia.altro,
+        incomeCategory: IncomeCategory.rendita,
+        portfolioId: 'port_degiro',
+        assetId: 'asset_vwce',
+      );
+
+      expect(txRendita.isIncome, isTrue);
+      expect(txRendita.incomeCategory, equals(IncomeCategory.rendita));
+      expect(txRendita.portfolioId, equals('port_degiro'));
+      expect(txRendita.assetId, equals('asset_vwce'));
+
+      final modified = txRendita.copyWith(incomeCategory: IncomeCategory.stipendio, clearPortfolioId: true);
+      expect(modified.incomeCategory, equals(IncomeCategory.stipendio));
+      expect(modified.portfolioId, isNull);
     });
   });
 

@@ -12,17 +12,19 @@ import 'package:solducci/features/csv_importer/views/widgets/staging_summary_bar
 import 'package:solducci/features/csv_importer/views/widgets/volume_split_sheet.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/group.dart';
+import 'package:solducci/models/income_category.dart';
+import 'package:solducci/models/investment_portfolio.dart';
 import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/service/group_service_cached.dart';
-import 'package:solducci/service/wallet_service.dart';
-import 'package:solducci/models/investment_portfolio.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
+import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum InboxFilter { all, toReview, ready, duplicates }
+enum InboxFilter { all, ready, toReview, duplicates }
+enum TransactionTypeFilter { all, expenses, incomes }
 
 class CsvStagingInboxView extends StatefulWidget {
   final CsvParseResult parseResult;
@@ -38,7 +40,8 @@ class CsvStagingInboxView extends StatefulWidget {
 
 class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   late List<StagingTransaction> _transactions;
-  InboxFilter _activeFilter = InboxFilter.all;
+  TransactionTypeFilter _typeFilter = TransactionTypeFilter.all;
+  InboxFilter _statusFilter = InboxFilter.all;
   bool _isProcessing = true;
   bool _isCommitting = false;
   List<Wallet> _wallets = [];
@@ -62,9 +65,10 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     if (mounted) {
       setState(() {
         _portfolios = portfolios;
-        // Auto-match portfolio se ci sono transazioni di tipo investimento
+        // Auto-match portfolio sia per spese di tipo investimento che per entrate di tipo rendita
         for (final tx in _transactions) {
-          if (tx.category == Tipologia.investimento && tx.portfolioId == null && _portfolios.isNotEmpty) {
+          final isInv = tx.category == Tipologia.investimento || tx.incomeCategory == IncomeCategory.rendita;
+          if (isInv && tx.portfolioId == null && _portfolios.isNotEmpty) {
             final match = _portfolios.firstWhere(
               (p) => p.brokerName != null && tx.cleanDescription.toLowerCase().contains(p.brokerName!.toLowerCase()),
               orElse: () => _portfolios.first,
@@ -113,41 +117,78 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
 
   // --- Filtri e Statistiche ---
   List<StagingTransaction> get _filteredTransactions {
-    switch (_activeFilter) {
-      case InboxFilter.all:
-        return _transactions;
-      case InboxFilter.toReview:
-        return _transactions.where((t) => t.duplicateStatus == DuplicateStatus.fuzzyMatch).toList();
-      case InboxFilter.ready:
-        return _transactions.where((t) => t.duplicateStatus == DuplicateStatus.none).toList();
-      case InboxFilter.duplicates:
-        return _transactions.where((t) => t.duplicateStatus == DuplicateStatus.exactMatch).toList();
-    }
+    return _transactions.where((t) {
+      // 1. Filtro Tipo (Tutte / Spese / Entrate)
+      if (_typeFilter == TransactionTypeFilter.expenses && t.isIncome) return false;
+      if (_typeFilter == TransactionTypeFilter.incomes && !t.isIncome) return false;
+
+      // 2. Filtro Stato Duplicati / Revisione
+      switch (_statusFilter) {
+        case InboxFilter.all:
+          return true;
+        case InboxFilter.ready:
+          return t.duplicateStatus == DuplicateStatus.none;
+        case InboxFilter.toReview:
+          return t.duplicateStatus == DuplicateStatus.fuzzyMatch;
+        case InboxFilter.duplicates:
+          return t.duplicateStatus == DuplicateStatus.exactMatch;
+      }
+    }).toList();
   }
 
-  int get _readyCount => _transactions.where((t) => t.duplicateStatus == DuplicateStatus.none).length;
-  int get _toReviewCount => _transactions.where((t) => t.duplicateStatus == DuplicateStatus.fuzzyMatch).length;
-  int get _duplicatesCount => _transactions.where((t) => t.duplicateStatus == DuplicateStatus.exactMatch).length;
+  int get _expensesCount => _transactions.where((t) => !t.isIncome).length;
+  int get _incomesCount => _transactions.where((t) => t.isIncome).length;
+
+  double get _totalExpensesAll => _transactions.where((t) => !t.isIncome).fold(0.0, (sum, t) => sum + t.amount);
+  double get _totalIncomesAll => _transactions.where((t) => t.isIncome).fold(0.0, (sum, t) => sum + t.amount);
+
+  int get _readyCount => _transactions.where((t) {
+    if (_typeFilter == TransactionTypeFilter.expenses && t.isIncome) return false;
+    if (_typeFilter == TransactionTypeFilter.incomes && !t.isIncome) return false;
+    return t.duplicateStatus == DuplicateStatus.none;
+  }).length;
+
+  int get _toReviewCount => _transactions.where((t) {
+    if (_typeFilter == TransactionTypeFilter.expenses && t.isIncome) return false;
+    if (_typeFilter == TransactionTypeFilter.incomes && !t.isIncome) return false;
+    return t.duplicateStatus == DuplicateStatus.fuzzyMatch;
+  }).length;
+
+  int get _duplicatesCount => _transactions.where((t) {
+    if (_typeFilter == TransactionTypeFilter.expenses && t.isIncome) return false;
+    if (_typeFilter == TransactionTypeFilter.incomes && !t.isIncome) return false;
+    return t.duplicateStatus == DuplicateStatus.exactMatch;
+  }).length;
 
   int get _selectedCount => _transactions.where((t) => t.isSelected).length;
-  double get _selectedTotal => _transactions
+  int get _selectedExpensesCount => _transactions.where((t) => t.isSelected && !t.isIncome).length;
+  int get _selectedIncomesCount => _transactions.where((t) => t.isSelected && t.isIncome).length;
+
+  double get _selectedExpensesTotal => _transactions
       .where((t) => t.isSelected && !t.isIncome)
       .fold(0.0, (sum, t) => sum + t.amount);
 
-  void _toggleSelectAll(bool selectAll) {
+  double get _selectedIncomesTotal => _transactions
+      .where((t) => t.isSelected && t.isIncome)
+      .fold(0.0, (sum, t) => sum + t.amount);
+
+  void _toggleSelection(String mode) {
     setState(() {
       for (final t in _transactions) {
-        // Se si seleziona tutto, non riattivare i duplicati esatti per sicurezza
-        if (selectAll && t.duplicateStatus == DuplicateStatus.exactMatch) {
+        if (mode == 'select_all') {
+          t.isSelected = t.duplicateStatus != DuplicateStatus.exactMatch;
+        } else if (mode == 'select_expenses') {
+          t.isSelected = !t.isIncome && t.duplicateStatus != DuplicateStatus.exactMatch;
+        } else if (mode == 'select_incomes') {
+          t.isSelected = t.isIncome && t.duplicateStatus != DuplicateStatus.exactMatch;
+        } else if (mode == 'deselect_all') {
           t.isSelected = false;
-        } else {
-          t.isSelected = selectAll;
         }
       }
     });
   }
 
-  // --- Modifica Categoria & Propagazione Batch ---
+  // --- Modifica Categoria Spesa & Propagazione Batch ---
   void _onCategoryChanged(StagingTransaction tx, Tipologia newCat) {
     setState(() {
       tx.category = newCat;
@@ -163,12 +204,28 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     _checkForSimilarTransactions(tx, proposedCategory: newCat);
   }
 
+  // --- Modifica Categoria Entrata ---
+  void _onIncomeCategoryChanged(StagingTransaction tx, IncomeCategory newCat) {
+    setState(() {
+      tx.incomeCategory = newCat;
+      if (newCat == IncomeCategory.rendita && tx.portfolioId == null && _portfolios.isNotEmpty) {
+        final match = _portfolios.firstWhere(
+          (p) => p.brokerName != null && tx.cleanDescription.toLowerCase().contains(p.brokerName!.toLowerCase()),
+          orElse: () => _portfolios.first,
+        );
+        tx.portfolioId = match.id;
+      }
+    });
+  }
+
   void _onNameEdited(StagingTransaction tx, String newName) {
     setState(() {
       tx.cleanDescription = newName;
     });
 
-    _checkForSimilarTransactions(tx, proposedName: newName);
+    if (!tx.isIncome) {
+      _checkForSimilarTransactions(tx, proposedName: newName);
+    }
   }
 
   // --- Gestione Contesto (Personale vs Gruppo) & Volume Split ---
@@ -197,7 +254,6 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     final group = _groups.where((g) => g.id == tx.groupId).firstOrNull;
     if (group == null) return;
 
-    // Carica membri aggiornati
     final members = await GroupServiceCached().getGroupMembers(group.id);
     if (!mounted) return;
 
@@ -221,8 +277,8 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   }
 
   void _openBatchContextPicker() {
-    final selected = _transactions.where((t) => t.isSelected).toList();
-    if (selected.isEmpty) return;
+    final selectedExpenses = _transactions.where((t) => t.isSelected && !t.isIncome).toList();
+    if (selectedExpenses.isEmpty) return;
 
     showModalBottomSheet(
       context: context,
@@ -231,10 +287,10 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
       builder: (ctx) => ContextPickerSheet(
         groups: _groups,
         currentGroupId: null,
-        count: selected.length,
+        count: selectedExpenses.length,
         onContextSelected: (newGroupId) {
           setState(() {
-            for (final tx in selected) {
+            for (final tx in selectedExpenses) {
               tx.groupId = newGroupId;
               tx.splitType = SplitType.equal;
               tx.customSplitData = null;
@@ -244,8 +300,8 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
             SnackBar(
               content: Text(
                 newGroupId == null
-                    ? 'Impostato contesto Personale per ${selected.length} spese'
-                    : 'Impostato gruppo per ${selected.length} spese',
+                    ? 'Impostato contesto Personale per ${selectedExpenses.length} spese'
+                    : 'Impostato gruppo per ${selectedExpenses.length} spese',
               ),
               backgroundColor: AppTheme.success,
             ),
@@ -263,7 +319,6 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     final cleanName = proposedName ?? tx.cleanDescription;
     final cat = proposedCategory ?? tx.category;
 
-    // Cerca una parola chiave significativa (almeno 4 caratteri) nella descrizione originale
     final rawWords = tx.rawDescription
         .split(RegExp(r'[\s,-/]+'))
         .where((w) => w.length >= 4 && !RegExp(r'^\d+$').hasMatch(w))
@@ -274,9 +329,8 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
       pattern = rawWords.first;
     }
 
-    // Conta le altre transazioni simili nel file corrente
     final similarCount = _transactions.where((t) {
-      if (t.id == tx.id) return false;
+      if (t.id == tx.id || t.isIncome) return false;
       return t.rawDescription.toLowerCase().contains(pattern.toLowerCase()) ||
           t.cleanDescription.toLowerCase().contains(cleanName.toLowerCase());
     }).length;
@@ -291,7 +345,6 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
           proposedCategory: cat,
           similarCount: similarCount,
           onApplyToAllAndSaveRule: () async {
-            // 1. Aggiorna in blocco tutte le transazioni simili nel file corrente
             final updated = MerchantRuleService().applyRuleToSimilarTransactions(
               transactions: _transactions,
               pattern: pattern,
@@ -299,7 +352,6 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
               category: cat,
             );
 
-            // 2. Persiste la regola per i prossimi CSV
             await MerchantRuleService().saveRule(
               MerchantRule(
                 id: 'rule_${DateTime.now().millisecondsSinceEpoch}',
@@ -319,9 +371,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
               );
             }
           },
-          onApplyOnlyToCurrent: () {
-            // Lascia modificata solo la transazione corrente
-          },
+          onApplyOnlyToCurrent: () {},
         ),
       );
     }
@@ -426,13 +476,13 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
             icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
             color: const Color(0xFF27272A),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            onSelected: (val) {
-              if (val == 'select_all') _toggleSelectAll(true);
-              if (val == 'deselect_all') _toggleSelectAll(false);
-            },
+            onSelected: _toggleSelection,
             itemBuilder: (ctx) => const [
               PopupMenuItem(value: 'select_all', child: Text('Seleziona Tutte (esclusi duplicati)', style: TextStyle(color: Colors.white))),
-              PopupMenuItem(value: 'deselect_all', child: Text('Deseleziona Tutte', style: TextStyle(color: Colors.white))),
+              PopupMenuItem(value: 'select_expenses', child: Text('Seleziona solo Spese', style: TextStyle(color: Colors.white))),
+              PopupMenuItem(value: 'select_incomes', child: Text('Seleziona solo Entrate', style: TextStyle(color: Colors.white))),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'deselect_all', child: Text('Deseleziona Tutte', style: TextStyle(color: Colors.white70))),
             ],
           ),
         ],
@@ -444,26 +494,31 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                 children: [
                   CircularProgressIndicator(color: AppTheme.success),
                   SizedBox(height: 16),
-                  Text('Analisi e deduplicazione in corso...', style: TextStyle(color: Colors.white70)),
+                  Text('Analisi e categorizzazione in corso...', style: TextStyle(color: Colors.white70)),
                 ],
               ),
             )
           : Column(
               children: [
-                // 1. Hero Card Riepilogo Importazione
+                // 1. Hero Banner Riepilogo Importazione
                 _buildHeroBanner(),
 
-                // 2. Filtro a schede
+                // 2. Selettore Tipo: Tutte / Spese / Entrate
+                _buildTypeSegmentSelector(),
+
+                const SizedBox(height: 8),
+
+                // 3. Filtro Stati: Pronte / Da Verificare / Duplicate
                 _buildFilterTabs(),
 
                 const SizedBox(height: 8),
 
-                // 3. Lista Transazioni
+                // 4. Lista Transazioni
                 Expanded(
                   child: _filteredTransactions.isEmpty
-                      ? Center(
+                      ? const Center(
                           child: Text(
-                            'Nessuna transazione in questo filtro',
+                            'Nessun movimento trovato per questo filtro',
                             style: TextStyle(color: Colors.white38),
                           ),
                         )
@@ -479,6 +534,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                               availablePortfolios: _portfolios,
                               onToggleSelection: (val) => setState(() => tx.isSelected = val),
                               onCategoryChanged: (cat) => _onCategoryChanged(tx, cat),
+                              onIncomeCategoryChanged: (cat) => _onIncomeCategoryChanged(tx, cat),
                               onNameEdited: (name) => _onNameEdited(tx, name),
                               onAlignWithExisting: () => _alignFuzzyMatch(tx),
                               onOpenContextPicker: () => _openContextPicker(tx),
@@ -489,13 +545,16 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                         ),
                 ),
 
-                // 4. Sticky Bottom Summary Bar
+                // 5. Sticky Bottom Summary Bar
                 StagingSummaryBar(
                   selectedCount: _selectedCount,
-                  selectedTotal: _selectedTotal,
+                  selectedExpensesCount: _selectedExpensesCount,
+                  selectedIncomesCount: _selectedIncomesCount,
+                  totalExpenses: _selectedExpensesTotal,
+                  totalIncomes: _selectedIncomesTotal,
                   isLoading: _isCommitting,
                   onConfirm: _commitImport,
-                  onBatchContext: _selectedCount > 0 ? _openBatchContextPicker : null,
+                  onBatchContext: _selectedExpensesCount > 0 ? _openBatchContextPicker : null,
                 ),
               ],
             ),
@@ -503,8 +562,10 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   }
 
   Widget _buildHeroBanner() {
+    final netAll = _totalIncomesAll - _totalExpensesAll;
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF18181B),
@@ -519,9 +580,9 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('TRANSAZIONI RILEVATE', style: TextStyle(fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.bold, color: Colors.white38)),
+                  const Text('ESTRATTO CONTO BANCARIO', style: TextStyle(fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.bold, color: Colors.white38)),
                   const SizedBox(height: 4),
-                  Text('${_transactions.length} movimenti trovati', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text('${_transactions.length} movimenti rilevati', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 ],
               ),
               Container(
@@ -544,10 +605,74 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
               ),
             ],
           ),
+
+          const SizedBox(height: 12),
+
+          // Mini Cashflow Banner (Spese vs Entrate vs Saldo Netto)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('USCITE', style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '-€${_totalExpensesAll.toStringAsFixed(2)}',
+                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 26, color: Colors.white12),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('ENTRATE', style: TextStyle(color: AppTheme.success, fontSize: 10, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '+€${_totalIncomesAll.toStringAsFixed(2)}',
+                        style: const TextStyle(color: AppTheme.success, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 26, color: Colors.white12),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('SALDO NETTO', style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${netAll >= 0 ? '+' : '-'}€${netAll.abs().toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: netAll >= 0 ? AppTheme.success : Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           if (_wallets.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.black38,
                 borderRadius: BorderRadius.circular(12),
@@ -594,36 +719,87 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
               ),
             ),
           ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildStatPill('🟢 Pronte', _readyCount, AppTheme.success),
-              const SizedBox(width: 8),
-              _buildStatPill('🟡 Da verificare', _toReviewCount, AppTheme.warning),
-              const SizedBox(width: 8),
-              _buildStatPill('🟠 Duplicate', _duplicatesCount, AppTheme.error),
-            ],
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatPill(String label, int count, Color color) {
-    return Expanded(
+  Widget _buildTypeSegmentSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: const Color(0xFF18181B),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white10),
         ),
-        child: Column(
+        child: Row(
           children: [
-            Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 2),
-            Text('$count', style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+            _buildTypeSegmentItem(
+              label: 'Tutte (${_transactions.length})',
+              filter: TransactionTypeFilter.all,
+              activeColor: const Color(0xFF3B82F6),
+            ),
+            const SizedBox(width: 4),
+            _buildTypeSegmentItem(
+              label: 'Spese ($_expensesCount)',
+              filter: TransactionTypeFilter.expenses,
+              activeColor: const Color(0xFF6366F1),
+              icon: Icons.arrow_upward_rounded,
+            ),
+            const SizedBox(width: 4),
+            _buildTypeSegmentItem(
+              label: 'Entrate ($_incomesCount)',
+              filter: TransactionTypeFilter.incomes,
+              activeColor: AppTheme.success,
+              icon: Icons.arrow_downward_rounded,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeSegmentItem({
+    required String label,
+    required TransactionTypeFilter filter,
+    required Color activeColor,
+    IconData? icon,
+  }) {
+    final isSelected = _typeFilter == filter;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _typeFilter = filter),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor.withOpacity(0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? activeColor.withOpacity(0.5) : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: isSelected ? activeColor : Colors.white38),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white60,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -635,25 +811,25 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _buildFilterChip('Tutte (${_transactions.length})', InboxFilter.all),
+          _buildFilterChip('Tutti gli stati', InboxFilter.all),
           const SizedBox(width: 8),
-          _buildFilterChip('Pronte ($_readyCount)', InboxFilter.ready),
+          _buildFilterChip('🟢 Pronte ($_readyCount)', InboxFilter.ready),
           const SizedBox(width: 8),
-          _buildFilterChip('Da Verificare ($_toReviewCount)', InboxFilter.toReview),
+          _buildFilterChip('🟡 Da Verificare ($_toReviewCount)', InboxFilter.toReview),
           const SizedBox(width: 8),
-          _buildFilterChip('Duplicate ($_duplicatesCount)', InboxFilter.duplicates),
+          _buildFilterChip('🟠 Duplicate ($_duplicatesCount)', InboxFilter.duplicates),
         ],
       ),
     );
   }
 
   Widget _buildFilterChip(String label, InboxFilter filter) {
-    final isSelected = _activeFilter == filter;
+    final isSelected = _statusFilter == filter;
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
-        if (selected) setState(() => _activeFilter = filter);
+        if (selected) setState(() => _statusFilter = filter);
       },
       selectedColor: AppTheme.success,
       backgroundColor: const Color(0xFF1E1E22),

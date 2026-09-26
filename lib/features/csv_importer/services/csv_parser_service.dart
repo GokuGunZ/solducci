@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:solducci/features/csv_importer/models/csv_column_preset.dart';
 import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/income_category.dart';
 
 class CsvParseResult {
   final List<String> headers;
@@ -281,6 +282,8 @@ class CsvParserService {
 
         if (parsedAmount == null || parsedAmount == 0.0) continue;
 
+        final incomeCat = isIncome ? detectIncomeCategory(rawDesc) : IncomeCategory.altro;
+
         transactions.add(
           StagingTransaction(
             id: _uuid.v4(),
@@ -290,7 +293,8 @@ class CsvParserService {
             rawDescription: rawDesc,
             cleanDescription: rawDesc,
             category: Tipologia.altro,
-            isSelected: !isIncome, // Pre-seleziona solo le spese
+            incomeCategory: incomeCat,
+            isSelected: true, // Selezionate di default per un'importazione completa
           ),
         );
       }
@@ -303,5 +307,47 @@ class CsvParserService {
       transactions: transactions,
       delimiter: delimiter,
     );
+  }
+
+  /// Categorizza automaticamente le entrate in base alle parole chiave bancarie frequenti
+  IncomeCategory detectIncomeCategory(String rawDescription) {
+    final lower = rawDescription.toLowerCase();
+    if (lower.contains('stipendio') ||
+        lower.contains('emolumenti') ||
+        lower.contains('retribuz') ||
+        lower.contains('salary') ||
+        lower.contains('busta paga') ||
+        lower.contains('pensione')) {
+      return IncomeCategory.stipendio;
+    }
+    if (lower.contains('dividendo') ||
+        lower.contains('cedola') ||
+        lower.contains('interessi') ||
+        lower.contains('rendita') ||
+        lower.contains('coupon') ||
+        lower.contains('yield')) {
+      return IncomeCategory.rendita;
+    }
+    if (lower.contains('rimborso') ||
+        lower.contains('refund') ||
+        lower.contains('cashback') ||
+        lower.contains('storno') ||
+        lower.contains('chargeback')) {
+      return IncomeCategory.rimborso;
+    }
+    if (lower.contains('regalo') ||
+        lower.contains('gift') ||
+        lower.contains('compleanno') ||
+        lower.contains('mancia')) {
+      return IncomeCategory.regalo;
+    }
+    if (lower.contains('vinted') ||
+        lower.contains('wallapop') ||
+        lower.contains('ebay') ||
+        lower.contains('subito') ||
+        lower.contains('vendit')) {
+      return IncomeCategory.vendite;
+    }
+    return IncomeCategory.altro;
   }
 }

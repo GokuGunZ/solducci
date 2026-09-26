@@ -1,5 +1,6 @@
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/models/income_category.dart';
 import 'package:solducci/models/split_type.dart';
 
 enum DuplicateStatus {
@@ -16,7 +17,8 @@ class StagingTransaction {
   final String rawDescription;
 
   String cleanDescription;
-  Tipologia category;
+  Tipologia category; // Categoria spesa
+  IncomeCategory incomeCategory; // Categoria entrata (se isIncome == true)
   bool isSelected;
 
   // Contesto di spesa (Personale vs Gruppo)
@@ -24,8 +26,9 @@ class StagingTransaction {
   SplitType splitType; // default SplitType.equal se groupId != null
   Map<String, double>? customSplitData; // Se personalizzato tramite Volume Slider
 
-  // Contesto Investimenti (se category == Tipologia.investimento)
+  // Contesto Investimenti (se category == Tipologia.investimento o incomeCategory == IncomeCategory.rendita)
   String? portfolioId;
+  String? assetId; // Opzionale se associato a un asset specifico per rendite/dividendi
 
   DuplicateStatus duplicateStatus;
   Expense? matchedExistingExpense;
@@ -39,11 +42,13 @@ class StagingTransaction {
     required this.rawDescription,
     required this.cleanDescription,
     required this.category,
+    this.incomeCategory = IncomeCategory.altro,
     this.isSelected = true,
     this.groupId,
     this.splitType = SplitType.equal,
     this.customSplitData,
     this.portfolioId,
+    this.assetId,
     this.duplicateStatus = DuplicateStatus.none,
     this.matchedExistingExpense,
     this.amountDifference,
@@ -56,6 +61,7 @@ class StagingTransaction {
   StagingTransaction copyWith({
     String? cleanDescription,
     Tipologia? category,
+    IncomeCategory? incomeCategory,
     bool? isSelected,
     String? groupId,
     bool clearGroupId = false,
@@ -64,6 +70,8 @@ class StagingTransaction {
     bool clearCustomSplitData = false,
     String? portfolioId,
     bool clearPortfolioId = false,
+    String? assetId,
+    bool clearAssetId = false,
     DuplicateStatus? duplicateStatus,
     Expense? matchedExistingExpense,
     double? amountDifference,
@@ -76,11 +84,13 @@ class StagingTransaction {
       rawDescription: rawDescription,
       cleanDescription: cleanDescription ?? this.cleanDescription,
       category: category ?? this.category,
+      incomeCategory: incomeCategory ?? this.incomeCategory,
       isSelected: isSelected ?? this.isSelected,
       groupId: clearGroupId ? null : (groupId ?? this.groupId),
       splitType: splitType ?? this.splitType,
       customSplitData: clearCustomSplitData ? null : (customSplitData ?? this.customSplitData),
       portfolioId: clearPortfolioId ? null : (portfolioId ?? this.portfolioId),
+      assetId: clearAssetId ? null : (assetId ?? this.assetId),
       duplicateStatus: duplicateStatus ?? this.duplicateStatus,
       matchedExistingExpense: matchedExistingExpense ?? this.matchedExistingExpense,
       amountDifference: amountDifference ?? this.amountDifference,

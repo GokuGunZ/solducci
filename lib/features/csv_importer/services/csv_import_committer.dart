@@ -1,7 +1,6 @@
 import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/income.dart';
-import 'package:solducci/models/income_category.dart';
 import 'package:solducci/models/split_type.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/group_service_cached.dart';
@@ -34,24 +33,6 @@ class CsvImportCommitter {
 
     for (final t in selected) {
       if (t.isIncome) {
-        // Categoria intelligente per entrate basata su parole chiave
-        final rawLower = t.rawDescription.toLowerCase();
-        IncomeCategory cat = IncomeCategory.altro;
-        if (rawLower.contains('stipendio') ||
-            rawLower.contains('emolumenti') ||
-            rawLower.contains('retribuz') ||
-            rawLower.contains('salary')) {
-          cat = IncomeCategory.stipendio;
-        } else if (rawLower.contains('rimborso') || rawLower.contains('refund')) {
-          cat = IncomeCategory.rimborso;
-        } else if (rawLower.contains('regalo') || rawLower.contains('gift')) {
-          cat = IncomeCategory.regalo;
-        } else if (rawLower.contains('dividendo') ||
-            rawLower.contains('cedola') ||
-            rawLower.contains('interessi')) {
-          cat = IncomeCategory.rendita;
-        }
-
         final income = Income(
           id: '',
           userId: currentUserId ?? '',
@@ -59,7 +40,9 @@ class CsvImportCommitter {
           amount: t.amount,
           description: t.cleanDescription.isNotEmpty ? t.cleanDescription : t.rawDescription,
           date: t.date,
-          category: cat,
+          category: t.incomeCategory,
+          portfolioId: t.portfolioId,
+          assetId: t.assetId,
         );
         final map = income.toMap();
         map.remove('id'); // Generato da Supabase UUID
