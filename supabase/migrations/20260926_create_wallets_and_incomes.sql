@@ -19,10 +19,11 @@ CREATE TABLE IF NOT EXISTS public.wallets (
 -- Enable RLS for wallets
 ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own wallets" ON public.wallets;
 CREATE POLICY "Users can manage their own wallets"
     ON public.wallets
     FOR ALL
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id::text);
 
 CREATE INDEX IF NOT EXISTS idx_wallets_user ON public.wallets(user_id);
 CREATE INDEX IF NOT EXISTS idx_wallets_user_default ON public.wallets(user_id) WHERE is_default = true;
@@ -51,10 +52,11 @@ CREATE TABLE IF NOT EXISTS public.incomes (
 -- Enable RLS for incomes
 ALTER TABLE public.incomes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own incomes" ON public.incomes;
 CREATE POLICY "Users can manage their own incomes"
     ON public.incomes
     FOR ALL
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id::text);
 
 CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON public.incomes(user_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_incomes_wallet ON public.incomes(wallet_id);
@@ -75,10 +77,11 @@ CREATE TABLE IF NOT EXISTS public.wallet_transfers (
 -- Enable RLS for transfers
 ALTER TABLE public.wallet_transfers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own wallet transfers" ON public.wallet_transfers;
 CREATE POLICY "Users can manage their own wallet transfers"
     ON public.wallet_transfers
     FOR ALL
-    USING (auth.uid() = user_id);
+    USING (auth.uid()::text = user_id::text);
 
 CREATE INDEX IF NOT EXISTS idx_transfers_user ON public.wallet_transfers(user_id);
 CREATE INDEX IF NOT EXISTS idx_transfers_from_wallet ON public.wallet_transfers(from_wallet_id);
