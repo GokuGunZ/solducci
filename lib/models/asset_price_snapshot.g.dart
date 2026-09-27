@@ -23,13 +23,16 @@ class AssetPriceSnapshotAdapter extends TypeAdapter<AssetPriceSnapshot> {
       timestamp: fields[3] as DateTime,
       source: fields[4] as String,
       note: fields[5] as String?,
+      transactionType: fields[6] as String?,
+      quantityDelta: fields[7] as double?,
+      totalAmount: fields[8] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AssetPriceSnapshot obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +44,13 @@ class AssetPriceSnapshotAdapter extends TypeAdapter<AssetPriceSnapshot> {
       ..writeByte(4)
       ..write(obj.source)
       ..writeByte(5)
-      ..write(obj.note);
+      ..write(obj.note)
+      ..writeByte(6)
+      ..write(obj.transactionType)
+      ..writeByte(7)
+      ..write(obj.quantityDelta)
+      ..writeByte(8)
+      ..write(obj.totalAmount);
   }
 
   @override

@@ -418,5 +418,138 @@ void main() {
       expect(mostUnderweighted, equals(AssetClass.bond));
       expect(minDev, equals(-10.0));
     });
+
+    test('AssetClass collectible & luxury classification and isPhysical property', () {
+      expect(AssetClass.collectible.label, equals('Collezionismo & Carte TCG'));
+      expect(AssetClass.collectible.dbValue, equals('collectible'));
+      expect(AssetClass.collectible.isPhysical, isTrue);
+
+      expect(AssetClass.luxury.label, equals('Beni di Lusso & Orologi'));
+      expect(AssetClass.luxury.dbValue, equals('luxury'));
+      expect(AssetClass.luxury.isPhysical, isTrue);
+
+      expect(AssetClass.commodity.isPhysical, isTrue);
+      expect(AssetClass.realEstate.isPhysical, isTrue);
+      expect(AssetClass.etf.isPhysical, isFalse);
+      expect(AssetClass.stock.isPhysical, isFalse);
+      expect(AssetClass.crypto.isPhysical, isFalse);
+
+      expect(AssetClass.fromDb('collectible'), equals(AssetClass.collectible));
+      expect(AssetClass.fromDb('luxury'), equals(AssetClass.luxury));
+    });
+
+    test('InvestmentAsset Collectibles & Physical metadata (Pokemon card, Rolex)', () {
+      final card = InvestmentAsset(
+        id: 'card-charizard-1',
+        portfolioId: 'port-tcg',
+        name: 'Charizard Set Base 1st Edition',
+        assetClass: AssetClass.collectible,
+        editionOrSet: 'Set Base 1999',
+        conditionOrGrading: 'PSA 9 MINT',
+        serialOrCertNumber: '48291048',
+        storageLocation: 'Toploader Box Cassaforte',
+        totalQuantity: 1.0,
+        investedCapital: 900.0,
+        currentPrice: 1450.0,
+      );
+
+      expect(card.isPhysical, isTrue);
+      expect(card.formattedQuantity, equals('1'));
+      expect(card.quantityUnitLabel, equals('esemplare'));
+      expect(card.averageBuyPrice, equals(900.0));
+      expect(card.currentValue, equals(1450.0));
+      expect(card.unrealizedPnl, equals(550.0));
+      expect(card.roiPercent, closeTo(61.11, 0.01));
+
+      // Serialization test
+      final map = card.toMap();
+      expect(map['edition_or_set'], equals('Set Base 1999'));
+      expect(map['condition_or_grading'], equals('PSA 9 MINT'));
+      expect(map['serial_or_cert_number'], equals('48291048'));
+      expect(map['storage_location'], equals('Toploader Box Cassaforte'));
+      expect(map['is_physical'], isTrue);
+
+      final restored = InvestmentAsset.fromMap(map);
+      expect(restored.editionOrSet, equals('Set Base 1999'));
+      expect(restored.conditionOrGrading, equals('PSA 9 MINT'));
+      expect(restored.serialOrCertNumber, equals('48291048'));
+      expect(restored.isPhysical, isTrue);
+      expect(restored.formattedQuantity, equals('1'));
+      expect(restored.quantityUnitLabel, equals('esemplare'));
+    });
+
+    test('InvestmentAsset Buy & Sell transaction accounting math (PMC, Realized PnL)', () {
+      // 1. Situazione iniziale: 2 carte acquistate a 100€ cad (totale 200€)
+      var asset = InvestmentAsset(
+        id: 'asset-card',
+        portfolioId: 'port-1',
+        name: 'Pikachu Illustrator',
+        assetClass: AssetClass.collectible,
+        totalQuantity: 2.0,
+        investedCapital: 200.0,
+        currentPrice: 150.0,
+      );
+      expect(asset.averageBuyPrice, equals(100.0));
+      expect(asset.currentValue, equals(300.0));
+
+      // 2. Operazione Acquisto: si compra 1 altro pezzo a 160€
+      const buyQty = 1.0;
+      const buyTotal = 160.0;
+      asset = asset.copyWith(
+        totalQuantity: asset.totalQuantity + buyQty,
+        investedCapital: asset.investedCapital + buyTotal,
+        currentPrice: buyTotal / buyQty,
+      );
+      // Nuova quantità: 3, Capitale totale: 360€ -> Nuovo PMC: 360 / 3 = 120€
+      expect(asset.totalQuantity, equals(3.0));
+      expect(asset.investedCapital, equals(360.0));
+      expect(asset.averageBuyPrice, equals(120.0));
+
+      // 3. Operazione Vendita: si vende 1 pezzo a 200€
+      const sellQty = 1.0;
+      const sellTotal = 200.0;
+      final pmcAtSale = asset.averageBuyPrice; // 120€
+      final costBasisSold = pmcAtSale * sellQty; // 120€
+      final realizedGain = sellTotal - costBasisSold; // 200 - 120 = +80€
+
+      asset = asset.copyWith(
+        totalQuantity: asset.totalQuantity - sellQty,
+        investedCapital: asset.investedCapital - costBasisSold,
+      );
+
+      // Quantità rimanente: 2 pezzi, Capitale residuo: 240€ (PMC rimane 120€)
+      expect(asset.totalQuantity, equals(2.0));
+      expect(asset.investedCapital, equals(240.0));
+      expect(asset.averageBuyPrice, equals(120.0));
+      expect(realizedGain, equals(80.0));
+    });
+
+    test('AssetPriceSnapshot rich transaction types (purchase, sale, adjustment, snapshot)', () {
+      final purchaseSnap = AssetPriceSnapshot(
+        id: 'snap-1',
+        assetId: 'asset-1',
+        price: 150.0,
+        source: 'purchase',
+        transactionType: 'purchase',
+        quantityDelta: 2.0,
+        totalAmount: 300.0,
+        note: 'Acquisto 2 pezzi',
+      );
+
+      expect(purchaseSnap.isPurchase, isTrue);
+      expect(purchaseSnap.isSale, isFalse);
+      expect(purchaseSnap.quantityDelta, equals(2.0));
+      expect(purchaseSnap.totalAmount, equals(300.0));
+
+      final map = purchaseSnap.toMap();
+      expect(map['transaction_type'], equals('purchase'));
+      expect(map['quantity_delta'], equals(2.0));
+      expect(map['total_amount'], equals(300.0));
+
+      final restored = AssetPriceSnapshot.fromMap(map);
+      expect(restored.isPurchase, isTrue);
+      expect(restored.quantityDelta, equals(2.0));
+      expect(restored.totalAmount, equals(300.0));
+    });
   });
 }

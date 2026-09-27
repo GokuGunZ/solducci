@@ -106,96 +106,324 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
   void _showCreateAssetDialog(BuildContext context, String portfolioId) {
     final nameCtrl = TextEditingController();
     final tickerCtrl = TextEditingController();
+    final editionCtrl = TextEditingController();
+    final gradingCtrl = TextEditingController();
+    final storageCtrl = TextEditingController();
+    final qtyCtrl = TextEditingController(text: '1');
+    final buyPriceCtrl = TextEditingController();
+    final currentPriceCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
     AssetClass selectedClass = AssetClass.etf;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E22),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Nuovo Asset nel Portafoglio', style: TextStyle(color: Colors.white, fontSize: 18)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Nome (es. Vanguard All-World, Bitcoin...)',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: const Color(0xFF27272A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: tickerCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Ticker / Simbolo opzionale (es. VWCE, BTC...)',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: const Color(0xFF27272A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonHideUnderline(
-                child: DropdownButton<AssetClass>(
-                  value: selectedClass,
-                  dropdownColor: const Color(0xFF27272A),
-                  isExpanded: true,
-                  items: AssetClass.values.map((ac) {
-                    return DropdownMenuItem<AssetClass>(
-                      value: ac,
-                      child: Row(
-                        children: [
-                          Icon(ac.icon, size: 16, color: ac.color),
-                          const SizedBox(width: 8),
-                          Text(ac.label, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                        ],
+        builder: (ctx, setSheetState) {
+          final isPhys = selectedClass.isPhysical;
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: Color(0xFF18181B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isPhys ? 'Nuovo Bene / Oggetto da Collezione' : 'Nuovo Asset nel Portafoglio',
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (newClass) {
-                    if (newClass != null) {
-                      setDialogState(() => selectedClass = newClass);
-                    }
-                  },
-                ),
+                      Icon(isPhys ? Icons.style_rounded : Icons.trending_up_rounded, color: const Color(0xFF818CF8)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isPhys
+                        ? 'Registra una carta, orologio o bene materiale con quantità e stima'
+                        : 'Aggiungi quote di ETF, azioni o crypto al tuo portafoglio',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Selettore Classe Asset
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27272A),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<AssetClass>(
+                        value: selectedClass,
+                        dropdownColor: const Color(0xFF27272A),
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70),
+                        items: AssetClass.values.map((ac) {
+                          return DropdownMenuItem<AssetClass>(
+                            value: ac,
+                            child: Row(
+                              children: [
+                                Icon(ac.icon, size: 16, color: ac.color),
+                                const SizedBox(width: 8),
+                                Text(ac.label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newClass) {
+                          if (newClass != null) {
+                            setSheetState(() => selectedClass = newClass);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Nome Asset
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: isPhys ? 'Nome Oggetto / Carta' : 'Nome Asset / Titolo',
+                      labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                      hintText: isPhys ? 'Es. Charizard 1st Edition, Rolex Submariner...' : 'Es. Vanguard All-World, Bitcoin...',
+                      hintStyle: const TextStyle(color: Colors.white24),
+                      filled: true,
+                      fillColor: const Color(0xFF27272A),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    ),
+                  ),
+
+                  if (isPhys) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: editionCtrl,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              labelText: 'Edizione / Set / Anno',
+                              labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                              hintText: 'Es. Set Base 1999',
+                              hintStyle: const TextStyle(color: Colors.white24),
+                              filled: true,
+                              fillColor: const Color(0xFF27272A),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: gradingCtrl,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              labelText: 'Grado / Condizione',
+                              labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                              hintText: 'Es. PSA 10, Raw NM',
+                              hintStyle: const TextStyle(color: Colors.white24),
+                              filled: true,
+                              fillColor: const Color(0xFF27272A),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: ['PSA 10', 'PSA 9', 'BGS 9.5', 'Near Mint', 'Mint', 'Raw', 'Full Set'].map((chip) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ActionChip(
+                              label: Text(chip, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                              backgroundColor: const Color(0xFF27272A),
+                              side: const BorderSide(color: Colors.white10),
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                setSheetState(() => gradingCtrl.text = chip);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: tickerCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Ticker / Simbolo (opzionale)',
+                        labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                        hintText: 'Es. VWCE, BTC, AAPL...',
+                        hintStyle: const TextStyle(color: Colors.white24),
+                        filled: true,
+                        fillColor: const Color(0xFF27272A),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  // Quantità, Prezzo d'acquisto e Stima Valore Attuale
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: qtyCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: isPhys ? 'Pezzi / Qtà' : 'Quote / Qtà',
+                            labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+                            hintText: '1',
+                            hintStyle: const TextStyle(color: Colors.white24),
+                            filled: true,
+                            fillColor: const Color(0xFF27272A),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          controller: buyPriceCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Costo Totale (€)',
+                            labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+                            hintText: '0.00',
+                            hintStyle: const TextStyle(color: Colors.white24),
+                            filled: true,
+                            fillColor: const Color(0xFF27272A),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          controller: currentPriceCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Stima Unitaria (€)',
+                            labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+                            hintText: '0.00',
+                            hintStyle: const TextStyle(color: Colors.white24),
+                            filled: true,
+                            fillColor: const Color(0xFF27272A),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (isPhys) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: storageCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Luogo di Custodia (opzionale)',
+                        labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                        hintText: 'Es. Raccoglitore Toploader, Cassaforte...',
+                        hintStyle: const TextStyle(color: Colors.white24),
+                        filled: true,
+                        fillColor: const Color(0xFF27272A),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: noteCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Note aggiuntive (opzionale)',
+                      labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                      hintText: 'Es. Acquistata da privato, numero certificato...',
+                      hintStyle: const TextStyle(color: Colors.white24),
+                      filled: true,
+                      fillColor: const Color(0xFF27272A),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final name = nameCtrl.text.trim();
+                        if (name.isEmpty) return;
+
+                        final qty = double.tryParse(qtyCtrl.text.replaceAll(',', '.').trim()) ?? (isPhys ? 1.0 : 0.0);
+                        final capital = double.tryParse(buyPriceCtrl.text.replaceAll(',', '.').trim()) ?? 0.0;
+                        final currentP = double.tryParse(currentPriceCtrl.text.replaceAll(',', '.').trim()) ?? (qty > 0 && capital > 0 ? capital / qty : 0.0);
+
+                        Navigator.pop(ctx);
+                        await _assetService.createAsset(
+                          portfolioId: portfolioId,
+                          name: name,
+                          ticker: tickerCtrl.text.trim().isNotEmpty ? tickerCtrl.text.trim() : null,
+                          assetClass: selectedClass,
+                          initialQuantity: qty,
+                          initialCapital: capital,
+                          currentPrice: currentP,
+                          editionOrSet: editionCtrl.text.trim().isNotEmpty ? editionCtrl.text.trim() : null,
+                          conditionOrGrading: gradingCtrl.text.trim().isNotEmpty ? gradingCtrl.text.trim() : null,
+                          storageLocation: storageCtrl.text.trim().isNotEmpty ? storageCtrl.text.trim() : null,
+                          note: noteCtrl.text.trim().isNotEmpty ? noteCtrl.text.trim() : null,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Salva Asset nel Portafoglio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameCtrl.text.trim();
-                if (name.isNotEmpty) {
-                  Navigator.pop(ctx);
-                  await _assetService.createAsset(
-                    portfolioId: portfolioId,
-                    name: name,
-                    ticker: tickerCtrl.text.trim().isNotEmpty ? tickerCtrl.text.trim() : null,
-                    assetClass: selectedClass,
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Aggiungi', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -866,7 +1094,7 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
                                                     ),
                                                     const SizedBox(height: 2),
                                                     Text(
-                                                      '${asset.totalQuantity} quote • €${asset.currentPrice.toStringAsFixed(2)}',
+                                                      '${asset.conditionOrGrading != null && asset.conditionOrGrading!.isNotEmpty ? "${asset.conditionOrGrading} • " : ""}${asset.formattedQuantity} ${asset.quantityUnitLabel} • €${asset.currentPrice.toStringAsFixed(2)}',
                                                       style: const TextStyle(color: Colors.white38, fontSize: 11),
                                                     ),
                                                   ],

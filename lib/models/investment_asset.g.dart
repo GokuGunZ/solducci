@@ -29,13 +29,18 @@ class InvestmentAssetAdapter extends TypeAdapter<InvestmentAsset> {
       note: fields[9] as String?,
       createdAt: fields[10] as DateTime,
       updatedAt: fields[11] as DateTime,
+      editionOrSet: fields[12] as String?,
+      conditionOrGrading: fields[13] as String?,
+      serialOrCertNumber: fields[14] as String?,
+      storageLocation: fields[15] as String?,
+      isPhysical: fields[16] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, InvestmentAsset obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -59,7 +64,17 @@ class InvestmentAssetAdapter extends TypeAdapter<InvestmentAsset> {
       ..writeByte(10)
       ..write(obj.createdAt)
       ..writeByte(11)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(12)
+      ..write(obj.editionOrSet)
+      ..writeByte(13)
+      ..write(obj.conditionOrGrading)
+      ..writeByte(14)
+      ..write(obj.serialOrCertNumber)
+      ..writeByte(15)
+      ..write(obj.storageLocation)
+      ..writeByte(16)
+      ..write(obj.isPhysical);
   }
 
   @override

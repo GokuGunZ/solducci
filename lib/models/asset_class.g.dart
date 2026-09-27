@@ -31,6 +31,10 @@ class AssetClassAdapter extends TypeAdapter<AssetClass> {
         return AssetClass.cashEquivalent;
       case 8:
         return AssetClass.other;
+      case 9:
+        return AssetClass.collectible;
+      case 10:
+        return AssetClass.luxury;
       default:
         return AssetClass.etf;
     }
@@ -65,6 +69,12 @@ class AssetClassAdapter extends TypeAdapter<AssetClass> {
         break;
       case AssetClass.other:
         writer.writeByte(8);
+        break;
+      case AssetClass.collectible:
+        writer.writeByte(9);
+        break;
+      case AssetClass.luxury:
+        writer.writeByte(10);
         break;
     }
   }

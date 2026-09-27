@@ -22,11 +22,27 @@ enum AssetClass {
   @HiveField(7)
   cashEquivalent('Liquidità Vincolata / Deposito', 'cash_equivalent'),
   @HiveField(8)
-  other('Altro', 'other');
+  other('Altro', 'other'),
+  @HiveField(9)
+  collectible('Collezionismo & Carte TCG', 'collectible'),
+  @HiveField(10)
+  luxury('Beni di Lusso & Orologi', 'luxury');
 
   final String label;
   final String dbValue;
   const AssetClass(this.label, this.dbValue);
+
+  bool get isPhysical {
+    switch (this) {
+      case AssetClass.collectible:
+      case AssetClass.luxury:
+      case AssetClass.commodity:
+      case AssetClass.realEstate:
+        return true;
+      default:
+        return false;
+    }
+  }
 
   IconData get icon {
     switch (this) {
@@ -46,6 +62,10 @@ enum AssetClass {
         return Icons.shield_rounded;
       case AssetClass.cashEquivalent:
         return Icons.lock_clock_rounded;
+      case AssetClass.collectible:
+        return Icons.style_rounded;
+      case AssetClass.luxury:
+        return Icons.watch_rounded;
       case AssetClass.other:
         return Icons.category_rounded;
     }
@@ -69,6 +89,10 @@ enum AssetClass {
         return const Color(0xFF8B5CF6); // Purple
       case AssetClass.cashEquivalent:
         return const Color(0xFF06B6D4); // Cyan
+      case AssetClass.collectible:
+        return const Color(0xFFF97316); // Orange
+      case AssetClass.luxury:
+        return const Color(0xFFD946EF); // Fuchsia
       case AssetClass.other:
         return const Color(0xFF9CA3AF); // Gray
     }

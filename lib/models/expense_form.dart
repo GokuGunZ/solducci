@@ -801,7 +801,7 @@ enum Tipologia {
 extension EnumLabel on Enum {
   String getLabel() {
     switch (runtimeType) {
-      case Tipologia:
+      case Tipologia _:
         return (this as Tipologia).label;
       default:
         return toString().split('.').last;
@@ -810,7 +810,7 @@ extension EnumLabel on Enum {
 
   String getTypeTitle() {
     switch (runtimeType) {
-      case Tipologia:
+      case Tipologia _:
         return "Inserisci la tipologia della spesa";
       default:
         return "title";
