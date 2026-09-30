@@ -12,6 +12,9 @@ import 'package:solducci/widgets/dashboard/widgets/habit_tracker_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/unresolved_asterisks_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/shopping_quick_list_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/recent_markdown_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/hero_countdown_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/pantry_alert_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/investment_summary_widget.dart';
 
 class DashboardWidgetFactory {
   /// Maps a widget definition string to its actual Flutter Widget
@@ -43,7 +46,15 @@ class DashboardWidgetFactory {
         
       case 'recent_markdown':
         return RecentMarkdownWidget(def: def);
-        
+
+      case 'hero_countdown':
+        return HeroCountdownWidget(def: def);
+
+      case 'pantry_alert':
+        return PantryAlertWidget(def: def);
+
+      case 'investment_summary':
+        return InvestmentSummaryWidget(def: def);
         
       default:
         return _MockWidget(title: 'Unknown: ${def.type}', color: Colors.grey);
@@ -57,6 +68,9 @@ class DashboardWidgetFactory {
       BentoWidgetDef(id: 'w_foc', type: 'focus_tasks', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_brn', type: 'monthly_burn_rate', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_dpr', type: 'daily_progress', size: const BentoWidgetSize(1, 1)),
+      BentoWidgetDef(id: 'w_cnt', type: 'hero_countdown', size: const BentoWidgetSize(2, 1)),
+      BentoWidgetDef(id: 'w_pnt', type: 'pantry_alert', size: const BentoWidgetSize(1, 1)),
+      BentoWidgetDef(id: 'w_inv', type: 'investment_summary', size: const BentoWidgetSize(2, 1)),
       BentoWidgetDef(id: 'w_ast', type: 'unresolved_asterisks', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_shp', type: 'shopping_quick_list', size: const BentoWidgetSize(1, 2)),
       BentoWidgetDef(id: 'w_hab', type: 'habit_tracker', size: const BentoWidgetSize(2, 1)),
@@ -67,7 +81,7 @@ class DashboardWidgetFactory {
   static List<BentoWidgetSize> getAllowedSizes(String type) {
     switch (type) {
       case 'balance':
-        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(1, 2)];
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(1, 2)];
       case 'quick_expense':
         return [const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 3)];
       case 'focus_tasks':
@@ -81,7 +95,13 @@ class DashboardWidgetFactory {
       case 'daily_progress':
         return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(1, 2)];
       case 'habit_tracker':
-        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2), const BentoWidgetSize(4, 4)];
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2), const BentoWidgetSize(4, 4)];
+      case 'hero_countdown':
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
+      case 'pantry_alert':
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1)];
+      case 'investment_summary':
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
       case 'recent_markdown':
         return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 2)];
       default:
@@ -95,6 +115,10 @@ class DashboardWidgetFactory {
       case 'balance':
       case 'focus_tasks':
       case 'shopping_quick_list':
+      case 'habit_tracker':
+      case 'monthly_burn_rate':
+      case 'hero_countdown':
+      case 'pantry_alert':
         return true;
       default:
         return false;

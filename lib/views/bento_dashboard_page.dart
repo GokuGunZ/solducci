@@ -10,6 +10,11 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/wallet_service.dart';
+import 'package:solducci/service/document_service.dart';
+import 'package:solducci/service/time_management_service.dart';
+import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/utils/category_helpers.dart';
 import 'package:uuid/uuid.dart';
 
 class BentoDashboardPage extends StatelessWidget {
@@ -434,6 +439,9 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                       case 'quick_expense': return 'Spesa Rapida';
                       case 'monthly_burn_rate': return 'Burn Rate';
                       case 'daily_progress': return 'Progresso';
+                      case 'hero_countdown': return 'Countdown';
+                      case 'pantry_alert': return 'Dispensa';
+                      case 'investment_summary': return 'Investimenti';
                       case 'unresolved_asterisks': return 'Asterischi';
                       case 'shopping_quick_list': return 'Lista Spesa';
                       case 'habit_tracker': return 'Abitudini';
@@ -506,45 +514,330 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
     ).animate().slideY(begin: 1, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
   }
   Future<Map<String, dynamic>?> _showInitModal(BuildContext context, String type) async {
-    String title = 'Configura Widget';
-    List<String> options = [];
-
-    if (type == 'balance') {
-      title = 'Seleziona Conto';
-      options = ['Generale', 'Wallet Personale', 'Conto Comune'];
-    } else if (type == 'focus_tasks') {
-      title = 'Seleziona Progetto/Categoria';
-      options = ['Tutte le attività', 'Lavoro', 'Casa', 'Progetti Personali'];
-    } else if (type == 'shopping_quick_list') {
-      title = 'Seleziona Lista Spesa';
-      options = ['Spesa Settimanale', 'Amazon', 'Ikea'];
-    }
-
     return await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       backgroundColor: const Color(0xFF18181B),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              ...options.map((option) => ListTile(
-                    title: Text(option, style: const TextStyle(color: Colors.white70)),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-                    onTap: () {
-                      Navigator.of(context).pop({'source': option});
-                    },
-                  )),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
+      isScrollControlled: true,
+      builder: (modalContext) {
+        return _DynamicInitModalSheet(type: type);
       },
+    );
+  }
+}
+
+class _WidgetOptionItem {
+  final String title;
+  final String? subtitle;
+  final IconData icon;
+  final Color color;
+  final Map<String, dynamic> customProps;
+
+  const _WidgetOptionItem({
+    required this.title,
+    this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.customProps,
+  });
+}
+
+class _DynamicInitModalSheet extends StatefulWidget {
+  final String type;
+  const _DynamicInitModalSheet({required this.type});
+
+  @override
+  State<_DynamicInitModalSheet> createState() => _DynamicInitModalSheetState();
+}
+
+class _DynamicInitModalSheetState extends State<_DynamicInitModalSheet> {
+  bool _loading = true;
+  String _title = 'Configura Widget';
+  List<_WidgetOptionItem> _options = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOptions();
+  }
+
+  Future<void> _loadOptions() async {
+    final currentContext = ContextManager().currentContext;
+    final options = <_WidgetOptionItem>[];
+
+    try {
+      if (widget.type == 'balance') {
+        _title = 'Seleziona Conto o Saldo';
+        options.add(const _WidgetOptionItem(
+          title: 'Tutti i Portafogli (Panoramica)',
+          subtitle: 'Mostra il totale e permette lo swipe tra i conti',
+          icon: Icons.account_balance_wallet_rounded,
+          color: Color(0xFF10B981),
+          customProps: {'source': 'all', 'title': 'Tutti i Portafogli'},
+        ));
+
+        if (currentContext.isGroup) {
+          options.add(const _WidgetOptionItem(
+            title: 'Saldo di Gruppo',
+            subtitle: 'Crediti e debiti con i membri del gruppo',
+            icon: Icons.group_rounded,
+            color: Color(0xFF6366F1),
+            customProps: {'source': 'group_balance', 'title': 'Saldo di Gruppo'},
+          ));
+        }
+
+        final wallets = await WalletService().fetchWallets();
+        for (final w in wallets) {
+          options.add(_WidgetOptionItem(
+            title: w.name,
+            subtitle: '${w.currentBalance.toStringAsFixed(2)} €',
+            icon: w.type.icon,
+            color: w.color,
+            customProps: {'source': 'wallet', 'walletId': w.id, 'title': w.name},
+          ));
+        }
+      } else if (widget.type == 'focus_tasks') {
+        _title = 'Seleziona Focus Task';
+        options.add(const _WidgetOptionItem(
+          title: 'Focus Oggi & Urgenti',
+          subtitle: 'Task con scadenza oggi o priorità alta',
+          icon: Icons.bolt_rounded,
+          color: Color(0xFFF59E0B),
+          customProps: {'source': 'focus_today', 'title': 'Focus Oggi'},
+        ));
+
+        final docs = await DocumentService().getDocumentsForContext(currentContext, 'todo');
+        for (final doc in docs) {
+          options.add(_WidgetOptionItem(
+            title: doc.title,
+            subtitle: 'Lista Task Documento',
+            icon: Icons.checklist_rounded,
+            color: const Color(0xFF6366F1),
+            customProps: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
+          ));
+        }
+      } else if (widget.type == 'shopping_quick_list') {
+        _title = 'Seleziona Lista Spesa';
+        final docs = await DocumentService().getDocumentsForContext(currentContext, 'shopping_list');
+        if (docs.isEmpty) {
+          options.add(const _WidgetOptionItem(
+            title: 'Lista Spesa Principale',
+            subtitle: 'Nessun documento creato, usa la lista base',
+            icon: Icons.shopping_cart_rounded,
+            color: Color(0xFF3B82F6),
+            customProps: {'source': 'default', 'title': 'Spesa'},
+          ));
+        } else {
+          for (final doc in docs) {
+            options.add(_WidgetOptionItem(
+              title: doc.title,
+              subtitle: 'Lista della Spesa',
+              icon: Icons.shopping_cart_rounded,
+              color: const Color(0xFF3B82F6),
+              customProps: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
+            ));
+          }
+        }
+      } else if (widget.type == 'habit_tracker') {
+        _title = 'Seleziona Routine';
+        options.add(const _WidgetOptionItem(
+          title: 'Tutte le Routine',
+          subtitle: 'Panoramica di tutte le abitudini attive',
+          icon: Icons.loop_rounded,
+          color: Color(0xFF8B5CF6),
+          customProps: {'source': 'all', 'title': 'Tutte le Routine'},
+        ));
+
+        try {
+          final routines = await TimeManagementService().routinesStream.first.timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () => [],
+          );
+          for (final r in routines) {
+            options.add(_WidgetOptionItem(
+              title: r.name,
+              subtitle: 'Routine specifica',
+              icon: Icons.repeat_rounded,
+              color: const Color(0xFF8B5CF6),
+              customProps: {'source': 'routine', 'routineId': r.id, 'title': r.name},
+            ));
+          }
+        } catch (_) {}
+      } else if (widget.type == 'monthly_burn_rate') {
+        _title = 'Configura Burn Rate';
+        options.add(const _WidgetOptionItem(
+          title: 'Tutte le Spese (Totale)',
+          subtitle: 'Media e uscite mensili complessive',
+          icon: Icons.trending_down_rounded,
+          color: Color(0xFFE068F1),
+          customProps: {'source': 'all', 'title': 'Burn Rate Totale'},
+        ));
+
+        for (final t in Tipologia.values) {
+          options.add(_WidgetOptionItem(
+            title: t.name.toUpperCase(),
+            subtitle: 'Solo categoria ${t.name}',
+            icon: CategoryHelpers.getCategoryIcon(t),
+            color: CategoryHelpers.getCategoryColor(t),
+            customProps: {'source': 'category', 'category': t.name, 'title': t.name.toUpperCase()},
+          ));
+        }
+      } else if (widget.type == 'hero_countdown') {
+        _title = 'Seleziona Evento o Viaggio';
+        options.add(const _WidgetOptionItem(
+          title: 'Prossimo Evento in Arrivo',
+          subtitle: 'Seleziona automaticamente l\'evento futuro più vicino',
+          icon: Icons.auto_awesome_rounded,
+          color: Color(0xFF818CF8),
+          customProps: {'source': 'auto', 'title': 'Prossimo Evento'},
+        ));
+
+        try {
+          final scenarios = await TimeManagementService().timeScenariosStream.first.timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () => [],
+          );
+          for (final s in scenarios) {
+            IconData icon = Icons.event_rounded;
+            Color color = const Color(0xFF818CF8);
+            if (s.scenarioType.toLowerCase() == 'trip') {
+              icon = Icons.flight_takeoff_rounded;
+              color = const Color(0xFF38BDF8);
+            } else if (s.scenarioType.toLowerCase() == 'outing') {
+              icon = Icons.restaurant_rounded;
+              color = const Color(0xFFFBBF24);
+            } else if (s.scenarioType.toLowerCase() == 'event') {
+              icon = Icons.celebration_rounded;
+              color = const Color(0xFFF472B6);
+            }
+
+            options.add(_WidgetOptionItem(
+              title: s.title,
+              subtitle: '${s.scenarioType.toUpperCase()} - ${s.startDate.day}/${s.startDate.month}/${s.startDate.year}',
+              icon: icon,
+              color: color,
+              customProps: {'source': 'scenario', 'scenarioId': s.id, 'title': s.title},
+            ));
+          }
+        } catch (_) {}
+      } else if (widget.type == 'pantry_alert') {
+        _title = 'Seleziona Dispensa';
+        final docs = await DocumentService().getDocumentsForContext(currentContext, 'dispensa');
+        if (docs.isEmpty) {
+          options.add(const _WidgetOptionItem(
+            title: 'Dispensa Principale',
+            subtitle: 'Monitora la dispensa base',
+            icon: Icons.kitchen_rounded,
+            color: Color(0xFF10B981),
+            customProps: {'source': 'default', 'title': 'Dispensa'},
+          ));
+        } else {
+          for (final doc in docs) {
+            options.add(_WidgetOptionItem(
+              title: doc.title,
+              subtitle: 'Monitora scorte e soglie minime',
+              icon: Icons.kitchen_rounded,
+              color: const Color(0xFF10B981),
+              customProps: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
+            ));
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading init modal options: $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _options = options;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40.0),
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF6366F1))),
+              )
+            else if (_options.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40.0),
+                child: Center(
+                  child: Text('Nessuna opzione disponibile', style: TextStyle(color: Colors.white54)),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _options.length,
+                  separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                  itemBuilder: (context, index) {
+                    final item = _options[index];
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: item.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: item.color.withOpacity(0.3), width: 1),
+                        ),
+                        child: Icon(item.icon, color: item.color, size: 20),
+                      ),
+                      title: Text(
+                        item.title,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      subtitle: item.subtitle != null
+                          ? Text(
+                              item.subtitle!,
+                              style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            )
+                          : null,
+                      trailing: const Icon(Icons.chevron_right, color: Colors.white30, size: 18),
+                      onTap: () {
+                        Navigator.of(context).pop(item.customProps);
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
