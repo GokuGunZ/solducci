@@ -14,6 +14,7 @@ class BaseListWidget<T> extends StatelessWidget {
   final Widget Function(BuildContext context, T item, int index) itemBuilder;
   final String emptyMessage;
   final String? heroTag;
+  final Widget? quickActionRow;
 
   const BaseListWidget({
     super.key,
@@ -28,6 +29,7 @@ class BaseListWidget<T> extends StatelessWidget {
     required this.itemBuilder,
     required this.emptyMessage,
     this.heroTag,
+    this.quickActionRow,
   });
 
   @override
@@ -66,7 +68,13 @@ class BaseListWidget<T> extends StatelessWidget {
                   onNext: onNextSource,
                   onTitleTap: onExpand,
                 ),
-                const SizedBox(height: 12),
+                if (quickActionRow != null) ...[
+                  const SizedBox(height: 8),
+                  quickActionRow!,
+                  const SizedBox(height: 8),
+                ] else ...[
+                  const SizedBox(height: 12),
+                ],
                 Expanded(
                   child: items.isEmpty
                       ? Center(

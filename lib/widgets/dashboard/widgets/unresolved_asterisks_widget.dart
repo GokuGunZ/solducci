@@ -7,6 +7,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
+import 'package:solducci/features/space/services/space_service.dart';
+import 'package:solducci/models/document.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/document_service.dart';
+
 class UnresolvedAsterisksWidget extends StatefulWidget {
   final BentoWidgetDef def;
 
@@ -19,6 +24,9 @@ class UnresolvedAsterisksWidget extends StatefulWidget {
 class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
   late Stream<List<AsteriskItem>> _asterisksStream;
   final Set<String> _locallyResolved = {};
+  final TextEditingController _asteriskController = TextEditingController();
+  final FocusNode _asteriskFocusNode = FocusNode();
+  bool _isCreating = false;
 
   @override
   void initState() {
@@ -31,6 +39,60 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
         .limit(20)
         .map((data) => data.map((map) => AsteriskItem.fromMap(map)).toList())
         .asBroadcastStream();
+  }
+
+  @override
+  void dispose() {
+    _asteriskController.dispose();
+    _asteriskFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _quickAddAsterisk(String text) async {
+    final content = text.trim();
+    if (content.isEmpty || _isCreating) return;
+
+    setState(() => _isCreating = true);
+
+    try {
+      final currentContext = ContextManager().currentContext;
+      final docs = await DocumentService().getDocumentsForContext(currentContext, 'asterisk');
+      
+      String? docId;
+      if (docs.isNotEmpty) {
+        docId = docs.first.id;
+      } else {
+        // Create an initial asterisk document if none exists
+        final newDoc = await DocumentService().createDocument(AsteriskDocument(
+          id: '',
+          userId: currentContext.isGroup ? null : Supabase.instance.client.auth.currentUser?.id,
+          groupId: currentContext.isGroup ? currentContext.groupId : null,
+          title: 'Note & Asterischi',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ));
+        docId = newDoc.id;
+      }
+
+      await SpaceService().createAsteriskItem(AsteriskItem(
+        id: '',
+        documentId: docId,
+        content: content,
+        isResolved: false,
+        position: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+
+      _asteriskController.clear();
+      _asteriskFocusNode.unfocus();
+    } catch (e) {
+      debugPrint('Error creating quick asterisk: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
+    }
   }
 
   void _toggleResolve(AsteriskItem item) async {
@@ -92,6 +154,62 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
           onNextSource: () {},
           items: displayAsterisks,
           emptyMessage: 'Nessun asterisco\nirrisolto 📝',
+          quickActionRow: Container(
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white12, width: 0.8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                const Text(
+                  '*',
+                  style: TextStyle(
+                    color: Color(0xFFFBBF24),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _asteriskController,
+                    focusNode: _asteriskFocusNode,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    decoration: const InputDecoration(
+                      hintText: 'Nuovo appunto o asterisco...',
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 11),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onSubmitted: _quickAddAsterisk,
+                    onChanged: (text) => setState(() {}),
+                  ),
+                ),
+                if (_isCreating)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFFBBF24)),
+                  )
+                else if (_asteriskController.text.trim().isNotEmpty)
+                  GestureDetector(
+                    onTap: () => _quickAddAsterisk(_asteriskController.text),
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFBBF24),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check, color: Colors.black, size: 12),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           itemBuilder: (context, item, index) {
             final isResolved = item.isResolved || _locallyResolved.contains(item.id);
             
