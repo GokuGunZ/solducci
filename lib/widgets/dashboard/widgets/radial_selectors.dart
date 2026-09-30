@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/group.dart';
+import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/circular_context_avatar.dart';
 
 class RadialUserSelector extends StatefulWidget {
@@ -19,12 +21,23 @@ class _RadialUserSelectorState extends State<RadialUserSelector> {
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
   List<String> _selectedUsers = [];
-  final List<String> _allUsers = const <String>['Io', 'Anna', 'Marco'];
+
+  List<String> get _allUsers {
+    final ctx = ContextManager().currentContext;
+    if (ctx.isGroup && ctx.group != null && ctx.group!.members != null && ctx.group!.members!.isNotEmpty) {
+      final names = ctx.group!.members!
+          .map((m) => m.nickname ?? m.email?.split('@').first ?? 'Membro')
+          .toList();
+      if (names.isNotEmpty) return names;
+    }
+    return const <String>['Io'];
+  }
 
   @override
   void initState() {
     super.initState();
-    _selectedUsers = widget.isDefaultAll ? List<String>.from(_allUsers) : <String>['Io'];
+    final users = _allUsers;
+    _selectedUsers = widget.isDefaultAll ? List<String>.from(users) : <String>[users.first];
   }
 
   void _toggleMenu() {
@@ -206,7 +219,14 @@ class _RadialUserSelectorState extends State<RadialUserSelector> {
 }
 
 class RadialCategorySelector extends StatefulWidget {
-  const RadialCategorySelector({super.key});
+  final Tipologia selectedCategory;
+  final ValueChanged<Tipologia>? onCategoryChanged;
+
+  const RadialCategorySelector({
+    super.key,
+    this.selectedCategory = Tipologia.cibo,
+    this.onCategoryChanged,
+  });
 
   @override
   State<RadialCategorySelector> createState() => _RadialCategorySelectorState();
@@ -216,7 +236,8 @@ class _RadialCategorySelectorState extends State<RadialCategorySelector> {
   final GlobalKey _key = GlobalKey();
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
-  IconData _selectedIcon = Icons.shopping_bag;
+
+  IconData get _selectedIcon => CategoryHelpers.getCategoryIcon(widget.selectedCategory);
 
   void _toggleMenu() {
     if (_isOpen) {
@@ -258,24 +279,14 @@ class _RadialCategorySelectorState extends State<RadialCategorySelector> {
                 height: menuSize,
                 child: _RadialMenuOverlay(
                   onClose: _closeMenu,
-                  items: const <String>['Spesa', 'Trasporti', 'Casa', 'Svago', 'Salute', 'Altro'],
-                  selectedItems: const <String>[],
-                  onSelected: (cat) {
-                    setState(() {
-                      if (cat == 'Spesa') {
-                        _selectedIcon = Icons.shopping_cart;
-                      } else if (cat == 'Trasporti') {
-                        _selectedIcon = Icons.directions_car;
-                      } else if (cat == 'Casa') {
-                        _selectedIcon = Icons.home;
-                      } else if (cat == 'Svago') {
-                        _selectedIcon = Icons.movie;
-                      } else if (cat == 'Salute') {
-                        _selectedIcon = Icons.favorite;
-                      } else {
-                        _selectedIcon = Icons.more_horiz;
-                      }
-                    });
+                  items: Tipologia.values.map((t) => t.name).toList(),
+                  selectedItems: [widget.selectedCategory.name],
+                  onSelected: (catName) {
+                    final matched = Tipologia.values.firstWhere(
+                      (t) => t.name == catName,
+                      orElse: () => Tipologia.cibo,
+                    );
+                    widget.onCategoryChanged?.call(matched);
                     _closeMenu();
                   },
                   radius: 70,

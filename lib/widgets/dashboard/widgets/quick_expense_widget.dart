@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/expense_service_cached.dart';
+import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/expense_form.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/widgets/dashboard/widgets/radial_selectors.dart';
 
 class QuickExpenseWidget extends StatefulWidget {
@@ -15,6 +19,8 @@ class QuickExpenseWidget extends StatefulWidget {
 
 class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
   String _amount = '';
+  Tipologia _selectedCategory = Tipologia.cibo;
+  bool _isSaving = false;
 
   void _onKeyPress(String key) {
     setState(() {
@@ -30,6 +36,59 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
         _amount += key;
       }
     });
+  }
+
+  Future<void> _saveExpense() async {
+    if (_amount.isEmpty || _isSaving) return;
+    final double? parsedAmount = double.tryParse(_amount);
+    if (parsedAmount == null || parsedAmount <= 0) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final currentContext = ContextManager().currentContext;
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Utente non autenticato');
+
+      final newExpense = Expense(
+        id: 0,
+        description: 'Spesa Rapida',
+        amount: parsedAmount,
+        date: DateTime.now(),
+        type: _selectedCategory,
+        userId: userId,
+        groupId: currentContext.isGroup ? currentContext.groupId : null,
+      );
+
+      await ExpenseServiceCached().insert(newExpense);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Spesa di €${parsedAmount.toStringAsFixed(2)} registrata!'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() {
+          _amount = '';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -57,7 +116,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                       Container(
                         height: 24,
                         width: 2,
-                        color: Colors.white24, // Vagamente più netto
+                        color: Colors.white24,
                       ),
                     ],
                     const RadialUserSelector(label: 'Paga:'),
@@ -72,7 +131,10 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                       width: 1,
                       color: Colors.white10,
                     ),
-                    const RadialCategorySelector(),
+                    RadialCategorySelector(
+                      selectedCategory: _selectedCategory,
+                      onCategoryChanged: (cat) => setState(() => _selectedCategory = cat),
+                    ),
                   ],
                 ),
               );
@@ -139,25 +201,24 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                         Expanded(
                           flex: 2,
                           child: GestureDetector(
-                            onTap: () {
-                              // Action to save
-                              if (_amount.isNotEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Spesa aggiunta rapidamente!')),
-                                );
-                                setState(() {
-                                  _amount = '';
-                                });
-                              }
-                            },
+                            onTap: _saveExpense,
                             child: Container(
                               color: const Color(0xFF6366F1).withOpacity(0.1),
                               child: Center(
-                                child: Icon(
-                                  Icons.check_circle,
-                                  color: _amount.isNotEmpty ? const Color(0xFF6366F1) : Colors.white24,
-                                  size: 32,
-                                ),
+                                child: _isSaving
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Color(0xFF6366F1),
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.check_circle,
+                                        color: _amount.isNotEmpty ? const Color(0xFF6366F1) : Colors.white24,
+                                        size: 32,
+                                      ),
                               ),
                             ),
                           ),

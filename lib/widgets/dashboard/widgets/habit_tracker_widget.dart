@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/models/routine.dart';
+import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 
 class HabitTrackerWidget extends StatefulWidget {
@@ -13,146 +15,164 @@ class HabitTrackerWidget extends StatefulWidget {
 }
 
 class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
-  // Placeholder routines for UI demonstration
-  final List<Color> _routineColors = [
-    const Color(0xFF10B981), // Green
-    const Color(0xFF3B82F6), // Blue
-    const Color(0xFF8B5CF6), // Purple
-    const Color(0xFFF59E0B), // Orange
+  final List<Color> _routineColors = const [
+    Color(0xFF10B981), // Emerald
+    Color(0xFF6366F1), // Indigo
+    Color(0xFF8B5CF6), // Purple
+    Color(0xFFF59E0B), // Amber
+    Color(0xFFEF4444), // Red
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Determine the widget's layout size based on the bento size
-    final int crossAxisCellCount = widget.def.size.crossAxisCellCount;
+    final specificRoutineId = widget.def.customProps?['routineId'] as String?;
 
-    return BentoWidgetContainer(
-      heroTag: widget.def.id,
-      isLoading: false,
-      onExpand: () {
-        GoRouter.of(context).push('/habits', extra: {'heroTag': widget.def.id});
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF8B5CF6).withOpacity(0.1),
-              const Color(0xFF8B5CF6).withOpacity(0.02),
-            ],
-          ),
-        ),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return StreamBuilder<List<RoutineTemplate>>(
+      stream: TimeManagementService().routinesStream,
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
+        final allRoutines = snapshot.data ?? [];
+        final routines = specificRoutineId != null
+            ? allRoutines.where((r) => r.id == specificRoutineId).toList()
+            : allRoutines;
+
+        return BentoWidgetContainer(
+          heroTag: widget.def.id,
+          isLoading: isLoading,
+          onExpand: () {
+            GoRouter.of(context).push('/space/time_management/routines');
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF8B5CF6).withOpacity(0.12),
+                  const Color(0xFF8B5CF6).withOpacity(0.02),
+                ],
+              ),
+            ),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.loop, color: Color(0xFF8B5CF6), size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  'ROUTINE',
-                  style: TextStyle(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.9),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.loop_rounded, color: Color(0xFF8B5CF6), size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          widget.def.customProps?['title'] as String? ?? 'ROUTINE',
+                          style: TextStyle(
+                            color: const Color(0xFF8B5CF6).withOpacity(0.9),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (routines.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${routines.length} attive',
+                          style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: routines.isEmpty
+                      ? Center(
+                          child: InkWell(
+                            onTap: () => GoRouter.of(context).push('/space/time_management/create_routine'),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_alarm_rounded, color: Colors.white.withOpacity(0.4), size: 24),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Nessuna routine attiva\nTocca per crearne una',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: routines.length,
+                          separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 10),
+                          itemBuilder: (context, index) {
+                            final routine = routines[index];
+                            final color = _routineColors[index % _routineColors.length];
+
+                            return Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(color: color.withOpacity(0.5), blurRadius: 4),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        routine.name,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          fontFamily: 'Inter',
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (routine.description != null && routine.description!.isNotEmpty)
+                                        Text(
+                                          routine.description!,
+                                          style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right, color: Colors.white24, size: 16),
+                              ],
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: crossAxisCellCount >= 4
-                  ? _buildContributionHeatmap() // GitHub-style heatmap for wider widgets
-                  : _buildWeeklyStacks(), // Stacked weekly items for smaller widgets
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // A stack of weekly progress bars for up to 4 routines
-  Widget _buildWeeklyStacks() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(3, (routineIndex) {
-        return Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: _routineColors[routineIndex],
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(7, (dayIndex) {
-                  // Randomize completion for placeholder
-                  final bool isCompleted = (dayIndex * routineIndex) % 3 != 0;
-                  return Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: isCompleted
-                          ? _routineColors[routineIndex]
-                          : Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ],
+          ),
         );
-      }),
-    );
-  }
-
-  // A GitHub style contribution heatmap spanning 5 weeks
-  Widget _buildContributionHeatmap() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(8, (weekIndex) { // 8 weeks for wider view
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(7, (dayIndex) {
-                // Mock multiple routines completing on the same day using gradients
-                final int routinesCompleted = ((weekIndex + dayIndex) % 5);
-                
-                return Container(
-                  width: 12,
-                  height: 12,
-                  margin: const EdgeInsets.symmetric(vertical: 2.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(3),
-                    color: routinesCompleted == 0
-                        ? Colors.white.withOpacity(0.05)
-                        : null,
-                    gradient: routinesCompleted > 0
-                        ? LinearGradient(
-                            colors: _routineColors.sublist(0, routinesCompleted.clamp(1, 4)),
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                  ),
-                );
-              }),
-            ),
-          );
-        }),
-      ),
+      },
     );
   }
 }

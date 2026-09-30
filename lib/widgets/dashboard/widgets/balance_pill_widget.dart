@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/expense_service_cached.dart';
+import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:intl/intl.dart';
 
@@ -20,32 +22,65 @@ class BalancePillWidget extends StatefulWidget {
 class _BalancePillWidgetState extends State<BalancePillWidget> {
   bool _isLoading = true;
   List<MapEntry<String, double>> _balancesList = [];
+  StreamSubscription? _walletSub;
+  StreamSubscription? _expenseSub;
 
   @override
   void initState() {
     super.initState();
     _loadBalance();
+    _walletSub = WalletService().stream.listen((_) => _loadBalance());
+    _expenseSub = ExpenseServiceCached().stream.listen((_) => _loadBalance());
+  }
+
+  @override
+  void didUpdateWidget(BalancePillWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.def.customProps != widget.def.customProps) {
+      _loadBalance();
+    }
+  }
+
+  @override
+  void dispose() {
+    _walletSub?.cancel();
+    _expenseSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadBalance() async {
     try {
       final contextManager = ContextManager();
       final currentContext = contextManager.currentContext;
-      
-      if (currentContext.isGroup && currentContext.groupId != null) {
+      final customProps = widget.def.customProps;
+      final specificWalletId = customProps?['walletId'] as String?;
+
+      if (specificWalletId != null) {
+        final wallets = await WalletService().fetchWallets();
+        final match = wallets.where((w) => w.id == specificWalletId).firstOrNull;
+        if (match != null) {
+          _balancesList = [MapEntry(match.name, match.currentBalance)];
+        } else {
+          _balancesList = [const MapEntry('Conto non trovato', 0.0)];
+        }
+      } else if (currentContext.isGroup && currentContext.groupId != null) {
         final balances = await ExpenseServiceCached().calculateGroupBalance(currentContext.groupId!);
         if (balances.isNotEmpty) {
           _balancesList = balances.entries.toList();
         } else {
-           _balancesList = [const MapEntry('Nessun saldo', 0.0)];
+          _balancesList = [const MapEntry('Nessun saldo', 0.0)];
         }
       } else {
-        // For personal context, mock multiple wallets to demonstrate the swipe stack
-        _balancesList = const [
-          MapEntry('Totale', 1250.00),
-          MapEntry('Intesa SP', 800.00),
-          MapEntry('Revolut', 450.00),
-        ];
+        final wallets = await WalletService().fetchWallets();
+        if (wallets.isNotEmpty) {
+          final double totalBalance = wallets.fold(0.0, (sum, w) => sum + w.currentBalance);
+          _balancesList = [
+            MapEntry('Totale', totalBalance),
+            ...wallets.map((w) => MapEntry(w.name, w.currentBalance)),
+          ];
+        } else {
+          _balancesList = [const MapEntry('Nessun conto', 0.0)];
+        }
       }
     } catch (e) {
       debugPrint('Error loading balance: $e');

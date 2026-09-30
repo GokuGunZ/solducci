@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/expense_service_cached.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/expense.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
 class MonthlyBurnRateWidget extends StatefulWidget {
@@ -26,21 +28,40 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Expense>>(
-      stream: _expenseStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-          return BentoWidgetContainer(
-            heroTag: widget.def.id,
-            isLoading: true,
-            onExpand: () {
-              GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
-            },
-            child: const Center(child: CircularProgressIndicator(color: Color(0xFFE068F1))),
-          );
-        }
+    return ListenableBuilder(
+      listenable: ContextManager(),
+      builder: (context, _) {
+        return StreamBuilder<List<Expense>>(
+          stream: _expenseStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              return BentoWidgetContainer(
+                heroTag: widget.def.id,
+                isLoading: true,
+                onExpand: () {
+                  GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
+                },
+                child: const Center(child: CircularProgressIndicator(color: Color(0xFFE068F1))),
+              );
+            }
 
-          final expenses = snapshot.data ?? [];
+            final allExpenses = snapshot.data ?? [];
+            final currentContext = ContextManager().currentContext;
+            final userId = Supabase.instance.client.auth.currentUser?.id;
+            final targetCategory = widget.def.customProps?['category'] as String?;
+
+            // Filter expenses by context and category
+            final expenses = allExpenses.where((e) {
+              if (currentContext.isGroup) {
+                if (e.groupId != currentContext.groupId) return false;
+              } else if (currentContext.isPersonal) {
+                if (e.userId != userId || e.groupId != null) return false;
+              }
+              if (targetCategory != null && e.type.name.toLowerCase() != targetCategory.toLowerCase()) {
+                return false;
+              }
+              return true;
+            }).toList();
           
           final now = DateTime.now();
           final currentMonth = DateTime(now.year, now.month);
@@ -93,7 +114,9 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'BURN RATE',
+                            targetCategory != null
+                                ? 'BURN RATE (${targetCategory.toUpperCase()})'
+                                : 'BURN RATE',
                             style: TextStyle(
                               color: const Color(0xFFE068F1).withOpacity(0.8),
                               fontSize: 10,
@@ -139,7 +162,9 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
               ],
             ),
           );
-      },
-    );
-  }
+        },
+      );
+    },
+  );
+}
 }
