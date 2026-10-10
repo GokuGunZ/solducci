@@ -57,16 +57,25 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF09090B),
       appBar: SolducciAppBar(
-        title: Text(_document!.title),
+        title: Text(
+          _document!.title,
+          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
+            icon: const Icon(Icons.edit_outlined),
             onPressed: _showEditTitleDialog,
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: const Color(0xFFFBBF24),
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white38,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
             Tab(text: 'Attivi'),
             Tab(text: 'Risolti'),
@@ -81,6 +90,9 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFFFBBF24),
+        foregroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: _showAddAsteriskDialog,
         child: const Icon(Icons.add),
       ),
@@ -140,7 +152,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
     final controller = TextEditingController(text: _document!.title);
     return showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Modifica titolo'),
         content: TextField(
           controller: controller,
@@ -149,7 +161,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Annulla'),
           ),
           ElevatedButton(
@@ -167,11 +179,14 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
                   metadata: _document!.metadata,
                 );
                 await _documentService.updateDocument(updatedDoc);
-                setState(() {
-                  _document = updatedDoc;
-                });
-                if (!mounted) return;
-                Navigator.pop(context);
+                if (mounted) {
+                  setState(() {
+                    _document = updatedDoc;
+                  });
+                }
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
               }
             },
             child: const Text('Salva'),
@@ -203,44 +218,76 @@ class _AsteriskList extends StatelessWidget {
 
         if (items.isEmpty) {
           return Center(
-            child: Text(
-              isResolved ? 'Nessun punto risolto' : 'Nessun punto attivo',
-              style: TextStyle(color: Colors.grey[600]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFFBBF24).withOpacity(0.1),
+                  ),
+                  child: const Icon(Icons.star_outline, size: 48, color: Color(0xFFFBBF24)),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isResolved ? 'Nessun punto risolto' : 'Nessun punto attivo 📝',
+                  style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           );
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
-            return ListTile(
-              leading: Checkbox(
-                value: item.isResolved,
-                onChanged: (value) {
-                  final updatedItem = AsteriskItem(
-                    id: item.id,
-                    documentId: item.documentId,
-                    content: item.content,
-                    isResolved: value ?? false,
-                    position: item.position,
-                    createdAt: item.createdAt,
-                    updatedAt: DateTime.now(),
-                  );
-                  spaceService.updateAsteriskItem(updatedItem);
-                },
-              ),
-              title: Text(
-                item.content,
-                style: TextStyle(
-                  decoration: item.isResolved ? TextDecoration.lineThrough : null,
-                  color: item.isResolved ? Colors.grey : null,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF18181B),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: item.isResolved ? Colors.white10 : const Color(0xFFFBBF24).withOpacity(0.3),
+                  width: 1,
                 ),
               ),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => _confirmDelete(context, item),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                leading: Checkbox(
+                  value: item.isResolved,
+                  activeColor: const Color(0xFFFBBF24),
+                  checkColor: Colors.black,
+                  side: const BorderSide(color: Colors.white38, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  onChanged: (value) {
+                    final updatedItem = AsteriskItem(
+                      id: item.id,
+                      documentId: item.documentId,
+                      content: item.content,
+                      isResolved: value ?? false,
+                      position: item.position,
+                      createdAt: item.createdAt,
+                      updatedAt: DateTime.now(),
+                    );
+                    spaceService.updateAsteriskItem(updatedItem);
+                  },
+                ),
+                title: Text(
+                  item.content,
+                  style: TextStyle(
+                    decoration: item.isResolved ? TextDecoration.lineThrough : null,
+                    color: item.isResolved ? Colors.white38 : Colors.white,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 20, color: Colors.white38),
+                  onPressed: () => _confirmDelete(context, item),
+                ),
               ),
             );
           },

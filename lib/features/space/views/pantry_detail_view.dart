@@ -74,10 +74,11 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF09090B),
       appBar: SolducciAppBar(
         title: _isSelectionMode 
           ? Text('${_selectedItemIds.length} selezionati')
-          : Text(_document!.title),
+          : Text(_document!.title, style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
         leading: _isSelectionMode 
           ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() {
               _isSelectionMode = false;
@@ -87,19 +88,24 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
         actions: [
           if (!_isSelectionMode)
             IconButton(
-              icon: const Icon(Icons.shopping_cart),
+              icon: const Icon(Icons.shopping_cart_outlined),
               onPressed: () => context.push('/space/shopping'),
               tooltip: 'Liste della spesa',
             ),
           if (_isSelectionMode)
             IconButton(
-              icon: const Icon(Icons.playlist_add),
+              icon: const Icon(Icons.playlist_add, color: Color(0xFF10B981)),
               onPressed: _createNewShoppingListFromSelection,
               tooltip: 'Crea lista spesa',
             ),
         ],
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: const Color(0xFF10B981),
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white38,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
             Tab(text: 'Tutti i prodotti'),
             Tab(text: 'In esaurimento'),
@@ -126,8 +132,11 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
         ],
       ),
       floatingActionButton: _isSelectionMode ? null : FloatingActionButton(
+        backgroundColor: const Color(0xFF10B981),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: _showAddItemDialog,
-        child: const Icon(Icons.add_shopping_cart),
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -270,51 +279,120 @@ class _PantryList extends StatelessWidget {
         
         if (items.isEmpty) {
           return Center(
-            child: Text(
-              'Nessun prodotto in dispensa',
-              style: TextStyle(color: Colors.grey[600]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                  ),
+                  child: const Icon(Icons.kitchen_outlined, size: 48, color: Color(0xFF10B981)),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  showOnlyLow ? 'Nessun prodotto sotto soglia 🎉' : 'Nessun prodotto in dispensa',
+                  style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           );
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
             final isSelected = selectedItemIds.contains(item.id);
 
-            return Card(
-              color: isSelected ? Colors.blue[50] : null,
-              child: ListTile(
-                leading: isSelectionMode 
-                  ? Checkbox(value: isSelected, onChanged: (_) => onToggleSelection(item.id))
-                  : null,
-                title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: FutureBuilder<List<PantryQuantity>>(
-                  future: spaceService.getPantryQuantities(item.id),
-                  builder: (context, qSnapshot) {
-                    final qtyList = qSnapshot.data ?? [];
-                    final total = qtyList.fold(0.0, (sum, q) => sum + q.totalQuantity);
-                    final isLow = item.thresholdLow != null && total <= item.thresholdLow!;
-                    
-                    if (showOnlyLow && !isLow) return const SizedBox.shrink();
+            return FutureBuilder<List<PantryQuantity>>(
+              future: spaceService.getPantryQuantities(item.id),
+              builder: (context, qSnapshot) {
+                final qtyList = qSnapshot.data ?? [];
+                final total = qtyList.fold(0.0, (sum, q) => sum + q.totalQuantity);
+                final isLow = item.thresholdLow != null && total <= item.thresholdLow!;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Totale: $total ${item.unit} ${isLow ? '(Sotto soglia!)' : ''}', 
-                          style: TextStyle(color: isLow ? Colors.red : Colors.green[700], fontWeight: isLow ? FontWeight.bold : null)),
-                      ],
-                    );
-                  },
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: isSelectionMode 
-                  ? () => onToggleSelection(item.id)
-                  : () => _showStockManagementDialog(context, item),
-                onLongPress: () => onToggleSelection(item.id),
-              ),
+                if (showOnlyLow && !isLow) return const SizedBox.shrink();
+
+                final accentColor = isLow ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                        ? const Color(0xFF10B981).withOpacity(0.18) 
+                        : const Color(0xFF18181B),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected 
+                          ? const Color(0xFF10B981) 
+                          : (isLow ? const Color(0xFFEF4444).withOpacity(0.4) : Colors.white10),
+                      width: 1,
+                    ),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    leading: isSelectionMode 
+                      ? Checkbox(
+                          value: isSelected, 
+                          activeColor: const Color(0xFF10B981),
+                          onChanged: (_) => onToggleSelection(item.id),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: accentColor.withOpacity(0.12),
+                          ),
+                          child: Icon(
+                            isLow ? Icons.warning_amber_rounded : Icons.inventory_2_outlined,
+                            color: accentColor,
+                            size: 18,
+                          ),
+                        ),
+                    title: Text(
+                      item.name, 
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 15),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 2.0),
+                      child: Row(
+                        children: [
+                          Text(
+                            '$total ${item.unit}',
+                            style: TextStyle(
+                              color: accentColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (isLow) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Sotto soglia',
+                                style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.white30, size: 20),
+                    onTap: isSelectionMode 
+                      ? () => onToggleSelection(item.id)
+                      : () => _showStockManagementDialog(context, item),
+                    onLongPress: () => onToggleSelection(item.id),
+                  ),
+                );
+              },
             );
           },
         );
