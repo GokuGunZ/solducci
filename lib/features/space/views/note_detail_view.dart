@@ -27,9 +27,15 @@ class _NoteDetailViewState extends State<NoteDetailView> {
   final _contentController = TextEditingController();
   Timer? _debounceTimer;
 
+  bool _isSaving = false;
+  bool _isEditingTitle = false;
+  late TextEditingController _titleController;
+  final FocusNode _titleFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
+    _titleController = TextEditingController();
     _loadDocument();
     _subscribeToItems();
   }
@@ -39,6 +45,8 @@ class _NoteDetailViewState extends State<NoteDetailView> {
     _itemsSubscription?.cancel();
     _debounceTimer?.cancel();
     _contentController.dispose();
+    _titleController.dispose();
+    _titleFocusNode.dispose();
     super.dispose();
   }
 
@@ -47,9 +55,8 @@ class _NoteDetailViewState extends State<NoteDetailView> {
     if (doc is NoteDocument && mounted) {
       setState(() {
         _document = doc;
+        _titleController.text = doc.title;
         _isLoading = false;
-        // In a simple note, we might just have one NoteItem or use the document description.
-        // The requirements suggest note_items table for multiple blocks.
       });
     }
   }
@@ -69,7 +76,8 @@ class _NoteDetailViewState extends State<NoteDetailView> {
 
   void _onContentChanged(String value) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 1000), () {
+    setState(() => _isSaving = true);
+    _debounceTimer = Timer(const Duration(milliseconds: 800), () {
       _saveContent(value);
     });
   }
@@ -96,16 +104,47 @@ class _NoteDetailViewState extends State<NoteDetailView> {
       );
       await _spaceService.updateNoteItem(updatedItem);
     }
+    if (mounted) {
+      setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _saveTitle() async {
+    if (_document == null || _titleController.text.trim().isEmpty) return;
+    final newTitle = _titleController.text.trim();
+    final updatedDoc = NoteDocument(
+      id: _document!.id,
+      userId: _document!.userId,
+      groupId: _document!.groupId,
+      title: newTitle,
+      description: _document!.description,
+      createdAt: _document!.createdAt,
+      updatedAt: DateTime.now(),
+      metadata: _document!.metadata,
+    );
+    await _documentService.updateDocument(updatedDoc);
+    if (mounted) {
+      setState(() {
+        _document = updatedDoc;
+        _isEditingTitle = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Color(0xFF09090B),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))),
+      );
     }
 
     if (_document == null) {
-      return const Scaffold(body: Center(child: Text('Documento non trovato')));
+      return const Scaffold(
+        backgroundColor: Color(0xFF09090B),
+        body: Center(child: Text('Documento non trovato', style: TextStyle(color: Colors.white70))),
+      );
     }
 
     return PopScope(
@@ -113,7 +152,6 @@ class _NoteDetailViewState extends State<NoteDetailView> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
-        // Se c'è un salvataggio in sospeso, lo eseguiamo prima di uscire
         if (_debounceTimer?.isActive ?? false) {
           _debounceTimer!.cancel();
           await _saveContent(_contentController.text);
@@ -124,72 +162,123 @@ class _NoteDetailViewState extends State<NoteDetailView> {
         }
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFF09090B),
         appBar: SolducciAppBar(
-          title: Text(_document!.title),
+          titleSpacing: 0,
+          title: _isEditingTitle
+              ? TextField(
+                  controller: _titleController,
+                  focusNode: _titleFocusNode,
+                  autofocus: true,
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Titolo nota',
+                    hintStyle: TextStyle(color: Colors.white38),
+                  ),
+                  onSubmitted: (_) => _saveTitle(),
+                )
+              : GestureDetector(
+                  onTap: () => setState(() => _isEditingTitle = true),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _document!.title,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.edit, size: 14, color: Colors.white38),
+                    ],
+                  ),
+                ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.edit_note),
-              onPressed: _showEditTitleDialog,
-            ),
+            if (_isEditingTitle)
+              IconButton(
+                icon: const Icon(Icons.check, color: Color(0xFF10B981)),
+                onPressed: _saveTitle,
+              )
+            else ...[
+              // Saving indicator badge
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _isSaving 
+                          ? const Color(0xFFF59E0B).withOpacity(0.15)
+                          : const Color(0xFF10B981).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _isSaving
+                            ? const Color(0xFFF59E0B).withOpacity(0.3)
+                            : const Color(0xFF10B981).withOpacity(0.25),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isSaving ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isSaving ? 'Salvataggio...' : 'Salvato',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _isSaving ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            controller: _contentController,
-            maxLines: null,
-            expands: true,
-            decoration: const InputDecoration(
-              hintText: 'Scrivi qui i tuoi appunti...',
-              border: InputBorder.none,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF18181B),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white10),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _contentController,
+                maxLines: null,
+                expands: true,
+                cursorColor: const Color(0xFFF59E0B),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  height: 1.6,
+                  fontWeight: FontWeight.w400,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'Scrivi qui i tuoi appunti...',
+                  hintStyle: TextStyle(color: Colors.white38, fontSize: 15),
+                  border: InputBorder.none,
+                ),
+                onChanged: _onContentChanged,
+              ),
             ),
-            onChanged: _onContentChanged,
           ),
         ),
-      ),
-    );
-  }
-
-  Future<void> _showEditTitleDialog() async {
-    final controller = TextEditingController(text: _document!.title);
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Modifica titolo'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'Titolo'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newTitle = controller.text.trim();
-              if (newTitle.isNotEmpty) {
-                Navigator.pop(context);
-                final updatedDoc = NoteDocument(
-                  id: _document!.id,
-                  userId: _document!.userId,
-                  groupId: _document!.groupId,
-                  title: newTitle,
-                  description: _document!.description,
-                  createdAt: _document!.createdAt,
-                  updatedAt: DateTime.now(),
-                  metadata: _document!.metadata,
-                );
-                await _documentService.updateDocument(updatedDoc);
-                setState(() {
-                  _document = updatedDoc;
-                });
-              }
-            },
-            child: const Text('Salva'),
-          ),
-        ],
       ),
     );
   }
