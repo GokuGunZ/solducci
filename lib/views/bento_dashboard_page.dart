@@ -445,6 +445,8 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                       case 'unresolved_asterisks': return 'Asterischi';
                       case 'shopping_quick_list': return 'Lista Spesa';
                       case 'habit_tracker': return 'Abitudini';
+                      case 'recent_markdown': return 'File Markdown';
+                      case 'note_stack': return 'Pila di Note';
                       default: return type.split('_').map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join(' ');
                     }
                   }

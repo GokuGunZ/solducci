@@ -42,6 +42,27 @@ class SpaceService {
     await _supabase.from('note_items').delete().eq('id', id);
   }
 
+  Future<Map<String, String>> getNotePreviews(List<String> documentIds) async {
+    if (documentIds.isEmpty) return {};
+    try {
+      final response = await _supabase
+          .from('note_items')
+          .select('document_id, content')
+          .inFilter('document_id', documentIds)
+          .order('position', ascending: true);
+      final map = <String, String>{};
+      for (final row in response) {
+        final docId = row['document_id'] as String;
+        if (!map.containsKey(docId)) {
+          map[docId] = row['content'] as String? ?? '';
+        }
+      }
+      return map;
+    } catch (e) {
+      return {};
+    }
+  }
+
   // --- ASTERISKS ---
 
   Stream<List<AsteriskItem>> watchAsterisks(String documentId, {bool? isResolved}) {

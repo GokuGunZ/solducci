@@ -15,6 +15,7 @@ import 'package:solducci/widgets/dashboard/widgets/recent_markdown_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/hero_countdown_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/pantry_alert_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/investment_summary_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/note_stack_widget.dart';
 
 class DashboardWidgetFactory {
   /// Maps a widget definition string to its actual Flutter Widget
@@ -55,6 +56,9 @@ class DashboardWidgetFactory {
 
       case 'investment_summary':
         return InvestmentSummaryWidget(def: def);
+
+      case 'note_stack':
+        return NoteStackWidget(def: def);
         
       default:
         return _MockWidget(title: 'Unknown: ${def.type}', color: Colors.grey);
@@ -75,6 +79,7 @@ class DashboardWidgetFactory {
       BentoWidgetDef(id: 'w_shp', type: 'shopping_quick_list', size: const BentoWidgetSize(1, 2)),
       BentoWidgetDef(id: 'w_hab', type: 'habit_tracker', size: const BentoWidgetSize(2, 1)),
       BentoWidgetDef(id: 'w_rmd', type: 'recent_markdown', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_nst', type: 'note_stack', size: const BentoWidgetSize(2, 2)),
     ];
   }
 
@@ -104,6 +109,8 @@ class DashboardWidgetFactory {
         return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
       case 'recent_markdown':
         return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 2)];
+      case 'note_stack':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2)];
       default:
         return [const BentoWidgetSize(2, 2)]; // Default fallback
     }
