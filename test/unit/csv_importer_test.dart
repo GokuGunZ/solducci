@@ -368,14 +368,14 @@ Data operazione;Data valuta;Causale / Descrizione operazione;Importo (EUR)
       expect(maggioTotal, equals(150.0));
     });
 
-    test('Calcolo logica Tri-State per selezione mensile', () {
+    test('Calcolo logica Tri-State per selezione mensile anche con duplicati a DB', () {
       final tx1 = StagingTransaction(
         id: '1',
         date: DateTime(2026, 8, 1),
         amount: 10,
         isIncome: false,
-        rawDescription: 'a',
-        cleanDescription: 'a',
+        rawDescription: 'nuova spesa 1',
+        cleanDescription: 'nuova spesa 1',
         category: Tipologia.altro,
         isSelected: false,
       );
@@ -384,29 +384,57 @@ Data operazione;Data valuta;Causale / Descrizione operazione;Importo (EUR)
         date: DateTime(2026, 8, 2),
         amount: 20,
         isIncome: false,
-        rawDescription: 'b',
-        cleanDescription: 'b',
+        rawDescription: 'duplicato gia a db',
+        cleanDescription: 'duplicato gia a db',
         category: Tipologia.altro,
+        duplicateStatus: DuplicateStatus.exactMatch,
         isSelected: false,
       );
       final list = [tx1, tx2];
 
       bool? computeTriState(List<StagingTransaction> items) {
-        final selCount = items.where((t) => t.isSelected).length;
-        if (selCount == 0) return false;
-        if (selCount == items.length) return true;
-        return null; // indeterminato / parziale
+        final totalCount = items.length;
+        final selectedCount = items.where((t) => t.isSelected).length;
+        final nonDuplicates = items.where((t) => t.duplicateStatus != DuplicateStatus.exactMatch).toList();
+        final effectiveTarget = nonDuplicates.isNotEmpty ? nonDuplicates : items;
+        final targetSelectedCount = effectiveTarget.where((t) => t.isSelected).length;
+
+        if (totalCount == 0 || selectedCount == 0) return false;
+        if (targetSelectedCount == effectiveTarget.length) return true;
+        return null;
       }
 
+      // Inizialmente nessuno è selezionato -> false
       expect(computeTriState(list), isFalse);
 
-      // Seleziona parziale
+      // Seleziona la spesa valida (esclusa la duplicata a DB) -> true (mese pronto per l'import!)
       tx1.isSelected = true;
-      expect(computeTriState(list), isNull);
-
-      // Seleziona tutto
-      tx2.isSelected = true;
       expect(computeTriState(list), isTrue);
+
+      // Deseleziona tutto -> false
+      tx1.isSelected = false;
+      expect(computeTriState(list), isFalse);
+
+      // Caso: mese con soli duplicati
+      final allDups = [
+        tx2,
+        StagingTransaction(
+          id: '3',
+          date: DateTime(2026, 8, 3),
+          amount: 30,
+          isIncome: false,
+          rawDescription: 'duplicato 2',
+          cleanDescription: 'duplicato 2',
+          category: Tipologia.altro,
+          duplicateStatus: DuplicateStatus.exactMatch,
+          isSelected: false,
+        ),
+      ];
+      expect(computeTriState(allDups), isFalse);
+      allDups[0].isSelected = true;
+      expect(computeTriState(allDups), isNull);
+      allDups[1].isSelected = true;
+      expect(computeTriState(allDups), isTrue);
     });
   });
 }

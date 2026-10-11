@@ -62,14 +62,20 @@ class MonthlyAccordionSection extends StatelessWidget {
     final selectedCount = transactions.where((t) => t.isSelected).length;
     final totalCount = transactions.length;
 
-    // Checkbox Tri-State: true (tutti), null (parziale), false (nessuno)
-    final bool? triStateValue = totalCount == 0
+    // Individua le transazioni selezionabili (escludendo i duplicati esatti già presenti a DB)
+    final nonDuplicates = transactions.where((t) => t.duplicateStatus != DuplicateStatus.exactMatch).toList();
+    final effectiveTarget = nonDuplicates.isNotEmpty ? nonDuplicates : transactions;
+    final targetSelectedCount = effectiveTarget.where((t) => t.isSelected).length;
+
+    // Checkbox Tri-State:
+    // - false: se nessun movimento del mese è selezionato
+    // - true: se tutti i movimenti validi (non duplicati) del mese sono selezionati
+    // - null: se c'è una selezione parziale dei movimenti validi
+    final bool? triStateValue = totalCount == 0 || selectedCount == 0
         ? false
-        : selectedCount == totalCount
+        : (targetSelectedCount == effectiveTarget.length)
             ? true
-            : selectedCount > 0
-                ? null
-                : false;
+            : null;
 
     final groupCount = transactions.where((t) => t.groupId != null).length;
     final duplicateCount = transactions.where((t) => t.isDuplicate).length;

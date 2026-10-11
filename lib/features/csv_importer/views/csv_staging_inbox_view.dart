@@ -237,9 +237,12 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   void _toggleMonthSelection(DateTime monthKey, bool selectAll) {
     setState(() {
       final monthTxs = _groupedByMonth[monthKey] ?? [];
+      final nonDuplicates = monthTxs.where((t) => t.duplicateStatus != DuplicateStatus.exactMatch).toList();
+      final targetList = nonDuplicates.isNotEmpty ? nonDuplicates : monthTxs;
+
       for (final tx in monthTxs) {
         if (selectAll) {
-          if (tx.duplicateStatus != DuplicateStatus.exactMatch) {
+          if (targetList.contains(tx)) {
             tx.isSelected = true;
           }
         } else {
