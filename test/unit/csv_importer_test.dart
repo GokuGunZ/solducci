@@ -6,6 +6,7 @@ import 'package:solducci/features/csv_importer/services/merchant_rule_service.da
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/income_category.dart';
+import 'package:solducci/models/split_type.dart';
 
 void main() {
   group('CsvParserService Tests', () {
@@ -247,6 +248,165 @@ Data operazione;Data valuta;Causale / Descrizione operazione;Importo (EUR)
 
       final cleared = updated.copyWith(clearPortfolioId: true);
       expect(cleared.portfolioId, isNull);
+    });
+  });
+
+  group('Staging Sessions, Persistence & Monthly Grouping Tests', () {
+    test('StagingTransaction toMap and fromMap serialization preserves all fields', () {
+      final tx = StagingTransaction(
+        id: 'tx_persisted_1',
+        date: DateTime(2026, 7, 15, 12, 30),
+        amount: 85.50,
+        isIncome: false,
+        rawDescription: 'ESSELUNGA MILANO CORSO ITALIA',
+        cleanDescription: 'Esselunga Spesa',
+        category: Tipologia.cibo,
+        incomeCategory: IncomeCategory.altro,
+        isSelected: true,
+        groupId: 'group_casa_123',
+        walletId: 'wallet_intesa_99',
+        splitType: SplitType.custom,
+        customSplitData: {'user_1': 45.0, 'user_2': 40.50},
+        portfolioId: null,
+        assetId: null,
+        duplicateStatus: DuplicateStatus.fuzzyMatch,
+        amountDifference: 0.05,
+      );
+
+      final map = tx.toMap();
+      expect(map['id'], equals('tx_persisted_1'));
+      expect(map['amount'], equals(85.50));
+      expect(map['category'], equals('cibo'));
+      expect(map['groupId'], equals('group_casa_123'));
+      expect(map['walletId'], equals('wallet_intesa_99'));
+      expect(map['splitType'], equals('custom'));
+      expect(map['customSplitData'], equals({'user_1': 45.0, 'user_2': 40.50}));
+      expect(map['duplicateStatus'], equals('fuzzyMatch'));
+      expect(map['amountDifference'], equals(0.05));
+
+      final restored = StagingTransaction.fromMap(map);
+      expect(restored.id, equals(tx.id));
+      expect(restored.date.year, equals(2026));
+      expect(restored.date.month, equals(7));
+      expect(restored.date.day, equals(15));
+      expect(restored.amount, equals(85.50));
+      expect(restored.isIncome, isFalse);
+      expect(restored.cleanDescription, equals('Esselunga Spesa'));
+      expect(restored.category, equals(Tipologia.cibo));
+      expect(restored.groupId, equals('group_casa_123'));
+      expect(restored.walletId, equals('wallet_intesa_99'));
+      expect(restored.splitType, equals(SplitType.custom));
+      expect(restored.customSplitData, equals({'user_1': 45.0, 'user_2': 40.50}));
+      expect(restored.duplicateStatus, equals(DuplicateStatus.fuzzyMatch));
+      expect(restored.amountDifference, equals(0.05));
+    });
+
+    test('Raggruppa correttamente transazioni su più mesi con ordinamento decrescente', () {
+      final transactions = [
+        StagingTransaction(
+          id: 't_luglio',
+          date: DateTime(2026, 7, 20),
+          amount: 50.0,
+          isIncome: false,
+          rawDescription: 'SPESA LUGLIO',
+          cleanDescription: 'Luglio',
+          category: Tipologia.cibo,
+        ),
+        StagingTransaction(
+          id: 't_maggio_1',
+          date: DateTime(2026, 5, 10),
+          amount: 120.0,
+          isIncome: false,
+          rawDescription: 'SPESA MAGGIO',
+          cleanDescription: 'Maggio 1',
+          category: Tipologia.ristorante,
+        ),
+        StagingTransaction(
+          id: 't_giugno',
+          date: DateTime(2026, 6, 15),
+          amount: 1500.0,
+          isIncome: true,
+          rawDescription: 'STIPENDIO GIUGNO',
+          cleanDescription: 'Giugno Stipendio',
+          category: Tipologia.altro,
+          incomeCategory: IncomeCategory.stipendio,
+        ),
+        StagingTransaction(
+          id: 't_maggio_2',
+          date: DateTime(2026, 5, 25),
+          amount: 30.0,
+          isIncome: false,
+          rawDescription: 'BAR MAGGIO',
+          cleanDescription: 'Maggio 2',
+          category: Tipologia.tempoLibero,
+        ),
+      ];
+
+      final grouped = <DateTime, List<StagingTransaction>>{};
+      for (final t in transactions) {
+        final monthKey = DateTime(t.date.year, t.date.month, 1);
+        grouped.putIfAbsent(monthKey, () => []).add(t);
+      }
+
+      final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+
+      expect(sortedKeys.length, equals(3));
+      // Il mese più recente (Luglio) deve essere il primo
+      expect(sortedKeys[0], equals(DateTime(2026, 7, 1)));
+      expect(sortedKeys[1], equals(DateTime(2026, 6, 1)));
+      expect(sortedKeys[2], equals(DateTime(2026, 5, 1)));
+
+      // Conteggi e subtotali
+      expect(grouped[DateTime(2026, 7, 1)]!.length, equals(1));
+      expect(grouped[DateTime(2026, 6, 1)]!.length, equals(1));
+      expect(grouped[DateTime(2026, 5, 1)]!.length, equals(2));
+
+      // Maggio ha 2 spese per un totale di 150.0
+      final maggioTotal = grouped[DateTime(2026, 5, 1)]!
+          .where((t) => !t.isIncome)
+          .fold(0.0, (sum, t) => sum + t.amount);
+      expect(maggioTotal, equals(150.0));
+    });
+
+    test('Calcolo logica Tri-State per selezione mensile', () {
+      final tx1 = StagingTransaction(
+        id: '1',
+        date: DateTime(2026, 8, 1),
+        amount: 10,
+        isIncome: false,
+        rawDescription: 'a',
+        cleanDescription: 'a',
+        category: Tipologia.altro,
+        isSelected: false,
+      );
+      final tx2 = StagingTransaction(
+        id: '2',
+        date: DateTime(2026, 8, 2),
+        amount: 20,
+        isIncome: false,
+        rawDescription: 'b',
+        cleanDescription: 'b',
+        category: Tipologia.altro,
+        isSelected: false,
+      );
+      final list = [tx1, tx2];
+
+      bool? computeTriState(List<StagingTransaction> items) {
+        final selCount = items.where((t) => t.isSelected).length;
+        if (selCount == 0) return false;
+        if (selCount == items.length) return true;
+        return null; // indeterminato / parziale
+      }
+
+      expect(computeTriState(list), isFalse);
+
+      // Seleziona parziale
+      tx1.isSelected = true;
+      expect(computeTriState(list), isNull);
+
+      // Seleziona tutto
+      tx2.isSelected = true;
+      expect(computeTriState(list), isTrue);
     });
   });
 }
