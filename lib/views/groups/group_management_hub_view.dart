@@ -53,6 +53,7 @@ class GroupManagementHubView extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'group_management_fab',
         onPressed: () => context.push('/groups/create'),
         backgroundColor: const Color(0xFF6366F1),
         icon: const Icon(Icons.group_add, color: Colors.white),

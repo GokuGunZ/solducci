@@ -65,6 +65,7 @@ class _EconomyHubViewState extends State<EconomyHubView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'economy_hub_fab',
         onPressed: () => UnifiedTransactionModal.show(context),
         backgroundColor: AppTheme.success,
         child: const Icon(Icons.add_rounded, color: Colors.black, size: 28),

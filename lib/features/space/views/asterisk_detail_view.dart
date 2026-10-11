@@ -90,6 +90,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'asterisk_detail_fab',
         backgroundColor: const Color(0xFFFBBF24),
         foregroundColor: Colors.black,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

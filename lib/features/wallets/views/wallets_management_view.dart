@@ -220,6 +220,7 @@ class _WalletsManagementViewState extends State<WalletsManagementView> {
         backgroundColor: Colors.transparent,
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'wallets_management_fab',
         onPressed: _showAddWalletDialog,
         backgroundColor: AppTheme.success,
         child: const Icon(Icons.add_rounded, color: Colors.black, size: 28),

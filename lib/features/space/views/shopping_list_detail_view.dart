@@ -596,6 +596,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
             return Transform.translate(
               offset: Offset(0, -_selectionAnimation.value * 80),
               child: FloatingActionButton(
+                heroTag: 'shopping_list_fab',
                 backgroundColor: const Color(0xFF3B82F6),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

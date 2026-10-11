@@ -304,6 +304,7 @@ class _MerchantRulesManagerViewState extends State<MerchantRulesManagerView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'merchant_rules_fab',
         onPressed: () => _openRuleDialog(),
         backgroundColor: AppTheme.success,
         child: const Icon(Icons.add_rounded, color: Colors.black, size: 28),

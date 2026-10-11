@@ -315,6 +315,7 @@ class _TaskFormState extends State<TaskForm> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'task_form_fab',
         onPressed: _isLoading ? null : _saveTask,
         backgroundColor: _isLoading ? Colors.grey : TodoTheme.primaryPurple,
         child: _isLoading

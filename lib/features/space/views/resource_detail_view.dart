@@ -265,6 +265,7 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'resource_detail_fab',
         backgroundColor: const Color(0xFF3B82F6),
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

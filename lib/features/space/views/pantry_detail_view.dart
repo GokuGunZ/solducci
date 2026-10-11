@@ -132,6 +132,7 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
         ],
       ),
       floatingActionButton: _isSelectionMode ? null : FloatingActionButton(
+        heroTag: 'pantry_detail_fab',
         backgroundColor: const Color(0xFF10B981),
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

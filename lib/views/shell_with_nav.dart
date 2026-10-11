@@ -242,6 +242,7 @@ class ShellWithNavState extends State<ShellWithNav> {
         },
         child: FloatingActionButton(
           key: _fabKey,
+          heroTag: 'shell_main_fab',
           onPressed: () => _showOmniMenu(context),
           backgroundColor: const Color(0xFF6366F1),
           child: const Icon(Icons.add, size: 32, color: Colors.white),

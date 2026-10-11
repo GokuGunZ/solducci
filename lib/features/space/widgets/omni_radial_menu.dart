@@ -64,6 +64,7 @@ class _OmniRadialMenuState extends State<OmniRadialMenu> with SingleTickerProvid
       child: LongPressDraggable<Map<String, String>>(
         data: {'omni-type': type},
         feedback: FloatingActionButton(
+          heroTag: null,
           mini: true,
           onPressed: null,
           backgroundColor: color.withOpacity(0.8),
