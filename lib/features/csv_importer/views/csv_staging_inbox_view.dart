@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:solducci/features/csv_importer/models/merchant_rule.dart';
 import 'package:solducci/features/csv_importer/models/staging_transaction.dart';
 import 'package:solducci/features/csv_importer/services/csv_import_committer.dart';
+import 'package:solducci/features/csv_importer/services/csv_import_flow.dart';
 import 'package:solducci/features/csv_importer/services/csv_parser_service.dart';
+import 'package:solducci/features/csv_importer/services/csv_staging_service.dart';
 import 'package:solducci/features/csv_importer/services/deduplication_service.dart';
 import 'package:solducci/features/csv_importer/services/merchant_rule_service.dart';
 import 'package:solducci/features/csv_importer/views/widgets/bulk_rule_sheet.dart';
+import 'package:solducci/features/csv_importer/views/widgets/category_picker_sheet.dart';
 import 'package:solducci/features/csv_importer/views/widgets/context_picker_sheet.dart';
-import 'package:solducci/features/csv_importer/views/widgets/staging_card.dart';
-import 'package:solducci/features/csv_importer/views/widgets/staging_summary_bar.dart';
+import 'package:solducci/features/csv_importer/views/widgets/income_category_picker_sheet.dart';
+import 'package:solducci/features/csv_importer/views/widgets/monthly_accordion_section.dart';
+import 'package:solducci/features/csv_importer/views/widgets/staging_batch_toolbar.dart';
 import 'package:solducci/features/csv_importer/views/widgets/volume_split_sheet.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/group.dart';
@@ -27,11 +31,13 @@ enum InboxFilter { all, ready, toReview, duplicates }
 enum TransactionTypeFilter { all, expenses, incomes }
 
 class CsvStagingInboxView extends StatefulWidget {
-  final CsvParseResult parseResult;
+  final CsvParseResult? parseResult;
+  final List<StagingTransaction>? initialTransactions;
 
   const CsvStagingInboxView({
     super.key,
-    required this.parseResult,
+    this.parseResult,
+    this.initialTransactions,
   });
 
   @override
@@ -39,7 +45,7 @@ class CsvStagingInboxView extends StatefulWidget {
 }
 
 class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
-  late List<StagingTransaction> _transactions;
+  List<StagingTransaction> _transactions = [];
   TransactionTypeFilter _typeFilter = TransactionTypeFilter.all;
   InboxFilter _statusFilter = InboxFilter.all;
   bool _isProcessing = true;
@@ -50,14 +56,46 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   List<InvestmentPortfolio> _portfolios = [];
   String _currentUserId = '';
 
+  // Set dei mesi attualmente espansi
+  final Set<DateTime> _expandedMonths = {};
+
   @override
   void initState() {
     super.initState();
-    _transactions = widget.parseResult.transactions;
-    _runEnrichmentAndDeduplication();
-    _loadWallets();
-    _loadGroups();
-    _loadPortfolios();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    setState(() => _isProcessing = true);
+
+    await Future.wait([
+      _loadWallets(),
+      _loadGroups(),
+      _loadPortfolios(),
+    ]);
+
+    if (widget.parseResult != null) {
+      _transactions = widget.parseResult!.transactions;
+      await _runEnrichmentAndDeduplication();
+      await CsvStagingService().saveStagedTransactions(
+        _transactions,
+        fileName: widget.parseResult!.matchedPreset?.name ?? 'Estratto Conto',
+      );
+    } else if (widget.initialTransactions != null) {
+      _transactions = List.from(widget.initialTransactions!);
+      await CsvStagingService().saveStagedTransactions(_transactions);
+    } else {
+      _transactions = await CsvStagingService().getStagedTransactions();
+    }
+
+    // Auto-espandi il primo mese (quello più recente)
+    if (_groupedByMonth.isNotEmpty) {
+      _expandedMonths.add(_groupedByMonth.keys.first);
+    }
+
+    if (mounted) {
+      setState(() => _isProcessing = false);
+    }
   }
 
   Future<void> _loadPortfolios() async {
@@ -65,7 +103,6 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     if (mounted) {
       setState(() {
         _portfolios = portfolios;
-        // Auto-match portfolio sia per spese di tipo investimento che per entrate di tipo rendita
         for (final tx in _transactions) {
           final isInv = tx.category == Tipologia.investimento || tx.incomeCategory == IncomeCategory.rendita;
           if (isInv && tx.portfolioId == null && _portfolios.isNotEmpty) {
@@ -102,20 +139,16 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   }
 
   Future<void> _runEnrichmentAndDeduplication() async {
-    setState(() => _isProcessing = true);
-
-    // 1. Applica le regole note per pulire i nomi ed assegnare le categorie
     await MerchantRuleService().enrichWithRules(_transactions);
-
-    // 2. Esegue la deduplicazione intelligente a 3 livelli (+-2 giorni, +-0.09 €)
     await DeduplicationService().runDeduplication(_transactions);
-
-    if (mounted) {
-      setState(() => _isProcessing = false);
-    }
   }
 
-  // --- Filtri e Statistiche ---
+  Future<void> _saveCurrentState() async {
+    await CsvStagingService().saveStagedTransactions(_transactions);
+  }
+
+  // --- Raggruppamento e Filtri ---
+
   List<StagingTransaction> get _filteredTransactions {
     return _transactions.where((t) {
       // 1. Filtro Tipo (Tutte / Spese / Entrate)
@@ -134,6 +167,22 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
           return t.duplicateStatus == DuplicateStatus.exactMatch;
       }
     }).toList();
+  }
+
+  /// Mappa ordinata con raggruppamento per mese e anno (chiave: 1° del mese)
+  Map<DateTime, List<StagingTransaction>> get _groupedByMonth {
+    final filtered = _filteredTransactions;
+    final map = <DateTime, List<StagingTransaction>>{};
+    for (final t in filtered) {
+      final monthKey = DateTime(t.date.year, t.date.month, 1);
+      map.putIfAbsent(monthKey, () => []).add(t);
+    }
+    final sortedKeys = map.keys.toList()..sort((a, b) => b.compareTo(a));
+    final sortedMap = <DateTime, List<StagingTransaction>>{};
+    for (final k in sortedKeys) {
+      sortedMap[k] = map[k]!;
+    }
+    return sortedMap;
   }
 
   int get _expensesCount => _transactions.where((t) => !t.isIncome).length;
@@ -161,16 +210,12 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
   }).length;
 
   int get _selectedCount => _transactions.where((t) => t.isSelected).length;
-  int get _selectedExpensesCount => _transactions.where((t) => t.isSelected && !t.isIncome).length;
-  int get _selectedIncomesCount => _transactions.where((t) => t.isSelected && t.isIncome).length;
 
-  double get _selectedExpensesTotal => _transactions
-      .where((t) => t.isSelected && !t.isIncome)
+  double get _selectedTotal => _transactions
+      .where((t) => t.isSelected)
       .fold(0.0, (sum, t) => sum + t.amount);
 
-  double get _selectedIncomesTotal => _transactions
-      .where((t) => t.isSelected && t.isIncome)
-      .fold(0.0, (sum, t) => sum + t.amount);
+  // --- Gestione Selezione ---
 
   void _toggleSelection(String mode) {
     setState(() {
@@ -186,9 +231,47 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
         }
       }
     });
+    _saveCurrentState();
   }
 
-  // --- Modifica Categoria Spesa & Propagazione Batch ---
+  void _toggleMonthSelection(DateTime monthKey, bool selectAll) {
+    setState(() {
+      final monthTxs = _groupedByMonth[monthKey] ?? [];
+      for (final tx in monthTxs) {
+        if (selectAll) {
+          if (tx.duplicateStatus != DuplicateStatus.exactMatch) {
+            tx.isSelected = true;
+          }
+        } else {
+          tx.isSelected = false;
+        }
+      }
+    });
+    _saveCurrentState();
+  }
+
+  void _toggleMonthExpand(DateTime monthKey) {
+    setState(() {
+      if (_expandedMonths.contains(monthKey)) {
+        _expandedMonths.remove(monthKey);
+      } else {
+        _expandedMonths.add(monthKey);
+      }
+    });
+  }
+
+  void _toggleAllMonthsExpand(bool expand) {
+    setState(() {
+      if (expand) {
+        _expandedMonths.addAll(_groupedByMonth.keys);
+      } else {
+        _expandedMonths.clear();
+      }
+    });
+  }
+
+  // --- Modifiche Puntuali ---
+
   void _onCategoryChanged(StagingTransaction tx, Tipologia newCat) {
     setState(() {
       tx.category = newCat;
@@ -200,11 +283,10 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
         tx.portfolioId = match.id;
       }
     });
-
+    _saveCurrentState();
     _checkForSimilarTransactions(tx, proposedCategory: newCat);
   }
 
-  // --- Modifica Categoria Entrata ---
   void _onIncomeCategoryChanged(StagingTransaction tx, IncomeCategory newCat) {
     setState(() {
       tx.incomeCategory = newCat;
@@ -216,19 +298,19 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
         tx.portfolioId = match.id;
       }
     });
+    _saveCurrentState();
   }
 
   void _onNameEdited(StagingTransaction tx, String newName) {
     setState(() {
       tx.cleanDescription = newName;
     });
-
+    _saveCurrentState();
     if (!tx.isIncome) {
       _checkForSimilarTransactions(tx, proposedName: newName);
     }
   }
 
-  // --- Gestione Contesto (Personale vs Gruppo) & Volume Split ---
   void _openContextPicker(StagingTransaction tx) {
     showModalBottomSheet(
       context: context,
@@ -244,6 +326,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
             tx.splitType = SplitType.equal;
             tx.customSplitData = null;
           });
+          _saveCurrentState();
         },
       ),
     );
@@ -266,19 +349,27 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
         group: group,
         members: members,
         currentUserId: _currentUserId,
-        onSplitConfirmed: (splitType, splitData) {
+        onSplitConfirmed: (newSplitType, newSplitData) {
           setState(() {
-            tx.splitType = splitType;
-            tx.customSplitData = splitData;
+            tx.splitType = newSplitType;
+            tx.customSplitData = newSplitData;
           });
+          _saveCurrentState();
         },
       ),
     );
   }
 
+  // --- Batch Actions ---
+
   void _openBatchContextPicker() {
     final selectedExpenses = _transactions.where((t) => t.isSelected && !t.isIncome).toList();
-    if (selectedExpenses.isEmpty) return;
+    if (selectedExpenses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleziona almeno una spesa per cambiare contesto')),
+      );
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
@@ -286,7 +377,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
       isScrollControlled: true,
       builder: (ctx) => ContextPickerSheet(
         groups: _groups,
-        currentGroupId: null,
+        currentGroupId: selectedExpenses.first.groupId,
         count: selectedExpenses.length,
         onContextSelected: (newGroupId) {
           setState(() {
@@ -296,6 +387,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
               tx.customSplitData = null;
             }
           });
+          _saveCurrentState();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -309,6 +401,251 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
         },
       ),
     );
+  }
+
+  void _openBatchCategoryPicker() {
+    final selected = _transactions.where((t) => t.isSelected).toList();
+    if (selected.isEmpty) return;
+
+    final hasOnlyIncomes = selected.every((t) => t.isIncome);
+
+    if (hasOnlyIncomes) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (ctx) => IncomeCategoryPickerSheet(
+          currentCategory: selected.first.incomeCategory,
+          onCategorySelected: (cat) {
+            setState(() {
+              for (final tx in selected) {
+                tx.incomeCategory = cat;
+              }
+            });
+            _saveCurrentState();
+          },
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (ctx) => CategoryPickerSheet(
+          currentCategory: selected.first.category,
+          onCategorySelected: (cat) {
+            setState(() {
+              for (final tx in selected) {
+                if (!tx.isIncome) {
+                  tx.category = cat;
+                }
+              }
+            });
+            _saveCurrentState();
+          },
+        ),
+      );
+    }
+  }
+
+  void _openBatchWalletPicker() {
+    final selected = _transactions.where((t) => t.isSelected).toList();
+    if (selected.isEmpty || _wallets.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E22),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Assegna Conto di Addebito (${selected.length} selezionati)',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 14),
+              ..._wallets.map((w) => ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Color(int.parse(w.colorHex.replaceFirst('#', '0xFF'))).withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.account_balance_wallet_rounded, color: Color(int.parse(w.colorHex.replaceFirst('#', '0xFF'))), size: 18),
+                ),
+                title: Text(w.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: Text('Saldo: € ${w.initialBalance.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    for (final tx in selected) {
+                      tx.walletId = w.id;
+                    }
+                  });
+                  _saveCurrentState();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Assegnato conto "${w.name}" a ${selected.length} movimenti'),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
+                },
+              )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _discardSingleTransaction(StagingTransaction tx) async {
+    setState(() {
+      _transactions.removeWhere((t) => t.id == tx.id);
+    });
+    await CsvStagingService().removeTransactions([tx.id]);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Movimento scartato dalla bozza')),
+      );
+    }
+  }
+
+  Future<void> _discardSelectedTransactions() async {
+    final selectedIds = _transactions.where((t) => t.isSelected).map((t) => t.id).toList();
+    if (selectedIds.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Scarta Movimenti', style: TextStyle(color: Colors.white, fontSize: 18)),
+        content: Text(
+          'Vuoi davvero rimuovere i ${selectedIds.length} movimenti selezionati dalla bozza senza registrarli?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Scarta'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _transactions.removeWhere((t) => selectedIds.contains(t.id));
+      });
+      await CsvStagingService().removeTransactions(selectedIds);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${selectedIds.length} movimenti rimossi dalla bozza'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearEntireDraft() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Svuota Intera Staging Inbox', style: TextStyle(color: Colors.white, fontSize: 18)),
+        content: const Text(
+          'Tutti i movimenti non ancora importati verranno eliminati dalla bozza locale. Sei sicuro?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Svuota Tutto'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await CsvStagingService().clearStaging();
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    }
+  }
+
+  // --- Inserimento In-Place ---
+
+  Future<void> _commitSelected() async {
+    final selected = _transactions.where((t) => t.isSelected).toList();
+    if (selected.isEmpty) return;
+
+    setState(() => _isCommitting = true);
+
+    try {
+      final insertedCount = await CsvImportCommitter().commitTransactions(
+        selected,
+        walletId: _selectedWalletId,
+      );
+
+      final committedIds = selected.map((t) => t.id).toList();
+      await CsvStagingService().removeTransactions(committedIds);
+
+      if (mounted) {
+        setState(() {
+          _transactions.removeWhere((t) => committedIds.contains(t.id));
+          _isCommitting = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _transactions.isEmpty
+                  ? '🎉 Tutti i movimenti sono stati registrati con successo!'
+                  : '🎉 $insertedCount movimenti registrati! Rimangono ${_transactions.length} movimenti in sospeso.',
+            ),
+            backgroundColor: AppTheme.success,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isCommitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore durante l\'importazione: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 
   void _checkForSimilarTransactions(
@@ -345,7 +682,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
           proposedCategory: cat,
           similarCount: similarCount,
           onApplyToAllAndSaveRule: () async {
-            final updated = MerchantRuleService().applyRuleToSimilarTransactions(
+            MerchantRuleService().applyRuleToSimilarTransactions(
               transactions: _transactions,
               pattern: pattern,
               cleanName: cleanName,
@@ -361,11 +698,13 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
               ),
             );
 
+            setState(() {});
+            _saveCurrentState();
+
             if (mounted) {
-              setState(() {});
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('⚡ Regola salvata e applicata a $updated transazioni simili!'),
+                  content: Text('Applicata regola e aggiornate $similarCount transazioni simili!'),
                   backgroundColor: AppTheme.success,
                 ),
               );
@@ -377,7 +716,6 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
     }
   }
 
-  // --- Allineamento Fuzzy con Spesa Esistente ---
   Future<void> _alignFuzzyMatch(StagingTransaction tx) async {
     final diff = tx.amountDifference ?? 0.0;
     final diffStr = diff >= 0 ? '+€${diff.toStringAsFixed(2)}' : '-€${(-diff).toStringAsFixed(2)}';
@@ -418,46 +756,13 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
         tx.duplicateStatus = DuplicateStatus.exactMatch;
         tx.isSelected = false;
       });
+      _saveCurrentState();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Spesa esistente allineata al centesimo!'),
             backgroundColor: AppTheme.success,
-          ),
-        );
-      }
-    }
-  }
-
-  // --- Inserimento Finale ---
-  Future<void> _commitImport() async {
-    setState(() => _isCommitting = true);
-
-    try {
-      final insertedCount = await CsvImportCommitter().commitTransactions(
-        _transactions,
-        walletId: _selectedWalletId,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('🎉 $insertedCount movimenti importati con successo in Solducci!'),
-            backgroundColor: AppTheme.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isCommitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore durante l\'importazione: $e'),
-            backgroundColor: AppTheme.error,
           ),
         );
       }
@@ -476,13 +781,30 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
             icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
             color: const Color(0xFF27272A),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            onSelected: _toggleSelection,
-            itemBuilder: (ctx) => const [
-              PopupMenuItem(value: 'select_all', child: Text('Seleziona Tutte (esclusi duplicati)', style: TextStyle(color: Colors.white))),
-              PopupMenuItem(value: 'select_expenses', child: Text('Seleziona solo Spese', style: TextStyle(color: Colors.white))),
-              PopupMenuItem(value: 'select_incomes', child: Text('Seleziona solo Entrate', style: TextStyle(color: Colors.white))),
-              PopupMenuDivider(),
-              PopupMenuItem(value: 'deselect_all', child: Text('Deseleziona Tutte', style: TextStyle(color: Colors.white70))),
+            onSelected: (val) {
+              if (val == 'expand_all') {
+                _toggleAllMonthsExpand(true);
+              } else if (val == 'collapse_all') {
+                _toggleAllMonthsExpand(false);
+              } else if (val == 'add_another_csv') {
+                CsvImportFlow.startImport(context);
+              } else if (val == 'clear_draft') {
+                _clearEntireDraft();
+              } else {
+                _toggleSelection(val);
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(value: 'select_all', child: Text('Seleziona Tutte (esclusi duplicati)', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(value: 'select_expenses', child: Text('Seleziona solo Spese', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(value: 'select_incomes', child: Text('Seleziona solo Entrate', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(value: 'deselect_all', child: Text('Deseleziona Tutte', style: TextStyle(color: Colors.white70))),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'expand_all', child: Text('Espandi tutti i mesi', style: TextStyle(color: Colors.white))),
+              const PopupMenuItem(value: 'collapse_all', child: Text('Comprimi tutti i mesi', style: TextStyle(color: Colors.white70))),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'add_another_csv', child: Text('➕ Aggiungi altro file CSV', style: TextStyle(color: AppTheme.success))),
+              const PopupMenuItem(value: 'clear_draft', child: Text('🗑️ Svuota Staging Inbox', style: TextStyle(color: Color(0xFFEF4444)))),
             ],
           ),
         ],
@@ -498,72 +820,140 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                 ],
               ),
             )
-          : Column(
-              children: [
-                // 1. Hero Banner Riepilogo Importazione
-                _buildHeroBanner(),
+          : _transactions.isEmpty
+              ? _buildCelebrationView()
+              : Stack(
+                  children: [
+                    Column(
+                      children: [
+                        // 1. Hero Banner Riepilogo
+                        _buildHeroBanner(),
 
-                // 2. Selettore Tipo: Tutte / Spese / Entrate
-                _buildTypeSegmentSelector(),
+                        // 2. Selettore Tipo: Tutte / Spese / Entrate
+                        _buildTypeSegmentSelector(),
 
-                const SizedBox(height: 8),
+                        const SizedBox(height: 8),
 
-                // 3. Filtro Stati: Pronte / Da Verificare / Duplicate
-                _buildFilterTabs(),
+                        // 3. Filtro Stati: Pronte / Da Verificare / Duplicate
+                        _buildFilterTabs(),
 
-                const SizedBox(height: 8),
+                        const SizedBox(height: 10),
 
-                // 4. Lista Transazioni
-                Expanded(
-                  child: _filteredTransactions.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'Nessun movimento trovato per questo filtro',
-                            style: TextStyle(color: Colors.white38),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          itemCount: _filteredTransactions.length,
-                          itemBuilder: (ctx, idx) {
-                            final tx = _filteredTransactions[idx];
-                            return StagingCard(
-                              key: ValueKey(tx.id),
-                              transaction: tx,
-                              availableGroups: _groups,
-                              availablePortfolios: _portfolios,
-                              onToggleSelection: (val) => setState(() => tx.isSelected = val),
-                              onCategoryChanged: (cat) => _onCategoryChanged(tx, cat),
-                              onIncomeCategoryChanged: (cat) => _onIncomeCategoryChanged(tx, cat),
-                              onNameEdited: (name) => _onNameEdited(tx, name),
-                              onAlignWithExisting: () => _alignFuzzyMatch(tx),
-                              onOpenContextPicker: () => _openContextPicker(tx),
-                              onOpenVolumeSplit: tx.groupId != null ? () => _openVolumeSplit(tx) : null,
-                              onPortfolioChanged: (pId) => setState(() => tx.portfolioId = pId),
-                            );
-                          },
+                        // 4. Lista Mesi ad Accordion
+                        Expanded(
+                          child: _groupedByMonth.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'Nessun movimento trovato per questo filtro',
+                                    style: TextStyle(color: Colors.white38),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.only(
+                                    left: 14,
+                                    right: 14,
+                                    top: 4,
+                                    bottom: _selectedCount > 0 ? 150 : 30,
+                                  ),
+                                  itemCount: _groupedByMonth.length,
+                                  itemBuilder: (ctx, idx) {
+                                    final monthKey = _groupedByMonth.keys.elementAt(idx);
+                                    final monthTxs = _groupedByMonth[monthKey]!;
+                                    final isExp = _expandedMonths.contains(monthKey);
+
+                                    return MonthlyAccordionSection(
+                                      key: ValueKey(monthKey.toIso8601String()),
+                                      monthDate: monthKey,
+                                      transactions: monthTxs,
+                                      isExpanded: isExp,
+                                      onToggleExpand: () => _toggleMonthExpand(monthKey),
+                                      onSelectAllMonth: (selectAll) => _toggleMonthSelection(monthKey, selectAll),
+                                      availableGroups: _groups,
+                                      availablePortfolios: _portfolios,
+                                      onToggleCardSelection: (tx) {
+                                        setState(() => tx.isSelected = !tx.isSelected);
+                                        _saveCurrentState();
+                                      },
+                                      onCategoryChanged: _onCategoryChanged,
+                                      onIncomeCategoryChanged: _onIncomeCategoryChanged,
+                                      onNameEdited: _onNameEdited,
+                                      onAlignWithExisting: _alignFuzzyMatch,
+                                      onOpenContextPicker: _openContextPicker,
+                                      onOpenVolumeSplit: _openVolumeSplit,
+                                      onPortfolioChanged: (tx, pId) {
+                                        setState(() => tx.portfolioId = pId);
+                                        _saveCurrentState();
+                                      },
+                                      onDismissTransaction: _discardSingleTransaction,
+                                    );
+                                  },
+                                ),
                         ),
-                ),
+                      ],
+                    ),
 
-                // 5. Sticky Bottom Summary Bar
-                StagingSummaryBar(
-                  selectedCount: _selectedCount,
-                  selectedExpensesCount: _selectedExpensesCount,
-                  selectedIncomesCount: _selectedIncomesCount,
-                  totalExpenses: _selectedExpensesTotal,
-                  totalIncomes: _selectedIncomesTotal,
-                  isLoading: _isCommitting,
-                  onConfirm: _commitImport,
-                  onBatchContext: _selectedExpensesCount > 0 ? _openBatchContextPicker : null,
+                    // 5. Barra Azioni Batch Flottante (visibile se selezionati > 0)
+                    StagingBatchToolbar(
+                      selectedCount: _selectedCount,
+                      selectedTotal: _selectedTotal,
+                      isCommitting: _isCommitting,
+                      onDeselectAll: () => _toggleSelection('deselect_all'),
+                      onContextPressed: _openBatchContextPicker,
+                      onCategoryPressed: _openBatchCategoryPicker,
+                      onWalletPressed: _openBatchWalletPicker,
+                      onDiscardPressed: _discardSelectedTransactions,
+                      onCommitPressed: _commitSelected,
+                    ),
+                  ],
                 ),
-              ],
+    );
+  }
+
+  Widget _buildCelebrationView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.success.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.done_all_rounded, color: AppTheme.success, size: 54),
             ),
+            const SizedBox(height: 24),
+            const Text(
+              'Inbox Completata! 🎉',
+              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Tutti i movimenti del tuo estratto conto sono stati registrati con successo in Solducci.',
+              style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.4),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.success,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Text('Torna all\'App', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildHeroBanner() {
-    final netAll = _totalIncomesAll - _totalExpensesAll;
-
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       padding: const EdgeInsets.all(16),
@@ -582,7 +972,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                 children: [
                   const Text('ESTRATTO CONTO BANCARIO', style: TextStyle(fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.bold, color: Colors.white38)),
                   const SizedBox(height: 4),
-                  Text('${_transactions.length} movimenti rilevati', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text('${_transactions.length} movimenti in bozza', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 ],
               ),
               Container(
@@ -597,7 +987,7 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                     const Icon(Icons.account_balance_rounded, size: 14, color: AppTheme.success),
                     const SizedBox(width: 6),
                     Text(
-                      widget.parseResult.matchedPreset?.name ?? 'Estratto Conto',
+                      widget.parseResult?.matchedPreset?.name ?? CsvStagingService().activeFileName ?? 'Estratto Conto',
                       style: const TextStyle(color: AppTheme.success, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -608,7 +998,6 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
 
           const SizedBox(height: 12),
 
-          // Mini Cashflow Banner (Spese vs Entrate vs Saldo Netto)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -646,79 +1035,9 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
                     ],
                   ),
                 ),
-                Container(width: 1, height: 26, color: Colors.white12),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('SALDO NETTO', style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${netAll >= 0 ? '+' : '-'}€${netAll.abs().toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: netAll >= 0 ? AppTheme.success : Colors.white70,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
-
-          if (_wallets.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black38,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.account_balance_wallet_rounded, size: 16, color: Color(0xFF6366F1)),
-                  const SizedBox(width: 8),
-                  const Text('Conto:', style: TextStyle(color: Colors.white60, fontSize: 12)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedWalletId,
-                        dropdownColor: const Color(0xFF27272A),
-                        isDense: true,
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
-                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                        items: _wallets.map((w) {
-                          return DropdownMenuItem<String>(
-                            value: w.id,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(w.type.icon, size: 14, color: w.type.color),
-                                const SizedBox(width: 6),
-                                Text(w.name),
-                                if (w.isDefault)
-                                  const Text(' (Predefinito)', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (newId) {
-                          if (newId != null) {
-                            setState(() => _selectedWalletId = newId);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -730,22 +1049,21 @@ class _CsvStagingInboxViewState extends State<CsvStagingInboxView> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: const Color(0xFF18181B),
+          color: const Color(0xFF1E1E22),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
         ),
         child: Row(
           children: [
             _buildTypeSegmentItem(
               label: 'Tutte (${_transactions.length})',
               filter: TransactionTypeFilter.all,
-              activeColor: const Color(0xFF3B82F6),
+              activeColor: Colors.white,
             ),
             const SizedBox(width: 4),
             _buildTypeSegmentItem(
               label: 'Spese ($_expensesCount)',
               filter: TransactionTypeFilter.expenses,
-              activeColor: const Color(0xFF6366F1),
+              activeColor: const Color(0xFFEF4444),
               icon: Icons.arrow_upward_rounded,
             ),
             const SizedBox(width: 4),

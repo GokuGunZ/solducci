@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/features/csv_importer/services/csv_import_flow.dart';
+import 'package:solducci/features/csv_importer/services/csv_staging_service.dart';
 import 'package:solducci/features/investments/views/investments_hub_view.dart';
 import 'package:solducci/features/wallets/views/wallets_management_view.dart';
 import 'package:solducci/models/expense.dart';
@@ -22,6 +23,12 @@ class EconomyHubView extends StatefulWidget {
 
 class _EconomyHubViewState extends State<EconomyHubView> {
   String? _selectedWalletId;
+
+  @override
+  void initState() {
+    super.initState();
+    CsvStagingService().init();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +59,25 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.upload_file_rounded, color: Color(0xFF10B981)),
-            tooltip: 'Importa Estratto Conto (CSV)',
-            onPressed: () => CsvImportFlow.startImport(context),
+          ValueListenableBuilder<int>(
+            valueListenable: CsvStagingService().pendingCountNotifier,
+            builder: (context, pendingCount, child) {
+              if (pendingCount > 0) {
+                return Badge.count(
+                  count: pendingCount,
+                  backgroundColor: AppTheme.success,
+                  textColor: Colors.black,
+                  alignment: const Alignment(0.6, -0.6),
+                  child: child!,
+                );
+              }
+              return child!;
+            },
+            child: IconButton(
+              icon: const Icon(Icons.upload_file_rounded, color: Color(0xFF10B981)),
+              tooltip: 'Importa Estratto Conto (CSV)',
+              onPressed: () => CsvImportFlow.startImport(context),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.dashboard, color: Color(0xFF10B981)),
@@ -97,6 +119,61 @@ class _EconomyHubViewState extends State<EconomyHubView> {
           return ListView(
             padding: const EdgeInsets.only(bottom: 80),
             children: [
+              // Banner Bozza CSV in Sospeso (reattivo)
+              ValueListenableBuilder<int>(
+                valueListenable: CsvStagingService().pendingCountNotifier,
+                builder: (context, pendingCount, _) {
+                  if (pendingCount == 0) return const SizedBox.shrink();
+                  return Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.inbox_rounded, color: AppTheme.success, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Staging Inbox CSV in Sospeso',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              Text(
+                                '$pendingCount movimenti pronti da importare',
+                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => CsvImportFlow.openPendingDraft(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.success,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Riprendi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
               // 1. Hero Card: Patrimonio Netto & Cashflow Mese
               const CashflowHeroCard(),
 

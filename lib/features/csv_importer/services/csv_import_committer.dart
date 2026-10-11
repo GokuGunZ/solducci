@@ -36,7 +36,7 @@ class CsvImportCommitter {
         final income = Income(
           id: '',
           userId: currentUserId ?? '',
-          walletId: walletId,
+          walletId: t.walletId ?? walletId,
           amount: t.amount,
           description: t.cleanDescription.isNotEmpty ? t.cleanDescription : t.rawDescription,
           date: t.date,
@@ -55,7 +55,7 @@ class CsvImportCommitter {
           date: t.date,
           type: t.category,
           userId: currentUserId,
-          walletId: walletId,
+          walletId: t.walletId ?? walletId,
           groupId: t.groupId,
           portfolioId: t.portfolioId,
           paidBy: t.groupId != null ? currentUserId : null,

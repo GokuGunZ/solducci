@@ -30,6 +30,7 @@ class StagingTransaction {
   String? portfolioId;
   String? assetId; // Opzionale se associato a un asset specifico per rendite/dividendi
 
+  String? walletId; // Opzionale se assegnato a un conto specifico
   DuplicateStatus duplicateStatus;
   Expense? matchedExistingExpense;
   double? amountDifference; // Per fuzzy match (+-0.09 €)
@@ -45,6 +46,7 @@ class StagingTransaction {
     this.incomeCategory = IncomeCategory.altro,
     this.isSelected = true,
     this.groupId,
+    this.walletId,
     this.splitType = SplitType.equal,
     this.customSplitData,
     this.portfolioId,
@@ -65,6 +67,8 @@ class StagingTransaction {
     bool? isSelected,
     String? groupId,
     bool clearGroupId = false,
+    String? walletId,
+    bool clearWalletId = false,
     SplitType? splitType,
     Map<String, double>? customSplitData,
     bool clearCustomSplitData = false,
@@ -87,6 +91,7 @@ class StagingTransaction {
       incomeCategory: incomeCategory ?? this.incomeCategory,
       isSelected: isSelected ?? this.isSelected,
       groupId: clearGroupId ? null : (groupId ?? this.groupId),
+      walletId: clearWalletId ? null : (walletId ?? this.walletId),
       splitType: splitType ?? this.splitType,
       customSplitData: clearCustomSplitData ? null : (customSplitData ?? this.customSplitData),
       portfolioId: clearPortfolioId ? null : (portfolioId ?? this.portfolioId),
@@ -94,6 +99,93 @@ class StagingTransaction {
       duplicateStatus: duplicateStatus ?? this.duplicateStatus,
       matchedExistingExpense: matchedExistingExpense ?? this.matchedExistingExpense,
       amountDifference: amountDifference ?? this.amountDifference,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'date': date.toIso8601String(),
+      'amount': amount,
+      'isIncome': isIncome,
+      'rawDescription': rawDescription,
+      'cleanDescription': cleanDescription,
+      'category': category.name,
+      'incomeCategory': incomeCategory.name,
+      'isSelected': isSelected,
+      'groupId': groupId,
+      'walletId': walletId,
+      'splitType': splitType.value,
+      'customSplitData': customSplitData,
+      'portfolioId': portfolioId,
+      'assetId': assetId,
+      'duplicateStatus': duplicateStatus.name,
+      'amountDifference': amountDifference,
+      if (matchedExistingExpense != null)
+        'matchedExistingExpense': matchedExistingExpense!.toMap(),
+    };
+  }
+
+  factory StagingTransaction.fromMap(Map<String, dynamic> map) {
+    final catStr = map['category'] as String?;
+    final parsedCategory = Tipologia.values.firstWhere(
+      (t) => t.name == catStr || t.label == catStr,
+      orElse: () => Tipologia.altro,
+    );
+
+    final incCatStr = map['incomeCategory'] as String?;
+    final parsedIncomeCategory = IncomeCategory.values.firstWhere(
+      (c) => c.name == incCatStr,
+      orElse: () => IncomeCategory.altro,
+    );
+
+    final dupStr = map['duplicateStatus'] as String?;
+    final parsedDuplicate = DuplicateStatus.values.firstWhere(
+      (d) => d.name == dupStr,
+      orElse: () => DuplicateStatus.none,
+    );
+
+    final splitTypeStr = map['splitType'] as String?;
+    final parsedSplitType = splitTypeStr != null
+        ? SplitType.fromValue(splitTypeStr)
+        : SplitType.equal;
+
+    Map<String, double>? parsedCustomSplit;
+    if (map['customSplitData'] is Map) {
+      parsedCustomSplit = {};
+      (map['customSplitData'] as Map).forEach((k, v) {
+        if (v is num) {
+          parsedCustomSplit![k.toString()] = v.toDouble();
+        }
+      });
+    }
+
+    Expense? matchedExp;
+    if (map['matchedExistingExpense'] is Map<String, dynamic>) {
+      try {
+        matchedExp = Expense.fromMap(map['matchedExistingExpense'] as Map<String, dynamic>);
+      } catch (_) {}
+    }
+
+    return StagingTransaction(
+      id: map['id'] as String? ?? '',
+      date: DateTime.tryParse(map['date'] as String? ?? '') ?? DateTime.now(),
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      isIncome: map['isIncome'] as bool? ?? false,
+      rawDescription: map['rawDescription'] as String? ?? '',
+      cleanDescription: map['cleanDescription'] as String? ?? '',
+      category: parsedCategory,
+      incomeCategory: parsedIncomeCategory,
+      isSelected: map['isSelected'] as bool? ?? true,
+      groupId: map['groupId'] as String?,
+      walletId: map['walletId'] as String?,
+      splitType: parsedSplitType,
+      customSplitData: parsedCustomSplit,
+      portfolioId: map['portfolioId'] as String?,
+      assetId: map['assetId'] as String?,
+      duplicateStatus: parsedDuplicate,
+      matchedExistingExpense: matchedExp,
+      amountDifference: (map['amountDifference'] as num?)?.toDouble(),
     );
   }
 }
