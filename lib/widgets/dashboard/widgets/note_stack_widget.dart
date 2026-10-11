@@ -547,75 +547,208 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     }
   }
 
-  Future<void> _showCreateNoteDialog() async {
+  Future<void> _showCreateNoteDialog({String? initialTitle}) async {
     _exitEditMode();
-    final titleController = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Colors.white12),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.sticky_note_2_rounded, color: Color(0xFFF59E0B), size: 20),
-            SizedBox(width: 8),
-            Text('Nuova Nota', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: TextField(
-          controller: titleController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Titolo della nota...',
-            hintStyle: TextStyle(color: Colors.white38),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFF59E0B))),
-          ),
-          onSubmitted: (val) => Navigator.pop(context, val.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla', style: TextStyle(color: Colors.white60)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF59E0B),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.pop(context, titleController.text.trim()),
-            child: const Text('Crea', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+    final titleCtrl = TextEditingController(text: initialTitle ?? '');
+    final contentCtrl = TextEditingController();
+    bool isSaving = false;
 
-    if (result != null && result.isNotEmpty) {
-      final currentContext = _contextManager.currentContext;
-      final effectiveUserId = currentContext.isPersonal
-          ? Supabase.instance.client.auth.currentUser?.id
-          : null;
-      final newDoc = NoteDocument.create(
-        userId: effectiveUserId,
-        groupId: currentContext.groupId,
-        title: result,
-      );
-      final created = await _documentService.createDocument(newDoc);
-      if (mounted) {
-        // Automatically add to selected notes if custom curation is active
-        if (_selectedNoteIds != null) {
-          final updated = Set<String>.from(_selectedNoteIds!)..add(created.id);
-          _applySelectedNotes(updated);
-        }
-        // Enter inline editing right on the new note!
-        _startEditing(created);
-      }
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF18181B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.sticky_note_2_rounded, color: Color(0xFFF59E0B), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Nuova Nota',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Title Field
+                  TextField(
+                    controller: titleCtrl,
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      labelText: 'Titolo *',
+                      labelStyle: const TextStyle(color: Colors.white60),
+                      filled: true,
+                      fillColor: const Color(0xFF27272A),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Content Field
+                  TextField(
+                    controller: contentCtrl,
+                    maxLines: 4,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
+                    decoration: InputDecoration(
+                      hintText: 'Scrivi qui i tuoi appunti...',
+                      hintStyle: const TextStyle(color: Colors.white38),
+                      filled: true,
+                      fillColor: const Color(0xFF27272A),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.all(14),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Action Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isSaving ? null : () => Navigator.pop(sheetContext),
+                        child: const Text('Annulla', style: TextStyle(color: Colors.white60)),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF59E0B),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                final title = titleCtrl.text.trim();
+                                if (title.isEmpty) return;
+
+                                setModalState(() => isSaving = true);
+
+                                try {
+                                  final currentContext = _contextManager.currentContext;
+                                  final effectiveUserId = currentContext.isPersonal
+                                      ? Supabase.instance.client.auth.currentUser?.id
+                                      : null;
+
+                                  final newDoc = NoteDocument.create(
+                                    userId: effectiveUserId,
+                                    groupId: currentContext.groupId,
+                                    title: title,
+                                  );
+
+                                  final createdDoc = await _documentService.createDocument(newDoc);
+
+                                  final content = contentCtrl.text.trim();
+                                  if (content.isNotEmpty) {
+                                    await _spaceService.saveNoteContent(createdDoc.id, content);
+                                  }
+
+                                  if (sheetContext.mounted) {
+                                    Navigator.pop(sheetContext);
+                                  }
+
+                                  if (mounted) {
+                                    // Add to selected stack notes if curated selection is active
+                                    if (_selectedNoteIds != null) {
+                                      final updated = Set<String>.from(_selectedNoteIds!)..add(createdDoc.id);
+                                      _applySelectedNotes(updated);
+                                    }
+
+                                    setState(() {
+                                      _previews[createdDoc.id] = content;
+                                      final newIdx = _notes.indexWhere((n) => n.id == createdDoc.id);
+                                      if (newIdx != -1) {
+                                        _currentIndex = newIdx;
+                                      }
+                                    });
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Nota "$title" salvata!'),
+                                        duration: const Duration(seconds: 2),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  debugPrint('Error creating note: $e');
+                                  setModalState(() => isSaving = false);
+                                }
+                              },
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                              )
+                            : const Text('Salva Nota', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   String _formatDate(DateTime date) {
