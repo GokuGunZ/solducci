@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:solducci/blocs/dashboard/dashboard_bloc.dart';
+import 'package:solducci/blocs/dashboard/dashboard_event.dart';
+import 'package:solducci/blocs/dashboard/dashboard_state.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/features/space/services/space_service.dart';
@@ -25,7 +29,9 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
   final _contextManager = ContextManager();
 
   StreamSubscription? _docSubscription;
+  List<Document> _allDocs = [];
   List<Document> _notes = [];
+  Set<String>? _selectedNoteIds;
   Map<String, String> _previews = {};
   bool _isLoading = true;
 
@@ -37,9 +43,18 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
   double _animEndDx = 0.0;
   int _targetIndex = 0;
 
+  // Inline editing state
+  bool _isEditingContent = false;
+  final TextEditingController _editController = TextEditingController();
+  final FocusNode _editFocusNode = FocusNode();
+  Timer? _debounceSaveTimer;
+  bool _isSavingContent = false;
+
   @override
   void initState() {
     super.initState();
+    _loadSelectedIdsFromProps();
+
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
@@ -53,6 +68,7 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     _anim.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         if (_targetIndex != _currentIndex) {
+          _exitEditMode();
           setState(() {
             _currentIndex = _targetIndex;
             _dragDx = 0.0;
@@ -70,14 +86,36 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
   }
 
   @override
+  void didUpdateWidget(NoteStackWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.def.customProps != widget.def.customProps) {
+      _loadSelectedIdsFromProps();
+      _filterNotes();
+    }
+  }
+
+  void _loadSelectedIdsFromProps() {
+    final list = widget.def.customProps?['selectedNoteIds'] as List?;
+    if (list != null && list.isNotEmpty) {
+      _selectedNoteIds = list.map((e) => e.toString()).toSet();
+    } else {
+      _selectedNoteIds = null;
+    }
+  }
+
+  @override
   void dispose() {
     _contextManager.removeListener(_onContextChanged);
     _docSubscription?.cancel();
     _animController.dispose();
+    _debounceSaveTimer?.cancel();
+    _editController.dispose();
+    _editFocusNode.dispose();
     super.dispose();
   }
 
   void _onContextChanged() {
+    _exitEditMode();
     _setupNotesSubscription();
   }
 
@@ -93,21 +131,34 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
       final previews = await _spaceService.getNotePreviews(docs.map((d) => d.id).toList());
 
       if (mounted) {
-        setState(() {
-          _notes = docs;
-          _previews = previews;
-          _isLoading = false;
-          if (_currentIndex >= docs.length) {
-            _currentIndex = docs.isNotEmpty ? docs.length - 1 : 0;
-          }
-        });
+        _allDocs = docs;
+        _previews = previews;
+        _isLoading = false;
+        _filterNotes();
       }
     });
   }
 
+  void _filterNotes() {
+    if (_selectedNoteIds != null && _selectedNoteIds!.isNotEmpty) {
+      _notes = _allDocs.where((d) => _selectedNoteIds!.contains(d.id)).toList();
+    } else {
+      _notes = List.from(_allDocs);
+    }
+
+    if (_currentIndex >= _notes.length) {
+      _currentIndex = _notes.isNotEmpty ? _notes.length - 1 : 0;
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (_isEditingContent) return; // Do not drag during inline editing
+
     if (_notes.length <= 1) {
-      // Elastic resistance if only 1 note
       setState(() {
         _dragDx += (details.primaryDelta ?? 0) * 0.25;
       });
@@ -120,6 +171,8 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
+    if (_isEditingContent) return;
+
     if (_notes.length <= 1) {
       _animateBack();
       return;
@@ -129,12 +182,10 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     const threshold = 40.0;
 
     if (_dragDx < -threshold || velocity < -400) {
-      // Swipe left -> Next note
       HapticFeedback.selectionClick();
       _targetIndex = (_currentIndex + 1) % _notes.length;
       _animateDismiss(toLeft: true);
     } else if (_dragDx > threshold || velocity > 400) {
-      // Swipe right -> Previous note
       HapticFeedback.selectionClick();
       _targetIndex = (_currentIndex - 1 + _notes.length) % _notes.length;
       _animateDismiss(toLeft: false);
@@ -156,11 +207,348 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     _animController.forward(from: 0.0);
   }
 
-  void _openNote(Document doc) {
+  // --- Inline Editing Methods ---
+
+  void _startEditing(Document activeDoc) {
+    final currentText = _previews[activeDoc.id] ?? '';
+    _editController.text = currentText;
+    setState(() {
+      _isEditingContent = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _editFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _onInlineContentChanged(String newText, Document activeDoc) {
+    _debounceSaveTimer?.cancel();
+    setState(() => _isSavingContent = true);
+    _debounceSaveTimer = Timer(const Duration(milliseconds: 700), () {
+      _saveActiveContent(newText, activeDoc.id);
+    });
+  }
+
+  Future<void> _saveActiveContent(String text, String docId) async {
+    try {
+      await _spaceService.saveNoteContent(docId, text);
+      if (mounted) {
+        setState(() {
+          _previews[docId] = text;
+          _isSavingContent = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error saving note content: $e');
+      if (mounted) {
+        setState(() => _isSavingContent = false);
+      }
+    }
+  }
+
+  Future<void> _exitEditMode() async {
+    if (!_isEditingContent) return;
+
+    if (_debounceSaveTimer?.isActive ?? false) {
+      _debounceSaveTimer!.cancel();
+      if (_notes.isNotEmpty && _currentIndex < _notes.length) {
+        await _saveActiveContent(_editController.text, _notes[_currentIndex].id);
+      }
+    }
+
+    _editFocusNode.unfocus();
+    if (mounted) {
+      setState(() {
+        _isEditingContent = false;
+        _isSavingContent = false;
+      });
+    }
+  }
+
+  void _openNoteFullScreen(Document doc) {
+    _exitEditMode();
     context.push('/space/notes/${doc.id}');
   }
 
+  // --- Manage Stack Selection Modal ---
+
+  void _showManageStackModal() {
+    _exitEditMode();
+
+    final tempSelected = Set<String>.from(
+      _selectedNoteIds ?? _allDocs.map((d) => d.id),
+    );
+    String searchQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF18181B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = _allDocs.where((doc) {
+              if (searchQuery.isEmpty) return true;
+              final q = searchQuery.toLowerCase();
+              final titleMatch = doc.title.toLowerCase().contains(q);
+              final previewMatch = (_previews[doc.id] ?? '').toLowerCase().contains(q);
+              return titleMatch || previewMatch;
+            }).toList();
+
+            return Container(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.75,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.layers_rounded, color: Color(0xFFF59E0B), size: 20),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Note nello Stack',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${tempSelected.length} selezionate',
+                          style: const TextStyle(
+                            color: Color(0xFFF59E0B),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Search Field
+                  Container(
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27272A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.search_rounded, color: Colors.white38, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                            decoration: const InputDecoration(
+                              hintText: 'Cerca per titolo o contenuto...',
+                              hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                            onChanged: (val) {
+                              setModalState(() => searchQuery = val);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Select All / Deselect All shortcuts
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.select_all, size: 14, color: Color(0xFFF59E0B)),
+                        label: const Text('Seleziona tutte', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11)),
+                        onPressed: () {
+                          setModalState(() {
+                            tempSelected.addAll(_allDocs.map((d) => d.id));
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.deselect, size: 14, color: Colors.white54),
+                        label: const Text('Deseleziona tutte', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                        onPressed: () {
+                          setModalState(() {
+                            tempSelected.clear();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Notes List
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'Nessuna nota trovata',
+                              style: TextStyle(color: Colors.white38, fontSize: 13),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                            itemBuilder: (context, idx) {
+                              final doc = filtered[idx];
+                              final isSelected = tempSelected.contains(doc.id);
+                              final preview = _previews[doc.id] ?? '';
+
+                              return ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Checkbox(
+                                  value: isSelected,
+                                  activeColor: const Color(0xFFF59E0B),
+                                  checkColor: Colors.black,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                  onChanged: (val) {
+                                    setModalState(() {
+                                      if (val == true) {
+                                        tempSelected.add(doc.id);
+                                      } else {
+                                        tempSelected.remove(doc.id);
+                                      }
+                                    });
+                                  },
+                                ),
+                                title: Text(
+                                  doc.title,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                                subtitle: preview.isNotEmpty
+                                    ? Text(
+                                        preview.replaceAll('\n', ' '),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                      )
+                                    : null,
+                                onTap: () {
+                                  setModalState(() {
+                                    if (isSelected) {
+                                      tempSelected.remove(doc.id);
+                                    } else {
+                                      tempSelected.add(doc.id);
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Apply Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _applySelectedNotes(tempSelected);
+                      },
+                      child: const Text('Applica Selezione', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _applySelectedNotes(Set<String> selectedIds) {
+    setState(() {
+      _selectedNoteIds = selectedIds.isNotEmpty ? selectedIds : null;
+      _filterNotes();
+    });
+
+    try {
+      final bloc = context.read<DashboardBloc>();
+      final state = bloc.state;
+      if (state is DashboardLoaded) {
+        final newLayout = state.config.layout.map((w) {
+          if (w.id == widget.def.id) {
+            return w.copyWith(customProps: {
+              ...?w.customProps,
+              'selectedNoteIds': selectedIds.toList(),
+            });
+          }
+          return w;
+        }).toList();
+        bloc.add(UpdateLayout(newLayout));
+      }
+    } catch (e) {
+      debugPrint('Could not update layout in DashboardBloc: $e');
+    }
+  }
+
   Future<void> _showCreateNoteDialog() async {
+    _exitEditMode();
     final titleController = TextEditingController();
     final result = await showDialog<String>(
       context: context,
@@ -219,7 +607,13 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
       );
       final created = await _documentService.createDocument(newDoc);
       if (mounted) {
-        _openNote(created);
+        // Automatically add to selected notes if custom curation is active
+        if (_selectedNoteIds != null) {
+          final updated = Set<String>.from(_selectedNoteIds!)..add(created.id);
+          _applySelectedNotes(updated);
+        }
+        // Enter inline editing right on the new note!
+        _startEditing(created);
       }
     }
   }
@@ -261,14 +655,14 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                   child: const Icon(Icons.sticky_note_2_outlined, color: Color(0xFFF59E0B), size: 28),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Nessuna nota',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                Text(
+                  _allDocs.isNotEmpty ? 'Nessuna nota selezionata' : 'Nessuna nota',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Tocca per crearne una',
-                  style: TextStyle(color: Colors.white38, fontSize: 11),
+                Text(
+                  _allDocs.isNotEmpty ? 'Tocca per scegliere o crearne una' : 'Tocca per crearne una',
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
                 ),
               ],
             ),
@@ -287,7 +681,7 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
           alignment: Alignment.center,
           children: [
             // Layer 2 behind (if 3 or more notes)
-            if (_notes.length >= 3)
+            if (_notes.length >= 3 && !_isEditingContent)
               Positioned.fill(
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
@@ -308,7 +702,7 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
               ),
 
             // Layer 1 behind (if 2 or more notes)
-            if (_notes.length >= 2)
+            if (_notes.length >= 2 && !_isEditingContent)
               Positioned.fill(
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
@@ -334,9 +728,9 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                 padding: const EdgeInsets.all(10.0),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onHorizontalDragUpdate: _onHorizontalDragUpdate,
-                  onHorizontalDragEnd: _onHorizontalDragEnd,
-                  onTap: () => _openNote(activeDoc),
+                  onHorizontalDragUpdate: _isEditingContent ? null : _onHorizontalDragUpdate,
+                  onHorizontalDragEnd: _isEditingContent ? null : _onHorizontalDragEnd,
+                  onTap: _isEditingContent ? null : () => _startEditing(activeDoc),
                   child: Transform.translate(
                     offset: Offset(_dragDx, 0),
                     child: Transform.rotate(
@@ -347,8 +741,10 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                           color: const Color(0xFF18181B),
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: const Color(0xFFF59E0B).withOpacity(0.25),
-                            width: 1,
+                            color: _isEditingContent
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFFF59E0B).withOpacity(0.25),
+                            width: _isEditingContent ? 1.5 : 1,
                           ),
                           boxShadow: [
                             BoxShadow(
@@ -390,58 +786,149 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                // Stack indicator pill (e.g. 1/3)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.06),
+                                const SizedBox(width: 4),
+
+                                // If editing: show save status & exit checkmark
+                                if (_isEditingContent) ...[
+                                  if (_isSavingContent)
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      margin: const EdgeInsets.only(right: 6),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF59E0B),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  InkWell(
+                                    onTap: _exitEditMode,
                                     borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '${_currentIndex + 1}/${_notes.length}',
-                                    style: const TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withOpacity(0.18),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.check, color: Color(0xFF10B981), size: 12),
+                                          SizedBox(width: 3),
+                                          Text('Fatto', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 4),
-                                // Quick Add note button
-                                InkWell(
-                                  onTap: _showCreateNoteDialog,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(2.0),
-                                    child: Icon(Icons.add, color: Color(0xFFF59E0B), size: 16),
+                                ] else ...[
+                                  // Stack indicator pill - tap to choose notes!
+                                  GestureDetector(
+                                    onTap: _showManageStackModal,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 0.8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${_currentIndex + 1}/${_notes.length}',
+                                            style: const TextStyle(
+                                              color: Color(0xFFF59E0B),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          const Icon(Icons.arrow_drop_down, color: Color(0xFFF59E0B), size: 12),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 4),
+
+                                  // Quick Add note button
+                                  InkWell(
+                                    onTap: _showCreateNoteDialog,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(2.0),
+                                      child: Icon(Icons.add, color: Color(0xFFF59E0B), size: 16),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                             const SizedBox(height: 6),
-                            // Date
-                            Text(
-                              _formatDate(activeDoc.updatedAt),
-                              style: const TextStyle(color: Colors.white38, fontSize: 10),
+
+                            // Date & full-screen button
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDate(activeDoc.updatedAt),
+                                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                ),
+                                if (!_isEditingContent)
+                                  InkWell(
+                                    onTap: () => _openNoteFullScreen(activeDoc),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.open_in_new_rounded, size: 10, color: Colors.white24),
+                                          SizedBox(width: 2),
+                                          Text('espandi', style: TextStyle(color: Colors.white24, fontSize: 9)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             const SizedBox(height: 8),
-                            // Content preview
+
+                            // Content: Inline editable TextField OR Preview Text
                             Expanded(
-                              child: Text(
-                                previewText.isNotEmpty ? previewText : 'Nota vuota... Tocca per scrivere',
-                                maxLines: 6,
-                                overflow: TextOverflow.fade,
-                                style: TextStyle(
-                                  color: previewText.isNotEmpty ? Colors.white70 : Colors.white30,
-                                  fontStyle: previewText.isNotEmpty ? FontStyle.normal : FontStyle.italic,
-                                  fontSize: 12,
-                                  height: 1.4,
-                                ),
-                              ),
+                              child: _isEditingContent
+                                  ? TextField(
+                                      controller: _editController,
+                                      focusNode: _editFocusNode,
+                                      maxLines: null,
+                                      expands: true,
+                                      cursorColor: const Color(0xFFF59E0B),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        height: 1.45,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        hintText: 'Scrivi qui i tuoi appunti...',
+                                        hintStyle: TextStyle(color: Colors.white30, fontSize: 13),
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.zero,
+                                        isDense: true,
+                                      ),
+                                      onChanged: (val) => _onInlineContentChanged(val, activeDoc),
+                                    )
+                                  : Text(
+                                      previewText.isNotEmpty ? previewText : 'Nota vuota... Tocca per scrivere',
+                                      maxLines: 6,
+                                      overflow: TextOverflow.fade,
+                                      style: TextStyle(
+                                        color: previewText.isNotEmpty ? Colors.white70 : Colors.white30,
+                                        fontStyle: previewText.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                                        fontSize: 12,
+                                        height: 1.4,
+                                      ),
+                                    ),
                             ),
-                            // Subtle footer cue
-                            if (_notes.length > 1)
+
+                            // Subtle footer cue (only in preview mode)
+                            if (_notes.length > 1 && !_isEditingContent)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [

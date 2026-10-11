@@ -42,6 +42,35 @@ class SpaceService {
     await _supabase.from('note_items').delete().eq('id', id);
   }
 
+  Future<void> saveNoteContent(String documentId, String content) async {
+    final items = await _supabase
+        .from('note_items')
+        .select()
+        .eq('document_id', documentId)
+        .order('position', ascending: true)
+        .limit(1);
+    if (items.isEmpty) {
+      await createNoteItem(NoteItem(
+        id: '',
+        documentId: documentId,
+        content: content,
+        position: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+    } else {
+      final first = NoteItem.fromMap(items.first);
+      await updateNoteItem(NoteItem(
+        id: first.id,
+        documentId: documentId,
+        content: content,
+        position: first.position,
+        createdAt: first.createdAt,
+        updatedAt: DateTime.now(),
+      ));
+    }
+  }
+
   Future<Map<String, String>> getNotePreviews(List<String> documentIds) async {
     if (documentIds.isEmpty) return {};
     try {
