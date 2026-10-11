@@ -15,7 +15,7 @@ import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/utils/category_helpers.dart';
-import 'package:uuid/uuid.dart';
+import 'package:solducci/widgets/dashboard/widget_gallery_sheet.dart';
 
 class BentoDashboardPage extends StatelessWidget {
   const BentoDashboardPage({super.key});
@@ -45,7 +45,6 @@ class _BentoDashboardView extends StatefulWidget {
 
 class _BentoDashboardViewState extends State<_BentoDashboardView> {
   List<BentoWidgetDef>? _dragPreviewLayout;
-  bool _isLibraryOpen = false;
 
   void _onDragStarted(List<BentoWidgetDef> currentLayout) {
     setState(() {
@@ -116,12 +115,9 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                   children: [
                     if (state.isEditing)
                       IconButton(
-                        icon: const Icon(Icons.add_box_outlined, color: Colors.orangeAccent),
-                        onPressed: () {
-                          setState(() {
-                            _isLibraryOpen = !_isLibraryOpen;
-                          });
-                        },
+                        icon: const Icon(Icons.add_circle_outline, color: Colors.orangeAccent),
+                        tooltip: 'Aggiungi widget',
+                        onPressed: () => _openWidgetGallery(context, state),
                       ),
                     IconButton(
                       icon: Icon(state.isEditing ? Icons.check : Icons.edit, color: Colors.white),
@@ -129,9 +125,6 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                         context.read<DashboardBloc>().add(ToggleEditMode());
                         if (state.isEditing) {
                           context.read<DashboardBloc>().add(SaveDashboard());
-                          setState(() {
-                            _isLibraryOpen = false;
-                          });
                         }
                       },
                     ),
@@ -160,24 +153,11 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           }
 
           if (state is DashboardLoaded) {
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: ListenableBuilder(
-                    listenable: ContextManager(),
-                    builder: (context, _) {
-                      return _buildGrid(context, state, ContextManager().currentContext);
-                    }
-                  ),
-                ),
-                if (state.isEditing && _isLibraryOpen)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildWidgetLibrary(context, state),
-                  ),
-              ],
+            return ListenableBuilder(
+              listenable: ContextManager(),
+              builder: (context, _) {
+                return _buildGrid(context, state, ContextManager().currentContext);
+              },
             );
           }
 
@@ -190,18 +170,69 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
   Widget _buildGrid(BuildContext context, DashboardLoaded state, ExpenseContext appContext) {
     final activeLayout = _dragPreviewLayout ?? state.config.layout;
     
+    if (activeLayout.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF18181B),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: const Icon(Icons.widgets_outlined, size: 40, color: Colors.white38),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Nessun widget nel Feed',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Personalizza la tua bento home aggiungendo widget per finanze, note e abitudini.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Apri Galleria Widget'),
+                onPressed: () => _openWidgetGallery(context, state),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         left: 16.0, 
         right: 16.0, 
         top: 16.0, 
-        bottom: _isLibraryOpen ? 250.0 : 16.0
+        bottom: 36.0,
       ),
-      child: StaggeredGrid.count(
-        crossAxisCount: 4,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        children: activeLayout.asMap().entries.map((entry) {
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          StaggeredGrid.count(
+            crossAxisCount: 4,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            children: activeLayout.asMap().entries.map((entry) {
           final index = entry.key;
           final widgetDef = entry.value;
 
@@ -369,152 +400,70 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           );
         }).toList(),
       ),
-    );
-  }
-
-  Widget _buildWidgetLibrary(BuildContext context, DashboardLoaded state) {
-    final allWidgets = DashboardWidgetFactory.getAllAvailableWidgets();
-    final usedTypes = state.config.layout.map((e) => e.type).toSet();
-    final availableWidgets = allWidgets.where((w) => !usedTypes.contains(w.type)).toList();
-
-    return Container(
-      height: 250,
-      decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 20,
-            spreadRadius: 5,
-            offset: const Offset(0, -5),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 8),
+      if (state.isEditing) ...[
+        const SizedBox(height: 20),
+        InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _openWidgetGallery(context, state),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF18181B),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  'Libreria Widget',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.orangeAccent.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add, color: Colors.orangeAccent, size: 18),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white54),
-                  onPressed: () => setState(() => _isLibraryOpen = false),
-                )
+                const SizedBox(width: 10),
+                const Text(
+                  'Aggiungi Widget al Feed',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                  ),
+                ),
               ],
             ),
           ),
-          if (availableWidgets.isEmpty)
-            const Expanded(
-              child: Center(
-                child: Text('Tutti i widget sono già in uso!', style: TextStyle(color: Colors.white54)),
-              ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: availableWidgets.length,
-                itemBuilder: (context, index) {
-                  final widgetDef = availableWidgets[index];
-                  // Regenerate a fresh ID for the layout
-                  final newDef = BentoWidgetDef(
-                    id: const Uuid().v4(),
-                    type: widgetDef.type,
-                    size: widgetDef.size,
-                  );
+        ),
+      ],
+    ],
+  ),
+);
+}
 
-                  String getDescriptiveName(String type) {
-                    switch (type) {
-                      case 'balance': return 'Bilancio';
-                      case 'focus_tasks': return 'Focus Task';
-                      case 'quick_expense': return 'Spesa Rapida';
-                      case 'monthly_burn_rate': return 'Burn Rate';
-                      case 'daily_progress': return 'Progresso';
-                      case 'hero_countdown': return 'Countdown';
-                      case 'pantry_alert': return 'Dispensa';
-                      case 'investment_summary': return 'Investimenti';
-                      case 'unresolved_asterisks': return 'Asterischi';
-                      case 'shopping_quick_list': return 'Lista Spesa';
-                      case 'habit_tracker': return 'Abitudini';
-                      case 'recent_markdown': return 'File Markdown';
-                      case 'note_stack': return 'Pila di Note';
-                      case 'recent_notes': return 'Note Recenti';
-                      default: return type.split('_').map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join(' ');
-                    }
-                  }
-
-                  final double cellScale = 50.0;
-                  final double previewWidth = widgetDef.size.crossAxisCellCount * cellScale;
-                  final double previewHeight = widgetDef.size.mainAxisCellCount * cellScale;
-
-                  Widget previewCard = Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: previewWidth,
-                          height: previewHeight,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: IgnorePointer(
-                            child: FittedBox(
-                              fit: BoxFit.contain,
-                              child: SizedBox(
-                                width: widgetDef.size.crossAxisCellCount * 90.0,
-                                height: widgetDef.size.mainAxisCellCount * 90.0,
-                                child: DashboardWidgetFactory.buildWidget(context, newDef),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          getDescriptiveName(widgetDef.type),
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  return Draggable<_DraggingItemData>(
-                    data: _DraggingItemData(newDef, null),
-                    onDragStarted: () => _onDragStarted(state.config.layout),
-                    onDragEnd: (details) => _onDragEnded(),
-                    onDraggableCanceled: (velocity, offset) => _onDragEnded(),
-                    feedback: Material(
-                      color: Colors.transparent,
-                      child: Opacity(
-                        opacity: 0.8,
-                        child: SizedBox(
-                          width: widgetDef.size.crossAxisCellCount * 90.0,
-                          height: widgetDef.size.mainAxisCellCount * 90.0,
-                          child: DashboardWidgetFactory.buildWidget(context, newDef),
-                        ),
-                      ),
-                    ),
-                    child: previewCard,
-                  );
-                },
-              ),
-            ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    ).animate().slideY(begin: 1, end: 0, duration: 300.ms, curve: Curves.easeOutQuad);
+  void _openWidgetGallery(BuildContext context, DashboardLoaded state) {
+    WidgetGallerySheet.show(
+      context: context,
+      currentLayout: state.config.layout,
+      onAddWidget: (newDef) {
+        final newLayout = List<BentoWidgetDef>.from(state.config.layout)..add(newDef);
+        context.read<DashboardBloc>().add(UpdateLayout(newLayout));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Widget "${WidgetCatalog.findByType(newDef.type)?.name ?? newDef.type}" aggiunto al Feed'),
+            backgroundColor: const Color(0xFF27272A),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+      onConfigureWidget: (ctx, type) => _showInitModal(ctx, type),
+    );
   }
   Future<Map<String, dynamic>?> _showInitModal(BuildContext context, String type) async {
     return await showModalBottomSheet<Map<String, dynamic>>(
