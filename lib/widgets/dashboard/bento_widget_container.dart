@@ -24,17 +24,42 @@ class BentoWidgetContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget content = Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B), // AppTheme.surface
+        color: const Color(0xFF18181B), // AppTheme.surface (Dark OLED)
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white10,
+          color: Colors.white.withOpacity(0.08),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
           Positioned.fill(child: _buildContent()),
+          // Top subtle specular highlight
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.12),
+                    Colors.white.withOpacity(0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
           if (onExpand != null)
             Positioned(
               top: 8,
@@ -45,7 +70,7 @@ class BentoWidgetContainer extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withOpacity(0.3),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.open_in_full, size: 14, color: Colors.white54),
@@ -111,8 +136,8 @@ class _SkeletonLoaderState extends State<_SkeletonLoader> with SingleTickerProvi
     )..repeat(reverse: true);
 
     _colorTween = ColorTween(
-      begin: const Color(0xFF1E1E2C), // Slightly lighter than surface
-      end: const Color(0xFF2C2C3E),   // Even lighter
+      begin: const Color(0xFF18181B), // OLED Surface
+      end: const Color(0xFF27272A),   // Zinc border highlight
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,

@@ -123,12 +123,27 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                       ),
                     ],
                     IconButton(
-                      icon: Icon(state.isEditing ? Icons.check : Icons.edit, color: Colors.white),
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        transitionBuilder: (child, anim) => RotationTransition(
+                          turns: anim,
+                          child: FadeTransition(opacity: anim, child: child),
+                        ),
+                        child: Icon(
+                          state.isEditing ? Icons.check_rounded : Icons.edit_rounded,
+                          key: ValueKey(state.isEditing),
+                          color: state.isEditing ? const Color(0xFF10B981) : Colors.white,
+                        ),
+                      ),
+                      tooltip: state.isEditing ? 'Salva modifiche' : 'Personalizza feed',
                       onPressed: () {
-                        context.read<DashboardBloc>().add(ToggleEditMode());
                         if (state.isEditing) {
+                          HapticFeedback.mediumImpact();
                           context.read<DashboardBloc>().add(SaveDashboard());
+                        } else {
+                          HapticFeedback.heavyImpact();
                         }
+                        context.read<DashboardBloc>().add(ToggleEditMode());
                       },
                     ),
                   ],
@@ -287,6 +302,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                   left: 8,
                   child: GestureDetector(
                     onTap: () {
+                      HapticFeedback.lightImpact();
                       final newLayout = List<BentoWidgetDef>.from(state.config.layout);
                       newLayout.removeWhere((w) => w.id == widgetDef.id);
                       final packed = BentoMosaicEngine.reorderForMosaic(
@@ -296,12 +312,20 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                       context.read<DashboardBloc>().add(UpdateLayout(packed));
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.redAccent,
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF27272A),
                         shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.18)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.close, size: 16, color: Colors.white),
+                      child: const Icon(Icons.close_rounded, size: 13, color: Color(0xFFEF4444)),
                     ),
                   ),
                 ),
@@ -311,6 +335,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                   right: 8,
                   child: GestureDetector(
                     onTap: () async {
+                      HapticFeedback.selectionClick();
                       final customProps = await _showInitModal(context, widgetDef.type);
                       if (customProps != null && context.mounted) {
                         final newLayout = List<BentoWidgetDef>.from(state.config.layout);
@@ -322,12 +347,20 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.grey,
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF27272A),
                         shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.18)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.settings, size: 16, color: Colors.white),
+                      child: const Icon(Icons.tune_rounded, size: 13, color: Color(0xFF60A5FA)),
                     ),
                   ),
                 ),
@@ -498,8 +531,17 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           
           Widget animatedChild = finalContent
               .animate(key: ValueKey('${widgetDef.id}_pos_$contextKeySuffix'))
-              .fadeIn(duration: 300.ms)
-              .scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutQuad);
+              .fadeIn(
+                duration: 320.ms,
+                delay: ((index * 25).clamp(0, 250)).ms,
+                curve: Curves.easeOutQuad,
+              )
+              .scale(
+                begin: const Offset(0.96, 0.96),
+                duration: 320.ms,
+                delay: ((index * 25).clamp(0, 250)).ms,
+                curve: Curves.easeOutCubic,
+              );
 
           return StaggeredGridTile.count(
             key: ValueKey('${widgetDef.id}_$contextKeySuffix'),
@@ -963,9 +1005,11 @@ class _WobbleWidgetState extends State<WobbleWidget> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    // Durata leggermente differenziata per ogni tile per evitare oscillazioni sincrone a blocco
+    final durationMs = 280 + (widget.wobbleSeed % 4) * 25;
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 370),
+      duration: Duration(milliseconds: durationMs),
     );
     if (widget.isWobbling) {
       _controller.repeat(reverse: true);
@@ -980,7 +1024,7 @@ class _WobbleWidgetState extends State<WobbleWidget> with SingleTickerProviderSt
     if (widget.isWobbling && !oldWidget.isWobbling) {
       _controller.repeat(reverse: true);
     } else if (!widget.isWobbling && oldWidget.isWobbling) {
-      _controller.animateTo(0.5, duration: const Duration(milliseconds: 150), curve: Curves.easeOut);
+      _controller.animateTo(0.5, duration: const Duration(milliseconds: 180), curve: Curves.easeOutCubic);
     }
   }
 
@@ -992,20 +1036,23 @@ class _WobbleWidgetState extends State<WobbleWidget> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    // 0.003 turns ~ 1 degree
-    final double maxAngle = (widget.wobbleSeed % 2 == 0) ? 0.003 : -0.003;
+    final isEven = widget.wobbleSeed % 2 == 0;
+    final double maxAngle = isEven ? 0.0035 : -0.0035;
+    final double maxTranslate = isEven ? 0.75 : -0.75;
 
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        // Map 0..1 to -1..1
         final value = (_controller.value * 2) - 1.0;
-        // Convert maxAngle (turns) to radians
         final angle = value * maxAngle * 2 * 3.14159;
+        final offset = Offset(value * maxTranslate, -value * maxTranslate * 0.4);
 
-        return Transform.rotate(
-          angle: angle,
-          child: child,
+        return Transform.translate(
+          offset: offset,
+          child: Transform.rotate(
+            angle: angle,
+            child: child,
+          ),
         );
       },
       child: widget.child,
