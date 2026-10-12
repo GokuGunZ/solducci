@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/dashboard_widget_factory.dart';
+import 'package:solducci/widgets/dashboard/gallery/bento_widget_preview_factory.dart';
 import 'package:uuid/uuid.dart';
 
 enum WidgetCategory {
@@ -614,18 +615,46 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
 
-                            // Interactive Size Selector (if multiple allowed)
-                            if (meta.allowedSizes.length > 1) ...[
-                              Text(
-                                'DIMENSIONE WIDGET',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.4),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
+                            // Dynamic Live Preview Box
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              child: Container(
+                                width: double.infinity,
+                                height: currentSize.mainAxisCellCount >= 2 ? 116.0 : 88.0,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: BentoWidgetPreviewFactory.buildPreview(
+                                  type: meta.type,
+                                  size: currentSize,
+                                  accentColor: meta.color,
                                 ),
+                              ),
+                            ),
+
+                            // Interactive Size Selector Chips (if multiple allowed)
+                            if (meta.allowedSizes.length > 1) ...[
+                              Row(
+                                children: [
+                                  Text(
+                                    'TAGLIA ANTEPRIMA',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.4),
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '• tocca per cambiare',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.25),
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 6),
                               Wrap(
@@ -644,12 +673,12 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
                                     },
                                     child: AnimatedContainer(
                                       duration: const Duration(milliseconds: 180),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
                                       decoration: BoxDecoration(
                                         color: isSizeSelected
                                             ? meta.color.withOpacity(0.2)
                                             : const Color(0xFF27272A),
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(9),
                                         border: Border.all(
                                           color: isSizeSelected
                                               ? meta.color.withOpacity(0.6)
@@ -657,13 +686,29 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
                                           width: isSizeSelected ? 1.2 : 0.8,
                                         ),
                                       ),
-                                      child: Text(
-                                        _formatSize(size),
-                                        style: TextStyle(
-                                          color: isSizeSelected ? Colors.white : Colors.white60,
-                                          fontSize: 11,
-                                          fontWeight: isSizeSelected ? FontWeight.bold : FontWeight.w500,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (isSizeSelected) ...[
+                                            Container(
+                                              width: 4,
+                                              height: 4,
+                                              margin: const EdgeInsets.only(right: 5),
+                                              decoration: BoxDecoration(
+                                                color: meta.color,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ],
+                                          Text(
+                                            _formatSize(size),
+                                            style: TextStyle(
+                                              color: isSizeSelected ? Colors.white : Colors.white60,
+                                              fontSize: 10.5,
+                                              fontWeight: isSizeSelected ? FontWeight.bold : FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   );
