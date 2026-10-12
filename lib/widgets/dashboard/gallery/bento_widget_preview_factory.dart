@@ -215,6 +215,28 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildBurnRatePreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.local_fire_department_rounded, size: 16, color: color),
+            const SizedBox(height: 2),
+            const Text(
+              '640 €',
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              '68% mese',
+              style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -261,44 +283,93 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildQuickExpensePreview(BentoWidgetSize size, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(5),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(7),
+                shape: BoxShape.circle,
               ),
-              child: Icon(Icons.flash_on_rounded, size: 14, color: color),
+              child: Icon(Icons.flash_on_rounded, size: 16, color: color),
             ),
-            const SizedBox(width: 8),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '+ Registra Spesa',
-                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Tap rapido a 1-click',
-                  style: TextStyle(color: Colors.white38, fontSize: 9),
-                ),
-              ],
+            const SizedBox(height: 4),
+            const Text(
+              '+ Spesa',
+              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
             ),
           ],
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Icon(Icons.flash_on_rounded, size: 14, color: color),
+        ),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '+ Registra Spesa',
+                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                'Tap rapido a 1-click',
+                style: TextStyle(color: Colors.white38, fontSize: 9),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
   static Widget _buildInvestmentPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('PORTAFOGLIO', style: TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            const Text(
+              '14.320 €',
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('+5.8%', style: TextStyle(color: Color(0xFF34D399), fontSize: 8.5, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -336,6 +407,23 @@ class BentoWidgetPreviewFactory {
   // --- Tempo & Focus ---
 
   static Widget _buildFocusTasksPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bolt_rounded, size: 16, color: color),
+            const SizedBox(height: 3),
+            Text('3 task', style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 1),
+            const Text('Focus Oggi', style: TextStyle(color: Colors.white70, fontSize: 8.5)),
+          ],
+        ),
+      );
+    }
+
     final showMultiple = size.mainAxisCellCount >= 2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,6 +489,23 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildHabitPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.repeat_rounded, size: 16, color: color),
+            const SizedBox(height: 2),
+            const Text('🔥 14 gg', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 1),
+            const Text('Allenamento', style: TextStyle(color: Colors.white70, fontSize: 8.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -448,6 +553,22 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildCountdownPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('-12', style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
+            Text('GIORNI', style: TextStyle(color: color.withOpacity(0.8), fontSize: 7, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            const Text('Giappone ✈️', style: TextStyle(color: Colors.white70, fontSize: 8.5, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         Container(
@@ -475,7 +596,7 @@ class BentoWidgetPreviewFactory {
             children: [
               Text('✈️ Viaggio in Giappone', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2),
-              Text('24 Ottobre 2026', style: TextStyle(color: Colors.white38, fontSize: 9.5)),
+              Text('24 Ottobre 2026', style: TextStyle(color: Colors.white38, fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -484,6 +605,36 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildDailyProgressPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    value: 0.75,
+                    backgroundColor: Colors.white10,
+                    color: color,
+                    strokeWidth: 2.8,
+                  ),
+                ),
+                const Text('75%', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text('Routine', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         Stack(
@@ -503,15 +654,17 @@ class BentoWidgetPreviewFactory {
           ],
         ),
         const SizedBox(width: 10),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Routine Oggi', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold)),
-            SizedBox(height: 2),
-            Text('3 di 4 completati', style: TextStyle(color: Colors.white38, fontSize: 9.5)),
-          ],
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Routine Oggi', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+              SizedBox(height: 2),
+              Text('3 di 4 completati', style: TextStyle(color: Colors.white38, fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ],
+          ),
         ),
       ],
     );
@@ -520,6 +673,22 @@ class BentoWidgetPreviewFactory {
   // --- Casa & Spazio ---
 
   static Widget _buildShoppingPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.shopping_bag_outlined, size: 16, color: color),
+            const SizedBox(height: 3),
+            const Text('Spesa', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            const Text('4 da fare', style: TextStyle(color: Colors.white38, fontSize: 8.5)),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -564,6 +733,34 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildPantryPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withOpacity(0.18),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+              ),
+              child: const Icon(Icons.kitchen_rounded, color: Color(0xFFF87171), size: 16),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '2 Scorte',
+              style: TextStyle(color: Color(0xFFF87171), fontSize: 9.5, fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         Container(
@@ -582,9 +779,9 @@ class BentoWidgetPreviewFactory {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Scorte Dispensa', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold)),
+              Text('Scorte Dispensa', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2),
-              Text('2 scorte in esaurimento', style: TextStyle(color: Color(0xFFF87171), fontSize: 9.5)),
+              Text('2 scorte in esaurimento', style: TextStyle(color: Color(0xFFF87171), fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -593,6 +790,22 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildAsterisksPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.star_rounded, size: 17, color: color),
+            const SizedBox(height: 3),
+            const Text('3 Note (*)', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            const Text('In sospeso', style: TextStyle(color: Colors.white38, fontSize: 8.5)),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -606,9 +819,9 @@ class BentoWidgetPreviewFactory {
           ],
         ),
         const SizedBox(height: 5),
-        const Text('3 note in sospeso', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+        const Text('3 note in sospeso', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 1),
-        const Text('Scontrini da chiarire', style: TextStyle(color: Colors.white38, fontSize: 9.5)),
+        const Text('Scontrini da chiarire', style: TextStyle(color: Colors.white38, fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }
@@ -616,6 +829,25 @@ class BentoWidgetPreviewFactory {
   // --- Note & Idee ---
 
   static Widget _buildNoteStackPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+            ),
+            const SizedBox(height: 4),
+            const Text('Sticky Note', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -633,14 +865,30 @@ class BentoWidgetPreviewFactory {
           ],
         ),
         const SizedBox(height: 4),
-        const Text('Promemoria veloce', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold)),
+        const Text('Promemoria veloce', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 1),
-        const Text('Idee e scadenze personali...', style: TextStyle(color: Colors.white38, fontSize: 9.5)),
+        const Text('Idee e scadenze personali...', style: TextStyle(color: Colors.white38, fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }
 
   static Widget _buildRecentNotesPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.description_outlined, size: 16, color: color),
+            const SizedBox(height: 3),
+            const Text('Note', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            const Text('Bozza budget', style: TextStyle(color: Colors.white38, fontSize: 8.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -653,14 +901,36 @@ class BentoWidgetPreviewFactory {
           ],
         ),
         const SizedBox(height: 5),
-        const Text('Bozza budget 2026', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+        const Text('Bozza budget 2026', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 1),
-        const Text('Modificato 2 ore fa', style: TextStyle(color: Colors.white38, fontSize: 9)),
+        const Text('Modificato 2 ore fa', style: TextStyle(color: Colors.white38, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }
 
   static Widget _buildMarkdownPreview(BentoWidgetSize size, Color color) {
+    final is1x1 = size.crossAxisCellCount <= 1;
+    if (is1x1) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text('# MD', style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 3),
+            const Text('Docs', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -680,9 +950,9 @@ class BentoWidgetPreviewFactory {
           ],
         ),
         const SizedBox(height: 5),
-        const Text('## Specifiche', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+        const Text('## Specifiche', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 1),
-        const Text('Architettura modulare...', style: TextStyle(color: Colors.white38, fontSize: 9)),
+        const Text('Architettura modulare...', style: TextStyle(color: Colors.white38, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }
