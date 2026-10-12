@@ -617,20 +617,42 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
                             ),
                             const SizedBox(height: 12),
 
-                            // Dynamic Live Preview Box
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 220),
-                              curve: Curves.easeOutCubic,
-                              child: Container(
-                                width: double.infinity,
-                                height: currentSize.mainAxisCellCount >= 2 ? 116.0 : 88.0,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: BentoWidgetPreviewFactory.buildPreview(
-                                  type: meta.type,
-                                  size: currentSize,
-                                  accentColor: meta.color,
-                                ),
-                              ),
+                            // Dynamic Live Preview Stage (Proportional Size)
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final previewSize = BentoWidgetPreviewFactory.getPreviewSize(
+                                  currentSize,
+                                  constraints.maxWidth,
+                                );
+
+                                return Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F0F12),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.04),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: AnimatedSize(
+                                      duration: const Duration(milliseconds: 220),
+                                      curve: Curves.easeOutCubic,
+                                      child: SizedBox(
+                                        width: previewSize.width,
+                                        height: previewSize.height,
+                                        child: BentoWidgetPreviewFactory.buildPreview(
+                                          type: meta.type,
+                                          size: currentSize,
+                                          accentColor: meta.color,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
 
                             // Interactive Size Selector Chips (if multiple allowed)
