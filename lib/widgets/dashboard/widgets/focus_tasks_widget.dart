@@ -236,6 +236,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
 
         return BaseListWidget<Task>(
           heroTag: widget.def.id,
+          size: widget.def.size,
           isLoading: isLoading,
           onExpand: () {
             GoRouter.of(context).push('/space/tasks', extra: {'heroTag': widget.def.id});

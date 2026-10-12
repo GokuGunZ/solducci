@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/context_manager.dart';
@@ -37,11 +38,13 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
             if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
               return BentoWidgetContainer(
                 heroTag: widget.def.id,
+                size: widget.def.size,
+                skeletonType: BentoSkeletonType.chart,
                 isLoading: true,
                 onExpand: () {
                   GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
                 },
-                child: const Center(child: CircularProgressIndicator(color: Color(0xFFE068F1))),
+                child: const SizedBox.shrink(),
               );
             }
 
@@ -85,6 +88,7 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
 
           return BentoWidgetContainer(
             heroTag: widget.def.id,
+            size: widget.def.size,
             isLoading: false,
             onExpand: () {
               GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});

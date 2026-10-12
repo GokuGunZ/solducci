@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
+import 'package:solducci/widgets/dashboard/cache/bento_data_cache.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:intl/intl.dart';
-
 import 'package:solducci/widgets/dashboard/swipeable_bento_stack.dart';
 
 class BalancePillWidget extends StatefulWidget {
@@ -21,16 +22,50 @@ class BalancePillWidget extends StatefulWidget {
 
 class _BalancePillWidgetState extends State<BalancePillWidget> {
   bool _isLoading = true;
+  bool _isStale = false;
   List<MapEntry<String, double>> _balancesList = [];
   StreamSubscription? _walletSub;
   StreamSubscription? _expenseSub;
 
+  String get _cacheKey => 'balance_${widget.def.id}';
+
   @override
   void initState() {
     super.initState();
+    _loadFromCacheFirst();
     _loadBalance();
     _walletSub = WalletService().stream.listen((_) => _loadBalance());
     _expenseSub = ExpenseServiceCached().stream.listen((_) => _loadBalance());
+  }
+
+  void _loadFromCacheFirst() {
+    // 0 ms: lettura immediata sincrona da memoria o disco
+    final fast = BentoDataCache.getFastMemorySnapshot(_cacheKey);
+    if (fast != null && fast['items'] is List) {
+      _applyCachedJson(fast);
+      return;
+    }
+
+    // Lettura asincrona disco rapida
+    BentoDataCache.getSnapshot(_cacheKey).then((disk) {
+      if (disk != null && disk['items'] is List && mounted && _balancesList.isEmpty) {
+        setState(() {
+          _applyCachedJson(disk);
+        });
+      }
+    });
+  }
+
+  void _applyCachedJson(Map<String, dynamic> json) {
+    try {
+      final items = (json['items'] as List)
+          .map((e) => MapEntry<String, double>(e['k'] as String, (e['v'] as num).toDouble()))
+          .toList();
+      if (items.isNotEmpty) {
+        _balancesList = items;
+        _isLoading = false;
+      }
+    } catch (_) {}
   }
 
   @override
@@ -55,40 +90,61 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       final customProps = widget.def.customProps;
       final specificWalletId = customProps?['walletId'] as String?;
 
+      List<MapEntry<String, double>> freshBalances = [];
+
       if (specificWalletId != null) {
-        final wallets = await WalletService().fetchWallets();
+        final wallets = await WalletService().fetchWallets().timeout(const Duration(seconds: 4));
         final match = wallets.where((w) => w.id == specificWalletId).firstOrNull;
         if (match != null) {
-          _balancesList = [MapEntry(match.name, match.currentBalance)];
+          freshBalances = [MapEntry(match.name, match.currentBalance)];
         } else {
-          _balancesList = [const MapEntry('Conto non trovato', 0.0)];
+          freshBalances = [const MapEntry('Conto non trovato', 0.0)];
         }
       } else if (currentContext.isGroup && currentContext.groupId != null) {
-        final balances = await ExpenseServiceCached().calculateGroupBalance(currentContext.groupId!);
+        final balances = await ExpenseServiceCached()
+            .calculateGroupBalance(currentContext.groupId!)
+            .timeout(const Duration(seconds: 4));
         if (balances.isNotEmpty) {
-          _balancesList = balances.entries.toList();
+          freshBalances = balances.entries.toList();
         } else {
-          _balancesList = [const MapEntry('Nessun saldo', 0.0)];
+          freshBalances = [const MapEntry('Nessun saldo', 0.0)];
         }
       } else {
-        final wallets = await WalletService().fetchWallets();
+        final wallets = await WalletService().fetchWallets().timeout(const Duration(seconds: 4));
         if (wallets.isNotEmpty) {
           final double totalBalance = wallets.fold(0.0, (sum, w) => sum + w.currentBalance);
-          _balancesList = [
+          freshBalances = [
             MapEntry('Totale', totalBalance),
             ...wallets.map((w) => MapEntry(w.name, w.currentBalance)),
           ];
         } else {
-          _balancesList = [const MapEntry('Nessun conto', 0.0)];
+          freshBalances = [const MapEntry('Nessun conto', 0.0)];
         }
       }
+
+      if (mounted) {
+        setState(() {
+          _balancesList = freshBalances;
+          _isLoading = false;
+          _isStale = false;
+        });
+
+        // Persistiamo lo snapshot valido
+        BentoDataCache.saveSnapshot(_cacheKey, {
+          'items': freshBalances.map((e) => {'k': e.key, 'v': e.value}).toList(),
+        });
+      }
     } catch (e) {
-      debugPrint('Error loading balance: $e');
-      _balancesList = [const MapEntry('Errore', 0.0)];
-    } finally {
+      debugPrint('[BalancePillWidget] Errore o timeout fetch balance: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
+          // Se avevamo già dati (cache), non li distruggiamo ma attiviamo lo status offline
+          if (_balancesList.isNotEmpty) {
+            _isStale = true;
+          } else {
+            _balancesList = [const MapEntry('Non disponibile', 0.0)];
+          }
         });
       }
     }
@@ -98,7 +154,11 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       heroTag: widget.def.id,
-      isLoading: _isLoading,
+      size: widget.def.size,
+      skeletonType: BentoSkeletonType.metric,
+      isLoading: _isLoading && _balancesList.isEmpty,
+      isStale: _isStale,
+      onRetry: _loadBalance,
       onExpand: () {
         GoRouter.of(context).push('/expenses_dashboard', extra: {'heroTag': widget.def.id});
       },
@@ -143,26 +203,20 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
         Text(
           '$sign${formatter.format(balance)}',
           style: TextStyle(
-            color: Colors.transparent,
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            fontFamily: 'Inter',
-            shadows: [
-              Shadow(
-                color: color.withOpacity(0.5),
-                blurRadius: 15,
-              ),
-            ],
+            color: color.withOpacity(0.3),
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
           ),
         ),
-        // Actual Text
+        // Sharp Foreground
         Text(
           '$sign${formatter.format(balance)}',
           style: TextStyle(
             color: color,
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            fontFamily: 'Inter',
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
           ),
         ),
       ],

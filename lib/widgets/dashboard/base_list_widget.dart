@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/widgets/dashboard/data_source_switcher_header.dart';
 
 class BaseListWidget<T> extends StatelessWidget {
   final bool isLoading;
+  final bool isStale;
+  final VoidCallback? onRetry;
   final VoidCallback? onExpand;
   final String currentSource;
   final Color color;
@@ -15,10 +19,14 @@ class BaseListWidget<T> extends StatelessWidget {
   final String emptyMessage;
   final String? heroTag;
   final Widget? quickActionRow;
+  final BentoSkeletonType? skeletonType;
+  final BentoWidgetSize? size;
 
   const BaseListWidget({
     super.key,
     this.isLoading = false,
+    this.isStale = false,
+    this.onRetry,
     this.onExpand,
     required this.currentSource,
     required this.color,
@@ -30,13 +38,19 @@ class BaseListWidget<T> extends StatelessWidget {
     required this.emptyMessage,
     this.heroTag,
     this.quickActionRow,
+    this.skeletonType,
+    this.size,
   });
 
   @override
   Widget build(BuildContext context) {
     return BentoWidgetContainer(
       isLoading: isLoading,
+      isStale: isStale,
+      onRetry: onRetry,
       heroTag: heroTag,
+      size: size,
+      skeletonType: skeletonType ?? BentoSkeletonType.list,
       child: Stack(
         children: [
           // Background Gradient (optional, but looks good for generic lists)

@@ -1,23 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 
+/// Container base per ogni tile della Bento Dashboard con supporto nativo per:
+/// - Skeleton Shimmer geometrico per taglia/tipo
+/// - Stato Stale / Offline (badge discreto con retry)
+/// - Error handling resiliente
+/// - Transizione animata fluida tra skeleton e dati
 class BentoWidgetContainer extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
   final VoidCallback? onExpand;
+  final VoidCallback? onRetry;
   final bool isLoading;
+  final bool isStale;
+  final String? staleMessage;
   final bool hasError;
   final Widget? errorWidget;
   final String? heroTag;
+  final BentoSkeletonType? skeletonType;
+  final BentoWidgetSize? size;
+  final Widget? skeletonWidget;
 
   const BentoWidgetContainer({
     super.key,
     required this.child,
     this.onTap,
     this.onExpand,
+    this.onRetry,
     this.isLoading = false,
+    this.isStale = false,
+    this.staleMessage,
     this.hasError = false,
     this.errorWidget,
     this.heroTag,
+    this.skeletonType,
+    this.size,
+    this.skeletonWidget,
   });
 
   @override
@@ -27,7 +47,9 @@ class BentoWidgetContainer extends StatelessWidget {
         color: const Color(0xFF18181B), // AppTheme.surface (Dark OLED)
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.08),
+          color: isStale
+              ? const Color(0xFFF59E0B).withOpacity(0.25)
+              : Colors.white.withOpacity(0.08),
           width: 1,
         ),
         boxShadow: [
@@ -41,8 +63,15 @@ class BentoWidgetContainer extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          Positioned.fill(child: _buildContent()),
-          // Top subtle specular highlight
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: _buildBody(context),
+            ),
+          ),
+          // Specular highlight superiore
           Positioned(
             top: 0,
             left: 0,
@@ -53,14 +82,50 @@ class BentoWidgetContainer extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     Colors.white.withOpacity(0.0),
-                    Colors.white.withOpacity(0.12),
+                    isStale ? const Color(0xFFF59E0B).withOpacity(0.3) : Colors.white.withOpacity(0.12),
                     Colors.white.withOpacity(0.0),
                   ],
                 ),
               ),
             ),
           ),
-          if (onExpand != null)
+          // Badge "Dati Offline/Stale" se la cache locale è attiva e la rete non risponde
+          if (isStale && !isLoading)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onRetry?.call();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.35)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cloud_off_rounded, size: 10, color: Color(0xFFFBBF24)),
+                      const SizedBox(width: 4),
+                      Text(
+                        staleMessage ?? 'Offline',
+                        style: const TextStyle(
+                          color: Color(0xFFFBBF24),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // Pulsante Expand (se disponibile)
+          if (onExpand != null && !isLoading && !hasError)
             Positioned(
               top: 8,
               right: 8,
@@ -70,10 +135,10 @@ class BentoWidgetContainer extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withOpacity(0.35),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.open_in_full, size: 14, color: Colors.white54),
+                  child: const Icon(Icons.open_in_full, size: 13, color: Colors.white54),
                 ),
               ),
             ),
@@ -101,64 +166,81 @@ class BentoWidgetContainer extends StatelessWidget {
     return content;
   }
 
-  Widget _buildContent() {
+  Widget _buildBody(BuildContext context) {
     if (isLoading) {
-      return const _SkeletonLoader();
-    }
-    
-    if (hasError) {
-      return errorWidget ?? const Center(
-        child: Icon(Icons.error_outline, color: Colors.white54),
+      return KeyedSubtree(
+        key: const ValueKey('skeleton'),
+        child: _buildSkeleton(),
       );
     }
 
-    return child;
-  }
-}
+    if (hasError) {
+      return KeyedSubtree(
+        key: const ValueKey('error'),
+        child: errorWidget ?? _buildDefaultError(context),
+      );
+    }
 
-class _SkeletonLoader extends StatefulWidget {
-  const _SkeletonLoader();
-
-  @override
-  State<_SkeletonLoader> createState() => _SkeletonLoaderState();
-}
-
-class _SkeletonLoaderState extends State<_SkeletonLoader> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<Color?> _colorTween;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-
-    _colorTween = ColorTween(
-      begin: const Color(0xFF18181B), // OLED Surface
-      end: const Color(0xFF27272A),   // Zinc border highlight
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
+    return KeyedSubtree(
+      key: const ValueKey('content'),
+      child: child,
+    );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Widget _buildSkeleton() {
+    if (skeletonWidget != null) {
+      return skeletonWidget!;
+    }
+    if (skeletonType != null) {
+      return BentoSkeleton(type: skeletonType!);
+    }
+    if (size != null) {
+      return BentoSkeleton.autoForSize(size!);
+    }
+    return const BentoSkeleton(type: BentoSkeletonType.generic);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _colorTween,
-      builder: (context, child) {
-        return Container(
-          color: _colorTween.value,
-        );
-      },
+  Widget _buildDefaultError(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 24, color: Colors.white.withOpacity(0.35)),
+            const SizedBox(height: 6),
+            Text(
+              'Impossibile caricare',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.55),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  onRetry!();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  child: const Text(
+                    'Riprova',
+                    style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
