@@ -282,6 +282,7 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
 
     return BaseListWidget<Document>(
       heroTag: widget.def.id,
+      size: widget.def.size,
       isLoading: _isLoading,
       currentSource: headerTitle,
       color: const Color(0xFFF59E0B),
@@ -290,7 +291,10 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
       onPreviousSource: () {},
       onNextSource: () {},
       items: _notes,
-      emptyMessage: 'Nessuna nota presente.\nScrivi un titolo sopra per iniziare!',
+      emptyMessage: 'Nessuna nota presente',
+      emptySubtitle: 'Scrivi un appunto o idea per iniziare',
+      emptyActionLabel: 'Nuova Nota',
+      onEmptyAction: () => _titleFocusNode.requestFocus(),
       quickActionRow: Container(
         height: 34,
         decoration: BoxDecoration(

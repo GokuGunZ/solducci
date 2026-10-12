@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/time_scenario.dart';
 import 'package:solducci/service/time_management_service.dart';
+import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 
 class HeroCountdownWidget extends StatefulWidget {
@@ -59,6 +60,7 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
 
         return BentoWidgetContainer(
           heroTag: widget.def.id,
+          size: widget.def.size,
           isLoading: isLoading,
           onExpand: () {
             if (targetScenario != null) {
@@ -85,30 +87,14 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.event_available_rounded, color: Color(0xFF818CF8), size: 22),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Nessun evento futuro',
-            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Tocca per creare un evento o viaggio',
-            style: TextStyle(color: Colors.white38, fontSize: 10),
-          ),
-        ],
-      ),
+    return BentoEmptyState(
+      icon: Icons.event_available_rounded,
+      title: 'Nessun evento futuro',
+      subtitle: 'Pianifica un viaggio, uscita o traguardo',
+      color: const Color(0xFF818CF8),
+      actionLabel: 'Crea Evento',
+      onAction: () => GoRouter.of(context).push('/space/time_management'),
+      isCompact: widget.def.size.mainAxisCellCount <= 1,
     );
   }
 

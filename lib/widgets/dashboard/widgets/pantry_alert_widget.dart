@@ -6,6 +6,7 @@ import 'package:solducci/models/space_items.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/features/space/services/space_service.dart';
+import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 
 class PantryAlertWidget extends StatefulWidget {
@@ -100,9 +101,11 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
   Widget build(BuildContext context) {
     final hasLowStock = _lowStockItems.isNotEmpty;
     final alertColor = hasLowStock ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+    final isExpanded = widget.def.size.mainAxisCellCount >= 2;
 
     return BentoWidgetContainer(
       heroTag: widget.def.id,
+      size: widget.def.size,
       isLoading: _isLoading,
       onExpand: () {
         if (_documentId != null) {
@@ -111,91 +114,112 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
           GoRouter.of(context).push('/space/pantry');
         }
       },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Ambient Glow behind count if low stock
-          if (hasLowStock)
-            Center(
-              child: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: alertColor.withOpacity(0.35),
-                      blurRadius: 25,
-                      spreadRadius: 8,
+      child: _documentId == null && !_isLoading
+          ? BentoEmptyState(
+              icon: Icons.kitchen_rounded,
+              title: 'Nessuna dispensa',
+              subtitle: 'Crea una dispensa per tracciare le scorte',
+              color: const Color(0xFF10B981),
+              actionLabel: 'Crea Dispensa',
+              onAction: () => GoRouter.of(context).push('/space/pantry'),
+            )
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                // Ambient Glow behind count if low stock
+                if (hasLowStock)
+                  Center(
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: alertColor.withOpacity(0.35),
+                            blurRadius: 25,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Icon(
-              hasLowStock ? Icons.warning_amber_rounded : Icons.kitchen_rounded,
-              color: alertColor,
-              size: 16,
-            ),
-          ),
-
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_documentId == null) ...[
-                const Icon(Icons.add_shopping_cart_rounded, color: Colors.white38, size: 24),
-                const SizedBox(height: 6),
-                const Text(
-                  'NESSUNA DISPENSA',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white38,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
                   ),
-                ),
-              ] else ...[
-                Text(
-                  hasLowStock ? '${_lowStockItems.length}' : '$_totalItemsCount',
-                  style: TextStyle(
+
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Icon(
+                    hasLowStock ? Icons.warning_amber_rounded : Icons.kitchen_rounded,
                     color: alertColor,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  hasLowStock ? 'IN ESAURIMENTO' : 'DISPENSA OK',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: alertColor.withOpacity(0.9),
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _documentTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w500,
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        hasLowStock ? '${_lowStockItems.length}' : '$_totalItemsCount',
+                        style: TextStyle(
+                          color: alertColor,
+                          fontSize: isExpanded ? 34 : 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        hasLowStock ? 'IN ESAURIMENTO' : 'DISPENSA OK',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: alertColor.withOpacity(0.9),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _documentTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (isExpanded && hasLowStock) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.center,
+                          children: _lowStockItems.take(2).map((item) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withOpacity(0.14),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                              ),
+                              child: Text(
+                                item.name,
+                                style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 9.5),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
-            ],
-          ),
-        ],
-      ),
+            ),
     );
   }
 }

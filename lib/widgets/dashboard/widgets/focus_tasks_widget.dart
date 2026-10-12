@@ -262,6 +262,9 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
           },
           items: displayTasks,
           emptyMessage: 'Nessun task in questa lista 🎉',
+          emptySubtitle: 'Sei in pari con tutte le tue attività',
+          emptyActionLabel: 'Aggiungi Task',
+          onEmptyAction: () => _taskFocusNode.requestFocus(),
           quickActionRow: Container(
             height: 34,
             decoration: BoxDecoration(

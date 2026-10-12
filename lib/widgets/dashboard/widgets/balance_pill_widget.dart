@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/cache/bento_data_cache.dart';
@@ -152,6 +153,15 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final size = widget.def.size;
+    final is1x1 = size.crossAxisCellCount <= 1 && size.mainAxisCellCount <= 1;
+    final is2x2OrLarger = size.mainAxisCellCount >= 2;
+
+    final hasValidAccounts = _balancesList.isNotEmpty &&
+        !(_balancesList.length == 1 &&
+            (_balancesList.first.key == 'Nessun conto' ||
+                _balancesList.first.key == 'Non disponibile'));
+
     return BentoWidgetContainer(
       heroTag: widget.def.id,
       size: widget.def.size,
@@ -162,39 +172,75 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       onExpand: () {
         GoRouter.of(context).push('/expenses_dashboard', extra: {'heroTag': widget.def.id});
       },
-      child: SwipeableBentoStack<MapEntry<String, double>>(
-        items: _balancesList.isEmpty ? [const MapEntry('', 0.0)] : _balancesList,
-        builder: (context, item, index) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  item.key.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 10,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.bold,
+      child: !hasValidAccounts && !_isLoading
+          ? BentoEmptyState(
+              icon: Icons.account_balance_wallet_rounded,
+              title: 'Nessun conto',
+              subtitle: 'Aggiungi un portafoglio per monitorare il saldo',
+              color: const Color(0xFF10B981),
+              actionLabel: 'Aggiungi',
+              onAction: () => GoRouter.of(context).push('/wallets'),
+              isCompact: is1x1,
+            )
+          : SwipeableBentoStack<MapEntry<String, double>>(
+              items: _balancesList.isEmpty ? [const MapEntry('', 0.0)] : _balancesList,
+              builder: (context, item, index) {
+                return Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: is1x1 ? 8.0 : 16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          item.key.toUpperCase(),
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: is1x1 ? 9 : 10,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: is1x1 ? 2 : 4),
+                        _buildBalanceAmount(item.value, is1x1: is1x1, isLarge: is2x2OrLarger),
+                        if (is2x2OrLarger) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.swipe_rounded, size: 11, color: Colors.white38),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Conto ${index + 1} di ${_balancesList.length}',
+                                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                _buildBalanceAmount(item.value),
-              ],
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 
-  Widget _buildBalanceAmount(double balance) {
+  Widget _buildBalanceAmount(double balance, {bool is1x1 = false, bool isLarge = false}) {
     final formatter = NumberFormat.currency(locale: 'it_IT', symbol: '€');
     final isPositive = balance >= 0;
     final color = isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444);
     final sign = isPositive ? '+' : '';
+
+    final double fontSize = is1x1 ? 16.0 : (isLarge ? 26.0 : 21.0);
 
     return Stack(
       alignment: Alignment.center,
@@ -204,20 +250,24 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
           '$sign${formatter.format(balance)}',
           style: TextStyle(
             color: color.withOpacity(0.3),
-            fontSize: 22,
+            fontSize: fontSize,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.5,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         // Sharp Foreground
         Text(
           '$sign${formatter.format(balance)}',
           style: TextStyle(
             color: color,
-            fontSize: 22,
+            fontSize: fontSize,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.5,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

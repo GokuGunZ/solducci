@@ -143,6 +143,7 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
 
         return BaseListWidget<AsteriskItem>(
           heroTag: widget.def.id,
+          size: widget.def.size,
           isLoading: isLoading,
           onExpand: () {
             GoRouter.of(context).push('/space/asterisks', extra: {'heroTag': widget.def.id});
@@ -153,7 +154,10 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
           onPreviousSource: () {}, // No other sources for asterisks currently
           onNextSource: () {},
           items: displayAsterisks,
-          emptyMessage: 'Nessun asterisco\nirrisolto 📝',
+          emptyMessage: 'Nessun asterisco irrisolto 🎉',
+          emptySubtitle: 'Tutti i conti e note sono allineati',
+          emptyActionLabel: 'Aggiungi Nota (*)',
+          onEmptyAction: () => _asteriskFocusNode.requestFocus(),
           quickActionRow: Container(
             height: 34,
             decoration: BoxDecoration(

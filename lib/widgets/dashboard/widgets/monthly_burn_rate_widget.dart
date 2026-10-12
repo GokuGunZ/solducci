@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/expense_service_cached.dart';
@@ -84,6 +85,9 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
           final ratio = avgLast3Months > 0 ? (currentMonthTotal / avgLast3Months) : (currentMonthTotal > 0 ? 1.0 : 0.0);
           final displayRatio = ratio > 1.0 ? 1.0 : ratio;
 
+          final isWide = widget.def.size.crossAxisCellCount >= 3;
+          final hasNoExpenses = currentMonthTotal == 0.0 && avgLast3Months == 0.0;
+
           final formatter = NumberFormat.currency(locale: 'it_IT', symbol: '€');
 
           return BentoWidgetContainer(
@@ -93,78 +97,170 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
             onExpand: () {
               GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
             },
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFE068F1).withOpacity(0.2),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: hasNoExpenses
+                ? BentoEmptyState(
+                    icon: Icons.local_fire_department_rounded,
+                    title: 'Nessuna spesa',
+                    subtitle: 'Registra un\'uscita per calcolare il burn rate',
+                    color: const Color(0xFFE068F1),
+                    actionLabel: 'Aggiungi Spesa',
+                    onAction: () => GoRouter.of(context).push('/expenses/add'),
+                  )
+                : Stack(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            targetCategory != null
-                                ? 'BURN RATE (${targetCategory.toUpperCase()})'
-                                : 'BURN RATE',
-                            style: TextStyle(
-                              color: const Color(0xFFE068F1).withOpacity(0.8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                const Color(0xFFE068F1).withOpacity(0.18),
+                                Colors.transparent,
+                              ],
                             ),
                           ),
-                          Icon(
-                            ratio > 1.0 ? Icons.trending_up : Icons.trending_down, 
-                            color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1), 
-                            size: 16
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Text(
-                        formatter.format(currentMonthTotal),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Media ultimi 3 mesi: ${formatter.format(avgLast3Months)}',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: displayRatio,
-                        backgroundColor: Colors.white10,
-                        color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
-                        borderRadius: BorderRadius.circular(4),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: isWide
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Left column: Values
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          targetCategory != null
+                                              ? 'BURN RATE (${targetCategory.toUpperCase()})'
+                                              : 'BURN RATE MENSILE',
+                                          style: TextStyle(
+                                            color: const Color(0xFFE068F1).withOpacity(0.85),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          formatter.format(currentMonthTotal),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                            fontFamily: 'Inter',
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Media 3 mesi: ${formatter.format(avgLast3Months)}',
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Right column: Progress & ratio
+                                  Expanded(
+                                    flex: 2,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              '${(displayRatio * 100).toInt()}%',
+                                              style: TextStyle(
+                                                color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              ratio > 1.0 ? Icons.trending_up : Icons.trending_down,
+                                              color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
+                                              size: 16,
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        LinearProgressIndicator(
+                                          value: displayRatio,
+                                          backgroundColor: Colors.white10,
+                                          color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
+                                          borderRadius: BorderRadius.circular(4),
+                                          minHeight: 6,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        targetCategory != null
+                                            ? 'BURN RATE (${targetCategory.toUpperCase()})'
+                                            : 'BURN RATE',
+                                        style: TextStyle(
+                                          color: const Color(0xFFE068F1).withOpacity(0.8),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                      Icon(
+                                        ratio > 1.0 ? Icons.trending_up : Icons.trending_down,
+                                        color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
+                                        size: 16,
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    formatter.format(currentMonthTotal),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Media ultimi 3 mesi: ${formatter.format(avgLast3Months)}',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  LinearProgressIndicator(
+                                    value: displayRatio,
+                                    backgroundColor: Colors.white10,
+                                    color: ratio > 1.0 ? Colors.redAccent : const Color(0xFFE068F1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ],
+                              ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
           );
         },
       );

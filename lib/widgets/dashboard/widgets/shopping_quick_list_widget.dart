@@ -235,8 +235,12 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
               });
             }
           },
+          size: widget.def.size,
           items: items,
-          emptyMessage: 'Nessun prodotto da comprare 🎉',
+          emptyMessage: 'Lista spesa completata 🎉',
+          emptySubtitle: 'Tutti i prodotti sono stati acquistati',
+          emptyActionLabel: 'Aggiungi Prodotto',
+          onEmptyAction: () => _addFocusNode.requestFocus(),
           quickActionRow: Container(
             height: 34,
             decoration: BoxDecoration(
