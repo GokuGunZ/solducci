@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:solducci/blocs/dashboard/dashboard_bloc.dart';
@@ -16,6 +17,8 @@ import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/dashboard/widget_gallery_sheet.dart';
+import 'package:solducci/widgets/dashboard/bento_mosaic_engine.dart';
+import 'package:solducci/widgets/dashboard/bento_resize_sheet.dart';
 
 class BentoDashboardPage extends StatelessWidget {
   const BentoDashboardPage({super.key});
@@ -45,15 +48,19 @@ class _BentoDashboardView extends StatefulWidget {
 
 class _BentoDashboardViewState extends State<_BentoDashboardView> {
   List<BentoWidgetDef>? _dragPreviewLayout;
+  String? _draggingWidgetId;
 
-  void _onDragStarted(List<BentoWidgetDef> currentLayout) {
+  void _onDragStarted(List<BentoWidgetDef> currentLayout, String draggingId) {
+    HapticFeedback.mediumImpact();
     setState(() {
+      _draggingWidgetId = draggingId;
       _dragPreviewLayout = List.from(currentLayout);
     });
   }
 
   void _onDragEnded() {
     setState(() {
+      _draggingWidgetId = null;
       _dragPreviewLayout = null;
     });
   }
@@ -61,23 +68,11 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
   void _onHover(int targetIndex, _DraggingItemData data, List<BentoWidgetDef> originalLayout) {
     if (_dragPreviewLayout == null) return;
     
-    final newLayout = List<BentoWidgetDef>.from(originalLayout);
-    
-    if (data.sourceIndex != null) {
-      // It's moving an existing widget
-      final item = newLayout.removeAt(data.sourceIndex!);
-      
-      // If we are dropping it further down, the indices shift
-      int adjustedTarget = targetIndex;
-      if (data.sourceIndex! < targetIndex) {
-        adjustedTarget -= 1;
-      }
-      
-      newLayout.insert(adjustedTarget, item);
-    } else {
-      // It's a new widget from the library
-      newLayout.insert(targetIndex, data.def);
-    }
+    final newLayout = BentoMosaicEngine.previewDisplacement(
+      currentLayout: originalLayout,
+      draggingItem: data.def,
+      targetIndex: targetIndex,
+    );
     
     // Only rebuild if the layout actually changed from the current preview
     bool isDifferent = false;
@@ -93,6 +88,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
     }
     
     if (isDifferent) {
+      HapticFeedback.selectionClick();
       setState(() {
         _dragPreviewLayout = newLayout;
       });
@@ -168,7 +164,14 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
   }
 
   Widget _buildGrid(BuildContext context, DashboardLoaded state, ExpenseContext appContext) {
-    final activeLayout = _dragPreviewLayout ?? state.config.layout;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final columns = BentoMosaicEngine.getColumnCount(screenWidth);
+
+    final rawLayout = _dragPreviewLayout ?? state.config.layout;
+    final activeLayout = BentoMosaicEngine.reorderForMosaic(
+      widgets: rawLayout,
+      columns: columns,
+    );
     
     if (activeLayout.isEmpty) {
       return Center(
@@ -218,6 +221,9 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
       );
     }
 
+    final double availableWidth = screenWidth - 32;
+    final double colWidth = (availableWidth - (columns - 1) * 16) / columns;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.only(
         left: 16.0, 
@@ -229,7 +235,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           StaggeredGrid.count(
-            crossAxisCount: 4,
+            crossAxisCount: columns,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             children: activeLayout.asMap().entries.map((entry) {
@@ -258,7 +264,11 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                     onTap: () {
                       final newLayout = List<BentoWidgetDef>.from(state.config.layout);
                       newLayout.removeWhere((w) => w.id == widgetDef.id);
-                      context.read<DashboardBloc>().add(UpdateLayout(newLayout));
+                      final packed = BentoMosaicEngine.reorderForMosaic(
+                        widgets: newLayout,
+                        columns: columns,
+                      );
+                      context.read<DashboardBloc>().add(UpdateLayout(packed));
                     },
                     child: Container(
                       padding: const EdgeInsets.all(4),
@@ -296,21 +306,51 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                     ),
                   ),
                 ),
-              if (state.isEditing && DashboardWidgetFactory.getAllowedSizes(widgetDef.type).length > 1)
+              if (state.isEditing && DashboardWidgetFactory.getSupportedSizes(widgetDef.type).length > 1)
                 Positioned(
                   bottom: 8,
                   right: 8,
                   child: GestureDetector(
                     onTap: () {
-                      context.read<DashboardBloc>().add(ResizeWidget(widgetDef.id));
+                      BentoResizeSheet.show(
+                        context: context,
+                        widgetDef: widgetDef,
+                        onSizeSelected: (newSize) {
+                          final newLayout = List<BentoWidgetDef>.from(state.config.layout);
+                          final targetIndex = newLayout.indexWhere((w) => w.id == widgetDef.id);
+                          if (targetIndex != -1) {
+                            newLayout[targetIndex] = newLayout[targetIndex].copyWith(size: newSize);
+                            final packed = BentoMosaicEngine.reorderForMosaic(
+                              widgets: newLayout,
+                              columns: columns,
+                            );
+                            context.read<DashboardBloc>().add(UpdateLayout(packed));
+                          }
+                        },
+                      );
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.blueAccent,
-                        shape: BoxShape.circle,
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white.withOpacity(0.18)),
                       ),
-                      child: const Icon(Icons.aspect_ratio, size: 16, color: Colors.white),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${widgetDef.size.crossAxisCellCount}x${widgetDef.size.mainAxisCellCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.aspect_ratio_rounded, size: 13, color: Colors.white70),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -319,9 +359,39 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
 
           Widget finalContent = baseContent;
           if (state.isEditing) {
+            final isBeingDragged = _draggingWidgetId == widgetDef.id;
+
+            final Widget ghostSlot = Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: const Color(0xFF6366F1).withOpacity(0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.crop_free_rounded,
+                    color: Color(0xFF818CF8),
+                    size: 20,
+                  ),
+                ),
+              ),
+            );
+
+            final double previewWidth = (widgetDef.size.crossAxisCellCount * colWidth + 
+                (widgetDef.size.crossAxisCellCount - 1) * 16).clamp(80.0, availableWidth);
+            final double previewHeight = widgetDef.size.mainAxisCellCount * 90.0;
+
             finalContent = DragTarget<_DraggingItemData>(
               onWillAcceptWithDetails: (details) {
-                // If it's the exact same item from the exact same original index, ignore
                 if (details.data.sourceIndex == index && details.data.def.id == widgetDef.id) {
                   return true; 
                 }
@@ -330,52 +400,70 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
               },
               onAcceptWithDetails: (details) async {
                 final proposedLayout = _dragPreviewLayout;
-                _onDragEnded(); // Clear preview immediately
+                _onDragEnded();
                 
                 if (proposedLayout != null) {
                   if (details.data.sourceIndex == null && DashboardWidgetFactory.requiresInit(details.data.def.type)) {
                     final customProps = await _showInitModal(context, details.data.def.type);
                     if (customProps != null) {
-                      final index = proposedLayout.indexWhere((w) => w.id == details.data.def.id);
-                      if (index != -1) {
-                        proposedLayout[index] = proposedLayout[index].copyWith(customProps: customProps);
+                      final targetIndex = proposedLayout.indexWhere((w) => w.id == details.data.def.id);
+                      if (targetIndex != -1) {
+                        proposedLayout[targetIndex] = proposedLayout[targetIndex].copyWith(customProps: customProps);
                       }
-                      // Use mounted check ideally, but we are in a stateless widget closure, so context might be invalid if page is gone. 
-                      // However, since it's a modal over the same page, it should be fine.
                       if (context.mounted) {
-                        context.read<DashboardBloc>().add(UpdateLayout(proposedLayout));
+                        final packed = BentoMosaicEngine.reorderForMosaic(
+                          widgets: proposedLayout,
+                          columns: columns,
+                        );
+                        context.read<DashboardBloc>().add(UpdateLayout(packed));
                       }
                     }
                   } else {
-                    context.read<DashboardBloc>().add(UpdateLayout(proposedLayout));
+                    final packed = BentoMosaicEngine.reorderForMosaic(
+                      widgets: proposedLayout,
+                      columns: columns,
+                    );
+                    context.read<DashboardBloc>().add(UpdateLayout(packed));
                   }
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                // To support dragging to the very end of the list, we can add a fake target at the end.
-                // But for now, every existing tile acts as a target that inserts BEFORE it.
-                
                 return LongPressDraggable<_DraggingItemData>(
                   data: _DraggingItemData(widgetDef, state.config.layout.indexWhere((w) => w.id == widgetDef.id)),
-                  onDragStarted: () => _onDragStarted(state.config.layout),
+                  onDragStarted: () => _onDragStarted(state.config.layout, widgetDef.id),
                   onDragEnd: (details) => _onDragEnded(),
                   onDraggableCanceled: (velocity, offset) => _onDragEnded(),
                   feedback: Material(
                     color: Colors.transparent,
-                    child: Opacity(
-                      opacity: 0.8,
-                      child: SizedBox(
-                        width: widgetDef.size.crossAxisCellCount * 90.0,
-                        height: widgetDef.size.mainAxisCellCount * 90.0,
-                        child: baseContent,
+                    child: Transform.scale(
+                      scale: 1.04,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.65),
+                              blurRadius: 28,
+                              offset: const Offset(0, 14),
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFF6366F1).withOpacity(0.35),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: SizedBox(
+                          width: previewWidth,
+                          height: previewHeight,
+                          child: DashboardWidgetFactory.buildWidget(context, widgetDef),
+                        ),
                       ),
                     ),
                   ),
-                  childWhenDragging: Opacity(
-                    opacity: 0.1,
-                    child: baseContent,
-                  ),
-                  child: baseContent,
+                  childWhenDragging: ghostSlot,
+                  child: isBeingDragged ? ghostSlot : baseContent,
                 );
               },
             );
@@ -450,8 +538,14 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
       context: context,
       currentLayout: state.config.layout,
       onAddWidget: (newDef) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final columns = BentoMosaicEngine.getColumnCount(screenWidth);
         final newLayout = List<BentoWidgetDef>.from(state.config.layout)..add(newDef);
-        context.read<DashboardBloc>().add(UpdateLayout(newLayout));
+        final packed = BentoMosaicEngine.reorderForMosaic(
+          widgets: newLayout,
+          columns: columns,
+        );
+        context.read<DashboardBloc>().add(UpdateLayout(packed));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Widget "${WidgetCatalog.findByType(newDef.type)?.name ?? newDef.type}" aggiunto al Feed'),

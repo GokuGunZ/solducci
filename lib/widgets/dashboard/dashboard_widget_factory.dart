@@ -88,6 +88,8 @@ class DashboardWidgetFactory {
     ];
   }
 
+  static List<BentoWidgetSize> getSupportedSizes(String type) => getAllowedSizes(type);
+
   static List<BentoWidgetSize> getAllowedSizes(String type) {
     switch (type) {
       case 'balance':
