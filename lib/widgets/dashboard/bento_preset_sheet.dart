@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solducci/models/bento_preset.dart';
 import 'package:solducci/models/dashboard_config.dart';
-import 'package:solducci/widgets/dashboard/widget_gallery_sheet.dart';
+import 'package:solducci/widgets/dashboard/gallery/bento_dashboard_blueprint.dart';
 import 'package:uuid/uuid.dart';
 
 /// Modal bottom sheet per la scelta, applicazione e salvataggio dei Preset di Bento Dashboard
@@ -450,8 +450,12 @@ class _PresetCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // Mini schematic visualization of the layout
-          _MiniLayoutPreview(layout: preset.layout),
+          // Anteprima Mosaico dell'intera Dashboard Blueprint
+          BentoDashboardBlueprint(
+            layout: preset.layout,
+            accentColor: preset.accentColor,
+            maxHeight: 155.0,
+          ),
 
           const SizedBox(height: 14),
 
@@ -474,53 +478,6 @@ class _PresetCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Miniatura visiva della composizione delle celle dei widget
-class _MiniLayoutPreview extends StatelessWidget {
-  final List<BentoWidgetDef> layout;
-
-  const _MiniLayoutPreview({required this.layout});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
-      ),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: layout.take(6).map((def) {
-          final meta = WidgetCatalog.findByType(def.type);
-          final color = meta?.color ?? Colors.grey;
-
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: color.withOpacity(0.35)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(meta?.icon ?? Icons.widgets, color: color, size: 12),
-                const SizedBox(width: 4),
-                Text(
-                  meta?.name ?? def.type,
-                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
       ),
     );
   }
