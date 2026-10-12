@@ -19,6 +19,7 @@ import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/dashboard/widget_gallery_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_mosaic_engine.dart';
 import 'package:solducci/widgets/dashboard/bento_resize_sheet.dart';
+import 'package:solducci/widgets/dashboard/bento_preset_sheet.dart';
 
 class BentoDashboardPage extends StatelessWidget {
   const BentoDashboardPage({super.key});
@@ -109,12 +110,18 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
               if (state is DashboardLoaded) {
                 return Row(
                   children: [
-                    if (state.isEditing)
+                    if (state.isEditing) ...[
+                      IconButton(
+                        icon: const Icon(Icons.auto_awesome_mosaic_outlined, color: Colors.indigoAccent),
+                        tooltip: 'Modelli & Preset',
+                        onPressed: () => _openPresetSheet(context, state),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, color: Colors.orangeAccent),
                         tooltip: 'Aggiungi widget',
                         onPressed: () => _openWidgetGallery(context, state),
                       ),
+                    ],
                     IconButton(
                       icon: Icon(state.isEditing ? Icons.check : Icons.edit, color: Colors.white),
                       onPressed: () {
@@ -205,15 +212,33 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                 style: TextStyle(color: Colors.white54, fontSize: 14),
               ),
               const SizedBox(height: 24),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Apri Galleria Widget'),
-                onPressed: () => _openWidgetGallery(context, state),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Galleria Widget'),
+                    onPressed: () => _openWidgetGallery(context, state),
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    icon: const Icon(Icons.auto_awesome_mosaic_outlined, size: 18),
+                    label: const Text('Modelli & Preset'),
+                    onPressed: () => _openPresetSheet(context, state),
+                  ),
+                ],
               ),
             ],
           ),
@@ -559,6 +584,34 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
       onConfigureWidget: (ctx, type) => _showInitModal(ctx, type),
     );
   }
+
+  void _openPresetSheet(BuildContext context, DashboardLoaded state) {
+    final isGroup = !ContextManager().isPersonalContext;
+    BentoPresetSheet.show(
+      context: context,
+      currentLayout: state.config.layout,
+      isGroupContext: isGroup,
+      onApplyLayout: (newLayout) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final columns = BentoMosaicEngine.getColumnCount(screenWidth);
+        final packed = BentoMosaicEngine.reorderForMosaic(
+          widgets: newLayout,
+          columns: columns,
+        );
+        context.read<DashboardBloc>().add(ApplyPresetLayout(packed));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Template applicato con successo alla Bento Home!'),
+            backgroundColor: const Color(0xFF27272A),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+    );
+  }
+
   Future<Map<String, dynamic>?> _showInitModal(BuildContext context, String type) async {
     return await showModalBottomSheet<Map<String, dynamic>>(
       context: context,

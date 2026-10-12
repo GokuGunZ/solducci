@@ -35,3 +35,11 @@ class ResizeWidget extends DashboardEvent {
   @override
   List<Object?> get props => [widgetId];
 }
+
+class ApplyPresetLayout extends DashboardEvent {
+  final List<BentoWidgetDef> layout;
+  const ApplyPresetLayout(this.layout);
+
+  @override
+  List<Object?> get props => [layout];
+}

@@ -16,6 +16,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<UpdateLayout>(_onUpdateLayout);
     on<SaveDashboard>(_onSaveDashboard);
     on<ResizeWidget>(_onResizeWidget);
+    on<ApplyPresetLayout>(_onApplyPresetLayout);
   }
 
   Future<void> _onLoadDashboard(LoadDashboard event, Emitter<DashboardState> emit) async {
@@ -88,6 +89,18 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     }
   }
 
+  void _onApplyPresetLayout(ApplyPresetLayout event, Emitter<DashboardState> emit) {
+    if (state is DashboardLoaded) {
+      final currentState = state as DashboardLoaded;
+      final updatedConfig = currentState.config.copyWith(
+        layout: event.layout,
+        updatedAt: DateTime.now(),
+      );
+      emit(currentState.copyWith(config: updatedConfig));
+      _dashboardService.saveDashboardConfig(updatedConfig);
+    }
+  }
+
   Future<void> _onSaveDashboard(SaveDashboard event, Emitter<DashboardState> emit) async {
     if (state is DashboardLoaded) {
       final currentState = state as DashboardLoaded;
@@ -96,7 +109,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         // Optional: emit a temporary "Saved" state or just keep loaded
       } catch (e) {
         // Handle save error silently or emit error state
-        print('Error saving dashboard: $e');
       }
     }
   }
