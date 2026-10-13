@@ -9,8 +9,13 @@ import 'package:solducci/service/context_manager.dart';
 
 class ShoppingListDetailView extends StatefulWidget {
   final String documentId;
+  final bool isEmbeddedMode;
 
-  const ShoppingListDetailView({super.key, required this.documentId});
+  const ShoppingListDetailView({
+    super.key,
+    required this.documentId,
+    this.isEmbeddedMode = false,
+  });
 
   @override
   State<ShoppingListDetailView> createState() => _ShoppingListDetailViewState();
@@ -279,20 +284,13 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
       return const Scaffold(body: Center(child: Text('Lista non trovata')));
     }
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldPop = await _onWillPop();
-        if (shouldPop && context.mounted) {
-          Navigator.of(context).pop();
-        }
-      },
-      child: Scaffold(
+    final scaffold = Scaffold(
         backgroundColor: const Color(0xFF09090B),
-        appBar: SolducciAppBar(
-          titleSpacing: 0,
-          title: _isEditingTitle 
+        appBar: widget.isEmbeddedMode
+            ? null
+            : SolducciAppBar(
+                titleSpacing: 0,
+                title: _isEditingTitle 
             ? TextField(
                 controller: _titleController,
                 focusNode: _titleFocusNode,
@@ -596,7 +594,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
             return Transform.translate(
               offset: Offset(0, -_selectionAnimation.value * 80),
               child: FloatingActionButton(
-                heroTag: 'shopping_list_fab',
+                heroTag: 'shopping_list_fab_${widget.documentId}',
                 backgroundColor: const Color(0xFF3B82F6),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -606,7 +604,22 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
             );
           },
         ),
-      ),
+      );
+
+    if (widget.isEmbeddedMode) {
+      return scaffold;
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: scaffold,
     );
   }
 

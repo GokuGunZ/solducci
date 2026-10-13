@@ -21,6 +21,7 @@ import 'package:solducci/features/space/views/asterisk_detail_view.dart';
 import 'package:solducci/features/space/views/resource_detail_view.dart';
 import 'package:solducci/features/space/views/pantry_detail_view.dart';
 import 'package:solducci/features/space/views/shopping_list_detail_view.dart';
+import 'package:solducci/features/space/views/shopping_hub_view.dart';
 import 'package:solducci/views/documents/documents_home_view.dart';
 import 'package:solducci/features/time_management/views/time_management_hub.dart';
 import 'package:solducci/features/time_management/views/routine_hub.dart';
@@ -234,17 +235,10 @@ class AppRouter {
         builder: (context, state) => ResourceDetailView(documentId: state.pathParameters['id']!),
       ),
 
-      // Shopping (Must be before Pantry to avoid pattern conflict if any)
+      // Shopping (Unified Multi-List Hub)
       GoRoute(
         path: '/space/shopping', 
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          return SpaceDocumentListView(
-            type: 'shopping_list', 
-            sectionLabel: 'Liste Spesa',
-            heroTag: extra?['heroTag'] as String?,
-          );
-        }
+        builder: (context, state) => const ShoppingHubView(),
       ),
       GoRoute(
         path: '/space/shopping/:id',
