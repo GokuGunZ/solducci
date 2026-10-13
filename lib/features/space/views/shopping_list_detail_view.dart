@@ -1,6 +1,7 @@
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/space_items.dart';
 import 'package:solducci/features/space/services/space_service.dart';
@@ -45,6 +46,9 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
   final Set<String> _selectedItemIds = {};
   late AnimationController _selectionController;
   late Animation<double> _selectionAnimation;
+
+  // Completed items section collapse
+  bool _isCompletedSectionExpanded = false;
 
   @override
   void initState() {
@@ -330,12 +334,12 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
           children: [
             Column(
               children: [
-                // Modern Dark Search Bar
+                // Inline Quick-Add Row with Pantry Suggestions
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF18181B),
+                      color: const Color(0xFF141417),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.white12, width: 1),
                     ),
@@ -343,15 +347,16 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
                     child: TextField(
                       controller: _searchController,
                       onChanged: _onSearchChanged,
+                      onSubmitted: (_) => _createNewProductAndAdd(),
                       style: const TextStyle(color: Colors.white, fontSize: 14),
                       decoration: InputDecoration(
-                        hintText: 'Cerca prodotto o aggiungi...',
+                        hintText: 'Aggiungi prodotto al volo...',
                         hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                        prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38, size: 20),
+                        prefixIcon: const Icon(Icons.add_shopping_cart, color: Color(0xFF10B981), size: 20),
                         prefixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                         suffixIcon: _searchController.text.isNotEmpty 
                           ? IconButton(
-                              icon: const Icon(Icons.add_circle, color: Color(0xFF3B82F6)),
+                              icon: const Icon(Icons.arrow_upward_rounded, color: Color(0xFF10B981)),
                               onPressed: _createNewProductAndAdd,
                             )
                           : null,
@@ -362,38 +367,59 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
                   ),
                 ),
                 
-                // Dropdown results in dark card
-                if (_showSearchDropdown)
+                // Dropdown Pantry Suggestions Chips
+                if (_showSearchDropdown && _searchResults.isNotEmpty)
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF18181B),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white12),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 4)),
-                      ],
+                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
                     ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _searchResults.length,
-                      separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
-                      itemBuilder: (context, index) {
-                        final product = _searchResults[index];
-                        return ListTile(
-                          title: Text(product.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.add_circle_outline, color: Color(0xFF3B82F6)),
-                            onPressed: () => _addPantryItem(product),
-                          ),
-                          onTap: () => _addPantryItem(product),
-                        );
-                      },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'DALLA DISPENSA',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: _searchResults.take(6).map((product) {
+                            return InkWell(
+                              onTap: () => _addPantryItem(product),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.add, size: 14, color: Color(0xFF10B981)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      product.name,
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
                   ),
 
-                // Main List with Dark Squircles
+                // Main List with Split Active vs Completed
                 Expanded(
                   child: _items.isEmpty 
                     ? Center(
@@ -404,188 +430,90 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                color: const Color(0xFF10B981).withOpacity(0.1),
                               ),
-                              child: const Icon(Icons.shopping_bag_outlined, size: 48, color: Color(0xFF3B82F6)),
+                              child: const Icon(Icons.shopping_bag_outlined, size: 48, color: Color(0xFF10B981)),
                             ),
                             const SizedBox(height: 12),
                             const Text('La lista è vuota', style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            const Text('Cerca un prodotto sopra o usa il tasto +', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                            const Text('Scrivi sopra e premi invio per aggiungere al volo', style: TextStyle(color: Colors.white38, fontSize: 12)),
                           ],
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 110, left: 16, right: 16, top: 8),
-                        itemCount: _items.length,
-                        itemBuilder: (context, index) {
-                          final item = _items[index];
-                          final isSelected = _selectedItemIds.contains(item.id);
+                    : Builder(
+                        builder: (context) {
+                          final pendingItems = _items.where((i) => !i.isBought).toList();
+                          final completedItems = _items.where((i) => i.isBought).toList();
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected 
-                                  ? const Color(0xFF3B82F6).withOpacity(0.18) 
-                                  : const Color(0xFF18181B),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected ? const Color(0xFF3B82F6) : Colors.white10,
-                                width: 1,
-                              ),
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                              onLongPress: () => _toggleSelection(item.id),
-                              onTap: () => _toggleSelection(item.id),
-                              leading: IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                icon: _selectedItemIds.isNotEmpty 
-                                  ? Icon(
-                                      isSelected ? Icons.check_circle : Icons.circle_outlined, 
-                                      color: const Color(0xFF3B82F6),
-                                    )
-                                  : Icon(
-                                      item.isBought ? Icons.check_circle : Icons.radio_button_unchecked, 
-                                      color: item.isBought ? const Color(0xFF10B981) : Colors.white38,
+                          return ListView(
+                            padding: const EdgeInsets.only(bottom: 110, left: 16, right: 16, top: 4),
+                            children: [
+                              // 1. Pending Items
+                              ...pendingItems.map((item) => _buildItemTile(item)),
+
+                              // 2. Completed Section (Collapsible Accordion)
+                              if (completedItems.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _isCompletedSectionExpanded = !_isCompletedSectionExpanded;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          _isCompletedSectionExpanded 
+                                              ? Icons.keyboard_arrow_down_rounded 
+                                              : Icons.keyboard_arrow_right_rounded,
+                                          color: Colors.white54,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'PRESI (${completedItems.length})',
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.1,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF10B981).withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '${((completedItems.length / _items.length) * 100).toInt()}%',
+                                            style: const TextStyle(
+                                              color: Color(0xFF10B981),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                onPressed: _selectedItemIds.isNotEmpty 
-                                  ? () => _toggleSelection(item.id)
-                                  : () => _spaceService.updateShoppingListItem(ShoppingListItem(
-                                      id: item.id,
-                                      documentId: item.documentId,
-                                      pantryItemId: item.pantryItemId,
-                                      name: item.name,
-                                      quantity: item.quantity,
-                                      unit: item.unit,
-                                      isBought: !item.isBought,
-                                      position: item.position,
-                                      createdAt: item.createdAt,
-                                      updatedAt: DateTime.now(),
-                                    )),
-                              ),
-                              title: Text(
-                                item.name, 
-                                style: TextStyle(
-                                  decoration: item.isBought ? TextDecoration.lineThrough : null,
-                                  color: item.isBought ? Colors.white38 : Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              subtitle: item.unit != null && item.unit!.isNotEmpty
-                                ? Text('${item.quantity} ${item.unit!}', style: const TextStyle(color: Colors.white38, fontSize: 11))
-                                : null,
-                              trailing: _selectedItemIds.isNotEmpty 
-                                ? null 
-                                : Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.white54),
-                                        onPressed: item.quantity > 1 
-                                          ? () => _spaceService.updateShoppingListItem(ShoppingListItem(
-                                              id: item.id,
-                                              documentId: item.documentId,
-                                              pantryItemId: item.pantryItemId,
-                                              name: item.name,
-                                              quantity: item.quantity - 1,
-                                              unit: item.unit,
-                                              isBought: item.isBought,
-                                              position: item.position,
-                                              createdAt: item.createdAt,
-                                              updatedAt: DateTime.now(),
-                                            ))
-                                          : null,
-                                      ),
-                                      Text(
-                                        '${item.quantity.toInt()}', 
-                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF3B82F6)),
-                                        onPressed: () => _spaceService.updateShoppingListItem(ShoppingListItem(
-                                          id: item.id,
-                                          documentId: item.documentId,
-                                          pantryItemId: item.pantryItemId,
-                                          name: item.name,
-                                          quantity: item.quantity + 1,
-                                          unit: item.unit,
-                                          isBought: item.isBought,
-                                          position: item.position,
-                                          createdAt: item.createdAt,
-                                          updatedAt: DateTime.now(),
-                                        )),
-                                      ),
-                                    ],
                                   ),
-                            ),
+                                ),
+                                if (_isCompletedSectionExpanded)
+                                  ...completedItems.map((item) => _buildItemTile(item)),
+                              ],
+                            ],
                           );
                         },
                       ),
                 ),
               ],
             ),
-
-            // Bottom Selection Bar - Dark Glassmorphism
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              bottom: _selectedItemIds.isEmpty ? -150 : 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF18181B),
-                  border: const Border(top: BorderSide(color: Colors.white12, width: 1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 20,
-                      offset: const Offset(0, -6),
-                    )
-                  ],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: Row(
-                    children: [
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${_selectedItemIds.length}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF3B82F6)),
-                          ),
-                          const Text('Selezionati', style: TextStyle(fontSize: 11, color: Colors.white54)),
-                        ],
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
-                        onPressed: _deleteSelectedItems,
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.shopping_bag_outlined, size: 18),
-                        label: const Text('COMPRA', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        onPressed: _showBulkPurchaseDialog,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            _buildSelectionBar(),
           ],
         ),
         floatingActionButton: AnimatedBuilder(
@@ -595,8 +523,8 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
               offset: Offset(0, -_selectionAnimation.value * 80),
               child: FloatingActionButton(
                 heroTag: 'shopping_list_fab_${widget.documentId}',
-                backgroundColor: const Color(0xFF3B82F6),
-                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 onPressed: _showAddItemModal,
                 child: const Icon(Icons.add),
@@ -620,6 +548,175 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
         }
       },
       child: scaffold,
+    );
+  }
+
+  Widget _buildItemTile(ShoppingListItem item) {
+    final isSelected = _selectedItemIds.contains(item.id);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected 
+            ? const Color(0xFF10B981).withOpacity(0.18) 
+            : const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? const Color(0xFF10B981) : Colors.white10,
+          width: 1,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        onLongPress: () => _toggleSelection(item.id),
+        onTap: () => _toggleSelection(item.id),
+        leading: IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          icon: _selectedItemIds.isNotEmpty 
+            ? Icon(
+                isSelected ? Icons.check_circle : Icons.circle_outlined, 
+                color: const Color(0xFF10B981),
+              )
+            : Icon(
+                item.isBought ? Icons.check_circle : Icons.radio_button_unchecked, 
+                color: item.isBought ? const Color(0xFF10B981) : Colors.white38,
+              ),
+          onPressed: _selectedItemIds.isNotEmpty 
+            ? () => _toggleSelection(item.id)
+            : () {
+                HapticFeedback.lightImpact();
+                _spaceService.updateShoppingListItem(ShoppingListItem(
+                  id: item.id,
+                  documentId: item.documentId,
+                  pantryItemId: item.pantryItemId,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  isBought: !item.isBought,
+                  position: item.position,
+                  createdAt: item.createdAt,
+                  updatedAt: DateTime.now(),
+                ));
+              },
+        ),
+        title: Text(
+          item.name, 
+          style: TextStyle(
+            decoration: item.isBought ? TextDecoration.lineThrough : null,
+            color: item.isBought ? Colors.white38 : Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        subtitle: item.unit != null && item.unit!.isNotEmpty
+          ? Text('${item.quantity} ${item.unit!}', style: const TextStyle(color: Colors.white38, fontSize: 11))
+          : null,
+        trailing: _selectedItemIds.isNotEmpty 
+          ? null 
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.white54),
+                  onPressed: item.quantity > 1 
+                    ? () => _spaceService.updateShoppingListItem(ShoppingListItem(
+                        id: item.id,
+                        documentId: item.documentId,
+                        pantryItemId: item.pantryItemId,
+                        name: item.name,
+                        quantity: item.quantity - 1,
+                        unit: item.unit,
+                        isBought: item.isBought,
+                        position: item.position,
+                        createdAt: item.createdAt,
+                        updatedAt: DateTime.now(),
+                      ))
+                    : null,
+                ),
+                Text(
+                  '${item.quantity.toInt()}', 
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFF10B981)),
+                  onPressed: () => _spaceService.updateShoppingListItem(ShoppingListItem(
+                    id: item.id,
+                    documentId: item.documentId,
+                    pantryItemId: item.pantryItemId,
+                    name: item.name,
+                    quantity: item.quantity + 1,
+                    unit: item.unit,
+                    isBought: item.isBought,
+                    position: item.position,
+                    createdAt: item.createdAt,
+                    updatedAt: DateTime.now(),
+                  )),
+                ),
+              ],
+            ),
+      ),
+    );
+  }
+
+  // Bottom Selection Bar - Dark Glassmorphism
+  Widget _buildSelectionBar() {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+      bottom: _selectedItemIds.isEmpty ? -150 : 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF18181B),
+          border: const Border(top: BorderSide(color: Colors.white12, width: 1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 20,
+              offset: const Offset(0, -6),
+            )
+          ],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_selectedItemIds.length}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF10B981)),
+                  ),
+                  const Text('Selezionati', style: TextStyle(fontSize: 11, color: Colors.white54)),
+                ],
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+                onPressed: _deleteSelectedItems,
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                label: const Text('COMPRA', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: _showBulkPurchaseDialog,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
