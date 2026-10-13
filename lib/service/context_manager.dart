@@ -601,6 +601,14 @@ class ExpenseContext {
     return '👥';
   }
 
+  /// Deterministic unique key representing this context for dashboards and persistence
+  String get contextKey {
+    if (isPersonal) return 'personal';
+    if (isGroup && groupId != null) return 'group_$groupId';
+    if (isView && viewId != null) return 'view_$viewId';
+    return 'personal';
+  }
+
   @override
   String toString() {
     if (isPersonal) return 'Personal Context';
