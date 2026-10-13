@@ -17,7 +17,17 @@ class ShoppingHubView extends StatelessWidget {
       documentType: 'shopping_list',
       accentColor: const Color(0xFF10B981), // Smeraldo OLED
       icon: Icons.shopping_cart_outlined,
-      showAllOption: false, // Per la spesa ogni lista è autonoma (es. Conad vs Esselunga)
+      showAllOption: true,
+      allLabel: 'Tutte',
+      buildAllPage: (context, allDocs) {
+        // Mostra la prima lista oppure un placeholder/aggregatore
+        if (allDocs.isEmpty) return const SizedBox.shrink();
+        return ShoppingListDetailView(
+          key: const ValueKey('shopping_list_all'),
+          documentId: allDocs.first.id,
+          isEmbeddedMode: true,
+        );
+      },
       buildDocumentPage: (context, doc) {
         return ShoppingListDetailView(
           key: ValueKey('shopping_list_${doc.id}'),

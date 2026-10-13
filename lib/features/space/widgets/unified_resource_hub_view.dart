@@ -375,7 +375,7 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
 
   Widget _buildChipsBar() {
     return SizedBox(
-      height: 48,
+      height: 56,
       child: ListView.separated(
         controller: _chipScrollController,
         scrollDirection: Axis.horizontal,
@@ -414,11 +414,11 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 14 : 0,
-          vertical: 0,
+          horizontal: isSelected ? 12 : 0,
+          vertical: isSelected ? 6 : 0,
         ),
         decoration: BoxDecoration(
           gradient: isSelected
@@ -426,25 +426,19 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    widget.accentColor.withOpacity(0.40),
-                    widget.accentColor.withOpacity(0.18),
+                    widget.accentColor.withOpacity(0.7),
+                    widget.accentColor.withOpacity(0.5),
                   ],
                 )
               : null,
-          color: isSelected ? null : const Color(0xFF141417),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: isSelected
-                ? widget.accentColor.withOpacity(0.7)
-                : Colors.white12,
-            width: isSelected ? 1.5 : 1.0,
-          ),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: widget.accentColor.withOpacity(0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    color: widget.accentColor.withOpacity(0.5),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 4),
                   ),
                 ]
               : null,
@@ -452,36 +446,80 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Dot / Circle Icon
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? widget.accentColor.withOpacity(0.25)
-                    : Colors.white.withOpacity(0.04),
-              ),
-              child: Icon(
-                icon,
-                size: isSelected ? 16 : 15,
-                color: isSelected ? Colors.white : Colors.white54,
+            // Icon inside glass circle
+            ClipOval(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  width: isSelected ? 24 : 32,
+                  height: isSelected ? 24 : 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isSelected
+                          ? [
+                              Colors.white.withOpacity(0.4),
+                              Colors.white.withOpacity(0.2),
+                            ]
+                          : [
+                              widget.accentColor.withOpacity(0.8),
+                              widget.accentColor.withOpacity(0.6),
+                            ],
+                    ),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.white.withOpacity(0.7)
+                          : Color.lerp(
+                              widget.accentColor,
+                              Colors.white,
+                              0.3,
+                            )!.withOpacity(0.7),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.accentColor.withOpacity(isSelected ? 0.3 : 0.5),
+                        blurRadius: isSelected ? 6 : 8,
+                        offset: Offset(0, isSelected ? 2 : 3),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    icon,
+                    color: Colors.white,
+                    size: isSelected ? 14 : 18,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
-            // Text Label (expanded only when active)
+            // Label (only when active)
             if (isSelected) ...[
               const SizedBox(width: 8),
               Text(
                 label,
                 style: const TextStyle(
+                  fontSize: 12,
                   color: Colors.white,
-                  fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: -0.2,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black26,
+                      blurRadius: 3,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 2),
             ],
           ],
         ),
@@ -490,33 +528,49 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
   }
 
   Widget _buildAddChip() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _handleCreateDocument,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141417),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add, size: 16, color: widget.accentColor),
-              const SizedBox(width: 4),
-              Text(
-                'Nuova',
-                style: TextStyle(
-                  color: widget.accentColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+    return GestureDetector(
+      onTap: _handleCreateDocument,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  widget.accentColor.withOpacity(0.8),
+                  widget.accentColor.withOpacity(0.5),
+                ],
               ),
-            ],
+              border: Border.all(
+                color: Colors.white.withOpacity(0.6),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.accentColor.withOpacity(0.4),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.add,
+              color: Colors.white,
+              size: 14,
+              shadows: [
+                Shadow(
+                  color: Colors.black26,
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
           ),
         ),
       ),
