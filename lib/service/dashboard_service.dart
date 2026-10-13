@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/dashboard/cache/bento_data_cache.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DashboardService {
@@ -9,10 +11,25 @@ class DashboardService {
 
   final _supabase = Supabase.instance.client;
 
-  /// Get the dashboard layout for the current user and device type
+  /// Get the cached dashboard layout from local memory/disk (0ms latency)
+  Future<DashboardConfig?> getCachedDashboardConfig({String deviceType = 'mobile'}) async {
+    try {
+      final cached = await BentoDataCache.getSnapshot('dash_cfg_$deviceType');
+      if (cached != null) {
+        return DashboardConfig.fromMap(cached);
+      }
+    } catch (e) {
+      debugPrint('[DashboardService] Cache read error: $e');
+    }
+    return null;
+  }
+
+  /// Get the dashboard layout for the current user and device type with offline fallback
   Future<DashboardConfig?> getDashboardConfig({String deviceType = 'mobile'}) async {
     final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return null;
+    if (userId == null) {
+      return getCachedDashboardConfig(deviceType: deviceType);
+    }
 
     try {
       final response = await _supabase
@@ -23,40 +40,52 @@ class DashboardService {
           .maybeSingle();
 
       if (response != null) {
-        return DashboardConfig.fromMap(response);
+        final config = DashboardConfig.fromMap(response);
+        // Persist to local cache for offline usage
+        await BentoDataCache.saveSnapshot('dash_cfg_$deviceType', response);
+        return config;
       }
-      return null;
+      return await getCachedDashboardConfig(deviceType: deviceType);
     } catch (e) {
-      print('Error fetching dashboard config: $e');
-      return null;
+      debugPrint('[DashboardService] Network fetch error, using cache fallback: $e');
+      return await getCachedDashboardConfig(deviceType: deviceType);
     }
   }
 
-  /// Save or update the dashboard layout
+  /// Save or update the dashboard layout with immediate local cache write
   Future<DashboardConfig?> saveDashboardConfig(DashboardConfig config) async {
+    final dataToSave = config.toInsertMap();
+    final deviceType = config.deviceType;
+
+    // 1. Instant local persistence in BentoDataCache
+    await BentoDataCache.saveSnapshot('dash_cfg_$deviceType', dataToSave);
+
     final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return null;
+    if (userId == null) return config;
 
+    // 2. Cloud upsert
     try {
-      final dataToUpsert = config.toInsertMap();
-      dataToUpsert['user_id'] = userId; // Ensure we always save for current user
-
+      dataToSave['user_id'] = userId;
       final response = await _supabase
           .from('user_dashboards')
-          .upsert(dataToUpsert, onConflict: 'user_id, device_type')
+          .upsert(dataToSave, onConflict: 'user_id, device_type')
           .select()
           .single();
 
       return DashboardConfig.fromMap(response);
     } catch (e) {
-      print('Error saving dashboard config: $e');
-      return null;
+      debugPrint('[DashboardService] Cloud save failed, cached locally: $e');
+      return config;
     }
   }
 
   /// Delete a dashboard configuration
   Future<void> deleteDashboardConfig({String deviceType = 'mobile'}) async {
     final userId = _supabase.auth.currentUser?.id;
+    try {
+      await BentoDataCache.saveSnapshot('dash_cfg_$deviceType', {});
+    } catch (_) {}
+
     if (userId == null) return;
 
     try {
@@ -66,7 +95,7 @@ class DashboardService {
           .eq('user_id', userId)
           .eq('device_type', deviceType);
     } catch (e) {
-      print('Error deleting dashboard config: $e');
+      debugPrint('[DashboardService] Error deleting dashboard config: $e');
     }
   }
 }

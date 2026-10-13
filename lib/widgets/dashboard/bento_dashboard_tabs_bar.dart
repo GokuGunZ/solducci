@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:solducci/blocs/dashboard/dashboard_bloc.dart';
 import 'package:solducci/blocs/dashboard/dashboard_event.dart';
 import 'package:solducci/blocs/dashboard/dashboard_state.dart';
+import 'package:solducci/models/bento_preset.dart';
 import 'package:solducci/models/dashboard_config.dart';
 
 /// Helper to map stored icon names to Flutter IconData
@@ -31,6 +32,8 @@ IconData getTabIconData(String iconName) {
       return Icons.group_rounded;
     case 'visibility':
       return Icons.visibility_rounded;
+    case 'sticky_note':
+      return Icons.sticky_note_2_rounded;
     case 'dashboard':
     default:
       return Icons.dashboard_rounded;
@@ -269,6 +272,14 @@ class BentoDashboardTabsBar extends StatelessWidget {
                   },
                 ),
                 if (totalTabsInContext > 1) ...[
+                  ListTile(
+                    leading: const Icon(Icons.reorder_rounded, color: Colors.white70),
+                    title: const Text('Riordina dashboard', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(bottomSheetContext);
+                      _showReorderTabsModal(context);
+                    },
+                  ),
                   const Divider(color: Colors.white10),
                   ListTile(
                     leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
@@ -284,6 +295,23 @@ class BentoDashboardTabsBar extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showReorderTabsModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141417),
+      barrierColor: Colors.black.withOpacity(0.75),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) => _ReorderTabsSheet(
+        tabs: state.currentContextTabs,
+        onReordered: (newOrderedIds) {
+          context.read<DashboardBloc>().add(ReorderDashboardTabs(newOrderedIds));
+        },
+      ),
     );
   }
 
@@ -330,13 +358,14 @@ class BentoDashboardTabsBar extends StatelessWidget {
       ),
       builder: (sheetContext) => _CreateTabModal(
         contextKey: state.currentContextKey,
-        onCreated: (title, iconName, color) {
+        onCreated: (title, iconName, color, initialLayout) {
           context.read<DashboardBloc>().add(
                 CreateDashboardTab(
                   title: title,
                   contextKey: state.currentContextKey,
                   iconName: iconName,
                   accentColor: color,
+                  initialLayout: initialLayout,
                 ),
               );
         },
@@ -359,7 +388,7 @@ class BentoDashboardTabsBar extends StatelessWidget {
         initialIconName: tab.iconName,
         initialColor: tab.accentColor,
         isEditing: true,
-        onCreated: (title, iconName, color) {
+        onCreated: (title, iconName, color, _) {
           context.read<DashboardBloc>().add(
                 UpdateDashboardTabInfo(
                   tabId: tab.id,
@@ -374,13 +403,112 @@ class BentoDashboardTabsBar extends StatelessWidget {
   }
 }
 
+class _ReorderTabsSheet extends StatefulWidget {
+  final List<BentoDashboardTab> tabs;
+  final void Function(List<String> newOrderedIds) onReordered;
+
+  const _ReorderTabsSheet({
+    required this.tabs,
+    required this.onReordered,
+  });
+
+  @override
+  State<_ReorderTabsSheet> createState() => _ReorderTabsSheetState();
+}
+
+class _ReorderTabsSheetState extends State<_ReorderTabsSheet> {
+  late List<BentoDashboardTab> _tabs;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = List.from(widget.tabs);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                'Trascina per riordinare',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _tabs.length,
+                onReorder: (oldIndex, newIndex) {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final item = _tabs.removeAt(oldIndex);
+                    _tabs.insert(newIndex, item);
+                  });
+                  widget.onReordered(_tabs.map((t) => t.id).toList());
+                },
+                itemBuilder: (context, index) {
+                  final tab = _tabs[index];
+                  return Container(
+                    key: ValueKey(tab.id),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E24),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: ListTile(
+                      leading: Icon(getTabIconData(tab.iconName), color: tab.accentColor, size: 20),
+                      title: Text(tab.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      trailing: const Icon(Icons.drag_handle_rounded, color: Colors.white38),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CreateTabModal extends StatefulWidget {
   final String contextKey;
   final String? initialTitle;
   final String? initialIconName;
   final Color? initialColor;
   final bool isEditing;
-  final void Function(String title, String iconName, Color color) onCreated;
+  final void Function(
+    String title,
+    String iconName,
+    Color color,
+    List<BentoWidgetDef>? initialLayout,
+  ) onCreated;
 
   const _CreateTabModal({
     required this.contextKey,
@@ -399,6 +527,7 @@ class _CreateTabModalState extends State<_CreateTabModal> {
   late final TextEditingController _titleController;
   late String _selectedIcon;
   late Color _selectedColor;
+  String _selectedTemplateId = 'default';
 
   static const List<Map<String, dynamic>> _icons = [
     {'name': 'home', 'icon': Icons.home_rounded},
@@ -410,6 +539,7 @@ class _CreateTabModalState extends State<_CreateTabModal> {
     {'name': 'restaurant', 'icon': Icons.restaurant_rounded},
     {'name': 'fitness', 'icon': Icons.fitness_center_rounded},
     {'name': 'pie_chart', 'icon': Icons.pie_chart_rounded},
+    {'name': 'sticky_note', 'icon': Icons.sticky_note_2_rounded},
     {'name': 'dashboard', 'icon': Icons.dashboard_rounded},
   ];
 
@@ -428,8 +558,11 @@ class _CreateTabModalState extends State<_CreateTabModal> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle ?? '');
-    _selectedIcon = widget.initialIconName ?? 'dashboard';
-    _selectedColor = widget.initialColor ?? _colors.first;
+    _selectedIcon = widget.initialIconName ?? (widget.contextKey.startsWith('group_') ? 'group' : 'dashboard');
+    _selectedColor = widget.initialColor ?? (widget.contextKey.startsWith('group_') ? const Color(0xFF10B981) : _colors.first);
+    if (!widget.isEditing && widget.contextKey.startsWith('group_')) {
+      _selectedTemplateId = 'preset_home';
+    }
   }
 
   @override
@@ -438,11 +571,30 @@ class _CreateTabModalState extends State<_CreateTabModal> {
     super.dispose();
   }
 
+  List<BentoWidgetDef>? _resolveInitialLayout() {
+    switch (_selectedTemplateId) {
+      case 'empty':
+        return [];
+      case 'preset_finance':
+        return BentoPresetCatalog.curatedPresets.firstWhere((p) => p.id == 'preset_finance').layout;
+      case 'preset_home':
+        return BentoPresetCatalog.curatedPresets.firstWhere((p) => p.id == 'preset_home').layout;
+      case 'preset_notes':
+        return BentoPresetCatalog.curatedPresets.firstWhere((p) => p.id == 'preset_notes').layout;
+      case 'preset_minimal':
+        return BentoPresetCatalog.curatedPresets.firstWhere((p) => p.id == 'preset_minimal').layout;
+      case 'default':
+      default:
+        return null; // Will use default layout
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -491,6 +643,34 @@ class _CreateTabModalState extends State<_CreateTabModal> {
               ),
             ),
           ),
+          if (!widget.isEditing) ...[
+            const SizedBox(height: 18),
+            const Text(
+              'Modello iniziale',
+              style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 38,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _buildTemplateChip('default', '🍱 Base'),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip('preset_finance', '💰 Finanze', suggestedTitle: 'Finanze', icon: 'wallet', color: const Color(0xFF10B981)),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip('preset_home', '🏠 Casa & Gruppo', suggestedTitle: 'Casa', icon: 'home', color: const Color(0xFF0EA5E9)),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip('preset_notes', '🧠 Note & Idee', suggestedTitle: 'Second Brain', icon: 'sticky_note', color: const Color(0xFFF59E0B)),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip('preset_minimal', '🎯 Focus', suggestedTitle: 'Focus', icon: 'bolt', color: const Color(0xFF8B5CF6)),
+                  const SizedBox(width: 8),
+                  _buildTemplateChip('empty', '📄 Vuoto'),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           const Text(
             'Icona',
@@ -591,7 +771,8 @@ class _CreateTabModalState extends State<_CreateTabModal> {
                 if (text.isEmpty) return;
                 HapticFeedback.mediumImpact();
                 Navigator.pop(context);
-                widget.onCreated(text, _selectedIcon, _selectedColor);
+                final initialLayout = _resolveInitialLayout();
+                widget.onCreated(text, _selectedIcon, _selectedColor, initialLayout);
               },
               child: Text(
                 widget.isEditing ? 'Salva modifiche' : 'Crea dashboard',
@@ -600,6 +781,50 @@ class _CreateTabModalState extends State<_CreateTabModal> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTemplateChip(
+    String id,
+    String label, {
+    String? suggestedTitle,
+    String? icon,
+    Color? color,
+  }) {
+    final isSelected = _selectedTemplateId == id;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _selectedTemplateId = id;
+          if (_titleController.text.isEmpty && suggestedTitle != null) {
+            _titleController.text = suggestedTitle;
+          }
+          if (icon != null) _selectedIcon = icon;
+          if (color != null) _selectedColor = color;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? _selectedColor.withOpacity(0.2) : const Color(0xFF1A1A1E),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? _selectedColor : Colors.white10,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white70,
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
       ),
     );
   }

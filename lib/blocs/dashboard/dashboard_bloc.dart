@@ -27,7 +27,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   }
 
   Future<void> _onLoadDashboard(LoadDashboard event, Emitter<DashboardState> emit) async {
-    emit(DashboardLoading());
+    // Fast path: render cached dashboard immediately at 0ms latency
+    final cached = await _dashboardService.getCachedDashboardConfig(deviceType: event.deviceType);
+    if (cached != null) {
+      emit(DashboardLoaded(config: cached, currentContextKey: 'personal'));
+    } else {
+      emit(DashboardLoading());
+    }
     try {
       DashboardConfig? config = await _dashboardService.getDashboardConfig(deviceType: event.deviceType);
       
