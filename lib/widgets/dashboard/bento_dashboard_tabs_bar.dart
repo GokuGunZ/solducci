@@ -43,10 +43,12 @@ IconData getTabIconData(String iconName) {
 /// Horizontal scrollable chips bar displaying all dashboards belonging to the active context.
 class BentoDashboardTabsBar extends StatelessWidget {
   final DashboardLoaded state;
+  final void Function(String tabId)? onTabSelected;
 
   const BentoDashboardTabsBar({
     super.key,
     required this.state,
+    this.onTabSelected,
   });
 
   @override
@@ -56,7 +58,7 @@ class BentoDashboardTabsBar extends StatelessWidget {
 
     return Container(
       height: 48,
-      margin: const EdgeInsets.only(top: 4, bottom: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
@@ -93,6 +95,7 @@ class BentoDashboardTabsBar extends StatelessWidget {
             HapticFeedback.selectionClick();
             context.read<DashboardBloc>().add(SelectDashboardTab(tab.id));
           }
+          onTabSelected?.call(tab.id);
         },
         onLongPress: () {
           HapticFeedback.mediumImpact();

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -47,15 +48,19 @@ class _BentoDashboardView extends StatefulWidget {
 class _BentoDashboardViewState extends State<_BentoDashboardView> {
   List<BentoWidgetDef>? _dragPreviewLayout;
   String? _draggingWidgetId;
+  bool _isTabsOverlayOpen = false;
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     ContextManager().addListener(_onContextChanged);
   }
 
   @override
   void dispose() {
+    _pageController.dispose();
     ContextManager().removeListener(_onContextChanged);
     super.dispose();
   }
@@ -63,11 +68,17 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
   void _onContextChanged() {
     final currentKey = ContextManager().currentContext.contextKey;
     context.read<DashboardBloc>().add(SwitchDashboardContext(currentKey));
+    if (mounted) {
+      setState(() {
+        _isTabsOverlayOpen = false;
+      });
+    }
   }
 
   void _onDragStarted(List<BentoWidgetDef> currentLayout, String draggingId) {
     HapticFeedback.mediumImpact();
     setState(() {
+      _isTabsOverlayOpen = false;
       _draggingWidgetId = draggingId;
       _dragPreviewLayout = List.from(currentLayout);
     });
@@ -115,7 +126,85 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B), // OLED Dark
       appBar: SolducciAppBar(
-        titleText: 'Feed',
+        title: BlocBuilder<DashboardBloc, DashboardState>(
+          builder: (context, state) {
+            if (state is DashboardLoaded) {
+              final activeTab = state.activeTab;
+              if (activeTab != null) {
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _isTabsOverlayOpen = !_isTabsOverlayOpen;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _isTabsOverlayOpen
+                          ? Colors.white.withOpacity(0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          getTabIconData(activeTab.iconName),
+                          size: 18,
+                          color: activeTab.accentColor,
+                        ),
+                        const SizedBox(width: 7),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.15),
+                                end: Offset.zero,
+                              ).animate(anim),
+                              child: child,
+                            ),
+                          ),
+                          child: Text(
+                            activeTab.title,
+                            key: ValueKey(activeTab.id),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        AnimatedRotation(
+                          turns: _isTabsOverlayOpen ? 0.5 : 0.0,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 20,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            }
+            return const Text(
+              'Feed',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          },
+        ),
         centerTitle: true,
         elevation: 2,
         actions: [
@@ -157,6 +246,9 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                         } else {
                           HapticFeedback.heavyImpact();
                         }
+                        setState(() {
+                          _isTabsOverlayOpen = false;
+                        });
                         context.read<DashboardBloc>().add(ToggleEditMode());
                       },
                     ),
@@ -180,6 +272,21 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
             final targetKey = ContextManager().currentContext.contextKey;
             if (state.currentContextKey != targetKey) {
               context.read<DashboardBloc>().add(SwitchDashboardContext(targetKey));
+              return;
+            }
+
+            // Sync PageController with active tab
+            final tabs = state.currentContextTabs;
+            final activeIndex = tabs.indexWhere((t) => t.id == state.activeTab?.id);
+            if (activeIndex != -1 && _pageController.hasClients) {
+              final currentPage = _pageController.page?.round() ?? _pageController.initialPage;
+              if (currentPage != activeIndex) {
+                _pageController.animateToPage(
+                  activeIndex,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                );
+              }
             }
           }
         },
@@ -193,16 +300,57 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           }
 
           if (state is DashboardLoaded) {
-            return Column(
+            final tabs = state.currentContextTabs;
+
+            return Stack(
               children: [
-                BentoDashboardTabsBar(state: state),
-                Expanded(
-                  child: ListenableBuilder(
-                    listenable: ContextManager(),
-                    builder: (context, _) {
-                      return _buildGrid(context, state, ContextManager().currentContext);
-                    },
+                // 1. Full-screen PageView for all dashboard tabs
+                PageView.builder(
+                  controller: _pageController,
+                  physics: state.isEditing
+                      ? const NeverScrollableScrollPhysics()
+                      : const BouncingScrollPhysics(),
+                  itemCount: tabs.length,
+                  onPageChanged: (pageIndex) {
+                    if (pageIndex >= 0 && pageIndex < tabs.length) {
+                      final targetTab = tabs[pageIndex];
+                      if (targetTab.id != state.activeTab?.id) {
+                        HapticFeedback.selectionClick();
+                        context.read<DashboardBloc>().add(SelectDashboardTab(targetTab.id));
+                      }
+                    }
+                  },
+                  itemBuilder: (context, pageIndex) {
+                    final tab = tabs[pageIndex];
+                    return ListenableBuilder(
+                      listenable: ContextManager(),
+                      builder: (context, _) {
+                        return _buildGridForTab(context, state, tab, ContextManager().currentContext);
+                      },
+                    );
+                  },
+                ),
+
+                // 2. Dismissible backdrop barrier when overlay is open
+                if (_isTabsOverlayOpen)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        setState(() => _isTabsOverlayOpen = false);
+                      },
+                      child: Container(
+                        color: Colors.black.withOpacity(0.55),
+                      ),
+                    ),
                   ),
+
+                // 3. Floating Glassmorphism Tabs Bar Overlay
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildTabsOverlay(context, state),
                 ),
               ],
             );
@@ -214,14 +362,70 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
     );
   }
 
-  Widget _buildGrid(BuildContext context, DashboardLoaded state, ExpenseContext appContext) {
+  Widget _buildTabsOverlay(BuildContext context, DashboardLoaded state) {
+    return AnimatedCrossFade(
+      duration: const Duration(milliseconds: 240),
+      firstCurve: Curves.easeOutCubic,
+      secondCurve: Curves.easeInCubic,
+      crossFadeState: _isTabsOverlayOpen ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+      firstChild: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFF101014).withOpacity(0.92),
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.white.withOpacity(0.12),
+              width: 1.0,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.65),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: BentoDashboardTabsBar(
+                state: state,
+                onTabSelected: (tabId) {
+                  setState(() => _isTabsOverlayOpen = false);
+                  final index = state.currentContextTabs.indexWhere((t) => t.id == tabId);
+                  if (index != -1 && _pageController.hasClients) {
+                    _pageController.animateToPage(
+                      index,
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+      secondChild: const SizedBox(width: double.infinity, height: 0),
+    );
+  }
+
+  Widget _buildGridForTab(
+    BuildContext context,
+    DashboardLoaded state,
+    BentoDashboardTab tab,
+    ExpenseContext appContext,
+  ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final columns = BentoMosaicEngine.getColumnCount(screenWidth);
 
-    final currentLayout = state.activeTab?.layout ?? state.config.layout;
-    final rawLayout = _dragPreviewLayout ?? currentLayout;
+    final bool isActiveTab = tab.id == state.activeTab?.id;
+    final currentLayout = isActiveTab ? (_dragPreviewLayout ?? tab.layout) : tab.layout;
     final activeLayout = BentoMosaicEngine.reorderForMosaic(
-      widgets: rawLayout,
+      widgets: currentLayout,
       columns: columns,
     );
     
