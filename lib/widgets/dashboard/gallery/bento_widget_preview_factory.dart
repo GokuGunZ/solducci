@@ -35,11 +35,14 @@ class BentoWidgetPreviewFactory {
     required String type,
     required BentoWidgetSize size,
     required Color accentColor,
+    bool showBadge = true,
+    double borderRadius = 18.0,
+    EdgeInsets? contentPadding,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF131316),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
           color: accentColor.withOpacity(0.2),
           width: 1,
@@ -88,31 +91,32 @@ class BentoWidgetPreviewFactory {
           ),
           // Body content
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+            padding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
             child: _buildTypeContent(type, size, accentColor),
           ),
           // Size badge in bottom-right corner
-          Positioned(
-            bottom: 5,
-            right: 7,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.65),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Text(
-                '${size.crossAxisCellCount}x${size.mainAxisCellCount}',
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
+          if (showBadge)
+            Positioned(
+              bottom: 5,
+              right: 7,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.65),
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                child: Text(
+                  '${size.crossAxisCellCount}x${size.mainAxisCellCount}',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

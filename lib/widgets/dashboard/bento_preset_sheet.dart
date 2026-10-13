@@ -7,7 +7,8 @@ import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/gallery/bento_dashboard_blueprint.dart';
 import 'package:uuid/uuid.dart';
 
-/// Modal bottom sheet per la scelta, applicazione e salvataggio dei Preset di Bento Dashboard
+/// Modal bottom sheet con Showcase Carousel orizzontale per i Preset di Bento Dashboard.
+/// Offre grandi anteprime visive ad alta fedeltà (60/120fps) stile Apple Watch/Linear.
 class BentoPresetSheet extends StatefulWidget {
   final List<BentoWidgetDef> currentLayout;
   final bool isGroupContext;
@@ -46,11 +47,21 @@ class BentoPresetSheet extends StatefulWidget {
 class _BentoPresetSheetState extends State<BentoPresetSheet> {
   List<BentoPreset> _customPresets = [];
   bool _isLoadingCustom = true;
+  String _selectedCategory = 'all';
+  late PageController _pageController;
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(viewportFraction: 0.90);
     _loadCustomPresets();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCustomPresets() async {
@@ -93,6 +104,7 @@ class _BentoPresetSheetState extends State<BentoPresetSheet> {
       if (mounted) {
         setState(() {
           _customPresets = updated;
+          _selectedCategory = 'custom';
         });
         HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -113,7 +125,12 @@ class _BentoPresetSheetState extends State<BentoPresetSheet> {
     final prefs = await SharedPreferences.getInstance();
     final rawList = updated.map((p) => jsonEncode(p.toMap())).toList();
     await prefs.setStringList('solducci_custom_bento_presets', rawList);
-    setState(() => _customPresets = updated);
+    setState(() {
+      _customPresets = updated;
+      if (_currentPage >= updated.length && _currentPage > 0) {
+        _currentPage = updated.length - 1;
+      }
+    });
   }
 
   void _showSavePresetDialog() {
@@ -188,9 +205,13 @@ class _BentoPresetSheetState extends State<BentoPresetSheet> {
           children: [
             Icon(preset.icon, color: preset.accentColor, size: 22),
             const SizedBox(width: 10),
-            Text(
-              preset.title,
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                preset.title,
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -214,22 +235,40 @@ class _BentoPresetSheetState extends State<BentoPresetSheet> {
               HapticFeedback.mediumImpact();
               widget.onApplyLayout(preset.layout);
             },
-            child: const Text('Applica Ora', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Applica Ora',
+              style: TextStyle(
+                color: preset.accentColor.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final allPresets = [
+  List<BentoPreset> _getFilteredPresets() {
+    final all = [
       ...BentoPresetCatalog.curatedPresets,
       ..._customPresets,
     ];
 
+    if (_selectedCategory == 'all') {
+      return all;
+    } else if (_selectedCategory == 'custom') {
+      return _customPresets;
+    } else {
+      return all.where((p) => p.category == _selectedCategory).toList();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredPresets = _getFilteredPresets();
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: MediaQuery.of(context).size.height * 0.92,
       decoration: BoxDecoration(
         color: const Color(0xFF121215), // Deep OLED
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -251,9 +290,9 @@ class _BentoPresetSheetState extends State<BentoPresetSheet> {
             ),
           ),
 
-          // Header
+          // Header Bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
                 Container(
@@ -274,89 +313,197 @@ class _BentoPresetSheetState extends State<BentoPresetSheet> {
                         style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Template curati e layout salvati per la tua Bento Home',
-                        style: TextStyle(color: Colors.white54, fontSize: 13),
+                        'Scorri e scopri i layout pronti all\'uso',
+                        style: TextStyle(color: Colors.white54, fontSize: 12.5),
                       ),
                     ],
                   ),
                 ),
+                // Pulsante Salva Setup Corrente
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.06),
+                    foregroundColor: Colors.white70,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 16, color: Colors.orangeAccent),
+                  label: const Text('Salva', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  onPressed: _showSavePresetDialog,
+                ),
+                const SizedBox(width: 6),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white54),
+                  icon: const Icon(Icons.close, color: Colors.white54, size: 22),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
 
-          // Action: Salva layout attuale
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: _showSavePresetDialog,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.bookmark_add_outlined, color: Colors.orangeAccent, size: 20),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Salva configurazione corrente come Preset',
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.3), size: 18),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          // Category Filter Chips
+          _buildCategoryChips(),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
-          // List of Presets
+          // Main Showcase Carousel
           Expanded(
             child: _isLoadingCustom
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    itemCount: allPresets.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final preset = allPresets[index];
-                      final isRecommended = widget.isGroupContext
-                          ? preset.id == 'preset_home'
-                          : preset.id == 'preset_finance';
+                : filteredPresets.isEmpty
+                    ? _buildEmptyCategoryState()
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: PageView.builder(
+                              controller: _pageController,
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: filteredPresets.length,
+                              onPageChanged: (index) {
+                                setState(() {
+                                  _currentPage = index;
+                                });
+                                HapticFeedback.selectionClick();
+                              },
+                              itemBuilder: (context, index) {
+                                final preset = filteredPresets[index];
+                                final isRecommended = widget.isGroupContext
+                                    ? preset.id == 'preset_home'
+                                    : preset.id == 'preset_finance';
 
-                      return _PresetCard(
-                        preset: preset,
-                        isRecommended: isRecommended,
-                        onApply: () => _confirmApplyPreset(preset),
-                        onDelete: preset.isCustom ? () => _deleteCustomPreset(preset.id) : null,
-                      );
-                    },
-                  ),
+                                return _ShowcasePresetCard(
+                                  preset: preset,
+                                  isRecommended: isRecommended,
+                                  onApply: () => _confirmApplyPreset(preset),
+                                  onDelete: preset.isCustom ? () => _deleteCustomPreset(preset.id) : null,
+                                );
+                              },
+                            ),
+                          ),
+
+                          // Indicator Dots & Counter
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8, bottom: 12),
+                            child: _buildPageIndicator(filteredPresets.length),
+                          ),
+                        ],
+                      ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildCategoryChips() {
+    final categories = [
+      {'id': 'all', 'label': 'Tutti'},
+      {'id': 'finance', 'label': 'Finanze'},
+      {'id': 'home', 'label': 'Casa'},
+      {'id': 'minimal', 'label': 'Focus'},
+      {'id': 'productivity', 'label': 'Note'},
+      {'id': 'custom', 'label': 'I Miei (${_customPresets.length})'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: categories.map((cat) {
+          final isSelected = _selectedCategory == cat['id'];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: ChoiceChip(
+              label: Text(
+                cat['label'] as String,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white60,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: const Color(0xFF6366F1).withOpacity(0.25),
+              backgroundColor: Colors.white.withOpacity(0.04),
+              side: BorderSide(
+                color: isSelected ? const Color(0xFF6366F1).withOpacity(0.6) : Colors.white.withOpacity(0.08),
+                width: 1,
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              onSelected: (_) {
+                if (_selectedCategory != cat['id']) {
+                  setState(() {
+                    _selectedCategory = cat['id'] as String;
+                    _currentPage = 0;
+                  });
+                  if (_pageController.hasClients) {
+                    _pageController.jumpToPage(0);
+                  }
+                  HapticFeedback.selectionClick();
+                }
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPageIndicator(int count) {
+    if (count <= 1) return const SizedBox.shrink();
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(count, (index) {
+        final isActive = index == _currentPage;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: isActive ? 18 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFF6366F1) : Colors.white24,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildEmptyCategoryState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bookmark_border_rounded, size: 48, color: Colors.white.withOpacity(0.2)),
+            const SizedBox(height: 12),
+            const Text(
+              'Nessun template personalizzato',
+              style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Tocca "Salva" in alto per memorizzare la configurazione attuale della tua Bento Home.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white38, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-/// Card rappresentativa di un singolo preset con mini anteprima visuale della griglia
-class _PresetCard extends StatelessWidget {
+/// Card principale dello Showcase Carousel con la vera anteprima visiva ingrandita
+class _ShowcasePresetCard extends StatelessWidget {
   final BentoPreset preset;
   final bool isRecommended;
   final VoidCallback onApply;
   final VoidCallback? onDelete;
 
-  const _PresetCard({
+  const _ShowcasePresetCard({
     required this.preset,
     required this.isRecommended,
     required this.onApply,
@@ -365,119 +512,167 @@ class _PresetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final luminance = preset.accentColor.computeLuminance();
+    final buttonTextColor = luminance > 0.5 ? Colors.black : Colors.white;
+
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF16161A),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isRecommended
-              ? preset.accentColor.withOpacity(0.5)
+              ? preset.accentColor.withOpacity(0.55)
               : Colors.white.withOpacity(0.08),
           width: isRecommended ? 1.5 : 1,
         ),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header card
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: preset.accentColor.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(preset.icon, color: preset.accentColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          preset.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (isRecommended) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: preset.accentColor.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Consigliato',
-                              style: TextStyle(
-                                color: preset.accentColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${preset.layout.length} Widget • ${preset.isCustom ? 'Personalizzato' : 'Curato'}',
-                      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              if (onDelete != null)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 18),
-                  onPressed: onDelete,
-                ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-          Text(
-            preset.description,
-            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.35),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Anteprima Mosaico dell'intera Dashboard Blueprint
-          BentoDashboardBlueprint(
-            layout: preset.layout,
-            accentColor: preset.accentColor,
-            maxHeight: 155.0,
-          ),
-
-          const SizedBox(height: 14),
-
-          // Bottom action button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: preset.accentColor.withOpacity(0.15),
-                foregroundColor: preset.accentColor,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              icon: const Icon(Icons.check_circle_outline, size: 18),
-              label: const Text(
-                'Applica Template',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              ),
-              onPressed: onApply,
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            // Ambient corner glow
+            Positioned(
+              top: -30,
+              right: -30,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: preset.accentColor.withOpacity(0.12),
+                ),
+              ),
+            ),
+
+            // Contenuto della card
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header: Icon + Titolo + Badges
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color: preset.accentColor.withOpacity(0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: preset.accentColor.withOpacity(0.35)),
+                        ),
+                        child: Icon(preset.icon, color: preset.accentColor, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    preset.title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16.5,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isRecommended) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: preset.accentColor.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: preset.accentColor.withOpacity(0.4)),
+                                    ),
+                                    child: Text(
+                                      'Consigliato',
+                                      style: TextStyle(
+                                        color: preset.accentColor,
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${preset.layout.length} Widget • ${preset.isCustom ? 'Personalizzato' : 'Curato'}',
+                              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (onDelete != null)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 18),
+                          onPressed: onDelete,
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Descrizione sintetica
+                  Text(
+                    preset.description,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.3),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Grande Anteprima Grafica Reale del Mosaico
+                  Expanded(
+                    child: BentoDashboardBlueprint(
+                      layout: preset.layout,
+                      accentColor: preset.accentColor,
+                      maxHeight: 330.0,
+                      allowScroll: true,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Bottone di applicazione CTA
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: preset.accentColor,
+                      foregroundColor: buttonTextColor,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 4,
+                      shadowColor: preset.accentColor.withOpacity(0.4),
+                    ),
+                    icon: Icon(Icons.check_circle_rounded, size: 19, color: buttonTextColor),
+                    label: Text(
+                      'Applica questo Template',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: buttonTextColor),
+                    ),
+                    onPressed: onApply,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

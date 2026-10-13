@@ -2,38 +2,50 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_mosaic_engine.dart';
+import 'package:solducci/widgets/dashboard/gallery/bento_widget_preview_factory.dart';
 import 'package:solducci/widgets/dashboard/widget_gallery_sheet.dart';
 
-/// Mini-canvas blueprint che renderizza una simulazione visiva in scala dell'intera Bento Dashboard
-/// per preset e modelli, senza invocare widget complessi o chiamate di rete.
-class BentoDashboardBlueprint extends StatelessWidget {
+/// Canvas blueprint che renderizza una simulazione visiva in scala dell'intera Bento Dashboard
+/// per preset e modelli, utilizzando i veri layout grafici di BentoWidgetPreviewFactory.
+class BentoDashboardBlueprint extends StatefulWidget {
   final List<BentoWidgetDef> layout;
   final Color? accentColor;
   final double maxHeight;
   final int columns;
+  final bool allowScroll;
+  final Function(BentoPlacedTile tile)? onTileTap;
 
   const BentoDashboardBlueprint({
     super.key,
     required this.layout,
     this.accentColor,
-    this.maxHeight = 155.0,
+    this.maxHeight = 330.0,
     this.columns = 4,
+    this.allowScroll = true,
+    this.onTileTap,
   });
 
   @override
+  State<BentoDashboardBlueprint> createState() => _BentoDashboardBlueprintState();
+}
+
+class _BentoDashboardBlueprintState extends State<BentoDashboardBlueprint> {
+  String? _selectedTileId;
+
+  @override
   Widget build(BuildContext context) {
-    if (layout.isEmpty) {
+    if (widget.layout.isEmpty) {
       return Container(
-        height: 80,
+        height: 120,
         decoration: BoxDecoration(
           color: const Color(0xFF0F0F12),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.06)),
         ),
         child: const Center(
           child: Text(
             'Nessun widget nel preset',
-            style: TextStyle(color: Colors.white38, fontSize: 11),
+            style: TextStyle(color: Colors.white38, fontSize: 13),
           ),
         ),
       );
@@ -41,8 +53,8 @@ class BentoDashboardBlueprint extends StatelessWidget {
 
     // Risolve la griglia a Mosaico a 4 colonne per ottenere coordinate col e row
     final placedTiles = BentoMosaicEngine.computePlacedTiles(
-      widgets: layout,
-      columns: columns,
+      widgets: widget.layout,
+      columns: widget.columns,
       packHoles: true,
     );
 
@@ -52,16 +64,23 @@ class BentoDashboardBlueprint extends StatelessWidget {
     }
     totalRows = max(totalRows, 1);
 
+    final selectedTile = _selectedTileId == null
+        ? null
+        : placedTiles.cast<BentoPlacedTile?>().firstWhere(
+            (t) => t?.widgetDef.id == _selectedTileId,
+            orElse: () => null,
+          );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        const double gap = 5.0;
-        const double padding = 8.0;
+        const double gap = 6.0;
+        const double padding = 10.0;
 
         // Larghezza e altezza scalata di ciascuna cella unitaria
-        final innerWidth = max(availableWidth - (padding * 2), 100.0);
-        final cellW = (innerWidth - ((columns - 1) * gap)) / columns;
-        final cellH = cellW * 0.72; // Proporzione armoniosa della cella Bento
+        final innerWidth = max(availableWidth - (padding * 2), 120.0);
+        final cellW = (innerWidth - ((widget.columns - 1) * gap)) / widget.columns;
+        final cellH = cellW * 0.78; // Proporzione bilanciata per il Bento design
 
         final totalGridHeight = (totalRows * cellH) + ((totalRows - 1) * gap) + (padding * 2);
 
@@ -71,301 +90,230 @@ class BentoDashboardBlueprint extends StatelessWidget {
           padding: const EdgeInsets.all(padding),
           decoration: BoxDecoration(
             color: const Color(0xFF0F0F12),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: (accentColor ?? const Color(0xFF6366F1)).withOpacity(0.18),
-              width: 1,
+              color: (widget.accentColor ?? const Color(0xFF6366F1)).withOpacity(0.25),
+              width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Top specular highlight
+              // Top specular highlight line
               Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 1,
+                top: -padding + 1,
+                left: -padding,
+                right: -padding,
+                height: 1.5,
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
                         Colors.white.withOpacity(0.0),
-                        (accentColor ?? Colors.white).withOpacity(0.2),
+                        (widget.accentColor ?? Colors.white).withOpacity(0.4),
                         Colors.white.withOpacity(0.0),
                       ],
                     ),
                   ),
                 ),
               ),
-              // Placed mini tiles
+              // Placed high-fidelity mini tiles
               for (final tile in placedTiles)
-                _buildMiniTile(tile, cellW, cellH, gap),
+                _buildRealPreviewTile(tile, cellW, cellH, gap),
             ],
           ),
         );
 
-        // Se l'altezza calcolata supera maxHeight, scalamo uniformemente
-        if (totalGridHeight > maxHeight) {
-          return SizedBox(
-            height: maxHeight,
-            width: availableWidth,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.topCenter,
-              child: SizedBox(
-                width: availableWidth,
-                height: totalGridHeight,
-                child: gridContent,
+        Widget finalGridWidget;
+        if (totalGridHeight > widget.maxHeight) {
+          if (widget.allowScroll) {
+            finalGridWidget = SizedBox(
+              height: widget.maxHeight,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: gridContent,
+                    ),
+                    // Sfumatura di scroll in basso per indicare altro contenuto
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 24,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.6),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            finalGridWidget = SizedBox(
+              height: widget.maxHeight,
+              width: availableWidth,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: availableWidth,
+                  height: totalGridHeight,
+                  child: gridContent,
+                ),
+              ),
+            );
+          }
+        } else {
+          finalGridWidget = gridContent;
         }
 
-        return gridContent;
+        // Se è selezionata una tessera, mostriamo una micro-barra informativa sotto
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            finalGridWidget,
+            if (selectedTile != null) ...[
+              const SizedBox(height: 8),
+              _buildSelectedTileBanner(selectedTile),
+            ],
+          ],
+        );
       },
     );
   }
 
-  Widget _buildMiniTile(BentoPlacedTile tile, double cellW, double cellH, double gap) {
+  Widget _buildRealPreviewTile(
+    BentoPlacedTile tile,
+    double cellW,
+    double cellH,
+    double gap,
+  ) {
     final meta = WidgetCatalog.findByType(tile.widgetDef.type);
-    final color = meta?.color ?? const Color(0xFF818CF8);
-    final icon = meta?.icon ?? Icons.widgets_rounded;
-    final name = meta?.name ?? tile.widgetDef.type;
+    final color = meta?.color ?? (widget.accentColor ?? const Color(0xFF818CF8));
 
     final left = tile.col * (cellW + gap);
     final top = tile.row * (cellH + gap);
     final width = (tile.colSpan * cellW) + ((tile.colSpan - 1) * gap);
     final height = (tile.rowSpan * cellH) + ((tile.rowSpan - 1) * gap);
+    final size = BentoWidgetSize(tile.colSpan, tile.rowSpan);
 
-    final isSingleCell = tile.colSpan <= 1 && tile.rowSpan <= 1;
+    final isSelected = _selectedTileId == tile.widgetDef.id;
 
     return Positioned(
       left: left,
       top: top,
       width: width,
       height: height,
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF18181D),
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(
-            color: color.withOpacity(0.32),
-            width: 0.9,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          setState(() {
+            _selectedTileId = isSelected ? null : tile.widgetDef.id;
+          });
+          widget.onTileTap?.call(tile);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(13),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.45),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 4,
-              offset: const Offset(0, 1.5),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          children: [
-            // Ambient micro glow in corner
-            Positioned(
-              top: -8,
-              right: -8,
-              child: Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withOpacity(0.12),
+          child: Stack(
+            fit: StackFit.passthrough,
+            children: [
+              // Vero widget in preview Dark OLED ad alta fedeltà
+              BentoWidgetPreviewFactory.buildPreview(
+                type: tile.widgetDef.type,
+                size: size,
+                accentColor: color,
+                showBadge: false,
+                borderRadius: 12.0,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: tile.colSpan <= 1 ? 6.0 : 9.0,
+                  vertical: 5.0,
                 ),
               ),
-            ),
-            // Top mini specular line
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 0.8,
-              child: Container(
-                color: color.withOpacity(0.2),
-              ),
-            ),
-            // Tile content
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 4.0),
-              child: isSingleCell
-                  ? Center(
-                      child: Icon(icon, size: 14, color: color),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Micro Header: Icon + Name
-                        Row(
-                          children: [
-                            Icon(icon, size: 11, color: color),
-                            const SizedBox(width: 3.5),
-                            Expanded(
-                              child: Text(
-                                name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Micro Graphic representation based on widget type
-                        _buildMicroGraphic(tile.widgetDef.type, color, tile.colSpan, tile.rowSpan),
-                      ],
+
+              // Bordo specular reattivo al tocco / selezione
+              if (isSelected)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: color, width: 2),
                     ),
-            ),
-          ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildMicroGraphic(String type, Color color, int colSpan, int rowSpan) {
-    switch (type) {
-      case 'balance':
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              width: 38,
-              height: 5,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(2.5),
-              ),
-            ),
-            Container(
-              width: 14,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
-        );
+  Widget _buildSelectedTileBanner(BentoPlacedTile tile) {
+    final meta = WidgetCatalog.findByType(tile.widgetDef.type);
+    final color = meta?.color ?? const Color(0xFF818CF8);
+    final icon = meta?.icon ?? Icons.widgets_rounded;
+    final name = meta?.name ?? tile.widgetDef.type;
 
-      case 'monthly_burn_rate':
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 26,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white54,
-                borderRadius: BorderRadius.circular(2),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '$name (${tile.colSpan}x${tile.rowSpan})',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
-            ),
-            const SizedBox(height: 3),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                value: 0.65,
-                minHeight: 3,
-                backgroundColor: Colors.white10,
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-            ),
-          ],
-        );
-
-      case 'focus_tasks':
-      case 'shopping_quick_list':
-        return Row(
-          children: [
-            Container(
-              width: 5,
-              height: 5,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(1.5),
-                border: Border.all(color: color, width: 0.8),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Container(
-                height: 3.5,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(1.5),
-                ),
-              ),
-            ),
-          ],
-        );
-
-      case 'hero_countdown':
-        return Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: Text(
-                '-14 gg',
-                style: TextStyle(color: color, fontSize: 7, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Container(
-                height: 3,
-                color: Colors.white24,
-              ),
-            ),
-          ],
-        );
-
-      case 'habit_tracker':
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(
-            5,
-            (i) => Container(
-              width: 4.5,
-              height: 4.5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: i < 4 ? color : Colors.white12,
-              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-        );
-
-      default:
-        return Row(
-          children: [
-            Container(
-              width: 18,
-              height: 3.5,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(1.5),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Container(
-              width: 12,
-              height: 3.5,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(1.5),
-              ),
-            ),
-          ],
-        );
-    }
+          InkWell(
+            onTap: () => setState(() => _selectedTileId = null),
+            child: const Icon(Icons.close, size: 14, color: Colors.white38),
+          ),
+        ],
+      ),
+    );
   }
 }
