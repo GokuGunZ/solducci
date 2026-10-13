@@ -80,9 +80,9 @@ class _EconomyHubViewState extends State<EconomyHubView> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.dashboard, color: Color(0xFF10B981)),
-            tooltip: 'Dashboard Analitica',
-            onPressed: () => context.push('/expenses_dashboard'),
+            icon: const Icon(Icons.pie_chart_rounded, color: Color(0xFF10B981)),
+            tooltip: 'Grafici Analitici',
+            onPressed: () => context.push('/economy/charts'),
           ),
         ],
       ),
@@ -414,9 +414,9 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               const SizedBox(height: 24),
               Center(
                 child: TextButton.icon(
-                  icon: const Icon(Icons.analytics, color: Color(0xFF10B981)),
-                  label: const Text('Dashboard Analitica', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
-                  onPressed: () => context.push('/expenses_dashboard'),
+                  icon: const Icon(Icons.analytics_rounded, color: Color(0xFF10B981)),
+                  label: const Text('Grafici e Analisi', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                  onPressed: () => context.push('/economy/charts'),
                 ),
               ),
             ],

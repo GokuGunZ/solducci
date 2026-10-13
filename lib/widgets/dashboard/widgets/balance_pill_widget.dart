@@ -170,7 +170,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       isStale: _isStale,
       onRetry: _loadBalance,
       onExpand: () {
-        GoRouter.of(context).push('/expenses_dashboard', extra: {'heroTag': widget.def.id});
+        GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
       },
       child: !hasValidAccounts && !_isLoading
           ? BentoEmptyState(

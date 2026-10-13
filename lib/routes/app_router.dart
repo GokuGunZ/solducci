@@ -6,7 +6,6 @@ import 'package:solducci/views/splash_screen.dart';
 import 'package:solducci/views/login_page.dart';
 import 'package:solducci/views/signup_page.dart';
 import 'package:solducci/views/forgot_password_page.dart';
-import 'package:solducci/views/new_homepage.dart';
 import 'package:solducci/views/profile_page.dart';
 import 'package:solducci/views/shell_with_nav.dart';
 import 'package:solducci/views/monthly_view.dart';
@@ -106,7 +105,7 @@ class AppRouter {
         path: '/expenses_dashboard',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          return NewHomepage(heroTag: extra?['heroTag'] as String?);
+          return EconomyChartsHubView(heroTag: extra?['heroTag'] as String?);
         }
       ),
       GoRoute(
