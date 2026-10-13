@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:solducci/views/bento_dashboard_page.dart';
 import 'package:solducci/views/hubs/economy_hub_view.dart';
 import 'package:solducci/views/hubs/action_hub_view.dart';
-import 'package:solducci/views/hubs/archive_hub_view.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
 import 'package:solducci/widgets/constellation_menu.dart';
 import 'package:solducci/models/expense_form.dart';
@@ -45,7 +44,6 @@ class ShellWithNavState extends State<ShellWithNav> {
     BentoDashboardPage(),
     EconomyHubView(),
     ActionHubView(),
-    ArchiveHubView(),
     SpaceHomeView(),
   ];
 
@@ -61,7 +59,6 @@ class ShellWithNavState extends State<ShellWithNav> {
       case 1: return const Color(0xFF10B981); // Economia - Emerald
       case 2: return const Color(0xFFF59E0B); // Azione - Amber
       case 3: return const Color(0xFF3B82F6); // Spazio - Blue
-      case 4: return const Color(0xFF8B5CF6); // Lab - Purple
       default: return const Color(0xFF6366F1);
     }
   }
@@ -166,13 +163,36 @@ class ShellWithNavState extends State<ShellWithNav> {
       case 3: // Spazio
         return [
           ConstellationAction(
+            label: 'Task',
+            icon: Icons.checklist_rounded,
+            onTap: () => context.push('/space/tasks'),
+          ),
+          ConstellationAction(
+            label: 'Note',
+            icon: Icons.note_add_rounded,
+            onTap: () {
+              SimpleContentQuickAddForm.show(
+                context: context,
+                title: 'Nuova Nota',
+                themeColor: const Color(0xFFF59E0B),
+                type: 'note',
+                foldersFuture: _getFolders('note'),
+                onAdded: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nota creata!')),
+                  );
+                },
+              );
+            },
+          ),
+          ConstellationAction(
             label: 'Asterisco',
-            icon: Icons.star,
+            icon: Icons.star_outline_rounded,
             onTap: () {
               SimpleContentQuickAddForm.show(
                 context: context,
                 title: 'Nuovo Asterisco',
-                themeColor: const Color(0xFF3B82F6),
+                themeColor: const Color(0xFFEAB308),
                 type: 'asterisk',
                 foldersFuture: _getFolders('asterisk'),
                 onAdded: () {
@@ -185,7 +205,7 @@ class ShellWithNavState extends State<ShellWithNav> {
           ),
           ConstellationAction(
             label: 'Risorsa',
-            icon: Icons.book,
+            icon: Icons.link_rounded,
             onTap: () {
               ResourceQuickAddForm.show(
                 context: context,
@@ -198,27 +218,7 @@ class ShellWithNavState extends State<ShellWithNav> {
               );
             },
           ),
-          ConstellationAction(
-            label: 'Note',
-            icon: Icons.note_add,
-            onTap: () {
-              SimpleContentQuickAddForm.show(
-                context: context,
-                title: 'Nuova Nota',
-                themeColor: const Color(0xFF3B82F6),
-                type: 'note',
-                foldersFuture: _getFolders('note'),
-                onAdded: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Nota creata!')),
-                  );
-                },
-              );
-            },
-          ),
         ];
-      case 4: // SpaceHomeView
-        return [];
       default:
         return [];
     }
@@ -263,11 +263,10 @@ class ShellWithNavState extends State<ShellWithNav> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildNavItem(0, Icons.home_filled, 'Feed'),
-            _buildNavItem(1, Icons.account_balance_wallet, 'Economia'),
-            const SizedBox(width: 40), // Spazio per il FAB (ridotto un po' per far spazio a 5 elementi)
-            _buildNavItem(2, Icons.bolt, 'Azione'),
-            _buildNavItem(3, Icons.inventory_2, 'Spazio'),
-            _buildNavItem(4, Icons.science, 'Lab'),
+            _buildNavItem(1, Icons.account_balance_wallet_rounded, 'Economia'),
+            const SizedBox(width: 48), // Spazio per il FAB centrale (perfettamente bilanciato)
+            _buildNavItem(2, Icons.bolt_rounded, 'Azione'),
+            _buildNavItem(3, Icons.inventory_2_rounded, 'Spazio'),
           ],
         ),
       ),
