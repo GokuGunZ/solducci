@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
-import 'package:solducci/widgets/solducci_app_bar.dart';
 
 /// Un hub unificato per qualsiasi risorsa dello Spazio con struttura multi-lista.
 ///
@@ -274,18 +274,6 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: SolducciAppBar(
-        title: Text(
-          widget.title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
-        ),
-        actions: [
-          if (widget.appBarActions != null) ...widget.appBarActions!,
-        ],
-      ),
       floatingActionButton: widget.floatingActionButton,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -293,7 +281,7 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
               ? _buildEmptyState()
               : Column(
                   children: [
-                    _buildChipsBar(),
+                    _buildIntegratedHeader(),
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
@@ -318,10 +306,76 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
     );
   }
 
+  Widget _buildIntegratedHeader() {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF09090B).withOpacity(0.85),
+            border: const Border(
+              bottom: BorderSide(color: Colors.white10, width: 1.0),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Row: Back button, Title & Actions
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            Text(
+                              '${_documents.length} ${_documents.length == 1 ? 'lista' : 'liste'} attive',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: widget.accentColor.withOpacity(0.9),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (widget.appBarActions != null) ...widget.appBarActions!,
+                    ],
+                  ),
+                ),
+
+                // Bottom Row: Animated Dot / Expanding Pill Carousel
+                _buildChipsBar(),
+                const SizedBox(height: 6),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildChipsBar() {
-    return Container(
-      height: 52,
-      margin: const EdgeInsets.symmetric(vertical: 4),
+    return SizedBox(
+      height: 48,
       child: ListView.separated(
         controller: _chipScrollController,
         scrollDirection: Axis.horizontal,
@@ -338,10 +392,11 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
           final isAllTab = widget.showAllOption && index == 0;
           final label = isAllTab ? widget.allLabel : _documents[index - _offsetForDocs].title;
 
-          return _buildFilterChip(
+          return _buildDotToPillChip(
+            index: index,
             label: label,
             isSelected: isSelected,
-            icon: isAllTab ? Icons.apps : null,
+            icon: isAllTab ? Icons.apps : widget.icon,
             onTap: () => _onChipTapped(index),
           );
         },
@@ -349,55 +404,86 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
     );
   }
 
-  Widget _buildFilterChip({
+  Widget _buildDotToPillChip({
+    required int index,
     required String label,
     required bool isSelected,
-    IconData? icon,
+    required IconData icon,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 14 : 0,
+          vertical: 0,
+        ),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    widget.accentColor.withOpacity(0.40),
+                    widget.accentColor.withOpacity(0.18),
+                  ],
+                )
+              : null,
+          color: isSelected ? null : const Color(0xFF141417),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
             color: isSelected
-                ? widget.accentColor.withOpacity(0.18)
-                : const Color(0xFF141417),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected
-                  ? widget.accentColor.withOpacity(0.6)
-                  : Colors.white10,
-              width: isSelected ? 1.4 : 1.0,
-            ),
+                ? widget.accentColor.withOpacity(0.7)
+                : Colors.white12,
+            width: isSelected ? 1.5 : 1.0,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 15,
-                  color: isSelected ? widget.accentColor : Colors.white54,
-                ),
-                const SizedBox(width: 6),
-              ],
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: widget.accentColor.withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Dot / Circle Icon
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? widget.accentColor.withOpacity(0.25)
+                    : Colors.white.withOpacity(0.04),
+              ),
+              child: Icon(
+                icon,
+                size: isSelected ? 16 : 15,
+                color: isSelected ? Colors.white : Colors.white54,
+              ),
+            ),
+
+            // Text Label (expanded only when active)
+            if (isSelected) ...[
+              const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: FontWeight.bold,
                   letterSpacing: -0.2,
                 ),
               ),
+              const SizedBox(width: 2),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -408,13 +494,14 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
       color: Colors.transparent,
       child: InkWell(
         onTap: _handleCreateDocument,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: const Color(0xFF141417),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white10),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white12),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
