@@ -15,9 +15,7 @@ class ContextSwitcher extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => const _ContextPickerModal(),
     );
   }
@@ -486,10 +484,10 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Bottone cestino per eliminare viste (solo per viste custom, non per "Tutti i gruppi")
+              // Bottone cestino per eliminare viste
               if (showEditButton && _isEditingName && _selectedViewIds.length == 1 && _selectedGroupIds.isEmpty) ...[
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
                   onPressed: () => _deleteView(_selectedViewIds.first, contextManager),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -505,11 +503,12 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                         decoration: InputDecoration(
                           hintText: placeholder,
-                          hintStyle: TextStyle(
-                            color: Colors.grey[400],
+                          hintStyle: const TextStyle(
+                            color: Colors.white38,
                             fontWeight: FontWeight.bold,
                           ),
                           border: InputBorder.none,
@@ -528,13 +527,14 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
               ),
               if (showEditButton && _isEditingName) ...[
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.check, color: Colors.green),
+                  icon: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981)),
                   onPressed: _saveEditedName,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -544,14 +544,15 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
           ),
           const SizedBox(height: 4),
           // "Seleziona Contesto" piccolo (allineato a sinistra)
-          Align(
+          const Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Seleziona Contesto',
+              'SELEZIONA CONTESTO',
               style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                letterSpacing: 0.5,
+                fontSize: 11,
+                color: Colors.white54,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -572,86 +573,136 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
         _showBubble;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.7,
+      initialChildSize: 0.72,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
-      builder: (context, scrollController) => Stack(
-        children: [
-          Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+      builder: (context, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF121215), // Deep Dark OLED
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.12))),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
-              ),
 
-              // Dynamic Header
-              _buildDynamicHeader(contextManager),
+                // Dynamic Header
+                _buildDynamicHeader(contextManager),
 
-              const Divider(height: 1),
+                Divider(height: 1, color: Colors.white.withOpacity(0.08)),
 
-              // Content
-              Expanded(
-                child: ListenableBuilder(
-                  listenable: contextManager,
-                  builder: (context, child) {
-                    final userGroups = contextManager.userGroups;
-                    final userViews = contextManager.userViews;
+                // Content
+                Expanded(
+                  child: ListenableBuilder(
+                    listenable: contextManager,
+                    builder: (context, child) {
+                      final userGroups = contextManager.userGroups;
+                      final userViews = contextManager.userViews;
 
-                    return ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        // Chip Personale e "Tutti i gruppi" sulla stessa riga
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            ContextChip(
-                              id: 'personal',
-                              label: 'Personale',
-                              type: ContextChipType.personal,
-                              isSelected:
-                                  contextManager.currentContext.isPersonal &&
-                                  !_isInMultiSelectMode,
-                              onTap: () => _onChipTap(
-                                'personal',
-                                ContextChipType.personal,
+                      return ListView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          // Chip Personale e "Tutti i gruppi" sulla stessa riga
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              ContextChip(
+                                id: 'personal',
+                                label: 'Personale',
+                                type: ContextChipType.personal,
+                                isSelected:
+                                    contextManager.currentContext.isPersonal &&
+                                    !_isInMultiSelectMode,
+                                onTap: () => _onChipTap(
+                                  'personal',
+                                  ContextChipType.personal,
+                                ),
+                              ),
+                              // Chip "Tutti i gruppi" presettato
+                              if (userGroups.isNotEmpty)
+                                ContextChip(
+                                  id: 'all_groups',
+                                  label: 'Tutti i gruppi',
+                                  type: ContextChipType.allGroups,
+                                  isSelected: _isAllGroupsViewSelected(contextManager),
+                                  includesPersonal: _getAllGroupsIncludesPersonal(contextManager),
+                                  onTap: () => _onChipTap(
+                                    'all_groups',
+                                    ContextChipType.allGroups,
+                                  ),
+                                  onAddPersonalTap: () => _toggleAllGroupsPersonal(contextManager),
+                                ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // LE TUE VISTE (prima dei gruppi)
+                          if (userViews.isNotEmpty) ...[
+                            const Text(
+                              'LE TUE VISTE',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white38,
+                                letterSpacing: 1.2,
                               ),
                             ),
-                            // Chip "Tutti i gruppi" presettato
-                            if (userGroups.isNotEmpty)
-                              ContextChip(
-                                id: 'all_groups',
-                                label: 'Tutti i gruppi',
-                                type: ContextChipType.allGroups,
-                                isSelected: _isAllGroupsViewSelected(contextManager),
-                                includesPersonal: _getAllGroupsIncludesPersonal(contextManager),
-                                onTap: () => _onChipTap(
-                                  'all_groups',
-                                  ContextChipType.allGroups,
-                                ),
-                                onAddPersonalTap: () => _toggleAllGroupsPersonal(contextManager),
-                              ),
+                            const SizedBox(height: 12),
+
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: userViews.map((view) {
+                                final isSelected = _selectedViewIds.contains(
+                                  view.id,
+                                );
+                                final isRelated = _isViewRelated(view.id);
+
+                                return ContextChip(
+                                  id: view.id,
+                                  label: view.name,
+                                  type: ContextChipType.view,
+                                  isSelected: isSelected,
+                                  isRelated: isRelated,
+                                  isLightlySelected: _fullySelectedViewIds
+                                      .contains(view.id),
+                                  includesPersonal: view.includePersonal,
+                                  onTap: () =>
+                                      _onChipTap(view.id, ContextChipType.view),
+                                  onAddPersonalTap: () =>
+                                      _toggleIncludePersonal(view.id),
+                                );
+                              }).toList(),
+                            ),
+
+                            const SizedBox(height: 24),
                           ],
-                        ),
 
-                        const SizedBox(height: 24),
-
-                        // LE TUE VISTE (prima dei gruppi)
-                        if (userViews.isNotEmpty) ...[
-                          Text(
-                            'LE TUE VISTE',
+                          // I TUOI GRUPPI
+                          const Text(
+                            'I TUOI GRUPPI',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[600],
+                              color: Colors.white38,
                               letterSpacing: 1.2,
                             ),
                           ),
@@ -660,157 +711,115 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: userViews.map((view) {
-                              final isSelected = _selectedViewIds.contains(
-                                view.id,
-                              );
-                              final isRelated = _isViewRelated(view.id);
+                            children: userGroups.map((group) {
+                              final isInSelectedGroups = _selectedGroupIds
+                                  .contains(group.id);
+                              final isVisuallyHighlighted =
+                                  _visuallyHighlightedGroupIds.contains(group.id);
+                              final isRelated = _isGroupRelated(group.id);
+                              final includesPersonal = contextManager
+                                  .getGroupIncludesPersonal(group.id);
+
+                              // Determina stato visualizzazione gruppi
+                              final bool isSelected;
+                              final bool isRelatedFinal;
+                              final bool isLightlySelected;
+
+                              if (_fullySelectedViewIds.isNotEmpty &&
+                                  isInSelectedGroups) {
+                                isSelected = false;
+                                isRelatedFinal = false;
+                                isLightlySelected = true;
+                              } else if (_selectedViewIds.isNotEmpty &&
+                                  isVisuallyHighlighted) {
+                                isSelected = false;
+                                isRelatedFinal = true;
+                                isLightlySelected = false;
+                              } else {
+                                isSelected = isInSelectedGroups;
+                                isRelatedFinal = isRelated;
+                                isLightlySelected = false;
+                              }
 
                               return ContextChip(
-                                id: view.id,
-                                label: view.name,
-                                type: ContextChipType.view,
+                                id: group.id,
+                                label: group.name,
+                                type: ContextChipType.group,
                                 isSelected: isSelected,
-                                isRelated: isRelated,
-                                isLightlySelected: _fullySelectedViewIds
-                                    .contains(view.id),
-                                includesPersonal: view.includePersonal,
+                                isRelated: isRelatedFinal,
+                                isLightlySelected: isLightlySelected,
+                                includesPersonal: includesPersonal,
                                 onTap: () =>
-                                    _onChipTap(view.id, ContextChipType.view),
-                                onAddPersonalTap: () =>
-                                    _toggleIncludePersonal(view.id),
+                                    _onChipTap(group.id, ContextChipType.group),
+                                onAddPersonalTap: () async {
+                                  await contextManager
+                                      .toggleIncludePersonalForGroup(group.id);
+                                },
                               );
                             }).toList(),
                           ),
 
                           const SizedBox(height: 24),
                         ],
-
-                        // I TUOI GRUPPI
-                        Text(
-                          'I TUOI GRUPPI',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[600],
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: userGroups.map((group) {
-                            final isInSelectedGroups = _selectedGroupIds
-                                .contains(group.id);
-                            final isVisuallyHighlighted =
-                                _visuallyHighlightedGroupIds.contains(group.id);
-                            final isRelated = _isGroupRelated(group.id);
-                            final includesPersonal = contextManager
-                                .getGroupIncludesPersonal(group.id);
-
-                            // Determina stato visualizzazione gruppi
-                            final bool isSelected;
-                            final bool isRelatedFinal;
-                            final bool isLightlySelected;
-
-                            if (_fullySelectedViewIds.isNotEmpty &&
-                                isInSelectedGroups) {
-                              // Gruppo derivato da viste con doppio tap: meno trasparente
-                              isSelected = false;
-                              isRelatedFinal = false;
-                              isLightlySelected = true;
-                            } else if (_selectedViewIds.isNotEmpty &&
-                                isVisuallyHighlighted) {
-                              // Gruppo evidenziato da tap singolo su vista: molto trasparente (NON selezionato)
-                              isSelected = false;
-                              isRelatedFinal = true;
-                              isLightlySelected = false;
-                            } else {
-                              // Comportamento normale
-                              isSelected = isInSelectedGroups;
-                              isRelatedFinal = isRelated;
-                              isLightlySelected = false;
-                            }
-
-                            return ContextChip(
-                              id: group.id,
-                              label: group.name,
-                              type: ContextChipType.group,
-                              isSelected: isSelected,
-                              isRelated: isRelatedFinal,
-                              isLightlySelected: isLightlySelected,
-                              includesPersonal: includesPersonal,
-                              onTap: () =>
-                                  _onChipTap(group.id, ContextChipType.group),
-                              onAddPersonalTap: () async {
-                                await contextManager
-                                    .toggleIncludePersonalForGroup(group.id);
-                              },
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(
-                          height: 80,
-                        ), // Spazio per bottoni in basso
-                      ],
-                    );
-                  },
-                ),
-              ),
-
-              // Bottoni in basso (affiancati)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      context.push('/groups/create');
+                      );
                     },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Crea Gruppo'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 24,
+                  ),
+                ),
+
+                // Bottoni in basso con Dark OLED surface (rimosso il bianco!)
+                Container(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16161A),
+                    border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 16,
+                        offset: const Offset(0, -4),
                       ),
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                    ],
+                  ),
+                  child: Center(
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push('/groups/create');
+                      },
+                      icon: const Icon(Icons.group_add_rounded, size: 20),
+                      label: const Text('Crea Nuovo Gruppo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 13,
+                          horizontal: 24,
+                        ),
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.black,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-
-          // Bubble informativa (sopra il contenuto)
-          if (shouldShowBubble)
-            Positioned(
-              top: 120, // Sotto il Dynamic Header
-              left: 0,
-              right: 0,
-              child: CreateViewBubble(
-                onDismiss: () {
-                  setState(() {
-                    _showBubble = false;
-                  });
-                },
-              ),
+              ],
             ),
-        ],
+
+            // Bubble informativa (sopra il contenuto)
+            if (shouldShowBubble)
+              Positioned(
+                top: 120,
+                left: 0,
+                right: 0,
+                child: CreateViewBubble(
+                  onDismiss: () {
+                    setState(() {
+                      _showBubble = false;
+                    });
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

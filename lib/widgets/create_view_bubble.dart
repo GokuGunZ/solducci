@@ -62,24 +62,24 @@ class _CreateViewBubbleState extends State<CreateViewBubble>
                 painter: _BubblePainter(),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+                    horizontal: 18,
+                    vertical: 10,
                   ),
                   margin: const EdgeInsets.only(top: 10), // Spazio per la freccia
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.lightbulb_outline,
-                        color: Colors.blue[700],
-                        size: 20,
+                        Icons.lightbulb_outline_rounded,
+                        color: Color(0xFF60A5FA),
+                        size: 18,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
-                        'Crea una vista',
+                        'Crea una vista combinata',
                         style: TextStyle(
-                          color: Colors.blue[700],
-                          fontSize: 14,
+                          color: Color(0xFF93C5FD),
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -95,18 +95,18 @@ class _CreateViewBubbleState extends State<CreateViewBubble>
   }
 }
 
-/// Painter per disegnare la nuvoletta con freccia
+/// Painter per disegnare la nuvoletta con freccia in stile Dark OLED
 class _BubblePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.blue[50]!
+      ..color = const Color(0xFF1E293B)
       ..style = PaintingStyle.fill;
 
     final borderPaint = Paint()
-      ..color = Colors.blue[200]!
+      ..color = const Color(0xFF3B82F6).withOpacity(0.5)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.2;
 
     final path = Path();
 
@@ -157,8 +157,8 @@ class _BubblePainter extends CustomPainter {
 
     path.close();
 
-    // Disegna ombra
-    canvas.drawShadow(path, Colors.black26, 4, false);
+    // Disegna ombra scura
+    canvas.drawShadow(path, Colors.black.withOpacity(0.4), 6, false);
 
     // Disegna riempimento
     canvas.drawPath(path, paint);

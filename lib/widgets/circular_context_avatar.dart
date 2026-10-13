@@ -26,13 +26,11 @@ class CircularContextAvatar extends StatelessWidget {
   }
 
   Widget _buildPersonalAvatar() {
-    // We could use an avatarUrl here if the Profile model has one, 
-    // for now we use the purple theme with a person icon.
     final avatar = CircleAvatar(
       radius: radius,
-      backgroundColor: Colors.purple.shade100,
-      foregroundColor: Colors.purple.shade800,
-      child: Icon(Icons.person, size: radius * 1.4), // increased from 1.2
+      backgroundColor: const Color(0xFFA855F7).withOpacity(0.22),
+      foregroundColor: const Color(0xFFC084FC),
+      child: Icon(Icons.person_rounded, size: radius * 1.3),
     );
 
     if (!showLabel) return avatar;
@@ -47,7 +45,7 @@ class CircularContextAvatar extends StatelessWidget {
           child: const Text(
             'Personale',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white70),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -59,8 +57,8 @@ class CircularContextAvatar extends StatelessWidget {
     if (group == null) {
       return CircleAvatar(
         radius: r,
-        backgroundColor: Colors.grey.shade300,
-        child: Icon(Icons.group, color: Colors.grey, size: r * 1.4),
+        backgroundColor: const Color(0xFF27272A),
+        child: Icon(Icons.group_rounded, color: Colors.white54, size: r * 1.3),
       );
     }
 
@@ -69,16 +67,16 @@ class CircularContextAvatar extends StatelessWidget {
       avatar = CircleAvatar(
         radius: r,
         backgroundImage: NetworkImage(group.imageUrl!),
-        backgroundColor: Colors.green.shade100,
+        backgroundColor: const Color(0xFF10B981).withOpacity(0.2),
       );
     } else {
       avatar = CircleAvatar(
         radius: r,
-        backgroundColor: Colors.green.shade100,
-        foregroundColor: Colors.green.shade800,
+        backgroundColor: const Color(0xFF10B981).withOpacity(0.22),
+        foregroundColor: const Color(0xFF34D399),
         child: Text(
           group.initials,
-          style: TextStyle(fontSize: r * 1.0, fontWeight: FontWeight.bold), // increased from 0.8
+          style: TextStyle(fontSize: r * 1.0, fontWeight: FontWeight.bold, color: const Color(0xFF34D399)),
         ),
       );
     }
@@ -98,7 +96,7 @@ class CircularContextAvatar extends StatelessWidget {
           child: Text(
             expenseContext.displayName, // handles " 👤" if personal is included
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white70),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -117,18 +115,16 @@ class CircularContextAvatar extends StatelessWidget {
     if (groups.isEmpty) {
       avatarCluster = CircleAvatar(
         radius: radius,
-        backgroundColor: Colors.orange.shade100,
-        child: Icon(Icons.view_list_rounded, color: Colors.orange.shade800, size: radius * 1.4),
+        backgroundColor: const Color(0xFF3B82F6).withOpacity(0.22),
+        child: Icon(Icons.view_list_rounded, color: const Color(0xFF60A5FA), size: radius * 1.3),
       );
     } else if (groups.length == 1) {
-      // Strip text part since we handle it below for view
       avatarCluster = CircleAvatar(
         radius: radius,
-        backgroundColor: Colors.orange.shade100,
-        child: Icon(Icons.view_list_rounded, color: Colors.orange.shade800, size: radius * 1.4),
-      ); // Fallback to list icon or we can use the single group's avatar
+        backgroundColor: const Color(0xFF3B82F6).withOpacity(0.22),
+        child: Icon(Icons.view_list_rounded, color: const Color(0xFF60A5FA), size: radius * 1.3),
+      );
     } else {
-      // Create a stack of 2 or 3 overlapping avatars
       final int count = groups.length > 3 ? 3 : groups.length;
       final double smallRadius = radius * 0.7;
       
@@ -139,10 +135,10 @@ class CircularContextAvatar extends StatelessWidget {
         if (i == 2 && groups.length > 3) {
           child = CircleAvatar(
             radius: smallRadius,
-            backgroundColor: Colors.grey.shade300,
+            backgroundColor: const Color(0xFF27272A),
             child: Text(
               '+${groups.length - 2}',
-              style: TextStyle(fontSize: smallRadius * 0.9, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(fontSize: smallRadius * 0.9, fontWeight: FontWeight.bold, color: Colors.white70),
             ),
           );
         } else {
@@ -155,7 +151,7 @@ class CircularContextAvatar extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+                border: Border.all(color: const Color(0xFF09090B), width: 2),
               ),
               child: child,
             ),
@@ -185,7 +181,7 @@ class CircularContextAvatar extends StatelessWidget {
           child: Text(
             expenseContext.displayName,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white70),
             overflow: TextOverflow.ellipsis,
           ),
         ),
