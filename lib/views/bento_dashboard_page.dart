@@ -16,6 +16,7 @@ import 'package:solducci/widgets/dashboard/widget_gallery_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_mosaic_engine.dart';
 import 'package:solducci/widgets/dashboard/bento_resize_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_preset_sheet.dart';
+import 'package:solducci/widgets/dashboard/bento_dashboard_tabs_bar.dart';
 
 class BentoDashboardPage extends StatelessWidget {
   const BentoDashboardPage({super.key});
@@ -46,6 +47,23 @@ class _BentoDashboardView extends StatefulWidget {
 class _BentoDashboardViewState extends State<_BentoDashboardView> {
   List<BentoWidgetDef>? _dragPreviewLayout;
   String? _draggingWidgetId;
+
+  @override
+  void initState() {
+    super.initState();
+    ContextManager().addListener(_onContextChanged);
+  }
+
+  @override
+  void dispose() {
+    ContextManager().removeListener(_onContextChanged);
+    super.dispose();
+  }
+
+  void _onContextChanged() {
+    final currentKey = ContextManager().currentContext.contextKey;
+    context.read<DashboardBloc>().add(SwitchDashboardContext(currentKey));
+  }
 
   void _onDragStarted(List<BentoWidgetDef> currentLayout, String draggingId) {
     HapticFeedback.mediumImpact();
@@ -156,7 +174,15 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           ),
         ],
       ),
-      body: BlocBuilder<DashboardBloc, DashboardState>(
+      body: BlocConsumer<DashboardBloc, DashboardState>(
+        listener: (context, state) {
+          if (state is DashboardLoaded) {
+            final targetKey = ContextManager().currentContext.contextKey;
+            if (state.currentContextKey != targetKey) {
+              context.read<DashboardBloc>().add(SwitchDashboardContext(targetKey));
+            }
+          }
+        },
         builder: (context, state) {
           if (state is DashboardLoading || state is DashboardInitial) {
             return const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)));
@@ -167,11 +193,18 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           }
 
           if (state is DashboardLoaded) {
-            return ListenableBuilder(
-              listenable: ContextManager(),
-              builder: (context, _) {
-                return _buildGrid(context, state, ContextManager().currentContext);
-              },
+            return Column(
+              children: [
+                BentoDashboardTabsBar(state: state),
+                Expanded(
+                  child: ListenableBuilder(
+                    listenable: ContextManager(),
+                    builder: (context, _) {
+                      return _buildGrid(context, state, ContextManager().currentContext);
+                    },
+                  ),
+                ),
+              ],
             );
           }
 
@@ -185,7 +218,8 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
     final screenWidth = MediaQuery.of(context).size.width;
     final columns = BentoMosaicEngine.getColumnCount(screenWidth);
 
-    final rawLayout = _dragPreviewLayout ?? state.config.layout;
+    final currentLayout = state.activeTab?.layout ?? state.config.layout;
+    final rawLayout = _dragPreviewLayout ?? currentLayout;
     final activeLayout = BentoMosaicEngine.reorderForMosaic(
       widgets: rawLayout,
       columns: columns,
@@ -299,7 +333,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                   child: GestureDetector(
                     onTap: () {
                       HapticFeedback.lightImpact();
-                      final newLayout = List<BentoWidgetDef>.from(state.config.layout);
+                      final newLayout = List<BentoWidgetDef>.from(currentLayout);
                       newLayout.removeWhere((w) => w.id == widgetDef.id);
                       final packed = BentoMosaicEngine.reorderForMosaic(
                         widgets: newLayout,
@@ -334,7 +368,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                       HapticFeedback.selectionClick();
                       final customProps = await _showInitModal(context, widgetDef.type, widgetDef.customProps);
                       if (customProps != null && context.mounted) {
-                        final newLayout = List<BentoWidgetDef>.from(state.config.layout);
+                        final newLayout = List<BentoWidgetDef>.from(currentLayout);
                         final i = newLayout.indexWhere((w) => w.id == widgetDef.id);
                         if (i != -1) {
                           newLayout[i] = newLayout[i].copyWith(customProps: customProps);
@@ -370,7 +404,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                         context: context,
                         widgetDef: widgetDef,
                         onSizeSelected: (newSize) {
-                          final newLayout = List<BentoWidgetDef>.from(state.config.layout);
+                          final newLayout = List<BentoWidgetDef>.from(currentLayout);
                           final targetIndex = newLayout.indexWhere((w) => w.id == widgetDef.id);
                           if (targetIndex != -1) {
                             newLayout[targetIndex] = newLayout[targetIndex].copyWith(size: newSize);
@@ -449,7 +483,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                 if (details.data.sourceIndex == index && details.data.def.id == widgetDef.id) {
                   return true; 
                 }
-                _onHover(index, details.data, state.config.layout);
+                _onHover(index, details.data, currentLayout);
                 return true;
               },
               onAcceptWithDetails: (details) async {
@@ -483,8 +517,8 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
               },
               builder: (context, candidateData, rejectedData) {
                 return LongPressDraggable<_DraggingItemData>(
-                  data: _DraggingItemData(widgetDef, state.config.layout.indexWhere((w) => w.id == widgetDef.id)),
-                  onDragStarted: () => _onDragStarted(state.config.layout, widgetDef.id),
+                  data: _DraggingItemData(widgetDef, currentLayout.indexWhere((w) => w.id == widgetDef.id)),
+                  onDragStarted: () => _onDragStarted(currentLayout, widgetDef.id),
                   onDragEnd: (details) => _onDragEnded(),
                   onDraggableCanceled: (velocity, offset) => _onDragEnded(),
                   feedback: Material(
@@ -597,13 +631,14 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
 }
 
   void _openWidgetGallery(BuildContext context, DashboardLoaded state) {
+    final currentLayout = state.activeTab?.layout ?? state.config.layout;
     WidgetGallerySheet.show(
       context: context,
-      currentLayout: state.config.layout,
+      currentLayout: currentLayout,
       onAddWidget: (newDef) {
         final screenWidth = MediaQuery.of(context).size.width;
         final columns = BentoMosaicEngine.getColumnCount(screenWidth);
-        final newLayout = List<BentoWidgetDef>.from(state.config.layout)..add(newDef);
+        final newLayout = List<BentoWidgetDef>.from(currentLayout)..add(newDef);
         final packed = BentoMosaicEngine.reorderForMosaic(
           widgets: newLayout,
           columns: columns,
@@ -611,7 +646,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
         context.read<DashboardBloc>().add(UpdateLayout(packed));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Widget "${WidgetCatalog.findByType(newDef.type)?.name ?? newDef.type}" aggiunto al Feed'),
+            content: Text('Widget "${WidgetCatalog.findByType(newDef.type)?.name ?? newDef.type}" aggiunto a "${state.activeTab?.title ?? 'Feed'}"'),
             backgroundColor: const Color(0xFF27272A),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -625,9 +660,10 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
 
   void _openPresetSheet(BuildContext context, DashboardLoaded state) {
     final isGroup = !ContextManager().isPersonalContext;
+    final currentLayout = state.activeTab?.layout ?? state.config.layout;
     BentoPresetSheet.show(
       context: context,
-      currentLayout: state.config.layout,
+      currentLayout: currentLayout,
       isGroupContext: isGroup,
       onApplyLayout: (newLayout) {
         final screenWidth = MediaQuery.of(context).size.width;
@@ -639,7 +675,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
         context.read<DashboardBloc>().add(ApplyPresetLayout(packed));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Template applicato con successo alla Bento Home!'),
+            content: Text('Template applicato con successo a "${state.activeTab?.title ?? 'Feed'}"!'),
             backgroundColor: const Color(0xFF27272A),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
