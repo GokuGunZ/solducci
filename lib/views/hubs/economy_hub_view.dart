@@ -100,7 +100,6 @@ class _EconomyHubViewState extends State<EconomyHubView> {
   @override
   Widget build(BuildContext context) {
     final isGroupContext = _contextManager.isGroupContext;
-    final currentGroupId = _contextManager.currentGroupId;
 
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
@@ -251,10 +250,10 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               CashflowHeroCard(isGroupContext: isGroupContext),
 
               // ==========================================
-              // SEZIONE SPECIFICA PER GRUPPO: Debiti & Crediti
+              // SEZIONE SPECIFICA PER GRUPPO / VISTA: Debiti & Crediti
               // ==========================================
-              if (isGroupContext && currentGroupId != null) ...[
-                GroupDebtsSection(groupId: currentGroupId),
+              if (isGroupContext) ...[
+                const GroupDebtsSection(),
                 const SizedBox(height: 12),
               ],
 
