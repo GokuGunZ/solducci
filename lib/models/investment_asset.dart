@@ -207,4 +207,12 @@ class InvestmentAsset implements CacheableModel<String> {
       'is_physical': isPhysical,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InvestmentAsset && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

@@ -585,7 +585,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<Wallet>(
-                                      value: wallets.any((w) => w.id == _selectedWallet?.id) ? _selectedWallet : null,
+                                      value: wallets.where((w) => w.id == _selectedWallet?.id).firstOrNull,
                                       dropdownColor: const Color(0xFF27272A),
                                       hint: const Text('Portafoglio', style: TextStyle(color: Colors.white38, fontSize: 13)),
                                       isExpanded: true,
@@ -692,7 +692,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<Wallet>(
-                            value: wallets.any((w) => w.id == _selectedWallet?.id) ? _selectedWallet : null,
+                            value: wallets.where((w) => w.id == _selectedWallet?.id).firstOrNull,
                             dropdownColor: const Color(0xFF27272A),
                             hint: const Text('Da Conto', style: TextStyle(color: Colors.white38, fontSize: 13)),
                             isExpanded: true,
@@ -716,7 +716,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<Wallet>(
-                            value: wallets.any((w) => w.id == _toWallet?.id) ? _toWallet : null,
+                            value: wallets.where((w) => w.id == _toWallet?.id).firstOrNull,
                             dropdownColor: const Color(0xFF27272A),
                             hint: const Text('A Conto', style: TextStyle(color: Colors.white38, fontSize: 13)),
                             isExpanded: true,
@@ -1170,7 +1170,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<InvestmentPortfolio>(
-                value: _portfolios.any((p) => p.id == _selectedPortfolio?.id) ? _selectedPortfolio : null,
+                value: _portfolios.where((p) => p.id == _selectedPortfolio?.id).firstOrNull,
                 dropdownColor: const Color(0xFF27272A),
                 hint: const Text('Seleziona Portafoglio...', style: TextStyle(color: Colors.white38, fontSize: 13)),
                 isExpanded: true,
@@ -1294,7 +1294,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                           Expanded(
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<InvestmentAsset>(
-                                value: _portfolioAssets.any((a) => a.id == entry.asset?.id) ? entry.asset : null,
+                                value: _portfolioAssets.where((a) => a.id == entry.asset?.id).firstOrNull,
                                 dropdownColor: const Color(0xFF27272A),
                                 hint: const Text('Seleziona strumento...', style: TextStyle(color: Colors.white38, fontSize: 13)),
                                 isExpanded: true,
@@ -1673,7 +1673,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<InvestmentPortfolio>(
-                      value: _portfolios.any((p) => p.id == _selectedPortfolio?.id) ? _selectedPortfolio : null,
+                      value: _portfolios.where((p) => p.id == _selectedPortfolio?.id).firstOrNull,
                       dropdownColor: const Color(0xFF27272A),
                       hint: const Text('Portafoglio', style: TextStyle(color: Colors.white38, fontSize: 12)),
                       isExpanded: true,
@@ -1705,7 +1705,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<InvestmentAsset>(
-                      value: _portfolioAssets.any((a) => a.id == _selectedIncomeAsset?.id) ? _selectedIncomeAsset : null,
+                      value: _portfolioAssets.where((a) => a.id == _selectedIncomeAsset?.id).firstOrNull,
                       dropdownColor: const Color(0xFF27272A),
                       hint: const Text('Asset (opzionale)', style: TextStyle(color: Colors.white38, fontSize: 12)),
                       isExpanded: true,
