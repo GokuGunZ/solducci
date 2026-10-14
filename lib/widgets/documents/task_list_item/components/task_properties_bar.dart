@@ -140,13 +140,11 @@ class _PropertyChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSet = label != null;
-    final chipColor = isSet ? color : Colors.grey[400]!;
-    final iconColor = isSet ? color : Colors.black;
+    final iconColor = isSet ? color : Colors.white54;
 
-    final borderColor = Color.lerp(chipColor, Colors.white, 0.3)!
-        .withOpacity(0.7);
-    final highlightColor = Color.lerp(chipColor, Colors.white, 0.5)!
-        .withOpacity(0.5);
+    final borderColor = isSet
+        ? color.withOpacity(0.6)
+        : Colors.white12;
 
     return InkWell(
       onTap: onTap,
@@ -154,28 +152,18 @@ class _PropertyChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              chipColor.withOpacity(0.25),
-              Colors.white.withOpacity(0.15),
-            ],
-          ),
+          color: isSet ? color.withOpacity(0.18) : const Color(0xFF1C1C21),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: chipColor.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-            BoxShadow(
-              color: highlightColor,
-              blurRadius: 1,
-              offset: const Offset(-1, -1),
-            ),
-          ],
+          border: Border.all(color: borderColor, width: 1.0),
+          boxShadow: isSet
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -235,16 +223,15 @@ class _RecurrenceChip extends StatelessWidget {
     final isEnabled = recurrence?.isEnabled ?? true;
 
     final chipColor = hasRecurrence
-        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
-        : Colors.grey[400]!;
+        ? (isEnabled ? const Color(0xFFFB923C) : Colors.white38)
+        : Colors.white24;
     final iconColor = hasRecurrence
-        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
-        : Colors.black;
+        ? (isEnabled ? const Color(0xFFFB923C) : Colors.white38)
+        : Colors.white54;
 
-    final borderColor = Color.lerp(chipColor, Colors.white, 0.3)!
-        .withOpacity(0.7);
-    final highlightColor = Color.lerp(chipColor, Colors.white, 0.5)!
-        .withOpacity(0.5);
+    final borderColor = hasRecurrence
+        ? chipColor.withOpacity(0.6)
+        : Colors.white12;
 
     return InkWell(
       onTap: onTap,
@@ -253,28 +240,18 @@ class _RecurrenceChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              chipColor.withOpacity(0.25),
-              Colors.white.withOpacity(0.15),
-            ],
-          ),
+          color: hasRecurrence ? chipColor.withOpacity(0.18) : const Color(0xFF1C1C21),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: chipColor.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-            BoxShadow(
-              color: highlightColor,
-              blurRadius: 1,
-              offset: const Offset(-1, -1),
-            ),
-          ],
+          border: Border.all(color: borderColor, width: 1.0),
+          boxShadow: hasRecurrence
+              ? [
+                  BoxShadow(
+                    color: chipColor.withOpacity(0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

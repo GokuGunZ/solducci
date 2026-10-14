@@ -1,14 +1,12 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
-/// Reusable Glassmorphic Floating Action Button
+/// Floating Action Button with modern dark OLED styling and neon glow.
 ///
-/// Provides a consistent FAB design across the app with enhanced glassmorphism:
-/// - Strong blur effect
-/// - Gradient background with transparency
-/// - Border with glow
-/// - Multiple shadow layers
-/// - Radial gradient behind icon
+/// Features:
+/// - Rich vibrant gradient matching [primaryColor]
+/// - Clean high-contrast border
+/// - Neon glow box shadow
+/// - Crisp white icon with high contrast
 class GlassmorphicFAB extends StatelessWidget {
   final VoidCallback onPressed;
   final IconData icon;
@@ -21,96 +19,60 @@ class GlassmorphicFAB extends StatelessWidget {
     required this.onPressed,
     this.icon = Icons.add,
     this.tooltip,
-    this.primaryColor = Colors.purple,
+    this.primaryColor = const Color(0xFF6366F1),
     this.size = 56,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(size / 2),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20), // Increased blur
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                primaryColor.withOpacity(0.4), // Increased transparency
-                primaryColor.withOpacity(0.2),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(size / 2),
-            border: Border.all(
-              color: primaryColor.withOpacity(0.7), // Brighter border
-              width: 1.5,
-            ),
-            boxShadow: [
-              // Main glow shadow
-              BoxShadow(
-                color: primaryColor.withOpacity(0.6), // Stronger glow
-                blurRadius: 28,
-                spreadRadius: 3,
-                offset: const Offset(0, 8),
-              ),
-              // Highlight shadow
-              BoxShadow(
-                color: Colors.white.withOpacity(0.5), // Brighter highlight
-                blurRadius: 4,
-                offset: const Offset(-2, -2),
-              ),
-              // Subtle depth shadow
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    final darkerShade = Color.lerp(primaryColor, Colors.black, 0.22) ?? primaryColor;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            primaryColor,
+            darkerShade,
+          ],
+        ),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.4),
+            blurRadius: 16,
+            spreadRadius: 2,
+            offset: const Offset(0, 6),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onPressed,
-              borderRadius: BorderRadius.circular(size / 2),
-              splashColor: Colors.white.withOpacity(0.4),
-              highlightColor: Colors.white.withOpacity(0.3),
-              child: SizedBox(
-                width: size,
-                height: size,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Radial gradient effect behind icon
-                    Container(
-                      width: size * 0.7,
-                      height: size * 0.7,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            Colors.white.withOpacity(0.5), // Brighter center
-                            Colors.white.withOpacity(0.0),
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
-                    ),
-                    // Icon with enhanced visibility
-                    Icon(
-                      icon,
-                      color: Colors.white,
-                      size: size * 0.55,
-                      shadows: const [
-                        Shadow(
-                          color: Colors.black38,
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          splashColor: Colors.white.withOpacity(0.3),
+          highlightColor: Colors.white.withOpacity(0.15),
+          child: Tooltip(
+            message: tooltip ?? '',
+            child: Center(
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: size * 0.48,
               ),
             ),
           ),
@@ -119,3 +81,4 @@ class GlassmorphicFAB extends StatelessWidget {
     );
   }
 }
+

@@ -498,7 +498,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           ),
           floatingActionButton: GlassmorphicFAB(
             onPressed: _addSubtask,
-            primaryColor: Colors.purple,
+            primaryColor: const Color(0xFF6366F1),
             size: 48,
           ),
         ), // Close Scaffold

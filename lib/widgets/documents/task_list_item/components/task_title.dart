@@ -88,7 +88,11 @@ class _TaskTitleState extends State<TaskTitle> {
         child: TextField(
           controller: _titleController,
           focusNode: _titleFocusNode,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
           decoration: const InputDecoration(
             border: InputBorder.none,
             contentPadding: EdgeInsets.zero,
@@ -110,9 +114,15 @@ class _TaskTitleState extends State<TaskTitle> {
           style: widget.task.isCompleted
               ? const TextStyle(
                   decoration: TextDecoration.lineThrough,
-                  fontSize: 18,
+                  decorationColor: Colors.white38,
+                  fontSize: 16,
+                  color: Colors.white38,
                 )
-              : const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              : const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
         ),
       ),
     );

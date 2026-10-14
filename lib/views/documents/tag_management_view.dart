@@ -116,7 +116,7 @@ class _TagManagementViewState extends State<TagManagementView> {
           ),
           floatingActionButton: GlassmorphicFAB(
             onPressed: () => _showTagFormDialog(null),
-            primaryColor: Colors.purple,
+            primaryColor: const Color(0xFF6366F1),
           ),
         ),
       ],

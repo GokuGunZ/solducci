@@ -177,40 +177,23 @@ class _TaskListItemState extends State<TaskListItem> {
               sigmaY: 15,
             ), // Increased blur for stronger glass effect
             child: Container(
-              decoration: _depth > 0
-                  ? TodoTheme.glassDecoration(
-                      opacity:
-                          0.03, // Subtasks VERY transparent for true glass effect
-                      borderOpacity: 0.35,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: TodoTheme.primaryPurple.withOpacity(0.08,
-                          ),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    )
-                  : TodoTheme.glassDecoration(
-                      opacity:
-                          0.05, // Main tasks VERY transparent - let gradient show through!
-                      borderOpacity: 0.5,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: TodoTheme.primaryPurple.withOpacity(0.12,
-                          ),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.4),
-                          blurRadius: 2,
-                          offset: const Offset(-1, -1),
-                        ),
-                      ],
-                    ),
+              decoration: BoxDecoration(
+                color: _depth > 0
+                    ? const Color(0xFF18181B)
+                    : const Color(0xFF141417),
+                borderRadius: BorderRadius.circular(_depth > 0 ? 12 : 16),
+                border: Border.all(
+                  color: Colors.white.withOpacity(_depth > 0 ? 0.08 : 0.12),
+                  width: 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Padding(
                 // Reduce padding for subtasks
                 padding: EdgeInsets.all(_depth > 0 ? 0.0 : 6.0),

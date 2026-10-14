@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/widgets/documents/filter_sort_dialog.dart';
-import 'package:solducci/theme/todo_theme.dart';
 
 /// Compact Premium Filter & Sort Bar - Solution 8
 /// Single-line floating pills with interactive chips
@@ -66,14 +65,15 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: TodoTheme.glassFilterBarDecoration(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141417),
                     borderRadius: BorderRadius.circular(16),
-                    accentColor: Colors.purple,
+                    border: Border.all(color: Colors.white10),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.filter_alt,
-                          size: 18, color: TodoTheme.primaryPurple),
+                          size: 18, color: Color(0xFF818CF8)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Wrap(
@@ -86,7 +86,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                               label: _getPriorityLabels(_internalConfig.priorities),
                               color: _internalConfig.priorities.isEmpty
                                   ? null
-                                  : Colors.deepPurple,
+                                  : const Color(0xFF8B5CF6),
                               onTap: () => _showPriorityFilter(context),
                             ),
                             _buildFilterChip(
@@ -95,7 +95,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                               label: _getStatusLabels(_internalConfig.statuses),
                               color: _internalConfig.statuses.isEmpty
                                   ? null
-                                  : Colors.blue,
+                                  : const Color(0xFF38BDF8),
                               onTap: () => _showStatusFilter(context),
                             ),
                             _buildFilterChip(
@@ -104,7 +104,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                               label: _getSizeLabels(_internalConfig.sizes),
                               color: _internalConfig.sizes.isEmpty
                                   ? null
-                                  : Colors.orange,
+                                  : const Color(0xFFFB923C),
                               onTap: () => _showSizeFilter(context),
                             ),
                             _buildFilterChip(
@@ -113,7 +113,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                               label: _internalConfig.dateFilter?.label,
                               color: _internalConfig.dateFilter == null
                                   ? null
-                                  : Colors.teal,
+                                  : const Color(0xFF2DD4BF),
                               onTap: () => _showDateFilter(context),
                             ),
                             _buildFilterChip(
@@ -124,7 +124,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                                   : '${_internalConfig.tagIds.length}',
                               color: _internalConfig.tagIds.isEmpty
                                   ? null
-                                  : Colors.green,
+                                  : const Color(0xFF34D399),
                               onTap: () => _showTagFilter(context),
                             ),
                           ],
@@ -145,9 +145,10 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: TodoTheme.glassFilterBarDecoration(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141417),
                     borderRadius: BorderRadius.circular(16),
-                    accentColor: Colors.green,
+                    border: Border.all(color: Colors.white10),
                   ),
                   child: Row(
                     children: [
@@ -284,17 +285,17 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
         ),
         decoration: BoxDecoration(
           color: hasActiveFilter
-              ? color.withOpacity(0.15)
-              : Colors.white.withOpacity(0.7),
+              ? color.withOpacity(0.25)
+              : const Color(0xFF1C1C21),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: hasActiveFilter ? color : Colors.grey[300]!,
+            color: hasActiveFilter ? color : Colors.white12,
             width: 1,
           ),
           boxShadow: hasActiveFilter
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.3),
+                    color: color.withOpacity(0.4),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -306,8 +307,8 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
           children: [
             Icon(
               icon,
-              size: 16,
-              color: hasActiveFilter ? Colors.black : Colors.grey[600],
+              size: 15,
+              color: hasActiveFilter ? Colors.white : Colors.white54,
             ),
             if (hasActiveFilter) ...[
               const SizedBox(width: 4),
@@ -317,7 +318,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: Colors.white,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -337,6 +338,7 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
   }) {
     final bool isActive = _internalConfig.sortBy == value;
     final bool ascending = _internalConfig.sortAscending;
+    const accent = Color(0xFF34D399); // Emerald neon
 
     return InkWell(
       onTap: onTap,
@@ -349,17 +351,17 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
         ),
         decoration: BoxDecoration(
           color: isActive
-              ? Colors.green.withOpacity(0.15)
-              : Colors.white.withOpacity(0.7),
+              ? accent.withOpacity(0.25)
+              : const Color(0xFF1C1C21),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isActive ? Colors.green : Colors.grey[300]!,
+            color: isActive ? accent : Colors.white12,
             width: 1,
           ),
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.green.withOpacity(0.3),
+                    color: accent.withOpacity(0.4),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -371,8 +373,8 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
           children: [
             Icon(
               icon,
-              size: 16,
-              color: isActive ? Colors.black : Colors.grey[600],
+              size: 15,
+              color: isActive ? Colors.white : Colors.white54,
             ),
             if (isActive) ...[
               const SizedBox(width: 4),
@@ -381,14 +383,14 @@ class _CompactFilterSortBarState extends State<CompactFilterSortBar> {
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 3),
               Icon(
                 ascending ? Icons.arrow_upward : Icons.arrow_downward,
                 size: 12,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ],
           ],

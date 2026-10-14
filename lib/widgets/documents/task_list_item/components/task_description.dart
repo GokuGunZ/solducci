@@ -83,15 +83,15 @@ class _TaskDescriptionState extends State<TaskDescription> {
             ? TextField(
                 controller: _descriptionController,
                 focusNode: _descriptionFocusNode,
-                style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                style: const TextStyle(fontSize: 13, color: Colors.white70),
                 maxLines: null,
                 minLines: 1,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
                   hintText: 'Aggiungi descrizione...',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  hintStyle: TextStyle(color: Colors.white38),
                 ),
                 onSubmitted: (_) => _saveDescriptionEdit(),
                 onTapOutside: (_) => _saveDescriptionEdit(),
@@ -102,7 +102,7 @@ class _TaskDescriptionState extends State<TaskDescription> {
                   color: Colors.transparent,
                   child: Text(
                     widget.task.description!,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                    style: const TextStyle(fontSize: 13, color: Colors.white70),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
