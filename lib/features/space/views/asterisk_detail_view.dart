@@ -8,8 +8,15 @@ import 'package:solducci/service/document_service.dart';
 
 class AsteriskDetailView extends StatefulWidget {
   final String documentId;
+  final bool isEmbeddedMode;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
-  const AsteriskDetailView({super.key, required this.documentId});
+  const AsteriskDetailView({
+    super.key,
+    required this.documentId,
+    this.isEmbeddedMode = false,
+    this.showAllPropertiesNotifier,
+  });
 
   @override
   State<AsteriskDetailView> createState() => _AsteriskDetailViewState();
@@ -56,6 +63,76 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
       return const Scaffold(body: Center(child: Text('Documento non trovato')));
     }
 
+    final docColor = _document!.colorObject ?? const Color(0xFFFBBF24);
+
+    final tabBar = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      height: 38,
+      decoration: BoxDecoration(
+        color: const Color(0xFF141417),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: docColor.withOpacity(0.2),
+          border: Border.all(color: docColor.withOpacity(0.6), width: 1),
+        ),
+        labelColor: docColor,
+        unselectedLabelColor: Colors.white38,
+        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        tabs: const [
+          Tab(text: 'Attivi'),
+          Tab(text: 'Risolti'),
+        ],
+      ),
+    );
+
+    final body = Column(
+      children: [
+        tabBar,
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _AsteriskList(
+                documentId: widget.documentId,
+                isResolved: false,
+                accentColor: docColor,
+                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+              ),
+              _AsteriskList(
+                documentId: widget.documentId,
+                isResolved: true,
+                accentColor: docColor,
+                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbeddedMode) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: body,
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'asterisk_fab_${widget.documentId}',
+          backgroundColor: docColor,
+          foregroundColor: Colors.black,
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          onPressed: _showAddAsteriskDialog,
+          child: const Icon(Icons.add),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
       appBar: SolducciAppBar(
@@ -69,29 +146,11 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
             onPressed: _showEditTitleDialog,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFFFBBF24),
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white38,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(text: 'Attivi'),
-            Tab(text: 'Risolti'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _AsteriskList(documentId: widget.documentId, isResolved: false),
-          _AsteriskList(documentId: widget.documentId, isResolved: true),
-        ],
-      ),
+      body: body,
       floatingActionButton: FloatingActionButton(
         heroTag: 'asterisk_detail_fab',
-        backgroundColor: const Color(0xFFFBBF24),
+        backgroundColor: docColor,
         foregroundColor: Colors.black,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: _showAddAsteriskDialog,
@@ -201,8 +260,15 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
 class _AsteriskList extends StatelessWidget {
   final String documentId;
   final bool isResolved;
+  final Color accentColor;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
-  const _AsteriskList({required this.documentId, required this.isResolved});
+  const _AsteriskList({
+    required this.documentId,
+    required this.isResolved,
+    required this.accentColor,
+    this.showAllPropertiesNotifier,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -226,9 +292,9 @@ class _AsteriskList extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFFBBF24).withOpacity(0.1),
+                    color: accentColor.withOpacity(0.1),
                   ),
-                  child: const Icon(Icons.star_outline, size: 48, color: Color(0xFFFBBF24)),
+                  child: Icon(Icons.star_outline, size: 48, color: accentColor),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -251,7 +317,7 @@ class _AsteriskList extends StatelessWidget {
                 color: const Color(0xFF18181B),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: item.isResolved ? Colors.white10 : const Color(0xFFFBBF24).withOpacity(0.3),
+                  color: item.isResolved ? Colors.white10 : accentColor.withOpacity(0.3),
                   width: 1,
                 ),
               ),
@@ -259,7 +325,7 @@ class _AsteriskList extends StatelessWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                 leading: Checkbox(
                   value: item.isResolved,
-                  activeColor: const Color(0xFFFBBF24),
+                  activeColor: accentColor,
                   checkColor: Colors.black,
                   side: const BorderSide(color: Colors.white38, width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -285,6 +351,22 @@ class _AsteriskList extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
+                subtitle: showAllPropertiesNotifier != null
+                    ? ValueListenableBuilder<bool>(
+                        valueListenable: showAllPropertiesNotifier!,
+                        builder: (context, showAll, _) {
+                          if (!showAll) return const SizedBox.shrink();
+                          final dateStr = '${item.createdAt.day.toString().padLeft(2, '0')}/${item.createdAt.month.toString().padLeft(2, '0')}';
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              'Creato: $dateStr',
+                              style: const TextStyle(color: Colors.white38, fontSize: 11),
+                            ),
+                          );
+                        },
+                      )
+                    : null,
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline, size: 20, color: Colors.white38),
                   onPressed: () => _confirmDelete(context, item),

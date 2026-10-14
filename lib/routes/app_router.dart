@@ -23,6 +23,7 @@ import 'package:solducci/features/space/views/pantry_detail_view.dart';
 import 'package:solducci/features/space/views/shopping_list_detail_view.dart';
 import 'package:solducci/features/space/views/shopping_hub_view.dart';
 import 'package:solducci/features/space/views/notes_hub_view.dart';
+import 'package:solducci/features/space/views/asterisks_hub_view.dart';
 import 'package:solducci/views/documents/documents_home_view.dart';
 import 'package:solducci/features/time_management/views/time_management_hub.dart';
 import 'package:solducci/features/time_management/views/routine_hub.dart';
@@ -195,17 +196,10 @@ class AppRouter {
         builder: (context, state) => NoteDetailView(documentId: state.pathParameters['id']!),
       ),
 
-      // Asterisks
+      // Asterisks (Unified Multi-List Hub)
       GoRoute(
         path: '/space/asterisks', 
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          return SpaceDocumentListView(
-            type: 'asterisk', 
-            sectionLabel: 'Asterischi',
-            heroTag: extra?['heroTag'] as String?,
-          );
-        }
+        builder: (context, state) => const AsterisksHubView(),
       ),
       GoRoute(
         path: '/space/asterisks/:id',
