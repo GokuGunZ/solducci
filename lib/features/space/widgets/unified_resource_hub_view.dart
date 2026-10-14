@@ -30,11 +30,17 @@ class UnifiedResourceHubView<TDoc extends Document> extends StatefulWidget {
   /// Etichetta per l'opzione aggregata (default "Tutte")
   final String allLabel;
 
+  /// Etichetta per il pulsante di gestione liste (es. "Liste", "Tag", "Taccuini")
+  final String managementLabel;
+
+  /// Se true, mostra il toggle per la modalità compatta / estesa
+  final bool showDensityToggle;
+
   /// Builder per il contenuto di una lista specifica
-  final Widget Function(BuildContext context, TDoc document) buildDocumentPage;
+  final Widget Function(BuildContext context, TDoc document, ValueNotifier<bool> showAllPropertiesNotifier) buildDocumentPage;
 
   /// Builder opzionale per la vista aggregata "Tutte"
-  final Widget Function(BuildContext context, List<TDoc> allDocuments)? buildAllPage;
+  final Widget Function(BuildContext context, List<TDoc> allDocuments, ValueNotifier<bool> showAllPropertiesNotifier)? buildAllPage;
 
   /// Azioni extra per l'AppBar
   final List<Widget>? appBarActions;
@@ -54,6 +60,8 @@ class UnifiedResourceHubView<TDoc extends Document> extends StatefulWidget {
     required this.buildDocumentPage,
     this.showAllOption = false,
     this.allLabel = 'Tutte',
+    this.managementLabel = 'Liste',
+    this.showDensityToggle = true,
     this.buildAllPage,
     this.appBarActions,
     this.onCustomCreateDocument,
@@ -76,6 +84,8 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
   int _currentIndex = 0;
   bool _isPageAnimating = false;
 
+  final ValueNotifier<bool> _showAllPropertiesNotifier = ValueNotifier<bool>(false);
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +99,7 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
     _contextManager.removeListener(_onContextChanged);
     _pageController.dispose();
     _chipScrollController.dispose();
+    _showAllPropertiesNotifier.dispose();
     super.dispose();
   }
 
@@ -290,12 +301,12 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                         itemBuilder: (context, index) {
                           if (widget.showAllOption && index == 0) {
                             return widget.buildAllPage != null
-                                ? widget.buildAllPage!(context, _documents)
+                                ? widget.buildAllPage!(context, _documents, _showAllPropertiesNotifier)
                                 : const SizedBox.shrink();
                           }
                           final docIndex = index - _offsetForDocs;
                           if (docIndex >= 0 && docIndex < _documents.length) {
-                            return widget.buildDocumentPage(context, _documents[docIndex]);
+                            return widget.buildDocumentPage(context, _documents[docIndex], _showAllPropertiesNotifier);
                           }
                           return const SizedBox.shrink();
                         },
@@ -357,6 +368,46 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                           ],
                         ),
                       ),
+                      // Density toggle button (Compact vs Full)
+                      if (widget.showDensityToggle)
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _showAllPropertiesNotifier,
+                          builder: (context, showAll, _) {
+                            return IconButton(
+                              icon: Icon(
+                                showAll ? Icons.edit_off : Icons.edit,
+                                color: showAll ? widget.accentColor : Colors.white70,
+                                size: 20,
+                              ),
+                              tooltip: showAll
+                                  ? 'Nascondi dettagli e proprietà'
+                                  : 'Mostra tutti i dettagli',
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                _showAllPropertiesNotifier.value = !showAll;
+                              },
+                            );
+                          },
+                        ),
+
+                      // Management sheet button (List management)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: widget.accentColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        ),
+                        icon: Icon(Icons.tune, size: 16, color: widget.accentColor),
+                        label: Text(
+                          widget.managementLabel,
+                          style: TextStyle(
+                            color: widget.accentColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        onPressed: _showManagementBottomSheet,
+                      ),
+
                       if (widget.appBarActions != null) ...widget.appBarActions!,
                     ],
                   ),
@@ -376,30 +427,37 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
   Widget _buildChipsBar() {
     return SizedBox(
       height: 56,
-      child: ListView.separated(
-        controller: _chipScrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        itemCount: _totalTabsCount + 1, // +1 per il pulsante '+'
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          // Ultimo elemento: pulsante Aggiungi Lista
-          if (index == _totalTabsCount) {
-            return _buildAddChip();
-          }
+      child: Center(
+        child: SingleChildScrollView(
+          controller: _chipScrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int index = 0; index < _totalTabsCount; index++) ...[
+                Builder(
+                  builder: (context) {
+                    final isSelected = index == _currentIndex;
+                    final isAllTab = widget.showAllOption && index == 0;
+                    final label = isAllTab ? widget.allLabel : _documents[index - _offsetForDocs].title;
 
-          final isSelected = index == _currentIndex;
-          final isAllTab = widget.showAllOption && index == 0;
-          final label = isAllTab ? widget.allLabel : _documents[index - _offsetForDocs].title;
-
-          return _buildDotToPillChip(
-            index: index,
-            label: label,
-            isSelected: isSelected,
-            icon: isAllTab ? Icons.apps : widget.icon,
-            onTap: () => _onChipTapped(index),
-          );
-        },
+                    return _buildDotToPillChip(
+                      index: index,
+                      label: label,
+                      isSelected: isSelected,
+                      icon: isAllTab ? Icons.apps : widget.icon,
+                      onTap: () => _onChipTapped(index),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+              ],
+              _buildAddChip(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -630,6 +688,215 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showManagementBottomSheet() async {
+    HapticFeedback.lightImpact();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF141417),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: Colors.white12),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle bar
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.tune, color: widget.accentColor, size: 22),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Gestione ${widget.managementLabel}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white54),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.45,
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _documents.length,
+                        separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                        itemBuilder: (context, idx) {
+                          final doc = _documents[idx];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: widget.accentColor.withOpacity(0.15),
+                              ),
+                              child: Icon(widget.icon, color: widget.accentColor, size: 18),
+                            ),
+                            title: Text(
+                              doc.title,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Edit title button
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.white70),
+                                  onPressed: () async {
+                                    final editController = TextEditingController(text: doc.title);
+                                    final newTitle = await showDialog<String>(
+                                      context: context,
+                                      builder: (dCtx) => AlertDialog(
+                                        backgroundColor: const Color(0xFF18181B),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          side: const BorderSide(color: Colors.white10),
+                                        ),
+                                        title: const Text('Rinomina', style: TextStyle(color: Colors.white)),
+                                        content: TextField(
+                                          controller: editController,
+                                          autofocus: true,
+                                          style: const TextStyle(color: Colors.white),
+                                          decoration: InputDecoration(
+                                            filled: true,
+                                            fillColor: const Color(0xFF121215),
+                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dCtx),
+                                            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: widget.accentColor,
+                                              foregroundColor: Colors.black,
+                                            ),
+                                            onPressed: () => Navigator.pop(dCtx, editController.text.trim()),
+                                            child: const Text('Salva'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (newTitle != null && newTitle.isNotEmpty && newTitle != doc.title) {
+                                      doc.title = newTitle;
+                                      doc.updatedAt = DateTime.now();
+                                      await _documentService.updateDocument(doc);
+                                      await _loadDocuments();
+                                      setModalState(() {});
+                                    }
+                                  },
+                                ),
+                                // Delete list button
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFEF4444)),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (dCtx) => AlertDialog(
+                                        backgroundColor: const Color(0xFF18181B),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          side: const BorderSide(color: Colors.white10),
+                                        ),
+                                        title: const Text('Elimina lista', style: TextStyle(color: Colors.white)),
+                                        content: Text(
+                                          'Vuoi davvero eliminare "${doc.title}"?\nTutti gli elementi al suo interno verranno persi.',
+                                          style: const TextStyle(color: Colors.white70),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dCtx, false),
+                                            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFFEF4444),
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            onPressed: () => Navigator.pop(dCtx, true),
+                                            child: const Text('Elimina'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirm == true) {
+                                      await _documentService.deleteDocument(doc.id);
+                                      await _loadDocuments();
+                                      setModalState(() {});
+                                      if (_documents.isEmpty) {
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: widget.accentColor.withOpacity(0.18),
+                          foregroundColor: widget.accentColor,
+                          side: BorderSide(color: widget.accentColor.withOpacity(0.4)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _handleCreateDocument();
+                        },
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text('Nuova ${widget.title}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -11,11 +11,13 @@ import 'package:solducci/service/context_manager.dart';
 class ShoppingListDetailView extends StatefulWidget {
   final String documentId;
   final bool isEmbeddedMode;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
   const ShoppingListDetailView({
     super.key,
     required this.documentId,
     this.isEmbeddedMode = false,
+    this.showAllPropertiesNotifier,
   });
 
   @override
@@ -609,9 +611,22 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
             fontSize: 14,
           ),
         ),
-        subtitle: item.unit != null && item.unit!.isNotEmpty
-          ? Text('${item.quantity} ${item.unit!}', style: const TextStyle(color: Colors.white38, fontSize: 11))
-          : null,
+        subtitle: (widget.showAllPropertiesNotifier == null 
+            ? (item.unit != null && item.unit!.isNotEmpty ? Text('${item.quantity} ${item.unit!}', style: const TextStyle(color: Colors.white38, fontSize: 11)) : null)
+            : ValueListenableBuilder<bool>(
+                valueListenable: widget.showAllPropertiesNotifier!,
+                builder: (context, showAll, _) {
+                  if (!showAll && (item.unit == null || item.unit!.isEmpty)) {
+                    return const SizedBox.shrink();
+                  }
+                  return Text(
+                    showAll 
+                        ? '${item.quantity} ${item.unit ?? 'pz'} • Pos. ${item.position + 1}'
+                        : '${item.quantity} ${item.unit ?? ''}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  );
+                },
+              )),
         trailing: _selectedItemIds.isNotEmpty 
           ? null 
           : Row(

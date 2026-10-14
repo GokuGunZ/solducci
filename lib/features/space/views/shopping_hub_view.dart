@@ -19,20 +19,24 @@ class ShoppingHubView extends StatelessWidget {
       icon: Icons.shopping_cart_outlined,
       showAllOption: true,
       allLabel: 'Tutte',
-      buildAllPage: (context, allDocs) {
+      managementLabel: 'Liste',
+      showDensityToggle: true,
+      buildAllPage: (context, allDocs, showAllNotifier) {
         // Mostra la prima lista oppure un placeholder/aggregatore
         if (allDocs.isEmpty) return const SizedBox.shrink();
         return ShoppingListDetailView(
           key: const ValueKey('shopping_list_all'),
           documentId: allDocs.first.id,
           isEmbeddedMode: true,
+          showAllPropertiesNotifier: showAllNotifier,
         );
       },
-      buildDocumentPage: (context, doc) {
+      buildDocumentPage: (context, doc, showAllNotifier) {
         return ShoppingListDetailView(
           key: ValueKey('shopping_list_${doc.id}'),
           documentId: doc.id,
           isEmbeddedMode: true,
+          showAllPropertiesNotifier: showAllNotifier,
         );
       },
     );
