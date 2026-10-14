@@ -15,7 +15,6 @@ import 'package:solducci/views/bento_dashboard_page.dart';
 import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
-import 'package:solducci/features/space/views/space_document_list_view.dart';
 import 'package:solducci/features/space/views/note_detail_view.dart';
 import 'package:solducci/features/space/views/asterisk_detail_view.dart';
 import 'package:solducci/features/space/views/resource_detail_view.dart';
@@ -171,21 +170,14 @@ class AppRouter {
         builder: (context, state) => const InfiniteCanvasView(),
       ),
       
-      // Tasks
+      // Tasks (Direct access to DocumentsHomeView)
       GoRoute(
         path: '/space/tasks', 
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          return SpaceDocumentListView(
-            type: 'todo', 
-            sectionLabel: 'Task',
-            heroTag: extra?['heroTag'] as String?,
-          );
-        }
+        builder: (context, state) => const DocumentsHomeView(),
       ),
       GoRoute(
         path: '/space/tasks/:id',
-        builder: (context, state) => const DocumentsHomeView(),
+        builder: (context, state) => DocumentsHomeView(documentId: state.pathParameters['id']),
       ),
 
       // Notes (Unified Multi-List Hub)

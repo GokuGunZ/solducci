@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/tag.dart';
 import 'package:solducci/models/task.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/tag_service.dart';
-import 'package:solducci/theme/todo_theme.dart';
 import 'package:solducci/widgets/documents/tag_form_dialog.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/views/documents/tag_management_view.dart';
@@ -269,7 +269,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
       ),
       floatingActionButton: GlassmorphicFAB(
         onPressed: _showCreateTaskDialog,
-        primaryColor: Colors.purple,
+        primaryColor: const Color(0xFF6366F1),
       ),
     );
   }
@@ -313,106 +313,132 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
   }
 
   Widget _buildMainUI() {
-    return Stack(
-      children: [
-        // Background gradient (same as original)
-        Positioned.fill(child: TodoTheme.customBackground),
+    return Container(
+      color: const Color(0xFF09090B),
+      child: Column(
+        children: [
+          // Frosted glass AppBar with integrated page indicators
+          _buildAppBar(),
 
-        // Main content
-        Column(
-          children: [
-            // AppBar with integrated page indicators (same as V1)
-            _buildAppBar(),
+          // PageView with lists (using controller from CategoryScrollBar)
+          Expanded(
+            child: PageView.builder(
+              key: ValueKey('page_view_$_refreshKey'),
+              controller: _categoryController.pageController,
+              onPageChanged: _categoryController.onPageChanged,
+              itemCount: _categoryController.totalPages,
+              itemBuilder: (context, index) {
+                // Get category for this page
+                final category = _categoryController.getCategoryAtIndex(
+                  index,
+                );
 
-            // PageView with lists (using controller from CategoryScrollBar)
-            Expanded(
-              child: PageView.builder(
-                key: ValueKey('page_view_$_refreshKey'),
-                controller: _categoryController.pageController,
-                onPageChanged: _categoryController.onPageChanged,
-                itemCount: _categoryController.totalPages,
-                itemBuilder: (context, index) {
-                  // Get category for this page
-                  final category = _categoryController.getCategoryAtIndex(
-                    index,
-                  );
-
-                  // All tasks
-                  if (category == null) {
-                    return AllTasksView(
-                      key: ValueKey(
-                        'all_tasks_${_currentDocument?.id}_$_refreshKey',
-                      ),
-                      document: _currentDocument!,
-                      showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
-                      availableTags: _tags,
-                      onInlineCreationCallbackChanged: (callback) {
-                        _onStartInlineCreation = callback;
-                      },
-                    );
-                  }
-
-                  // Tag-specific view
-                  return TagView(
-                    key: ValueKey('tag_view_${category.id}_$_refreshKey'),
+                // All tasks
+                if (category == null) {
+                  return AllTasksView(
+                    key: ValueKey(
+                      'all_tasks_${_currentDocument?.id}_$_refreshKey',
+                    ),
                     document: _currentDocument!,
-                    tag: category,
                     showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
+                    availableTags: _tags,
                     onInlineCreationCallbackChanged: (callback) {
-                      _tagViewCallbacks[category.id] = callback;
+                      _onStartInlineCreation = callback;
                     },
                   );
-                },
-              ),
+                }
+
+                // Tag-specific view
+                return TagView(
+                  key: ValueKey('tag_view_${category.id}_$_refreshKey'),
+                  document: _currentDocument!,
+                  tag: category,
+                  showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
+                  onInlineCreationCallbackChanged: (callback) {
+                    _tagViewCallbacks[category.id] = callback;
+                  },
+                );
+              },
             ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildAppBar() {
+    final contextManager = ContextManager();
+
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
-          decoration: TodoTheme.glassAppBarDecoration(),
+          decoration: BoxDecoration(
+            color: const Color(0xFF09090B).withOpacity(0.85),
+            border: const Border(
+              bottom: BorderSide(color: Colors.white10, width: 1.0),
+            ),
+          ),
           child: SafeArea(
+            bottom: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Back button, title and toggle button
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 20,
+                    horizontal: 8,
+                    vertical: 8,
                   ),
                   child: Row(
                     children: [
-                      const SizedBox(width: 8),
-                      // Title with
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'ToDo Lists',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.purple[700],
-                            ),
-                          ),
-                          Text(
-                            'Nuovi Componenti',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.purple[400],
-                            ),
-                          ),
-                        ],
+                      // Back to space button
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () {
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop();
+                          }
+                        },
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 4),
+                      // Title & Context subtitle
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Task e Attività',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            ListenableBuilder(
+                              listenable: contextManager,
+                              builder: (context, _) {
+                                final docTitle = _currentDocument?.title ?? '';
+                                final contextName = contextManager.contextDisplayName;
+                                final subtitle = docTitle.isNotEmpty && docTitle != 'My Tasks'
+                                    ? '$contextName • $docTitle'
+                                    : contextName;
+                                return Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white54,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                       // Toggle button for showing all properties
                       ValueListenableBuilder<bool>(
                         valueListenable: _showAllTaskPropertiesNotifier,
@@ -420,7 +446,10 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                           return IconButton(
                             icon: Icon(
                               showAll ? Icons.edit_off : Icons.edit,
-                              color: Colors.purple[700],
+                              color: showAll
+                                  ? const Color(0xFF6366F1)
+                                  : Colors.white70,
+                              size: 20,
                             ),
                             onPressed: () {
                               _showAllTaskPropertiesNotifier.value = !showAll;
@@ -432,12 +461,13 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                         },
                       ),
                       // Tag management button
-                      TextButton.icon(
-                        icon: Icon(Icons.label, color: Colors.purple[700]),
-                        label: Text(
-                          'Tag',
-                          style: TextStyle(color: Colors.purple[700]),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.label_outline,
+                          color: Color(0xFF818CF8),
+                          size: 20,
                         ),
+                        tooltip: 'Gestione Tag',
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -450,9 +480,9 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                     ],
                   ),
                 ),
-                // Page indicators (integrated, same as V1)
+                // Page indicators (integrated dot necklace)
                 _buildPageIndicator(),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
               ],
             ),
           ),
@@ -501,7 +531,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 
   Widget _buildDot(int index, String label, IconData? icon, Color? color) {
     final isActive = _categoryController.currentIndex == index;
-    final dotColor = color ?? Colors.purple[700]!;
+    final dotColor = color ?? const Color(0xFF6366F1);
 
     return GestureDetector(
       onTap: () {
@@ -666,17 +696,17 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.purple[700]!.withOpacity(0.8),
-                  Colors.purple[900]!.withOpacity(0.6),
+                  const Color(0xFF6366F1).withOpacity(0.8),
+                  const Color(0xFF4F46E5).withOpacity(0.6),
                 ],
               ),
               border: Border.all(
-                color: Colors.purple[400]!.withOpacity(0.6),
+                color: Colors.white.withOpacity(0.6),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.withOpacity(0.4),
+                  color: const Color(0xFF6366F1).withOpacity(0.4),
                   blurRadius: 6,
                   spreadRadius: 0.5,
                   offset: const Offset(0, 2),
