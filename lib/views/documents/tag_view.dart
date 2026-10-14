@@ -27,6 +27,7 @@ class TagView extends StatelessWidget {
   final Tag tag;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
   final void Function(VoidCallback?)? onInlineCreationCallbackChanged;
+  final List<Tag>? availableTags;
 
   const TagView({
     super.key,
@@ -34,6 +35,7 @@ class TagView extends StatelessWidget {
     required this.tag,
     this.showAllPropertiesNotifier,
     this.onInlineCreationCallbackChanged,
+    this.availableTags,
   });
 
   @override
@@ -53,6 +55,7 @@ class TagView extends StatelessWidget {
       dataSource: dataSource,
       showAllPropertiesNotifier: showAllPropertiesNotifier,
       onInlineCreationCallbackChanged: onInlineCreationCallbackChanged,
+      availableTags: availableTags,
       initialTags: tag.id.isNotEmpty ? [tag] : null, // Pre-select this tag
       showCompletedSection: tag.showCompleted, // Separate completed section
     );

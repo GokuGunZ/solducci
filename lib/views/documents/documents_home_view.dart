@@ -255,8 +255,17 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
             return _buildWelcomeScreen();
           }
 
-          // Get first document
-          _currentDocument ??= documents.first;
+          // Ensure _currentDocument is set and valid
+          if (_currentDocument == null || !documents.any((d) => d.id == _currentDocument!.id)) {
+            if (widget.documentId != null) {
+              _currentDocument = documents.firstWhere(
+                (d) => d.id == widget.documentId,
+                orElse: () => documents.first,
+              );
+            } else {
+              _currentDocument = documents.first;
+            }
+          }
 
           // Loading tags
           if (_isLoadingTags) {
@@ -264,7 +273,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
           }
 
           // Main UI with CategoryScrollBar
-          return _buildMainUI();
+          return _buildMainUI(documents);
         },
       ),
       floatingActionButton: GlassmorphicFAB(
@@ -312,18 +321,18 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
     );
   }
 
-  Widget _buildMainUI() {
+  Widget _buildMainUI(List<TodoDocument> documents) {
     return Container(
       color: const Color(0xFF09090B),
       child: Column(
         children: [
           // Frosted glass AppBar with integrated page indicators
-          _buildAppBar(),
+          _buildAppBar(documents),
 
           // PageView with lists (using controller from CategoryScrollBar)
           Expanded(
             child: PageView.builder(
-              key: ValueKey('page_view_$_refreshKey'),
+              key: ValueKey('page_view_${_currentDocument?.id}_$_refreshKey'),
               controller: _categoryController.pageController,
               onPageChanged: _categoryController.onPageChanged,
               itemCount: _categoryController.totalPages,
@@ -354,6 +363,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                   document: _currentDocument!,
                   tag: category,
                   showAllPropertiesNotifier: _showAllTaskPropertiesNotifier,
+                  availableTags: _tags,
                   onInlineCreationCallbackChanged: (callback) {
                     _tagViewCallbacks[category.id] = callback;
                   },
@@ -366,7 +376,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
     );
   }
 
-  Widget _buildAppBar() {
+  Widget _buildAppBar(List<TodoDocument> documents) {
     final contextManager = ContextManager();
 
     return ClipRRect(
@@ -402,42 +412,79 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
                         },
                       ),
                       const SizedBox(width: 4),
-                      // Title & Context subtitle
+                      // Title & Context subtitle with interactive document switcher
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Task e Attività',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: -0.4,
-                              ),
+                        child: InkWell(
+                          onTap: () => _showDocumentPicker(documents),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        _currentDocument?.title ?? 'Task e Attività',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: -0.4,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF6366F1).withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Icon(
+                                        Icons.keyboard_arrow_down,
+                                        color: Color(0xFF818CF8),
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                ListenableBuilder(
+                                  listenable: contextManager,
+                                  builder: (context, _) {
+                                    final contextName = contextManager.contextDisplayName;
+                                    final listCount = documents.length;
+                                    final subtitle = '$contextName • $listCount ${listCount == 1 ? 'lista' : 'liste'}';
+                                    return Text(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white54,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
-                            ListenableBuilder(
-                              listenable: contextManager,
-                              builder: (context, _) {
-                                final docTitle = _currentDocument?.title ?? '';
-                                final contextName = contextManager.contextDisplayName;
-                                final subtitle = docTitle.isNotEmpty && docTitle != 'My Tasks'
-                                    ? '$contextName • $docTitle'
-                                    : contextName;
-                                return Text(
-                                  subtitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white54,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                          ),
                         ),
+                      ),
+                      // Switch list folder button
+                      IconButton(
+                        icon: const Icon(
+                          Icons.folder_open_outlined,
+                          color: Color(0xFF818CF8),
+                          size: 20,
+                        ),
+                        tooltip: 'Cambia lista',
+                        onPressed: () => _showDocumentPicker(documents),
                       ),
                       // Toggle button for showing all properties
                       ValueListenableBuilder<bool>(
@@ -729,5 +776,191 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
         ),
       ),
     );
+  }
+
+  void _showDocumentPicker(List<TodoDocument> documents) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141417),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Liste Task',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showCreateDocumentDialog();
+                      },
+                      icon: const Icon(Icons.add, size: 18, color: Color(0xFF818CF8)),
+                      label: const Text(
+                        'Nuova Lista',
+                        style: TextStyle(
+                          color: Color(0xFF818CF8),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.45,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: documents.length,
+                    separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (context, index) {
+                      final doc = documents[index];
+                      final isSelected = doc.id == _currentDocument?.id;
+
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF6366F1).withOpacity(0.2)
+                                : const Color(0xFF1C1C21),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF6366F1).withOpacity(0.5)
+                                  : Colors.white12,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.checklist_rounded,
+                            color: isSelected ? const Color(0xFF818CF8) : Colors.white54,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          doc.title,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? Colors.white : Colors.white70,
+                          ),
+                        ),
+                        subtitle: doc.description != null && doc.description!.isNotEmpty
+                            ? Text(
+                                doc.description!,
+                                style: const TextStyle(fontSize: 12, color: Colors.white38),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : null,
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle, color: Color(0xFF6366F1), size: 22)
+                            : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (!isSelected) {
+                            setState(() {
+                              _currentDocument = doc;
+                              _refreshKey++;
+                            });
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showCreateDocumentDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Nuova Lista Task', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Nome lista (es. Progetti)',
+            hintStyle: TextStyle(color: Colors.white38),
+            border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF6366F1))),
+          ),
+          onSubmitted: (val) => Navigator.pop(context, val.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text(
+              'Crea',
+              style: TextStyle(color: Color(0xFF818CF8), fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final currentContext = ContextManager().currentContext;
+      final newDoc = Document.fromMap({
+        'id': '',
+        'user_id': null,
+        'group_id': currentContext.isGroup ? currentContext.groupId : null,
+        'document_type': 'todo',
+        'title': result,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      final created = await _documentService.createDocument(newDoc);
+      if (mounted && created is TodoDocument) {
+        setState(() {
+          _currentDocument = created;
+          _refreshKey++;
+        });
+      }
+    }
   }
 }

@@ -10,7 +10,6 @@ import 'package:solducci/views/documents/task_detail_page.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
 import 'package:solducci/widgets/documents/_subtask_animated_list.dart';
-import 'package:solducci/theme/todo_theme.dart';
 import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/widgets/documents/task_list_item/task_item_config.dart';
 import 'package:solducci/widgets/documents/task_list_item/task_item_callbacks.dart';
@@ -360,7 +359,7 @@ class _TaskListItemState extends State<TaskListItem> {
           Padding(
             padding: EdgeInsets.only(right: _depth > 0 ? 15.0 : 0.0),
             child: IconButton(
-              icon: const Icon(Icons.add_circle_outline, size: 20),
+              icon: const Icon(Icons.add_circle_outline, size: 20, color: Colors.white54),
               onPressed: _showAddSubtaskDialog,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -378,6 +377,9 @@ class _TaskListItemState extends State<TaskListItem> {
         .where((t) => t.status == TaskStatus.completed)
         .length;
     final totalCount = widget.task.subtasks!.length;
+    final allCompleted = completedCount == totalCount && totalCount > 0;
+    const accent = Color(0xFF818CF8); // Neon indigo
+    final counterColor = allCompleted ? const Color(0xFF34D399) : accent;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -386,41 +388,21 @@ class _TaskListItemState extends State<TaskListItem> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              TodoTheme.primaryPurple.withOpacity(0.25),
-              Colors.white.withOpacity(0.15),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFF1C1C21),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Color.lerp(
-              TodoTheme.primaryPurple,
-              Colors.white,
-              0.3,
-            )!.withOpacity(0.7),
-            width: 1.5,
+            color: counterColor.withOpacity(0.35),
+            width: 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: TodoTheme.primaryPurple.withOpacity(0.3),
+              color: counterColor.withOpacity(0.12),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
-            BoxShadow(
-              color: Color.lerp(
-                TodoTheme.primaryPurple,
-                Colors.white,
-                0.5,
-              )!.withOpacity(0.5),
-              blurRadius: 1,
-              offset: const Offset(-1, -1),
-            ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -431,60 +413,48 @@ class _TaskListItemState extends State<TaskListItem> {
                   _isExpanded = !_isExpanded;
                 });
               },
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  '$completedCount/$totalCount',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: TodoTheme.primaryPurple,
-                    shadows: const [
-                      Shadow(
-                        color: Colors.black12,
-                        blurRadius: 2,
-                        offset: Offset(0, 1),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                      size: 16,
+                      color: counterColor,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '$completedCount/$totalCount',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: counterColor,
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            // Divider with glass effect
-            Container(
-              width: 1.5,
-              height: 20,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    TodoTheme.primaryPurple.withOpacity(0.4),
-                    Colors.white.withOpacity(0.3),
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
+            // Divider
+            Container(
+              width: 1.0,
+              height: 14,
+              color: Colors.white12,
+            ),
+            const SizedBox(width: 4),
             // Add subtask button
             InkWell(
               onTap: _showAddSubtaskDialog,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
                 child: Icon(
                   Icons.add_circle_outline,
-                  size: 20,
-                  color: TodoTheme.primaryPurple,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black12,
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
+                  size: 16,
+                  color: Colors.white70,
                 ),
               ),
             ),

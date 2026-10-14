@@ -9,7 +9,6 @@ import 'package:solducci/service/task_service.dart';
 import 'package:solducci/service/recurrence_service.dart';
 import 'package:solducci/widgets/documents/quick_edit_dialogs.dart';
 import 'package:solducci/widgets/documents/recurrence_form_dialog.dart';
-import 'package:solducci/theme/todo_theme.dart';
 
 /// Widget for inline task creation
 class TaskCreationRow extends StatefulWidget {
@@ -172,80 +171,129 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
         bottom: 4.0,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withOpacity(0.95),
-            Colors.white.withOpacity(0.85),
-          ],
-        ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: TodoTheme.primaryPurple.withOpacity(0.3),
-          width: 2,
-        ),
         boxShadow: [
           BoxShadow(
-            color: TodoTheme.primaryPurple.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Padding(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF22222A).withOpacity(0.85),
+                  const Color(0xFF141418).withOpacity(0.85),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.12),
+                width: 1.0,
+              ),
+            ),
             padding: const EdgeInsets.all(14.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top row: X button, Title field
+                // Top row: X button, Title field, Save button
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // X button (cancel)
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
+                      icon: const Icon(Icons.close, color: Colors.white54),
                       onPressed: _isSaving ? null : widget.onCancel,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      iconSize: 24,
+                      iconSize: 22,
                       tooltip: 'Annulla',
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     // Title input field
                     Expanded(
                       child: TextField(
                         controller: _titleController,
                         focusNode: _titleFocusNode,
                         enabled: !_isSaving,
-                        style: const TextStyle(fontSize: 16),
-                        decoration: const InputDecoration(
-                          hintText: 'Titolo task (obbligatorio)',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: widget.parentTaskId != null
+                              ? 'Aggiungi sotto-task...'
+                              : 'Cosa c\'è da fare?',
+                          hintStyle: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 14,
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF18181D),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Colors.white12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Colors.white12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF6366F1),
+                              width: 1.5,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
-                            vertical: 12,
+                            vertical: 10,
                           ),
                         ),
                         onSubmitted: (_) => _saveTask(),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     // Save button
                     IconButton(
                       icon: _isSaving
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF6366F1),
+                              ),
                             )
-                          : const Icon(Icons.check, color: Colors.green),
+                          : Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.check,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
                       onPressed: _isSaving ? null : _saveTask,
-                      iconSize: 24,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                       tooltip: 'Salva',
                     ),
                   ],
@@ -263,19 +311,19 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
   Widget _buildPropertyIconsRow() {
     // Always show all properties during creation
     return Padding(
-      padding: const EdgeInsets.only(top: 12.0, left: 32.0, right: 8.0),
+      padding: const EdgeInsets.only(top: 10.0, left: 32.0, right: 8.0),
       child: Row(
         children: [
           _buildPropertyIcon(
             icon: Icons.flag_outlined,
-            color: _priority?.color ?? Colors.grey[400]!,
+            color: _priority?.color ?? const Color(0xFF818CF8),
             label: _priority?.label,
             onTap: _showPriorityPicker,
           ),
           const SizedBox(width: 8),
           _buildPropertyIcon(
             icon: Icons.calendar_today_outlined,
-            color: _dueDate != null ? Colors.blue : Colors.grey[400]!,
+            color: _dueDate != null ? const Color(0xFF2DD4BF) : Colors.white54,
             label: _dueDate != null
                 ? DateFormat('dd/MM').format(_dueDate!)
                 : null,
@@ -285,8 +333,8 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
           _buildPropertyIcon(
             icon: Icons.straighten,
             color: _tShirtSize != null
-                ? TodoTheme.primaryPurple
-                : Colors.grey[400]!,
+                ? const Color(0xFFFB923C)
+                : Colors.white54,
             label: _tShirtSize?.label,
             onTap: _showSizePicker,
           ),
@@ -297,7 +345,7 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
           if (widget.parentTaskId == null) ...[
             _buildPropertyIcon(
               icon: Icons.label_outline,
-              color: _selectedTags.isNotEmpty ? Colors.green : Colors.grey[400]!,
+              color: _selectedTags.isNotEmpty ? const Color(0xFF34D399) : Colors.white54,
               label: _selectedTags.isNotEmpty ? '${_selectedTags.length}' : null,
               onTap: _showTagPicker,
             ),
@@ -310,30 +358,26 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
   Widget _buildRecurrenceIcon() {
     final hasRecurrence = _recurrence != null;
     final isEnabled = _recurrence?.isEnabled ?? true;
-
-    // Determine color based on enabled state
-    final iconColor = hasRecurrence
-        ? (isEnabled ? Colors.orange : Colors.grey[600]!)
-        : Colors.grey[400]!;
-    final backgroundColor = hasRecurrence
-        ? (isEnabled ? Colors.orange.withAlpha(30) : Colors.grey.withAlpha(30))
-        : Colors.transparent;
-    final borderColor = hasRecurrence
-        ? (isEnabled ? Colors.orange.withAlpha(100) : Colors.grey.withAlpha(100))
-        : Colors.orange.withAlpha(50);
+    final activeColor = hasRecurrence
+        ? (isEnabled ? const Color(0xFFFB923C) : Colors.white38)
+        : Colors.white54;
 
     return InkWell(
       onTap: _isSaving ? null : _showRecurrencePicker,
       onLongPress: _isSaving || !hasRecurrence ? null : _removeRecurrence,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: backgroundColor,
+          color: hasRecurrence
+              ? const Color(0xFFFB923C).withOpacity(0.18)
+              : const Color(0xFF1C1C21),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: borderColor,
-            width: 1,
+            color: hasRecurrence
+                ? const Color(0xFFFB923C).withOpacity(0.5)
+                : Colors.white10,
+            width: 1.0,
           ),
         ),
         child: Row(
@@ -341,26 +385,26 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
           children: [
             Icon(
               Icons.repeat,
-              size: 16,
-              color: iconColor,
+              size: 15,
+              color: activeColor,
             ),
             if (hasRecurrence) ...[
               const SizedBox(width: 4),
-              Text(
+              const Text(
                 'Ric.',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: iconColor,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 2),
+              const SizedBox(width: 4),
               InkWell(
                 onTap: _isSaving ? null : _removeRecurrence,
-                child: Icon(
+                child: const Icon(
                   Icons.close,
-                  size: 14,
-                  color: Colors.red,
+                  size: 13,
+                  color: Colors.white70,
                 ),
               ),
             ],
@@ -376,20 +420,26 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
     String? label,
     required VoidCallback onTap,
   }) {
+    final isSet = label != null;
+    final activeColor = isSet ? color : Colors.white54;
+
     return InkWell(
       onTap: _isSaving ? null : onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: label != null ? color.withAlpha(30) : Colors.transparent,
+          color: isSet ? color.withOpacity(0.18) : const Color(0xFF1C1C21),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withAlpha(100), width: 1),
+          border: Border.all(
+            color: isSet ? color.withOpacity(0.5) : Colors.white10,
+            width: 1.0,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: color),
+            Icon(icon, size: 15, color: activeColor),
             if (label != null) ...[
               const SizedBox(width: 4),
               Text(
@@ -397,7 +447,7 @@ class _TaskCreationRowState extends State<TaskCreationRow> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: color,
+                  color: isSet ? Colors.white : Colors.white70,
                 ),
               ),
             ],
