@@ -200,65 +200,156 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
       return;
     }
 
+    // Preset palette neon OLED per personalizzazione liste
+    const presetColors = [
+      Color(0xFF10B981), // Emerald
+      Color(0xFFF59E0B), // Amber
+      Color(0xFFEAB308), // Yellow
+      Color(0xFF0EA5E9), // Sky
+      Color(0xFF8B5CF6), // Purple
+      Color(0xFFEC4899), // Pink
+      Color(0xFFF43F5E), // Rose
+      Color(0xFF84CC16), // Lime
+      Color(0xFF6366F1), // Indigo
+      Color(0xFF14B8A6), // Teal
+    ];
+
+    Color selectedColor = widget.accentColor;
+
     // Dialog di default per creazione
     final titleController = TextEditingController();
-    final title = await showDialog<String>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Colors.white10),
-        ),
-        title: Row(
-          children: [
-            Icon(widget.icon, color: widget.accentColor, size: 22),
-            const SizedBox(width: 10),
-            Text('Nuova ${widget.title}', style: const TextStyle(color: Colors.white, fontSize: 18)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.white10),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selectedColor.withOpacity(0.2),
+                  border: Border.all(color: selectedColor.withOpacity(0.6)),
+                ),
+                child: Icon(widget.icon, color: selectedColor, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Text('Nuova ${widget.title}', style: const TextStyle(color: Colors.white, fontSize: 18)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: titleController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Es. Settimanale, Lavoro, Personale...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: const Color(0xFF121215),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: selectedColor.withOpacity(0.4)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: selectedColor),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'COLORE IDENTIFICATIVO',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 38,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: presetColors.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) {
+                    final color = presetColors[i];
+                    final isPicked = color.value == selectedColor.value;
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setDialogState(() => selectedColor = color);
+                      },
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                          border: Border.all(
+                            color: isPicked ? Colors.white : Colors.white24,
+                            width: isPicked ? 2.5 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withOpacity(isPicked ? 0.6 : 0.25),
+                              blurRadius: isPicked ? 8 : 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: isPicked
+                            ? const Icon(Icons.check, color: Colors.black, size: 18)
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedColor,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                if (titleController.text.trim().isNotEmpty) {
+                  Navigator.pop(ctx, {
+                    'title': titleController.text.trim(),
+                    'color': selectedColor,
+                  });
+                }
+              },
+              child: const Text('Crea', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
-        content: TextField(
-          controller: titleController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Es. Settimanale, Lavoro, Personale...',
-            hintStyle: const TextStyle(color: Colors.white38),
-            filled: true,
-            fillColor: const Color(0xFF121215),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: widget.accentColor.withOpacity(0.4)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: widget.accentColor),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: widget.accentColor,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              if (titleController.text.trim().isNotEmpty) {
-                Navigator.pop(ctx, titleController.text.trim());
-              }
-            },
-            child: const Text('Crea', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
 
-    if (title != null && title.isNotEmpty) {
+    if (result != null) {
+      final title = result['title'] as String;
+      final color = result['color'] as Color?;
+      final hexColor = color?.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+
       final currentContext = _contextManager.currentContext;
       final newDoc = Document.fromMap({
         'id': '',
@@ -266,6 +357,7 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
         'group_id': currentContext.isGroup ? currentContext.groupId : null,
         'document_type': widget.documentType,
         'title': title,
+        'metadata': hexColor != null ? {'color': hexColor} : <String, dynamic>{},
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       });
@@ -441,13 +533,16 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                   builder: (context) {
                     final isSelected = index == _currentIndex;
                     final isAllTab = widget.showAllOption && index == 0;
-                    final label = isAllTab ? widget.allLabel : _documents[index - _offsetForDocs].title;
+                    final doc = isAllTab ? null : _documents[index - _offsetForDocs];
+                    final label = isAllTab ? widget.allLabel : doc!.title;
+                    final dotColor = doc?.colorObject ?? widget.accentColor;
 
                     return _buildDotToPillChip(
                       index: index,
                       label: label,
                       isSelected: isSelected,
                       icon: isAllTab ? Icons.apps : widget.icon,
+                      color: dotColor,
                       onTap: () => _onChipTapped(index),
                     );
                   },
@@ -467,6 +562,7 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
     required String label,
     required bool isSelected,
     required IconData icon,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -484,8 +580,8 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    widget.accentColor.withOpacity(0.7),
-                    widget.accentColor.withOpacity(0.5),
+                    color.withOpacity(0.7),
+                    color.withOpacity(0.5),
                   ],
                 )
               : null,
@@ -493,7 +589,7 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: widget.accentColor.withOpacity(0.5),
+                    color: color.withOpacity(0.5),
                     blurRadius: 12,
                     spreadRadius: 1,
                     offset: const Offset(0, 4),
@@ -522,15 +618,15 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                               Colors.white.withOpacity(0.2),
                             ]
                           : [
-                              widget.accentColor.withOpacity(0.8),
-                              widget.accentColor.withOpacity(0.6),
+                              color.withOpacity(0.8),
+                              color.withOpacity(0.6),
                             ],
                     ),
                     border: Border.all(
                       color: isSelected
                           ? Colors.white.withOpacity(0.7)
                           : Color.lerp(
-                              widget.accentColor,
+                              color,
                               Colors.white,
                               0.3,
                             )!.withOpacity(0.7),
@@ -538,7 +634,7 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: widget.accentColor.withOpacity(isSelected ? 0.3 : 0.5),
+                        color: color.withOpacity(isSelected ? 0.3 : 0.5),
                         blurRadius: isSelected ? 6 : 8,
                         offset: Offset(0, isSelected ? 2 : 3),
                       ),
@@ -753,16 +849,28 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                         separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
                         itemBuilder: (context, idx) {
                           final doc = _documents[idx];
+                          final docColor = doc.colorObject ?? widget.accentColor;
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: widget.accentColor.withOpacity(0.15),
+                            leading: GestureDetector(
+                              onTap: () => _showColorPickerForDoc(doc, setModalState),
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: docColor.withOpacity(0.2),
+                                  border: Border.all(color: docColor.withOpacity(0.6), width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: docColor.withOpacity(0.3),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(widget.icon, color: docColor, size: 18),
                               ),
-                              child: Icon(widget.icon, color: widget.accentColor, size: 18),
                             ),
                             title: Text(
                               doc.title,
@@ -771,8 +879,15 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                // Change color button
+                                IconButton(
+                                  tooltip: 'Cambia colore',
+                                  icon: const Icon(Icons.palette_outlined, size: 20, color: Colors.white70),
+                                  onPressed: () => _showColorPickerForDoc(doc, setModalState),
+                                ),
                                 // Edit title button
                                 IconButton(
+                                  tooltip: 'Rinomina',
                                   icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.white70),
                                   onPressed: () async {
                                     final editController = TextEditingController(text: doc.title);
@@ -898,5 +1013,122 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
         );
       },
     );
+  }
+
+  Future<void> _showColorPickerForDoc(
+    TDoc doc,
+    void Function(void Function()) setModalState,
+  ) async {
+    const presetColors = [
+      Color(0xFF10B981), // Emerald
+      Color(0xFFF59E0B), // Amber
+      Color(0xFFEAB308), // Yellow
+      Color(0xFF0EA5E9), // Sky
+      Color(0xFF8B5CF6), // Purple
+      Color(0xFFEC4899), // Pink
+      Color(0xFFF43F5E), // Rose
+      Color(0xFF84CC16), // Lime
+      Color(0xFF6366F1), // Indigo
+      Color(0xFF14B8A6), // Teal
+    ];
+
+    Color selectedColor = doc.colorObject ?? widget.accentColor;
+
+    final pickedColor = await showDialog<Color>(
+      context: context,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (context, setPickerState) => AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.white10),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selectedColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: selectedColor.withOpacity(0.5),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Colore per "${doc.title}"',
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: presetColors.map((color) {
+              final isPicked = color.value == selectedColor.value;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setPickerState(() => selectedColor = color);
+                },
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color,
+                    border: Border.all(
+                      color: isPicked ? Colors.white : Colors.white24,
+                      width: isPicked ? 3 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(isPicked ? 0.7 : 0.3),
+                        blurRadius: isPicked ? 10 : 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: isPicked
+                      ? const Icon(Icons.check, color: Colors.black, size: 22)
+                      : null,
+                ),
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dCtx),
+              child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedColor,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(dCtx, selectedColor),
+              child: const Text('Applica', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (pickedColor != null) {
+      final hex = pickedColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+      doc.colorHex = hex;
+      doc.updatedAt = DateTime.now();
+      await _documentService.updateDocument(doc);
+      await _loadDocuments();
+      setModalState(() {});
+      if (mounted) setState(() {});
+    }
   }
 }

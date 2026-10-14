@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Abstract base class for all document types (polymorphic design)
 /// This enables extensibility for future document types like shopping lists,
 /// pantry inventories, generic lists, etc.
@@ -32,6 +34,40 @@ abstract class Document {
 
   /// Check if document is for a group
   bool get isGroup => groupId != null;
+
+  /// Hex color stored in metadata (e.g. '10B981' or '#10B981')
+  String? get colorHex => metadata['color'] as String?;
+
+  set colorHex(String? hex) {
+    if (hex != null) {
+      metadata['color'] = hex;
+    } else {
+      metadata.remove('color');
+    }
+  }
+
+  /// Color object parsed from metadata['color']
+  Color? get colorObject {
+    final hex = colorHex;
+    if (hex == null || hex.isEmpty) return null;
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse(clean.length == 6 ? 'FF$clean' : clean, radix: 16));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Icon name stored in metadata
+  String? get iconName => metadata['icon'] as String?;
+
+  set iconName(String? name) {
+    if (name != null) {
+      metadata['icon'] = name;
+    } else {
+      metadata.remove('icon');
+    }
+  }
 
   /// Convert document to map for Supabase
   Map<String, dynamic> toMap() {
