@@ -592,18 +592,16 @@ class _PantryListState extends State<_PantryList> {
                       ),
                     ),
                     trailing: const Icon(Icons.chevron_right, color: Colors.white30, size: 20),
-                    onTap: isSelectionMode 
-                      ? () => onToggleSelection(item.id)
+                    onTap: widget.isSelectionMode 
+                      ? () => widget.onToggleSelection(item.id)
                       : () => _showStockManagementDialog(context, item),
-                    onLongPress: () => onToggleSelection(item.id),
+                    onLongPress: () => widget.onToggleSelection(item.id),
                   ),
                 );
               },
             );
           },
         );
-      },
-    );
   }
 
   Future<void> _showStockManagementDialog(BuildContext context, PantryItem item) async {

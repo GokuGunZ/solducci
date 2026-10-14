@@ -7,6 +7,7 @@ import 'package:solducci/models/space_items.dart';
 import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/auth_service.dart';
 
 class ShoppingListDetailView extends StatefulWidget {
   final String documentId;
@@ -344,7 +345,6 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
       );
     }
 
-    final pendingItems = _items.where((i) => !i.isBought).toList();
     final completedItems = _items.where((i) => i.isBought).toList();
 
     final scaffold = Scaffold(
@@ -819,9 +819,10 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
 
       var targetPantry = pantries.where((p) => p.title.trim().toLowerCase() == pantryTitle.trim().toLowerCase()).firstOrNull;
       if (targetPantry == null) {
+        final currentUserId = AuthService().currentUserId;
         final newPantryDoc = DispensaDocument(
           id: '',
-          userId: currentContext.isPersonal ? currentContext.id : null,
+          userId: currentContext.isPersonal ? currentUserId : null,
           groupId: currentContext.isGroup ? currentContext.groupId : null,
           title: pantryTitle,
           createdAt: DateTime.now(),

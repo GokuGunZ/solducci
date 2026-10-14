@@ -401,8 +401,7 @@ class SpaceService {
             id: '',
             documentId: targetPantryDocId,
             name: item.name.trim(),
-            unit: item.unit,
-            position: 0,
+            unit: item.unit ?? 'pz',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           ));
