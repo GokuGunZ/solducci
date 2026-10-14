@@ -4,6 +4,7 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/service/wallet_service.dart';
+import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/dashboard/config/bento_config_models.dart';
 
@@ -409,28 +410,43 @@ class BentoWidgetConfigRegistry {
 
   // --- 10. Investimenti & Net Worth ---
   static Future<BentoWidgetConfigData> _buildInvestmentSummaryConfig() async {
-    return const BentoWidgetConfigData(
-      title: 'Configura Investimenti',
-      description: 'Personalizza la visualizzazione degli asset finanziari e patrimonio.',
-      options: [
-        BentoConfigOption(
-          id: 'all',
-          title: 'Patrimonio Complessivo (Net Worth)',
-          subtitle: 'Aggrega liquidità, investimenti finanziari, metalli e beni fisici',
-          icon: Icons.trending_up_rounded,
-          color: Color(0xFF8B5CF6),
-          badge: 'Net Worth',
-          props: {'source': 'all', 'title': 'Patrimonio'},
-        ),
-        BentoConfigOption(
-          id: 'liquid',
-          title: 'Solo Mercati Finanziari (Azioni, ETF, Crypto)',
-          subtitle: 'Isola gli strumenti ad alta volatilità e performance',
-          icon: Icons.candlestick_chart_rounded,
-          color: Color(0xFF8B5CF6),
-          props: {'source': 'financial_only', 'title': 'Mercati & Crypto'},
-        ),
-      ],
+    final options = <BentoConfigOption>[
+      const BentoConfigOption(
+        id: 'all',
+        title: 'Patrimonio Complessivo (Tutti i Conti)',
+        subtitle: 'Aggrega tutti i portafogli e asset finanziari',
+        icon: Icons.trending_up_rounded,
+        color: Color(0xFF8B5CF6),
+        badge: 'Totale',
+        props: {'source': 'all', 'title': 'Patrimonio'},
+      ),
+    ];
+
+    try {
+      final portfolios = await InvestmentPortfolioService().fetchPortfolios();
+      for (final p in portfolios) {
+        options.add(BentoConfigOption(
+          id: 'portfolio_${p.id}',
+          title: p.name,
+          subtitle: p.brokerName != null && p.brokerName!.isNotEmpty
+              ? '${p.brokerName} • Conto Singolo'
+              : 'Portafoglio Singolo',
+          icon: Icons.account_balance_rounded,
+          color: p.color,
+          badge: p.brokerName,
+          props: {
+            'source': 'portfolio',
+            'portfolioId': p.id,
+            'title': p.name,
+          },
+        ));
+      }
+    } catch (_) {}
+
+    return BentoWidgetConfigData(
+      title: 'Configura Portafoglio Investimenti',
+      description: 'Scegli se monitorare il patrimonio complessivo o isolare un singolo conto/broker.',
+      options: options,
       defaultOptionId: 'all',
     );
   }

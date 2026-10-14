@@ -58,19 +58,6 @@ class BentoWidgetPreviewFactory {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // Background soft ambient glow
-          Positioned(
-            top: -20,
-            right: -20,
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.08),
-              ),
-            ),
-          ),
           // Top specular highlight
           Positioned(
             top: 0,
@@ -287,62 +274,164 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildQuickExpensePreview(BentoWidgetSize size, Color color) {
-    final is1x1 = size.crossAxisCellCount <= 1;
-    if (is1x1) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Top radial badges row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.18),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.flash_on_rounded, size: 16, color: color),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.person_rounded, size: 9, color: Colors.white70),
+                      SizedBox(width: 3),
+                      Text('Tu', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.people_outline_rounded, size: 9, color: Colors.white70),
+                      SizedBox(width: 3),
+                      Text('Tutti', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            const Text(
-              '+ Spesa',
-              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF97316).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFF97316).withOpacity(0.4), width: 0.8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.shopping_cart_rounded, size: 9, color: Color(0xFFF97316)),
+                  SizedBox(width: 3),
+                  Text('Spesa', style: TextStyle(color: Color(0xFFF97316), fontSize: 8, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
           ],
         ),
-      );
-    }
-    return Row(
-      children: [
+
+        // Display Area
         Container(
-          padding: const EdgeInsets.all(5),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.18),
-            borderRadius: BorderRadius.circular(7),
+            color: Colors.black.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white10),
           ),
-          child: Icon(Icons.flash_on_rounded, size: 14, color: color),
+          alignment: Alignment.centerRight,
+          child: const Text(
+            '12,50 €',
+            style: TextStyle(
+              color: Color(0xFF818CF8),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter',
+            ),
+          ),
         ),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '+ Registra Spesa',
-                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                'Tap rapido a 1-click',
-                style: TextStyle(color: Colors.white38, fontSize: 9),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+
+        // Keypad representation
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 3.0),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildMiniKeypadRow(['1', '2', '3']),
+                      _buildMiniKeypadRow(['4', '5', '6']),
+                      _buildMiniKeypadRow(['7', '8', '9']),
+                      _buildMiniKeypadRow(['.', '0', '⌫']),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Action column
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text('C', style: TextStyle(color: Colors.white60, fontSize: 8, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Expanded(
+                        flex: 2,
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.check, size: 12, color: Colors.black),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  static Widget _buildMiniKeypadRow(List<String> keys) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: keys.map((k) {
+        return Expanded(
+          child: Container(
+            height: 16,
+            margin: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              k,
+              style: const TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.w600),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -833,81 +922,201 @@ class BentoWidgetPreviewFactory {
   // --- Note & Idee ---
 
   static Widget _buildNoteStackPreview(BentoWidgetSize size, Color color) {
-    final is1x1 = size.crossAxisCellCount <= 1;
-    if (is1x1) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
-            ),
-            const SizedBox(height: 4),
-            const Text('Sticky Note', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        // Layer 2 behind (rotated)
+        Positioned.fill(
+          child: Transform.rotate(
+            angle: -0.07,
+            child: Transform.translate(
+              offset: const Offset(-2, 3),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161618),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withOpacity(0.12)),
+                ),
+              ),
             ),
-            const SizedBox(width: 5),
-            const Text('STICKY NOTE', style: TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.bold)),
-          ],
+          ),
         ),
-        const SizedBox(height: 4),
-        const Text('Promemoria veloce', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-        const SizedBox(height: 1),
-        const Text('Idee e scadenze personali...', style: TextStyle(color: Colors.white38, fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+
+        // Layer 1 behind (slightly rotated other way)
+        Positioned.fill(
+          child: Transform.rotate(
+            angle: 0.04,
+            child: Transform.translate(
+              offset: const Offset(3, 2),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1E),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withOpacity(0.2)),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Front Note
+        Positioned.fill(
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF22201C),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withOpacity(0.6), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.sticky_note_2_rounded, size: 11, color: color),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'Promemoria',
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '1/3 ▾',
+                        style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Oggi, 11:20',
+                  style: TextStyle(color: Colors.white38, fontSize: 7.5),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  '• Comprare regalo festa\n• Revisione preventivo\n• Prenotare treno',
+                  style: TextStyle(color: Colors.white70, fontSize: 8.5, height: 1.3),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
 
   static Widget _buildRecentNotesPreview(BentoWidgetSize size, Color color) {
-    final is1x1 = size.crossAxisCellCount <= 1;
-    if (is1x1) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.description_outlined, size: 16, color: color),
-            const SizedBox(height: 3),
-            const Text('Note', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-            const Text('Bozza budget', style: TextStyle(color: Colors.white38, fontSize: 8.5), maxLines: 1, overflow: TextOverflow.ellipsis),
-          ],
-        ),
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
+        // Header
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.description_outlined, size: 12, color: color),
-            const SizedBox(width: 4),
-            const Text('NOTE RECENTI', style: TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(Icons.description_outlined, size: 10, color: color),
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'NOTE RECENTI',
+                  style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '3 note',
+                style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 5),
-        const Text('Bozza budget 2026', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-        const SizedBox(height: 1),
-        const Text('Modificato 2 ore fa', style: TextStyle(color: Colors.white38, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
+
+        // Quick add simulated row
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.edit_note_rounded, size: 11, color: Colors.white38),
+              SizedBox(width: 4),
+              Expanded(
+                child: Text('Nuova nota...', style: TextStyle(color: Colors.white38, fontSize: 8)),
+              ),
+              Icon(Icons.add_circle, size: 11, color: Color(0xFFF59E0B)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        // List item 1
+        _buildMiniRecentNoteRow('Bozza budget 2026', 'Modificato 2 ore fa'),
+        const Divider(color: Colors.white10, height: 5),
+        // List item 2
+        _buildMiniRecentNoteRow('Appunti riunione', 'Ieri, 16:30'),
+      ],
+    );
+  }
+
+  static Widget _buildMiniRecentNoteRow(String title, String subtitle) {
+    return Row(
+      children: [
+        const Icon(Icons.article_outlined, size: 10, color: Colors.white38),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.white30, fontSize: 7),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

@@ -50,9 +50,25 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
     return AnimatedBuilder(
       animation: Listenable.merge([_portfolioService, _assetService]),
       builder: (context, _) {
-        final totalValue = _portfolioService.getTotalCurrentValue();
-        final unrealizedPnl = _portfolioService.getTotalUnrealizedPnl();
-        final roiPercent = _portfolioService.getTotalRoiPercent();
+        final targetPortfolioId = widget.def.customProps?['portfolioId'] as String?;
+        final title = widget.def.customProps?['title'] as String? ?? 'PORTAFOGLIO';
+
+        double totalValue;
+        double unrealizedPnl;
+        double roiPercent;
+
+        if (targetPortfolioId != null) {
+          final assets = _assetService.getAssetsForPortfolio(targetPortfolioId);
+          totalValue = assets.fold(0.0, (sum, a) => sum + a.currentValue);
+          final invested = assets.fold(0.0, (sum, a) => sum + a.investedCapital);
+          unrealizedPnl = totalValue - invested;
+          roiPercent = invested > 0 ? (unrealizedPnl / invested) * 100 : 0.0;
+        } else {
+          totalValue = _portfolioService.getTotalCurrentValue();
+          unrealizedPnl = _portfolioService.getTotalUnrealizedPnl();
+          roiPercent = _portfolioService.getTotalRoiPercent();
+        }
+
         final isPositive = unrealizedPnl >= 0;
         final pnlColor = isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444);
 
@@ -66,20 +82,6 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
             builder: (context, constraints) {
               return Stack(
                 children: [
-                  // Subtle ambient glow in bottom right
-                  Positioned(
-                    bottom: -30,
-                    right: -30,
-                    child: Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: pnlColor.withOpacity(0.12),
-                      ),
-                    ),
-                  ),
-
                   Padding(
                     padding: const EdgeInsets.all(14.0),
                     child: Column(
@@ -105,14 +107,16 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                const Text(
-                                  'PORTAFOGLIO',
-                                  style: TextStyle(
+                                Text(
+                                  title.toUpperCase(),
+                                  style: const TextStyle(
                                     color: Colors.white54,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 0.8,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -181,16 +185,29 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                           ],
                         ),
 
-                        // Mini progress/footer info
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '${_portfolioService.currentPortfolios.length} ${_portfolioService.currentPortfolios.length == 1 ? 'conto' : 'conti'} attivi',
-                              style: const TextStyle(color: Colors.white38, fontSize: 10),
-                            ),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 10),
-                          ],
+                        // Mini progress/footer info navigabile
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => GoRouter.of(context).push('/investments'),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                targetPortfolioId != null
+                                    ? 'Conto singolo selezionato'
+                                    : '${_portfolioService.currentPortfolios.length} ${_portfolioService.currentPortfolios.length == 1 ? 'conto' : 'conti'} attivi',
+                                style: const TextStyle(color: Colors.white38, fontSize: 10),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 10),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

@@ -37,10 +37,13 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
 
   int _currentIndex = 0;
   double _dragDx = 0.0;
+  double _dragDy = 0.0;
   late AnimationController _animController;
   late Animation<double> _anim;
   double _animStartDx = 0.0;
   double _animEndDx = 0.0;
+  double _animStartDy = 0.0;
+  double _animEndDy = 0.0;
   int _targetIndex = 0;
 
   // Inline editing state
@@ -63,6 +66,7 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     _anim.addListener(() {
       setState(() {
         _dragDx = _animStartDx + (_animEndDx - _animStartDx) * _anim.value;
+        _dragDy = _animStartDy + (_animEndDy - _animStartDy) * _anim.value;
       });
     });
     _anim.addStatusListener((status) {
@@ -72,10 +76,12 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
           setState(() {
             _currentIndex = _targetIndex;
             _dragDx = 0.0;
+            _dragDy = 0.0;
           });
         } else {
           setState(() {
             _dragDx = 0.0;
+            _dragDy = 0.0;
           });
         }
       }
@@ -194,16 +200,69 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     }
   }
 
-  void _animateDismiss({required bool toLeft}) {
+  void _onVerticalDragUpdate(DragUpdateDetails details) {
+    if (_isEditingContent) return; // Do not drag during inline editing
+
+    if (_notes.length <= 1) {
+      setState(() {
+        _dragDy += (details.primaryDelta ?? 0) * 0.25;
+      });
+      return;
+    }
+
+    setState(() {
+      _dragDy += details.primaryDelta ?? 0;
+    });
+  }
+
+  void _onVerticalDragEnd(DragEndDetails details) {
+    if (_isEditingContent) return;
+
+    if (_notes.length <= 1) {
+      _animateBack();
+      return;
+    }
+
+    final velocity = details.primaryVelocity ?? 0.0;
+    const threshold = 40.0;
+
+    // Swiping downwards: dismiss downwards and reveal next note
+    if (_dragDy > threshold || velocity > 400) {
+      HapticFeedback.selectionClick();
+      _targetIndex = (_currentIndex + 1) % _notes.length;
+      _animateDismiss(toDown: true);
+    } else if (_dragDy < -threshold || velocity < -400) {
+      // Swiping upwards: dismiss upwards and reveal previous note
+      HapticFeedback.selectionClick();
+      _targetIndex = (_currentIndex - 1 + _notes.length) % _notes.length;
+      _animateDismiss(toUp: true);
+    } else {
+      _animateBack();
+    }
+  }
+
+  void _animateDismiss({bool? toLeft, bool? toDown, bool? toUp}) {
     _animStartDx = _dragDx;
-    _animEndDx = toLeft ? -250.0 : 250.0;
+    _animStartDy = _dragDy;
+    if (toDown == true) {
+      _animEndDx = _dragDx;
+      _animEndDy = 300.0;
+    } else if (toUp == true) {
+      _animEndDx = _dragDx;
+      _animEndDy = -300.0;
+    } else {
+      _animEndDx = (toLeft ?? true) ? -250.0 : 250.0;
+      _animEndDy = _dragDy;
+    }
     _animController.forward(from: 0.0);
   }
 
   void _animateBack() {
     _targetIndex = _currentIndex;
     _animStartDx = _dragDx;
+    _animStartDy = _dragDy;
     _animEndDx = 0.0;
+    _animEndDy = 0.0;
     _animController.forward(from: 0.0);
   }
 
@@ -863,11 +922,13 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                   behavior: HitTestBehavior.opaque,
                   onHorizontalDragUpdate: _isEditingContent ? null : _onHorizontalDragUpdate,
                   onHorizontalDragEnd: _isEditingContent ? null : _onHorizontalDragEnd,
+                  onVerticalDragUpdate: _isEditingContent ? null : _onVerticalDragUpdate,
+                  onVerticalDragEnd: _isEditingContent ? null : _onVerticalDragEnd,
                   onTap: _isEditingContent ? null : () => _startEditing(activeDoc),
                   child: Transform.translate(
-                    offset: Offset(_dragDx, 0),
+                    offset: Offset(_dragDx, _dragDy),
                     child: Transform.rotate(
-                      angle: (_dragDx / 400).clamp(-0.15, 0.15),
+                      angle: ((_dragDx / 400) + (_dragDy / 1000)).clamp(-0.15, 0.15),
                       child: Container(
                         padding: const EdgeInsets.all(14.0),
                         decoration: BoxDecoration(

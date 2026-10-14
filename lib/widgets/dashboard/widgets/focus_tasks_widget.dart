@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/task.dart';
@@ -58,6 +59,8 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
     _taskStream = getIt<TaskRepository>().watchAll().asBroadcastStream();
     _loadSources();
   }
+
+  final Set<String> _completingTaskIds = {};
 
   @override
   void dispose() {
@@ -239,7 +242,11 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
           size: widget.def.size,
           isLoading: isLoading,
           onExpand: () {
-            GoRouter.of(context).push('/space/tasks', extra: {'heroTag': widget.def.id});
+            if (activeSource.type == 'document') {
+              GoRouter.of(context).push('/space/tasks/${activeSource.id}', extra: {'heroTag': widget.def.id});
+            } else {
+              GoRouter.of(context).push('/space/tasks', extra: {'heroTag': widget.def.id});
+            }
           },
           currentSource: activeSource.title,
           color: activeSource.color,
@@ -319,33 +326,53 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
             ),
           ),
           itemBuilder: (context, task, index) {
+            final isCompleting = _completingTaskIds.contains(task.id);
+
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4.0),
               child: Row(
                 children: [
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () async {
+                      HapticFeedback.mediumImpact();
+                      setState(() {
+                        _completingTaskIds.add(task.id);
+                      });
                       try {
                         await TaskService().completeTask(task.id);
                       } catch (e) {
                         debugPrint('Error completing task: $e');
+                        if (mounted) {
+                          setState(() {
+                            _completingTaskIds.remove(task.id);
+                          });
+                        }
                       }
                     },
                     child: Container(
-                      width: 18,
-                      height: 18,
+                      width: 20,
+                      height: 20,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white54, width: 1.5),
+                        color: isCompleting ? activeSource.color : Colors.transparent,
+                        border: Border.all(
+                          color: isCompleting ? activeSource.color : Colors.white54,
+                          width: 1.5,
+                        ),
                       ),
+                      child: isCompleting
+                          ? const Icon(Icons.check, size: 13, color: Colors.black)
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       task.title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: isCompleting ? Colors.white38 : Colors.white,
+                        decoration: isCompleting ? TextDecoration.lineThrough : null,
                         fontSize: 13,
                         fontFamily: 'Inter',
                       ),

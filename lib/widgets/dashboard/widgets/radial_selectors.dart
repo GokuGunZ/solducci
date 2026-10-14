@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/utils/category_helpers.dart';
@@ -21,8 +22,12 @@ class _RadialUserSelectorState extends State<RadialUserSelector> {
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
   List<String> _selectedUsers = [];
+  List<String> _loadedGroupMembers = [];
 
   List<String> get _allUsers {
+    if (_loadedGroupMembers.isNotEmpty) {
+      return _loadedGroupMembers;
+    }
     final ctx = ContextManager().currentContext;
     if (ctx.isGroup && ctx.group != null && ctx.group!.members != null && ctx.group!.members!.isNotEmpty) {
       final names = ctx.group!.members!
@@ -36,8 +41,49 @@ class _RadialUserSelectorState extends State<RadialUserSelector> {
   @override
   void initState() {
     super.initState();
-    final users = _allUsers;
-    _selectedUsers = widget.isDefaultAll ? List<String>.from(users) : <String>[users.first];
+    ContextManager().addListener(_loadMembers);
+    _loadMembers();
+  }
+
+  @override
+  void dispose() {
+    ContextManager().removeListener(_loadMembers);
+    super.dispose();
+  }
+
+  Future<void> _loadMembers() async {
+    final ctx = ContextManager().currentContext;
+    if (ctx.isGroup && ctx.groupId != null) {
+      try {
+        final members = await GroupServiceCached().getGroupMembers(ctx.groupId!);
+        if (members.isNotEmpty && mounted) {
+          final names = members
+              .map((m) => m.nickname ?? m.email?.split('@').first ?? 'Membro')
+              .toList();
+          setState(() {
+            _loadedGroupMembers = names;
+            if (_selectedUsers.isEmpty || _selectedUsers == const ['Io']) {
+              _selectedUsers = widget.isDefaultAll ? List<String>.from(names) : <String>[names.first];
+            }
+          });
+          return;
+        }
+      } catch (_) {}
+    } else {
+      if (mounted) {
+        setState(() {
+          _loadedGroupMembers = [];
+          _selectedUsers = const ['Io'];
+        });
+      }
+    }
+
+    if (mounted) {
+      final users = _allUsers;
+      setState(() {
+        _selectedUsers = widget.isDefaultAll ? List<String>.from(users) : <String>[users.first];
+      });
+    }
   }
 
   void _toggleMenu() {

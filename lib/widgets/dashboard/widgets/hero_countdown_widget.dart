@@ -113,24 +113,9 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
       builder: (context, constraints) {
         final isCompact = constraints.maxHeight < 130;
 
-        return Stack(
-          children: [
-            // Ambient neon glow in top right
-            Positioned(
-              top: -20,
-              right: -20,
-              child: Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withOpacity(0.16),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(14.0),
-              child: Column(
+        return Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -268,9 +253,7 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
                   ),
                 ],
               ),
-            ),
-          ],
-        );
+            );
       },
     );
   }

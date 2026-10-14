@@ -26,6 +26,7 @@ class BaseListWidget<T> extends StatelessWidget {
   final Widget? quickActionRow;
   final BentoSkeletonType? skeletonType;
   final BentoWidgetSize? size;
+  final Widget? bottomDock;
 
   const BaseListWidget({
     super.key,
@@ -49,6 +50,7 @@ class BaseListWidget<T> extends StatelessWidget {
     this.quickActionRow,
     this.skeletonType,
     this.size,
+    this.bottomDock,
   });
 
   @override
@@ -201,6 +203,7 @@ class BaseListWidget<T> extends StatelessWidget {
                   itemBuilder: (context, index) => itemBuilder(context, items[index], index),
                 ),
         ),
+        if (bottomDock != null) bottomDock!,
       ],
     );
   }

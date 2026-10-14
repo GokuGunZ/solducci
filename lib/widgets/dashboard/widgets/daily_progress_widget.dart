@@ -102,7 +102,7 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
                 Positioned(
                   top: 12,
                   left: 12,
-                  child: const Icon(Icons.track_changes, color: Color(0xFF10B981), size: 16),
+                  child: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 16),
                 ),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -140,7 +140,7 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'PROGRESSO OGGI',
+                      'TASK DI OGGI',
                       style: TextStyle(
                         color: Colors.white54,
                         fontSize: 9,

@@ -128,19 +128,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.local_fire_department_rounded,
       color: Color(0xFFF97316),
       defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(4, 2), BentoWidgetSize(4, 4)],
+      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
       keywords: ['budget', 'burn rate', 'limite', 'mese', 'proiezione'],
-    ),
-    const WidgetMetadata(
-      type: 'daily_progress',
-      name: 'Spese Oggi',
-      description: 'Totale speso nella giornata rispetto alla tua media tipica.',
-      category: WidgetCategory.finance,
-      icon: Icons.insights_rounded,
-      color: Color(0xFF3B82F6),
-      defaultSize: BentoWidgetSize(1, 1),
-      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(1, 2)],
-      keywords: ['giorno', 'oggi', 'media', 'progresso'],
     ),
     const WidgetMetadata(
       type: 'investment_summary',
@@ -177,6 +166,17 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     ),
 
     // Tempo & Focus
+    const WidgetMetadata(
+      type: 'daily_progress',
+      name: 'Task di Oggi',
+      description: 'Progresso delle task completate oggi rispetto a quelle in scadenza.',
+      category: WidgetCategory.time,
+      icon: Icons.check_circle_outline_rounded,
+      color: Color(0xFF10B981),
+      defaultSize: BentoWidgetSize(1, 1),
+      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(1, 2)],
+      keywords: ['task', 'focus', 'oggi', 'progresso', 'obiettivi'],
+    ),
     const WidgetMetadata(
       type: 'focus_tasks',
       name: 'Focus Task',
