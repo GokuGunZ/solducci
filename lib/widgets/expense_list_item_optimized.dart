@@ -77,9 +77,30 @@ class ExpenseListItemOptimized extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              DateFormat('dd/MM/yyyy').format(expense.date),
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            Row(
+              children: [
+                Text(
+                  DateFormat('dd/MM/yyyy').format(expense.date),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(width: 6),
+                const Text('•', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                const SizedBox(width: 6),
+                Icon(
+                  CategoryHelpers.getCategoryIcon(expense.type),
+                  size: 12,
+                  color: CategoryHelpers.getCategoryColor(expense.type),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  expense.type.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: CategoryHelpers.getCategoryColor(expense.type),
+                  ),
+                ),
+              ],
             ),
             if (expense.isGroup) ..._buildGroupInfo(context),
           ],

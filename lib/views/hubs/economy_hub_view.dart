@@ -434,15 +434,38 @@ class _EconomyHubViewState extends State<EconomyHubView> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                // Icona Categoria
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
+                // Icona Tipologia di Spesa con Badge Tipologia Contesto (Gruppo/Personale)
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withOpacity(0.3), width: 1.2),
+                      ),
+                      child: Icon(icon, color: color, size: 21),
+                    ),
+                    Positioned(
+                      right: -3,
+                      bottom: -3,
+                      child: Container(
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF18181B),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Icon(
+                          e.isGroup ? Icons.group_rounded : Icons.person_rounded,
+                          size: 10,
+                          color: e.isGroup ? const Color(0xFFA78BFA) : const Color(0xFF10B981),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 12),
 
@@ -461,8 +484,8 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 6),
                           if (e.isGroup) ...[
-                            const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
@@ -470,9 +493,40 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.4)),
                               ),
-                              child: Text(
-                                GroupServiceCached().getGroupName(e.groupId!) ?? 'Gruppo',
-                                style: const TextStyle(color: Color(0xFFDDD6FE), fontSize: 9, fontWeight: FontWeight.bold),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.group_rounded, size: 10, color: Color(0xFFDDD6FE)),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    GroupServiceCached().getGroupName(e.groupId!) ?? 'Gruppo',
+                                    style: const TextStyle(color: Color(0xFFDDD6FE), fontSize: 9, fontWeight: FontWeight.bold),
+                                  ),
+                                  if (e.splitType != null) ...[
+                                    const SizedBox(width: 3),
+                                    Text(e.splitType!.icon, style: const TextStyle(fontSize: 9)),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.white12),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.person_rounded, size: 10, color: Colors.white60),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'Personale',
+                                    style: TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -488,9 +542,29 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                           const SizedBox(width: 6),
                           Text('•', style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 10)),
                           const SizedBox(width: 6),
-                          Text(
-                            e.type.label,
-                            style: TextStyle(color: color.withOpacity(0.85), fontSize: 11, fontWeight: FontWeight.w500),
+                          // Chip Tipologia Categoria con Icona Dedicata
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: color.withOpacity(0.25)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(icon, size: 11, color: color),
+                                const SizedBox(width: 4),
+                                Text(
+                                  e.type.label,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -508,12 +582,30 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                             ),
                             if (bal != null && bal.abs() >= 0.01) ...[
                               const SizedBox(width: 8),
-                              Text(
-                                bal > 0 ? '↗️ +€${bal.toStringAsFixed(2)} ti spettano' : '↙️ €${bal.toStringAsFixed(2)} devi',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: bal > 0 ? const Color(0xFF10B981) : const Color(0xFFF43F5E),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: (bal > 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withOpacity(0.14),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      bal > 0 ? Icons.north_east_rounded : Icons.south_west_rounded,
+                                      size: 10,
+                                      color: bal > 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      bal > 0 ? '+€${bal.toStringAsFixed(2)} ti spettano' : '€${bal.abs().toStringAsFixed(2)} devi',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: bal > 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
