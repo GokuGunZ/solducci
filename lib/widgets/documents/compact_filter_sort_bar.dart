@@ -606,10 +606,10 @@ class _FadeScaleDropdownState extends State<_FadeScaleDropdown>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.88, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -626,6 +626,12 @@ class _FadeScaleDropdownState extends State<_FadeScaleDropdown>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    const double menuWidth = 240.0;
+    final double left = (widget.position.dx + menuWidth > screenWidth - 16)
+        ? (screenWidth - menuWidth - 16).clamp(16.0, screenWidth)
+        : widget.position.dx.clamp(16.0, screenWidth - menuWidth - 16);
+
     return Material(
       type: MaterialType.transparency,
       child: GestureDetector(
@@ -633,34 +639,204 @@ class _FadeScaleDropdownState extends State<_FadeScaleDropdown>
         behavior: HitTestBehavior.translucent,
         child: Stack(
           children: [
-          // Transparent background to capture taps
-          Container(color: Colors.transparent),
-          // Positioned dropdown
-          Positioned(
-            left: widget.position.dx,
-            top: widget.position.dy + 50, // Offset below the chip
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                alignment: Alignment.topLeft,
-                child: Material(
-                  elevation: 12,
-                  borderRadius: BorderRadius.circular(16),
-                  shadowColor: Colors.deepPurple.withOpacity(0.3),
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      minWidth: 200,
-                      maxWidth: 280,
-                    ),
-                    child: widget.child,
-                  ),
+            // Transparent background to capture outside taps
+            Container(color: Colors.transparent),
+            // Positioned dropdown
+            Positioned(
+              left: left,
+              top: widget.position.dy + 46,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  alignment: Alignment.topLeft,
+                  child: widget.child,
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Reusable container for filter modal dropdowns with refined OLED sfumato
+class _FilterModalContainer extends StatelessWidget {
+  final String title;
+  final Color accentColor;
+  final Widget child;
+
+  const _FilterModalContainer({
+    required this.title,
+    required this.accentColor,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 260),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.6),
+            blurRadius: 20,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: accentColor.withOpacity(0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(const Color(0xFF22222A), accentColor, 0.16)!,
+                  const Color(0xFF141417),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: accentColor.withOpacity(0.35),
+                width: 1.2,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: accentColor.withOpacity(0.8),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Divider(color: Colors.white12, height: 1),
+                const SizedBox(height: 8),
+                child,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Reusable row item for filter dropdown options
+class _FilterOptionItem extends StatelessWidget {
+  final String label;
+  final Color activeColor;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  const _FilterOptionItem({
+    required this.label,
+    required this.activeColor,
+    required this.isSelected,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withOpacity(0.18) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected
+              ? Border.all(color: activeColor.withOpacity(0.35), width: 1.0)
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: isSelected ? activeColor : const Color(0xFF26262D),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: isSelected ? activeColor : Colors.white24,
+                  width: 1.2,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: activeColor.withOpacity(0.4),
+                          blurRadius: 6,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? activeColor : Colors.white54,
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? Colors.white : Colors.white70,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -691,93 +867,30 @@ class _PriorityFilterContentState extends State<_PriorityFilterContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.purple.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.deepPurple.withOpacity(0.2), width: 2),
-      ),
+    const accent = Color(0xFF818CF8);
+    return _FilterModalContainer(
+      title: 'Priorità',
+      accentColor: accent,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Priorità',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-          ),
-          // Options
-          ...TaskPriority.values.map((priority) {
-            final isSelected = _selected.contains(priority);
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _selected.remove(priority);
-                  } else {
-                    _selected.add(priority);
-                  }
-                });
-                widget.onChanged(_selected);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? priority.color.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? priority.color
-                            : Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? priority.color : Colors.grey,
-                          width: 2,
-                        ),
-                      ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 16, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      priority.label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? priority.color : Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
+        children: TaskPriority.values.map((priority) {
+          final isSelected = _selected.contains(priority);
+          return _FilterOptionItem(
+            label: priority.label,
+            activeColor: priority.color,
+            isSelected: isSelected,
+            onTap: () {
+              setState(() {
+                if (isSelected) {
+                  _selected.remove(priority);
+                } else {
+                  _selected.add(priority);
+                }
+              });
+              widget.onChanged(_selected);
+            },
+          );
+        }).toList(),
       ),
     );
   }
@@ -800,7 +913,6 @@ class _StatusFilterContent extends StatefulWidget {
 class _StatusFilterContentState extends State<_StatusFilterContent> {
   late Set<TaskStatus> _selected;
 
-  // Status labels and colors
   final Map<TaskStatus, String> _statusLabels = {
     TaskStatus.pending: 'In attesa',
     TaskStatus.assigned: 'Assegnata',
@@ -808,9 +920,9 @@ class _StatusFilterContentState extends State<_StatusFilterContent> {
   };
 
   final Map<TaskStatus, Color> _statusColors = {
-    TaskStatus.pending: Colors.grey,
-    TaskStatus.assigned: Colors.blue,
-    TaskStatus.inProgress: Colors.orange,
+    TaskStatus.pending: const Color(0xFF94A3B8),
+    TaskStatus.assigned: const Color(0xFF60A5FA),
+    TaskStatus.inProgress: const Color(0xFFFBBF24),
   };
 
   @override
@@ -821,97 +933,34 @@ class _StatusFilterContentState extends State<_StatusFilterContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.blue.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.2), width: 2),
-      ),
+    const accent = Color(0xFF60A5FA);
+    return _FilterModalContainer(
+      title: 'Stato',
+      accentColor: accent,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Stato',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-          ),
-          // Options (exclude completed)
-          ..._statusLabels.entries.map((entry) {
-            final status = entry.key;
-            final label = entry.value;
-            final color = _statusColors[status]!;
-            final isSelected = _selected.contains(status);
+        children: _statusLabels.entries.map((entry) {
+          final status = entry.key;
+          final label = entry.value;
+          final color = _statusColors[status]!;
+          final isSelected = _selected.contains(status);
 
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _selected.remove(status);
-                  } else {
-                    _selected.add(status);
-                  }
-                });
-                widget.onChanged(_selected);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? color.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? color
-                            : Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? color : Colors.grey,
-                          width: 2,
-                        ),
-                      ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 16, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? color : Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
+          return _FilterOptionItem(
+            label: label,
+            activeColor: color,
+            isSelected: isSelected,
+            onTap: () {
+              setState(() {
+                if (isSelected) {
+                  _selected.remove(status);
+                } else {
+                  _selected.add(status);
+                }
+              });
+              widget.onChanged(_selected);
+            },
+          );
+        }).toList(),
       ),
     );
   }
@@ -934,13 +983,12 @@ class _SizeFilterContent extends StatefulWidget {
 class _SizeFilterContentState extends State<_SizeFilterContent> {
   late Set<TShirtSize> _selected;
 
-  // Size colors
   final Map<TShirtSize, Color> _sizeColors = {
-    TShirtSize.xs: Colors.green,
-    TShirtSize.s: Colors.lightGreen,
-    TShirtSize.m: Colors.orange,
-    TShirtSize.l: Colors.deepOrange,
-    TShirtSize.xl: Colors.red,
+    TShirtSize.xs: const Color(0xFF34D399),
+    TShirtSize.s: const Color(0xFF4ADE80),
+    TShirtSize.m: const Color(0xFFFBBF24),
+    TShirtSize.l: const Color(0xFFFB923C),
+    TShirtSize.xl: const Color(0xFFF87171),
   };
 
   @override
@@ -951,93 +999,32 @@ class _SizeFilterContentState extends State<_SizeFilterContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.orange.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withOpacity(0.2), width: 2),
-      ),
+    const accent = Color(0xFFFB923C);
+    return _FilterModalContainer(
+      title: 'Dimensione',
+      accentColor: accent,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Dimensione',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-          ),
-          ...TShirtSize.values.map((size) {
-            final isSelected = _selected.contains(size);
-            final color = _sizeColors[size]!;
+        children: TShirtSize.values.map((size) {
+          final isSelected = _selected.contains(size);
+          final color = _sizeColors[size]!;
 
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _selected.remove(size);
-                  } else {
-                    _selected.add(size);
-                  }
-                });
-                widget.onChanged(_selected);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? color.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? color
-                            : Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? color : Colors.grey,
-                          width: 2,
-                        ),
-                      ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 16, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      size.label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? color : Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
+          return _FilterOptionItem(
+            label: size.label,
+            activeColor: color,
+            isSelected: isSelected,
+            onTap: () {
+              setState(() {
+                if (isSelected) {
+                  _selected.remove(size);
+                } else {
+                  _selected.add(size);
+                }
+              });
+              widget.onChanged(_selected);
+            },
+          );
+        }).toList(),
       ),
     );
   }
@@ -1055,86 +1042,24 @@ class _DateFilterContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.teal.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.teal.withOpacity(0.2), width: 2),
-      ),
+    const accent = Color(0xFF2DD4BF);
+    return _FilterModalContainer(
+      title: 'Data di scadenza',
+      accentColor: accent,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Data di scadenza',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-          ),
-          ...DateFilterOption.values.map((option) {
-            final isSelected = selectedDate == option;
-            final color = Colors.teal;
+        children: DateFilterOption.values.map((option) {
+          final isSelected = selectedDate == option;
 
-            return InkWell(
-              onTap: () {
-                onChanged(isSelected ? null : option);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? color.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? color
-                            : Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? color : Colors.grey,
-                          width: 2,
-                        ),
-                      ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 16, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      option.label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? color : Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
+          return _FilterOptionItem(
+            label: option.label,
+            activeColor: accent,
+            isSelected: isSelected,
+            onTap: () {
+              onChanged(isSelected ? null : option);
+            },
+          );
+        }).toList(),
       ),
     );
   }
@@ -1167,113 +1092,40 @@ class _TagFilterContentState extends State<_TagFilterContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.green.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.withOpacity(0.2), width: 2),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Tag',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-          ),
-          // Scrollable list if there are many tags
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 300),
-            child: SingleChildScrollView(
-              child: Column(
-                children: widget.availableTags.map((tag) {
-                  final isSelected = _selected.contains(tag.id);
-                  final color = tag.colorObject ?? Colors.green;
+    const accent = Color(0xFF34D399);
+    return _FilterModalContainer(
+      title: 'Tag',
+      accentColor: accent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 280),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: widget.availableTags.map((tag) {
+              final isSelected = _selected.contains(tag.id);
+              final color = tag.colorObject ?? accent;
 
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _selected.remove(tag.id);
-                        } else {
-                          _selected.add(tag.id);
-                        }
-                      });
-                      widget.onChanged(_selected);
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? color.withOpacity(0.1)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? color
-                                  : Colors.grey.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: isSelected ? color : Colors.grey,
-                                width: 2,
-                              ),
-                            ),
-                            child: isSelected
-                                ? const Icon(Icons.check, size: 16, color: Colors.white)
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          // Tag icon if available
-                          if (tag.iconData != null) ...[
-                            Icon(
-                              tag.iconData,
-                              size: 18,
-                              color: isSelected ? color : Colors.grey[600],
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          Expanded(
-                            child: Text(
-                              tag.name,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? color : Colors.grey[800],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+              return _FilterOptionItem(
+                label: tag.name,
+                activeColor: color,
+                isSelected: isSelected,
+                icon: tag.iconData,
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selected.remove(tag.id);
+                    } else {
+                      _selected.add(tag.id);
+                    }
+                  });
+                  widget.onChanged(_selected);
+                },
+              );
+            }).toList(),
           ),
-        ],
+        ),
       ),
     );
   }
 }
+
