@@ -11,8 +11,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 class ResourceDetailView extends StatefulWidget {
   final String documentId;
+  final bool isEmbeddedMode;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
-  const ResourceDetailView({super.key, required this.documentId});
+  const ResourceDetailView({
+    super.key,
+    required this.documentId,
+    this.isEmbeddedMode = false,
+    this.showAllPropertiesNotifier,
+  });
 
   @override
   State<ResourceDetailView> createState() => _ResourceDetailViewState();
@@ -68,22 +75,9 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF09090B),
-      appBar: SolducciAppBar(
-        titleSpacing: 0,
-        title: Text(
-          _document!.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70),
-            onPressed: _loadData,
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<ResourceItem>>(
+    final docColor = _document!.colorObject ?? const Color(0xFF3B82F6);
+
+    final streamBody = StreamBuilder<List<ResourceItem>>(
         stream: _spaceService.watchResources(widget.documentId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -263,10 +257,43 @@ class _ResourceDetailViewState extends State<ResourceDetailView> {
             },
           );
         },
+      );
+
+    if (widget.isEmbeddedMode) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: streamBody,
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'resource_fab_${widget.documentId}',
+          backgroundColor: docColor,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          onPressed: _showAddResourceDialog,
+          child: const Icon(Icons.add_link),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF09090B),
+      appBar: SolducciAppBar(
+        titleSpacing: 0,
+        title: Text(
+          _document!.title,
+          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white70),
+            onPressed: _loadData,
+          ),
+        ],
       ),
+      body: streamBody,
       floatingActionButton: FloatingActionButton(
         heroTag: 'resource_detail_fab',
-        backgroundColor: const Color(0xFF3B82F6),
+        backgroundColor: docColor,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: _showAddResourceDialog,

@@ -10,8 +10,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PantryDetailView extends StatefulWidget {
   final String documentId;
+  final bool isEmbeddedMode;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
-  const PantryDetailView({super.key, required this.documentId});
+  const PantryDetailView({
+    super.key,
+    required this.documentId,
+    this.isEmbeddedMode = false,
+    this.showAllPropertiesNotifier,
+  });
 
   @override
   State<PantryDetailView> createState() => _PantryDetailViewState();
@@ -73,6 +80,113 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
       return const Scaffold(body: Center(child: Text('Dispensa non trovata')));
     }
 
+    final docColor = _document!.colorObject ?? const Color(0xFF0EA5E9);
+
+    final tabBar = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      height: 38,
+      decoration: BoxDecoration(
+        color: const Color(0xFF141417),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: docColor.withOpacity(0.2),
+          border: Border.all(color: docColor.withOpacity(0.6), width: 1),
+        ),
+        labelColor: docColor,
+        unselectedLabelColor: Colors.white38,
+        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        tabs: const [
+          Tab(text: 'Tutti i prodotti'),
+          Tab(text: 'In esaurimento'),
+        ],
+      ),
+    );
+
+    final body = Column(
+      children: [
+        if (_isSelectionMode)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: docColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: docColor.withOpacity(0.4)),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  '${_selectedItemIds.length} selezionati',
+                  style: TextStyle(color: docColor, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF10B981),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  ),
+                  onPressed: _createNewShoppingListFromSelection,
+                  icon: const Icon(Icons.playlist_add, size: 18),
+                  label: const Text('Crea lista spesa', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18, color: Colors.white60),
+                  onPressed: () => setState(() {
+                    _isSelectionMode = false;
+                    _selectedItemIds.clear();
+                  }),
+                ),
+              ],
+            ),
+          ),
+        tabBar,
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _PantryList(
+                documentId: widget.documentId, 
+                showOnlyLow: false,
+                isSelectionMode: _isSelectionMode,
+                selectedItemIds: _selectedItemIds,
+                onToggleSelection: _toggleSelection,
+              ),
+              _PantryList(
+                documentId: widget.documentId, 
+                showOnlyLow: true,
+                isSelectionMode: _isSelectionMode,
+                selectedItemIds: _selectedItemIds,
+                onToggleSelection: _toggleSelection,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbeddedMode) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: body,
+        floatingActionButton: _isSelectionMode ? null : FloatingActionButton(
+          heroTag: 'pantry_fab_${widget.documentId}',
+          backgroundColor: docColor,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          onPressed: _showAddItemDialog,
+          child: const Icon(Icons.add),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
       appBar: SolducciAppBar(
@@ -99,41 +213,11 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
               tooltip: 'Crea lista spesa',
             ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF10B981),
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white38,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(text: 'Tutti i prodotti'),
-            Tab(text: 'In esaurimento'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _PantryList(
-            documentId: widget.documentId, 
-            showOnlyLow: false,
-            isSelectionMode: _isSelectionMode,
-            selectedItemIds: _selectedItemIds,
-            onToggleSelection: _toggleSelection,
-          ),
-          _PantryList(
-            documentId: widget.documentId, 
-            showOnlyLow: true,
-            isSelectionMode: _isSelectionMode,
-            selectedItemIds: _selectedItemIds,
-            onToggleSelection: _toggleSelection,
-          ),
-        ],
-      ),
+      body: body,
       floatingActionButton: _isSelectionMode ? null : FloatingActionButton(
         heroTag: 'pantry_detail_fab',
-        backgroundColor: const Color(0xFF10B981),
+        backgroundColor: docColor,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: _showAddItemDialog,
