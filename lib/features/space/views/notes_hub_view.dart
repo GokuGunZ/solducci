@@ -146,7 +146,19 @@ class _NotesHubViewState extends State<NotesHubView> {
     });
   }
 
-  /// Crea una nuova cartella o sotto-cartella
+  /// Salva una nuova cartella o sotto-cartella creata inline senza popup
+  /// Mantiene la cartella corrente senza forzare il reindirizzamento
+  Future<void> _commitNewFolder(String name, {String? parentPath}) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+
+    HapticFeedback.lightImpact();
+    await _folderService.addCustomFolder(trimmed, parentPath: parentPath);
+    await _loadCustomFolders();
+    // Non modifichiamo _selectedFolder: l'utente rimane esattamente dove si trova
+  }
+
+  /// Crea una nuova cartella o sotto-cartella (dialog fallback)
   Future<void> _showAddFolderDialog({NoteFolder? parentFolder}) async {
     final controller = TextEditingController();
     final isSubfolder = parentFolder != null &&
@@ -610,6 +622,7 @@ class _NotesHubViewState extends State<NotesHubView> {
             onFolderOptions: _showFolderOptionsDialog,
             onNoteOptions: _showNoteOptionsDialog,
             onCommitNoteTitle: _commitNoteTitle,
+            onCommitNewFolder: _commitNewFolder,
             isExpanded: _isHeaderExpanded,
             onExpansionChanged: (expanded) {
               setState(() => _isHeaderExpanded = expanded);

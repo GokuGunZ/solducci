@@ -5,9 +5,9 @@ import 'package:solducci/features/space/services/note_folder_service.dart';
 
 /// Esploratore a 2 colonne in stile MacOS Finder (Miller Columns) per le Note.
 ///
-/// - Colonna Sinistra: Elenco Cartelle e Sotto-cartelle con indentazione gerarchica.
-/// - Colonna Destra: Sotto-cartelle dirette + Note della cartella selezionata con creazione inline.
-class NotesMillerColumnsExplorer extends StatelessWidget {
+/// - Colonna Sinistra: Elenco Cartelle e Sotto-cartelle con indentazione gerarchica e creazione cartelle inline.
+/// - Colonna Destra: Sotto-cartelle dirette (con creazione inline) + Note con creazione inline del titolo.
+class NotesMillerColumnsExplorer extends StatefulWidget {
   final List<NoteFolder> folders;
   final NoteFolder selectedFolder;
   final List<NoteDocument> notesInSelectedFolder;
@@ -22,6 +22,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
   final void Function(NoteFolder folder)? onFolderOptions;
   final void Function(NoteDocument doc)? onNoteOptions;
   final void Function(NoteDocument note, String newTitle)? onCommitNoteTitle;
+  final void Function(String folderName, {String? parentPath})? onCommitNewFolder;
 
   const NotesMillerColumnsExplorer({
     super.key,
@@ -39,7 +40,28 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
     this.onFolderOptions,
     this.onNoteOptions,
     this.onCommitNoteTitle,
+    this.onCommitNewFolder,
   });
+
+  @override
+  State<NotesMillerColumnsExplorer> createState() => _NotesMillerColumnsExplorerState();
+}
+
+class _NotesMillerColumnsExplorerState extends State<NotesMillerColumnsExplorer> {
+  bool _isCreatingRootFolder = false;
+  bool _isCreatingSubfolder = false;
+
+  void _startCreatingRootFolder() {
+    setState(() {
+      _isCreatingRootFolder = true;
+    });
+  }
+
+  void _startCreatingSubfolder() {
+    setState(() {
+      _isCreatingSubfolder = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,8 +97,10 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
     );
   }
 
-  /// Costruisce la colonna sinistra (elenco gerarchico cartelle)
+  /// Costruisce la colonna sinistra (elenco gerarchico cartelle con form mergiato inline per nuova cartella)
   Widget _buildFoldersColumn(BuildContext context) {
+    final totalItems = widget.folders.length + (_isCreatingRootFolder ? 1 : 0);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -96,14 +120,14 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                 ),
               ),
               InkWell(
-                onTap: onAddFolder,
+                onTap: _startCreatingRootFolder,
                 borderRadius: BorderRadius.circular(6),
                 child: Padding(
                   padding: const EdgeInsets.all(3),
                   child: Icon(
                     Icons.create_new_folder_outlined,
                     size: 15,
-                    color: accentColor,
+                    color: widget.accentColor,
                   ),
                 ),
               ),
@@ -115,32 +139,73 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            itemCount: folders.length,
+            itemCount: totalItems,
             itemBuilder: (context, index) {
-              final folder = folders[index];
-              final isSelected = folder.id == selectedFolder.id ||
-                  folder.effectivePath == selectedFolder.effectivePath;
+              // Riga form mergiato inline per creazione cartella di primo livello
+              if (_isCreatingRootFolder && index == widget.folders.length) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 2, right: 4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: widget.accentColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: widget.accentColor.withOpacity(0.6),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_rounded, size: 15, color: widget.accentColor),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _InlineTitleEditor(
+                            initialText: 'Nuova cartella',
+                            hintText: 'Nome cartella...',
+                            accentColor: widget.accentColor,
+                            fontSize: 12,
+                            onCommit: (val) {
+                              setState(() => _isCreatingRootFolder = false);
+                              if (val.trim().isNotEmpty) {
+                                widget.onCommitNewFolder?.call(val.trim(), parentPath: null);
+                              }
+                            },
+                            onCancel: () {
+                              setState(() => _isCreatingRootFolder = false);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final folder = widget.folders[index];
+              final isSelected = folder.id == widget.selectedFolder.id ||
+                  folder.effectivePath == widget.selectedFolder.effectivePath;
 
               final indent = (folder.depth * 10.0).clamp(0.0, 30.0);
 
               return Padding(
                 padding: EdgeInsets.only(left: indent, bottom: 2),
                 child: InkWell(
-                  onTap: () => onFolderSelected(folder),
+                  onTap: () => widget.onFolderSelected(folder),
                   onLongPress: folder.isSpecialAll || folder.isDefault
                       ? null
-                      : () => onFolderOptions?.call(folder),
+                      : () => widget.onFolderOptions?.call(folder),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? accentColor.withOpacity(0.18)
+                          ? widget.accentColor.withOpacity(0.18)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       border: isSelected
                           ? Border.all(
-                              color: accentColor.withOpacity(0.4),
+                              color: widget.accentColor.withOpacity(0.4),
                               width: 1.0,
                             )
                           : null,
@@ -150,7 +215,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                         Icon(
                           folder.icon,
                           size: folder.isSubfolder ? 14 : 15,
-                          color: isSelected ? accentColor : Colors.white54,
+                          color: isSelected ? widget.accentColor : Colors.white54,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
@@ -171,7 +236,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? accentColor.withOpacity(0.3)
+                                ? widget.accentColor.withOpacity(0.3)
                                 : Colors.white10,
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -196,10 +261,13 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
     );
   }
 
-  /// Costruisce la colonna destra (sotto-cartelle dirette + note con creazione inline)
+  /// Costruisce la colonna destra (sotto-cartelle dirette con creazione inline + note con creazione inline)
   Widget _buildNotesColumn(BuildContext context) {
     // Trova eventuali sotto-cartelle dirette di questa cartella
-    final directSubfolders = NoteFolderService().getDirectSubfolders(selectedFolder, folders);
+    final directSubfolders = NoteFolderService().getDirectSubfolders(
+      widget.selectedFolder,
+      widget.folders,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,17 +278,17 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
           child: Row(
             children: [
               // Se siamo in una sotto-cartella, mostra il pulsante indietro al genitore
-              if (selectedFolder.isSubfolder) ...[
+              if (widget.selectedFolder.isSubfolder) ...[
                 InkWell(
                   onTap: () {
-                    final parentPath = selectedFolder.parentPath;
-                    final parentMatch = folders
+                    final parentPath = widget.selectedFolder.parentPath;
+                    final parentMatch = widget.folders
                         .where((f) => f.effectivePath == parentPath)
                         .firstOrNull;
                     if (parentMatch != null) {
-                      onFolderSelected(parentMatch);
+                      widget.onFolderSelected(parentMatch);
                     } else {
-                      onFolderSelected(NoteFolder.all);
+                      widget.onFolderSelected(NoteFolder.all);
                     }
                   },
                   borderRadius: BorderRadius.circular(4),
@@ -234,7 +302,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
               // Titolo cartella
               Expanded(
                 child: Text(
-                  selectedFolder.name.toUpperCase(),
+                  widget.selectedFolder.name.toUpperCase(),
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -248,15 +316,9 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
 
               const SizedBox(width: 4),
 
-              // Pulsante (+ Cartella) per creare cartella dentro la cartella corrente
+              // Pulsante (+ Cartella) per creare cartella/sottocartella con form inline mergiato
               InkWell(
-                onTap: () {
-                  if (onAddSubfolder != null) {
-                    onAddSubfolder!(selectedFolder);
-                  } else {
-                    onAddFolder();
-                  }
-                },
+                onTap: _startCreatingSubfolder,
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -287,26 +349,26 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
 
               // Pulsante (+ Nuova) per creare subito una nota inline
               InkWell(
-                onTap: onAddNote,
+                onTap: widget.onAddNote,
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.18),
+                    color: widget.accentColor.withOpacity(0.18),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: accentColor.withOpacity(0.4), width: 1.0),
+                    border: Border.all(color: widget.accentColor.withOpacity(0.4), width: 1.0),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, size: 12, color: accentColor),
+                      Icon(Icons.add, size: 12, color: widget.accentColor),
                       const SizedBox(width: 3),
                       Text(
                         'Nuova',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: accentColor,
+                          color: widget.accentColor,
                         ),
                       ),
                     ],
@@ -317,17 +379,17 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
           ),
         ),
 
-        // Corpo centrale: Sottocartelle (se presenti) + Note
+        // Corpo centrale: Sottocartelle (se presenti o in creazione) + Note
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             children: [
               // Sezione Sotto-cartelle (stile Miller Column MacOS)
-              if (directSubfolders.isNotEmpty) ...[
+              if (directSubfolders.isNotEmpty || _isCreatingSubfolder) ...[
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 4, top: 2),
                   child: Text(
-                    'SOTTOCARTELLE (${directSubfolders.length})',
+                    'SOTTOCARTELLE (${directSubfolders.length + (_isCreatingSubfolder ? 1 : 0)})',
                     style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
@@ -336,12 +398,14 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // Lista delle sottocartelle esistenti
                 ...directSubfolders.map((subfolder) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: InkWell(
-                      onTap: () => onFolderSelected(subfolder),
-                      onLongPress: () => onFolderOptions?.call(subfolder),
+                      onTap: () => widget.onFolderSelected(subfolder),
+                      onLongPress: () => widget.onFolderOptions?.call(subfolder),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -352,7 +416,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.folder_rounded, size: 16, color: accentColor),
+                            Icon(Icons.folder_rounded, size: 16, color: widget.accentColor),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -385,20 +449,66 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                     ),
                   );
                 }),
+
+                // Riga form mergiato inline per creazione sotto-cartella
+                if (_isCreatingSubfolder) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: widget.accentColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: widget.accentColor.withOpacity(0.6),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.folder_rounded, size: 16, color: widget.accentColor),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _InlineTitleEditor(
+                              initialText: 'Nuova cartella',
+                              hintText: 'Nome sotto-cartella...',
+                              accentColor: widget.accentColor,
+                              fontSize: 12,
+                              onCommit: (val) {
+                                setState(() => _isCreatingSubfolder = false);
+                                if (val.trim().isNotEmpty) {
+                                  final parent = widget.selectedFolder.isSpecialAll ||
+                                          widget.selectedFolder.isDefault
+                                      ? null
+                                      : widget.selectedFolder.effectivePath;
+                                  widget.onCommitNewFolder?.call(val.trim(), parentPath: parent);
+                                }
+                              },
+                              onCancel: () {
+                                setState(() => _isCreatingSubfolder = false);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 6),
                 const Divider(color: Colors.white10, height: 1),
                 const SizedBox(height: 6),
               ],
 
               // Sezione Note
-              if (notesInSelectedFolder.isEmpty && directSubfolders.isEmpty)
+              if (widget.notesInSelectedFolder.isEmpty && directSubfolders.isEmpty && !_isCreatingSubfolder)
                 _buildEmptyNotesState()
               else ...[
-                if (directSubfolders.isNotEmpty)
+                if (directSubfolders.isNotEmpty || _isCreatingSubfolder)
                   Padding(
                     padding: const EdgeInsets.only(left: 4, bottom: 4),
                     child: Text(
-                      'NOTE (${notesInSelectedFolder.length})',
+                      'NOTE (${widget.notesInSelectedFolder.length})',
                       style: const TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
@@ -407,16 +517,16 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                       ),
                     ),
                   ),
-                ...notesInSelectedFolder.map((note) {
-                  final isCurrentActive = note.id == activeNoteId;
-                  final isInlineEditing = note.id == editingNoteId;
+                ...widget.notesInSelectedFolder.map((note) {
+                  final isCurrentActive = note.id == widget.activeNoteId;
+                  final isInlineEditing = note.id == widget.editingNoteId;
                   final formattedDate = DateFormat('dd/MM HH:mm').format(note.updatedAt);
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: InkWell(
-                      onTap: () => onNoteSelected(note),
-                      onLongPress: () => onNoteOptions?.call(note),
+                      onTap: () => widget.onNoteSelected(note),
+                      onLongPress: () => widget.onNoteOptions?.call(note),
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -427,16 +537,16 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isInlineEditing
-                                ? accentColor
+                                ? widget.accentColor
                                 : (isCurrentActive
-                                    ? accentColor.withOpacity(0.6)
+                                    ? widget.accentColor.withOpacity(0.6)
                                     : Colors.white10),
                             width: isInlineEditing ? 1.5 : 1.0,
                           ),
                           boxShadow: isCurrentActive
                               ? [
                                   BoxShadow(
-                                    color: accentColor.withOpacity(0.15),
+                                    color: widget.accentColor.withOpacity(0.15),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -448,16 +558,18 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                             Icon(
                               Icons.article_outlined,
                               size: 18,
-                              color: isCurrentActive ? accentColor : Colors.white60,
+                              color: isCurrentActive ? widget.accentColor : Colors.white60,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: isInlineEditing
-                                  ? _InlineNoteTitleEditor(
-                                      initialTitle: note.title,
-                                      accentColor: accentColor,
+                                  ? _InlineTitleEditor(
+                                      initialText: note.title.isEmpty ? 'Nuova nota' : note.title,
+                                      hintText: 'Titolo nota...',
+                                      accentColor: widget.accentColor,
+                                      fontSize: 13,
                                       onCommit: (newTitle) {
-                                        onCommitNoteTitle?.call(note, newTitle);
+                                        widget.onCommitNoteTitle?.call(note, newTitle);
                                       },
                                     )
                                   : Column(
@@ -492,7 +604,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                                 tooltip: 'Opzioni',
-                                onPressed: () => onNoteOptions?.call(note),
+                                onPressed: () => widget.onNoteOptions?.call(note),
                               ),
                           ],
                         ),
@@ -526,7 +638,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: onAddNote,
+            onPressed: widget.onAddNote,
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: Size.zero,
@@ -537,7 +649,7 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: accentColor,
+                color: widget.accentColor,
               ),
             ),
           ),
@@ -547,23 +659,29 @@ class NotesMillerColumnsExplorer extends StatelessWidget {
   }
 }
 
-/// Widget per l'editing inline del titolo di una nota con autofocus e selezione completa immediata
-class _InlineNoteTitleEditor extends StatefulWidget {
-  final String initialTitle;
+/// Widget riutilizzabile per l'editing inline di cartelle e note con autofocus e auto-selezione
+class _InlineTitleEditor extends StatefulWidget {
+  final String initialText;
+  final String hintText;
   final Color accentColor;
   final ValueChanged<String> onCommit;
+  final VoidCallback? onCancel;
+  final double fontSize;
 
-  const _InlineNoteTitleEditor({
-    required this.initialTitle,
+  const _InlineTitleEditor({
+    required this.initialText,
+    this.hintText = 'Nome...',
     required this.accentColor,
     required this.onCommit,
+    this.onCancel,
+    this.fontSize = 12,
   });
 
   @override
-  State<_InlineNoteTitleEditor> createState() => _InlineNoteTitleEditorState();
+  State<_InlineTitleEditor> createState() => _InlineTitleEditorState();
 }
 
-class _InlineNoteTitleEditorState extends State<_InlineNoteTitleEditor> {
+class _InlineTitleEditorState extends State<_InlineTitleEditor> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
   bool _committed = false;
@@ -571,14 +689,13 @@ class _InlineNoteTitleEditorState extends State<_InlineNoteTitleEditor> {
   @override
   void initState() {
     super.initState();
-    final text = widget.initialTitle.isEmpty ? 'Nuova nota' : widget.initialTitle;
-    _controller = TextEditingController(text: text);
+    _controller = TextEditingController(text: widget.initialText);
     _focusNode = FocusNode();
 
     // Seleziona tutto il testo automaticamente così digitando si sovrascrive subito
     _controller.selection = TextSelection(
       baseOffset: 0,
-      extentOffset: text.length,
+      extentOffset: _controller.text.length,
     );
 
     // Chiedi il focus al rendering
@@ -599,7 +716,11 @@ class _InlineNoteTitleEditorState extends State<_InlineNoteTitleEditor> {
     if (_committed) return;
     _committed = true;
     final val = _controller.text.trim();
-    widget.onCommit(val.isEmpty ? 'Nuova nota' : val);
+    if (val.isEmpty) {
+      widget.onCancel?.call();
+    } else {
+      widget.onCommit(val);
+    }
   }
 
   @override
@@ -619,17 +740,17 @@ class _InlineNoteTitleEditorState extends State<_InlineNoteTitleEditor> {
       focusNode: _focusNode,
       autofocus: true,
       textInputAction: TextInputAction.done,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
+      style: TextStyle(
+        fontSize: widget.fontSize,
+        fontWeight: FontWeight.w600,
         color: Colors.white,
       ),
       cursorColor: widget.accentColor,
       decoration: InputDecoration(
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        hintText: 'Titolo nota...',
-        hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        hintText: widget.hintText,
+        hintStyle: TextStyle(color: Colors.white38, fontSize: widget.fontSize),
         border: UnderlineInputBorder(
           borderSide: BorderSide(color: widget.accentColor, width: 1.5),
         ),

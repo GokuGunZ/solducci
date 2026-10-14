@@ -19,6 +19,7 @@ class NotesCollapsibleHeader extends StatefulWidget {
   final void Function(NoteFolder folder)? onFolderOptions;
   final void Function(NoteDocument doc)? onNoteOptions;
   final void Function(NoteDocument note, String newTitle)? onCommitNoteTitle;
+  final void Function(String folderName, {String? parentPath})? onCommitNewFolder;
   final bool isExpanded;
   final ValueChanged<bool>? onExpansionChanged;
 
@@ -37,6 +38,7 @@ class NotesCollapsibleHeader extends StatefulWidget {
     this.onFolderOptions,
     this.onNoteOptions,
     this.onCommitNoteTitle,
+    this.onCommitNewFolder,
     this.isExpanded = false,
     this.onExpansionChanged,
   });
@@ -212,6 +214,7 @@ class _NotesCollapsibleHeaderState extends State<NotesCollapsibleHeader>
                               onFolderOptions: widget.onFolderOptions,
                               onNoteOptions: widget.onNoteOptions,
                               onCommitNoteTitle: widget.onCommitNoteTitle,
+                              onCommitNewFolder: widget.onCommitNewFolder,
                             ),
                           ),
                         ),
