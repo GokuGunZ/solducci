@@ -15,6 +15,7 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? flexibleSpace;
   final Color? foregroundColor;
   final double? titleSpacing;
+  final double? leadingWidth;
 
   const SolducciAppBar({
     super.key,
@@ -24,6 +25,7 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.showContextSwitcher = true,
     this.centerTitle = false,
     this.leading,
+    this.leadingWidth,
     this.bottom,
     this.backgroundColor,
     this.elevation,
@@ -48,27 +50,36 @@ class SolducciAppBar extends StatelessWidget implements PreferredSizeWidget {
       currentLeading = useCloseButton ? const CloseButton() : const BackButton();
     }
 
-    double? currentLeadingWidth;
+    double? currentLeadingWidth = leadingWidth;
 
     if (showContextSwitcher) {
       if (currentLeading != null) {
         currentLeading = Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             currentLeading,
-            const Padding(
-              padding: EdgeInsets.only(left: 4.0),
-              child: ContextSwitcher(),
+            const SizedBox(width: 4.0),
+            const Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: ContextSwitcher(),
+              ),
             ),
           ],
         );
-        currentLeadingWidth = 110.0; // BackButton(48) + Padding(4) + Switcher(~55)
+        currentLeadingWidth ??= 132.0; // BackButton(48) + Spacing(4) + Switcher(~55-80)
       } else {
         currentLeading = const Padding(
           padding: EdgeInsets.only(left: 16.0),
-          child: ContextSwitcher(),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: ContextSwitcher(),
+          ),
         );
-        currentLeadingWidth = 75.0; // Padding(16) + Switcher(~55)
+        currentLeadingWidth ??= 80.0;
       }
     }
 
