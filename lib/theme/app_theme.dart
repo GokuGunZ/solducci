@@ -60,6 +60,22 @@ class AppTheme {
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
       ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF27272A), // Zinc 800 - distinct and readable
+        contentTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'Inter',
+        ),
+        actionTextColor: const Color(0xFF6366F1), // Accent indigo
+        behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Colors.white12, width: 1),
+        ),
+      ),
     );
   }
 }
