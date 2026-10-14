@@ -17,6 +17,8 @@ import 'package:solducci/widgets/dashboard/widgets/pantry_alert_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/investment_summary_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/note_stack_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/recent_notes_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/peer_debts_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/category_expenses_widget.dart';
 
 class DashboardWidgetFactory {
   /// Maps a widget definition string to its actual Flutter Widget
@@ -63,6 +65,12 @@ class DashboardWidgetFactory {
 
       case 'recent_notes':
         return RecentNotesWidget(def: def);
+
+      case 'peer_debts':
+        return PeerDebtsWidget(def: def);
+
+      case 'category_expenses':
+        return CategoryExpensesWidget(def: def);
         
       default:
         return _MockWidget(title: 'Unknown: ${def.type}', color: Colors.grey);
@@ -85,6 +93,8 @@ class DashboardWidgetFactory {
       BentoWidgetDef(id: 'w_rmd', type: 'recent_markdown', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_nst', type: 'note_stack', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_not', type: 'recent_notes', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_deb', type: 'peer_debts', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_cat', type: 'category_expenses', size: const BentoWidgetSize(2, 2)),
     ];
   }
 
@@ -118,6 +128,10 @@ class DashboardWidgetFactory {
         return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 2)];
       case 'note_stack':
         return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2)];
+      case 'peer_debts':
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
+      case 'category_expenses':
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
       case 'recent_notes':
         return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 2), const BentoWidgetSize(3, 3), const BentoWidgetSize(2, 4)];
       default:

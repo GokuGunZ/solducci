@@ -153,6 +153,28 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
       keywords: ['patrimonio', 'investimenti', 'azioni', 'etf', 'crypto', 'asset'],
     ),
+    const WidgetMetadata(
+      type: 'peer_debts',
+      name: 'Saldo & Debiti di Gruppo',
+      description: 'Stato dei debiti reciproci, crediti e rimborsi tra i membri del gruppo.',
+      category: WidgetCategory.finance,
+      icon: Icons.compare_arrows_rounded,
+      color: Color(0xFF8B5CF6),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
+      keywords: ['debiti', 'crediti', 'gruppo', 'saldo', 'rimborsi', 'pari'],
+    ),
+    const WidgetMetadata(
+      type: 'category_expenses',
+      name: 'Spese per Categoria',
+      description: 'Ripartizione delle uscite per categoria con dettaglio e navigazione diretta.',
+      category: WidgetCategory.finance,
+      icon: Icons.category_rounded,
+      color: Color(0xFF10B981),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
+      keywords: ['categorie', 'spese', 'breakdown', 'cibo', 'trasporti', 'svago'],
+    ),
 
     // Tempo & Focus
     const WidgetMetadata(

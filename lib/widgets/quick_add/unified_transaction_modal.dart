@@ -16,6 +16,11 @@ import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/wallet_transfer_service.dart';
+import 'package:solducci/models/group.dart';
+import 'package:solducci/models/split_type.dart';
+import 'package:solducci/service/auth_service.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/group_service.dart';
 import 'package:solducci/theme/app_theme.dart';
 
 enum TransactionMode { expense, income, transfer }
@@ -71,6 +76,15 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   IncomeCategory _incomeCategory = IncomeCategory.stipendio;
   bool _isLoading = false;
 
+  // Stato per Spese di Gruppo & Split
+  final _contextManager = ContextManager();
+  List<GroupMember> _groupMembers = [];
+  String? _selectedPayerId;
+  SplitType _splitType = SplitType.equal;
+  final Set<String> _includedMemberIds = {};
+  final Map<String, TextEditingController> _customSplitControllers = {};
+  bool _isLoadingGroup = false;
+
   // Stato per Spese Investimento & Allocazione Multi-Asset
   List<InvestmentPortfolio> _portfolios = [];
   InvestmentPortfolio? _selectedPortfolio;
@@ -84,6 +98,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
     _mode = widget.initialMode;
     _initWallets();
     _initInvestments();
+    _initGroup();
   }
 
   @override
@@ -93,7 +108,35 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
     for (final entry in _allocationEntries) {
       entry.dispose();
     }
+    for (final controller in _customSplitControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  Future<void> _initGroup() async {
+    final ctx = _contextManager.currentContext;
+    if (ctx.isGroup && ctx.groupId != null) {
+      setState(() => _isLoadingGroup = true);
+      final currentUserId = AuthService().currentUserId;
+      _selectedPayerId = currentUserId;
+      try {
+        final members = await GroupService().getGroupMembers(ctx.groupId!);
+        if (mounted) {
+          setState(() {
+            _groupMembers = members;
+            _includedMemberIds.clear();
+            _includedMemberIds.addAll(members.map((m) => m.userId));
+            for (final m in members) {
+              _customSplitControllers[m.userId] = TextEditingController();
+            }
+            _isLoadingGroup = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isLoadingGroup = false);
+      }
+    }
   }
 
   Future<void> _initInvestments() async {
@@ -224,14 +267,64 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
 
     try {
       if (_mode == TransactionMode.expense) {
+        final isGroup = _contextManager.isGroupContext && _contextManager.currentGroupId != null;
+        final currentUserId = AuthService().currentUserId;
+        final isPaidByMe = !isGroup || (_selectedPayerId == currentUserId);
+
+        Map<String, double>? splitData;
+        SplitType? effectiveSplitType;
+
+        if (isGroup) {
+          effectiveSplitType = _splitType;
+          if (_splitType == SplitType.custom) {
+            splitData = {};
+            double totalCustom = 0;
+            for (final m in _groupMembers) {
+              final raw = _customSplitControllers[m.userId]?.text.replaceAll('.', '').replaceAll(',', '.').trim() ?? '';
+              final val = double.tryParse(raw) ?? 0.0;
+              splitData[m.userId] = val;
+              totalCustom += val;
+            }
+            if ((totalCustom - amount).abs() > 0.05) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('La somma delle quote (€${totalCustom.toStringAsFixed(2)}) non corrisponde al totale (€${amount.toStringAsFixed(2)})'),
+                  backgroundColor: AppTheme.error,
+                ),
+              );
+              setState(() => _isLoading = false);
+              return;
+            }
+          } else if (_splitType == SplitType.equal) {
+            if (_includedMemberIds.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Seleziona almeno un partecipante alla spesa'), backgroundColor: AppTheme.error),
+              );
+              setState(() => _isLoading = false);
+              return;
+            }
+            if (_includedMemberIds.length != _groupMembers.length) {
+              splitData = {};
+              final perPerson = double.parse((amount / _includedMemberIds.length).toStringAsFixed(2));
+              for (final m in _groupMembers) {
+                splitData[m.userId] = _includedMemberIds.contains(m.userId) ? perPerson : 0.0;
+              }
+            }
+          }
+        }
+
         final newExp = Expense(
           id: -1,
           description: desc,
           amount: amount,
           date: _date,
           type: _expenseCategory,
-          walletId: _selectedWallet?.id,
+          walletId: isPaidByMe ? _selectedWallet?.id : null,
           portfolioId: _expenseCategory == Tipologia.investimento ? _selectedPortfolio?.id : null,
+          groupId: isGroup ? _contextManager.currentGroupId : null,
+          paidBy: isGroup ? (_selectedPayerId ?? currentUserId) : null,
+          splitType: effectiveSplitType,
+          splitData: splitData,
         );
         final created = await ExpenseServiceCached().createExpense(newExp);
 
@@ -444,98 +537,139 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
               const SizedBox(height: 14),
 
               // Riga Selettori: Portafoglio + Categoria
-              if (_mode != TransactionMode.transfer)
-                Row(
-                  children: [
-                    // Selettore Wallet
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF27272A),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<Wallet>(
-                            value: wallets.any((w) => w.id == _selectedWallet?.id) ? _selectedWallet : null,
-                            dropdownColor: const Color(0xFF27272A),
-                            hint: const Text('Portafoglio', style: TextStyle(color: Colors.white38, fontSize: 13)),
-                            isExpanded: true,
-                            items: wallets.map((w) {
-                              return DropdownMenuItem<Wallet>(
-                                value: w,
-                                child: Row(
-                                  children: [
-                                    Icon(w.type.icon, size: 16, color: w.color),
-                                    const SizedBox(width: 8),
-                                    Flexible(child: Text(w.name, style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis)),
-                                  ],
+              // Riga Selettori: Portafoglio + Categoria
+              if (_mode != TransactionMode.transfer) ...[
+                Builder(
+                  builder: (context) {
+                    final isGroup = _contextManager.isGroupContext && _contextManager.currentGroupId != null;
+                    final currentUserId = AuthService().currentUserId;
+                    final isPaidByOther = isGroup && _mode == TransactionMode.expense && _selectedPayerId != null && _selectedPayerId != currentUserId;
+                    final payerMember = isPaidByOther ? _groupMembers.where((m) => m.userId == _selectedPayerId).firstOrNull : null;
+                    final payerName = payerMember?.nickname ?? payerMember?.email?.split('@').first ?? 'Altro membro';
+
+                    return Row(
+                      children: [
+                        // Selettore Wallet o Banner 'Nessun addebito' se paga un altro
+                        Expanded(
+                          child: isPaidByOther
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.35)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.account_balance_wallet_outlined, size: 16, color: Color(0xFFA78BFA)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text('Nessun addebito', style: TextStyle(color: Color(0xFFDDD6FE), fontSize: 11, fontWeight: FontWeight.bold)),
+                                            Text('Pagato da $payerName', style: const TextStyle(color: Colors.white54, fontSize: 10), overflow: TextOverflow.ellipsis),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF27272A),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: Colors.white12),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<Wallet>(
+                                      value: wallets.any((w) => w.id == _selectedWallet?.id) ? _selectedWallet : null,
+                                      dropdownColor: const Color(0xFF27272A),
+                                      hint: const Text('Portafoglio', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                                      isExpanded: true,
+                                      items: wallets.map((w) {
+                                        return DropdownMenuItem<Wallet>(
+                                          value: w,
+                                          child: Row(
+                                            children: [
+                                              Icon(w.type.icon, size: 16, color: w.color),
+                                              const SizedBox(width: 8),
+                                              Flexible(child: Text(w.name, style: const TextStyle(color: Colors.white, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) => setState(() => _selectedWallet = val),
+                                    ),
+                                  ),
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (val) => setState(() => _selectedWallet = val),
-                          ),
                         ),
-                      ),
-                    ),
 
-                    const SizedBox(width: 10),
+                        const SizedBox(width: 10),
 
-                    // Selettore Categoria
-                    Expanded(
-                      child: InkWell(
-                        onTap: () {
-                          if (_mode == TransactionMode.expense) {
-                            showModalBottomSheet(
-                              context: context,
-                              backgroundColor: Colors.transparent,
-                              isScrollControlled: true,
-                              builder: (ctx) => CategoryPickerSheet(
-                                currentCategory: _expenseCategory,
-                                onCategorySelected: (cat) => setState(() => _expenseCategory = cat),
-                              ),
-                            );
-                          } else {
-                            // Selettore Categoria Entrata
-                            _showIncomeCategoryPicker(context);
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF27272A),
+                        // Selettore Categoria
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              if (_mode == TransactionMode.expense) {
+                                showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: Colors.transparent,
+                                  isScrollControlled: true,
+                                  builder: (ctx) => CategoryPickerSheet(
+                                    currentCategory: _expenseCategory,
+                                    onCategorySelected: (cat) => setState(() => _expenseCategory = cat),
+                                  ),
+                                );
+                              } else {
+                                // Selettore Categoria Entrata
+                                _showIncomeCategoryPicker(context);
+                              }
+                            },
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _mode == TransactionMode.expense
-                                    ? CategoryPickerSheet.getIcon(_expenseCategory)
-                                    : _incomeCategory.icon,
-                                size: 16,
-                                color: _mode == TransactionMode.expense
-                                    ? CategoryPickerSheet.getColor(_expenseCategory)
-                                    : _incomeCategory.color,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF27272A),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.white12),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _mode == TransactionMode.expense ? _expenseCategory.label : _incomeCategory.label,
-                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _mode == TransactionMode.expense
+                                        ? CategoryPickerSheet.getIcon(_expenseCategory)
+                                        : _incomeCategory.icon,
+                                    size: 16,
+                                    color: _mode == TransactionMode.expense
+                                        ? CategoryPickerSheet.getColor(_expenseCategory)
+                                        : _incomeCategory.color,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _mode == TransactionMode.expense ? _expenseCategory.label : _incomeCategory.label,
+                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const Icon(Icons.arrow_drop_down, color: Colors.white54, size: 18),
+                                ],
                               ),
-                              const Icon(Icons.arrow_drop_down, color: Colors.white54, size: 18),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
+
+                // Sezione Divisione Gruppo (quando in contesto gruppo e modalità spesa)
+                if (_contextManager.isGroupContext && _mode == TransactionMode.expense && _groupMembers.isNotEmpty)
+                  _buildGroupSplitSection(),
+              ],
 
               // Sezione Dettaglio Investimento
               if (_mode == TransactionMode.expense && _expenseCategory == Tipologia.investimento) ...[
@@ -700,6 +834,269 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                 }).toList(),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupSplitSection() {
+    final cleanAmt = _amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
+    final totalAmount = double.tryParse(cleanAmt) ?? 0.0;
+    final currentUserId = AuthService().currentUserId;
+
+    if (_isLoadingGroup) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6))),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1B2E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Gruppo
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.group_rounded, color: Color(0xFFA78BFA), size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'DIVISIONE GRUPPO • ${_contextManager.currentContext.displayName}',
+                  style: const TextStyle(
+                    color: Color(0xFFDDD6FE),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Chi ha pagato
+          const Text(
+            'Chi ha pagato la spesa?',
+            style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _groupMembers.map((m) {
+              final isMe = m.userId == currentUserId;
+              final isSel = _selectedPayerId == m.userId;
+              final name = isMe ? 'Io' : (m.nickname ?? m.email?.split('@').first ?? 'Membro');
+              return InkWell(
+                onTap: () => setState(() => _selectedPayerId = m.userId),
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSel ? const Color(0xFF8B5CF6) : const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSel ? const Color(0xFFA78BFA) : Colors.white12,
+                      width: isSel ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isMe ? Icons.person_rounded : Icons.person_outline_rounded,
+                        size: 14,
+                        color: isSel ? Colors.black : Colors.white70,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        name,
+                        style: TextStyle(
+                          color: isSel ? Colors.black : Colors.white,
+                          fontSize: 12,
+                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 14),
+          const Divider(color: Colors.white12, height: 1),
+          const SizedBox(height: 14),
+
+          // Come dividere
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Come dividere?',
+                style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              Row(
+                children: [
+                  _buildSplitModeChip('⚖️ Equa', SplitType.equal),
+                  const SizedBox(width: 6),
+                  _buildSplitModeChip('✏️ Personalizzata', SplitType.custom),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Dettaglio ripartizione
+          if (_splitType == SplitType.equal) ...[
+            Text(
+              'Partecipano alla spesa (${_includedMemberIds.length}/${_groupMembers.length}):',
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _groupMembers.map((m) {
+                final isInc = _includedMemberIds.contains(m.userId);
+                final isMe = m.userId == currentUserId;
+                final name = isMe ? 'Io' : (m.nickname ?? m.email?.split('@').first ?? 'Membro');
+                final perPerson = _includedMemberIds.isNotEmpty ? totalAmount / _includedMemberIds.length : 0.0;
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isInc) {
+                        if (_includedMemberIds.length > 1) {
+                          _includedMemberIds.remove(m.userId);
+                        }
+                      } else {
+                        _includedMemberIds.add(m.userId);
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isInc ? const Color(0xFF8B5CF6).withOpacity(0.25) : const Color(0xFF27272A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isInc ? const Color(0xFF8B5CF6) : Colors.white10,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isInc ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                          size: 14,
+                          color: isInc ? const Color(0xFFA78BFA) : Colors.white38,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          name,
+                          style: TextStyle(
+                            color: isInc ? Colors.white : Colors.white38,
+                            fontSize: 12,
+                            fontWeight: isInc ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                        if (isInc && totalAmount > 0) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '€${perPerson.toStringAsFixed(2)}',
+                            style: const TextStyle(color: Color(0xFFDDD6FE), fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ] else ...[
+            // Custom split
+            Column(
+              children: _groupMembers.map((m) {
+                final isMe = m.userId == currentUserId;
+                final name = isMe ? 'Io' : (m.nickname ?? m.email?.split('@').first ?? 'Membro');
+                final controller = _customSplitControllers[m.userId] ?? TextEditingController();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                      ),
+                      SizedBox(
+                        width: 100,
+                        child: TextField(
+                          controller: controller,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.end,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            prefixText: '€ ',
+                            prefixStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                            hintText: '0,00',
+                            hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                            filled: true,
+                            fillColor: const Color(0xFF27272A),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSplitModeChip(String label, SplitType type) {
+    final isSel = _splitType == type;
+    return InkWell(
+      onTap: () => setState(() => _splitType = type),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSel ? const Color(0xFF8B5CF6).withOpacity(0.3) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSel ? const Color(0xFF8B5CF6) : Colors.white12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSel ? const Color(0xFFDDD6FE) : Colors.white54,
+            fontSize: 11,
+            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),
