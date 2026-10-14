@@ -8,12 +8,12 @@ import 'package:solducci/features/space/services/note_folder_service.dart';
 import 'package:solducci/features/space/views/note_detail_view.dart';
 import 'package:solducci/features/space/widgets/notes_collapsible_header.dart';
 
-/// Vista unificata per le Note con sistema a Cartelle e Finder a due stati (stile MacOS).
+/// Vista unificata per le Note con sistema a Cartelle, Sotto-cartelle e Finder a due stati (stile MacOS).
 ///
 /// - Stato compresso (Focus Mode): Header con carosello orizzontale a chips con solo le note
 ///   della cartella corrente, ed editor note a schermo intero.
-/// - Stato espanso (Split Explorer Mode): Miller Columns a due colonne (Cartelle a sinistra,
-///   Note a destra) nella metà superiore dello schermo, preview ed editor live nella metà inferiore.
+/// - Stato espanso (Split Explorer Mode): Miller Columns a due colonne (Cartelle e Sotto-cartelle
+///   a sinistra, Sottocartelle e Note a destra con creazione inline del titolo).
 class NotesHubView extends StatefulWidget {
   final String? initialDocumentId;
 
@@ -32,6 +32,7 @@ class _NotesHubViewState extends State<NotesHubView> {
   List<String> _customFolderNames = [];
   late NoteFolder _selectedFolder;
   NoteDocument? _activeNote;
+  String? _editingNoteId;
 
   bool _isLoading = true;
   bool _isHeaderExpanded = false;
@@ -130,7 +131,7 @@ class _NotesHubViewState extends State<NotesHubView> {
 
     // If active note is null or no longer exists, select first in current folder or first overall
     if (nextActive == null && notes.isNotEmpty) {
-      final inFolder = _folderService.filterDocsByFolder(notes, _selectedFolder.name);
+      final inFolder = _folderService.filterDocsByFolder(notes, _selectedFolder);
       if (inFolder.isNotEmpty) {
         nextActive = inFolder.first;
       } else {
@@ -145,8 +146,17 @@ class _NotesHubViewState extends State<NotesHubView> {
     });
   }
 
-  Future<void> _showAddFolderDialog() async {
+  /// Crea una nuova cartella o sotto-cartella
+  Future<void> _showAddFolderDialog({NoteFolder? parentFolder}) async {
     final controller = TextEditingController();
+    final isSubfolder = parentFolder != null &&
+        !parentFolder.isSpecialAll &&
+        !parentFolder.isDefault;
+
+    final titleText = isSubfolder
+        ? 'Nuova Sotto-cartella in "${parentFolder.name}"'
+        : 'Nuova Cartella';
+
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -155,13 +165,17 @@ class _NotesHubViewState extends State<NotesHubView> {
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: Colors.white10),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.create_new_folder_outlined, color: Color(0xFFF59E0B), size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Nuova Cartella',
-              style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+            const Icon(Icons.create_new_folder_outlined, color: Color(0xFFF59E0B), size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                titleText,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -170,7 +184,7 @@ class _NotesHubViewState extends State<NotesHubView> {
           autofocus: true,
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
-            hintText: 'Es. Progetti, Università, Idee...',
+            hintText: isSubfolder ? 'Es. Solducci, Meeting...' : 'Es. Progetti, Idee...',
             hintStyle: const TextStyle(color: Colors.white38),
             filled: true,
             fillColor: const Color(0xFF1C1C22),
@@ -208,168 +222,100 @@ class _NotesHubViewState extends State<NotesHubView> {
     );
 
     if (result != null && result.isNotEmpty) {
-      await _folderService.addCustomFolder(result);
+      final parentPath = isSubfolder ? parentFolder.effectivePath : null;
+      final fullPath = await _folderService.addCustomFolder(result, parentPath: parentPath);
       await _loadCustomFolders();
-      // Auto-select the newly created folder
+
+      // Auto-seleziona la cartella appena creata
       setState(() {
         _selectedFolder = NoteFolder(
-          id: result,
+          id: fullPath,
+          fullPath: fullPath,
           name: result,
+          parentPath: parentPath,
         );
       });
     }
   }
 
-  Future<void> _showAddNoteDialog() async {
-    final controller = TextEditingController(text: 'Nuova nota');
-    String targetFolderName = _selectedFolder.isSpecialAll
-        ? NoteFolderService.defaultFolderName
-        : _selectedFolder.name;
+  /// Crea istantaneamente una nuova nota inline senza popup, selezionandola subito per la digitazione
+  Future<void> _createInlineNote() async {
+    HapticFeedback.mediumImpact();
+    final currentContext = _contextManager.currentContext;
 
-    final folders = _folderService.buildFolderList(_allNotes, _customFolderNames);
-    final assignableFolders = folders.where((f) => !f.isSpecialAll).toList();
+    String targetFolderPath = _selectedFolder.effectivePath;
+    if (_selectedFolder.isSpecialAll) {
+      targetFolderPath = NoteFolderService.defaultFolderName;
+    }
 
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF141417),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Colors.white10),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.note_add_outlined, color: Color(0xFFF59E0B), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Nuova Nota',
-                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Titolo',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  hintText: 'Es. Idee brainstorming...',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: const Color(0xFF1C1C22),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFF59E0B)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'CARTELLA DI DESTINAZIONE',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C22),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: targetFolderName,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF18181D),
-                    icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFF59E0B)),
-                    items: assignableFolders.map((f) {
-                      return DropdownMenuItem<String>(
-                        value: f.name,
-                        child: Row(
-                          children: [
-                            Icon(f.icon, size: 16, color: const Color(0xFFF59E0B)),
-                            const SizedBox(width: 8),
-                            Text(f.name, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setDialogState(() => targetFolderName = val);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () {
-                final text = controller.text.trim();
-                Navigator.pop(ctx, {
-                  'title': text.isEmpty ? 'Nuova nota' : text,
-                  'folder': targetFolderName,
-                });
-              },
-              child: const Text('Crea', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-    );
+    final newDoc = Document.fromMap({
+      'id': '',
+      'user_id': null,
+      'group_id': currentContext.isGroup ? currentContext.groupId : null,
+      'document_type': 'note',
+      'title': 'Nuova nota',
+      'metadata': {'folder': targetFolderPath},
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
 
-    if (result != null) {
-      final currentContext = _contextManager.currentContext;
-      final newDoc = Document.fromMap({
-        'id': '',
-        'user_id': null,
-        'group_id': currentContext.isGroup ? currentContext.groupId : null,
-        'document_type': 'note',
-        'title': result['title']!,
-        'metadata': {'folder': result['folder']!},
-        'created_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
+    final created = await _documentService.createDocument(newDoc);
+    if (created is NoteDocument && mounted) {
+      setState(() {
+        _allNotes.removeWhere((n) => n.id == created.id);
+        _allNotes.insert(0, created);
+        _activeNote = created;
+        _editingNoteId = created.id;
+
+        // Se eravamo in "Tutte le note", rimaniamo in "Tutte le note",
+        // altrimenti assicuriamoci che la cartella attiva corrisponda
+        if (!_selectedFolder.isSpecialAll && _selectedFolder.effectivePath != targetFolderPath) {
+          _selectedFolder = NoteFolder(
+            id: targetFolderPath,
+            fullPath: targetFolderPath,
+            name: targetFolderPath.split('/').last,
+          );
+        }
       });
+    }
+  }
 
-      final created = await _documentService.createDocument(newDoc);
-      if (created is NoteDocument && mounted) {
+  /// Salva il titolo modificato inline della nota
+  Future<void> _commitNoteTitle(NoteDocument note, String newTitle) async {
+    final trimmed = newTitle.trim().isEmpty ? 'Nuova nota' : newTitle.trim();
+    if (note.title != trimmed) {
+      final updated = NoteDocument(
+        id: note.id,
+        userId: note.userId,
+        groupId: note.groupId,
+        title: trimmed,
+        description: note.description,
+        createdAt: note.createdAt,
+        updatedAt: DateTime.now(),
+        metadata: note.metadata,
+      );
+
+      await _documentService.updateDocument(updated);
+
+      if (mounted) {
         setState(() {
-          _activeNote = created;
-          // If we created a note in a specific folder, switch to that folder if in another specific one
-          if (!_selectedFolder.isSpecialAll && _selectedFolder.name != result['folder']) {
-            _selectedFolder = NoteFolder(
-              id: result['folder']!,
-              name: result['folder']!,
-            );
+          final index = _allNotes.indexWhere((n) => n.id == note.id);
+          if (index != -1) {
+            _allNotes[index] = updated;
+          }
+          if (_activeNote?.id == note.id) {
+            _activeNote = updated;
           }
         });
       }
+    }
+
+    if (mounted) {
+      setState(() {
+        if (_editingNoteId == note.id) {
+          _editingNoteId = null;
+        }
+      });
     }
   }
 
@@ -447,7 +393,7 @@ class _NotesHubViewState extends State<NotesHubView> {
                   spacing: 8,
                   runSpacing: 8,
                   children: assignableFolders.map((f) {
-                    final isCurrent = f.name == currentFolderName;
+                    final isCurrent = f.effectivePath == currentFolderName;
                     return ChoiceChip(
                       label: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -469,9 +415,8 @@ class _NotesHubViewState extends State<NotesHubView> {
                           ? null
                           : (selected) async {
                               Navigator.pop(ctx);
-                              await _folderService.moveNoteToFolder(note, f.name);
+                              await _folderService.moveNoteToFolder(note, f.effectivePath);
                               if (mounted) {
-                                // Reload notes
                                 await _subscribeToNotes();
                               }
                             },
@@ -598,7 +543,7 @@ class _NotesHubViewState extends State<NotesHubView> {
                   ),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    await _folderService.deleteCustomFolder(folder.name);
+                    await _folderService.deleteCustomFolder(folder.effectivePath);
                     await _loadCustomFolders();
                     if (mounted) {
                       setState(() {
@@ -620,12 +565,14 @@ class _NotesHubViewState extends State<NotesHubView> {
     final folders = _folderService.buildFolderList(_allNotes, _customFolderNames);
 
     // Sync selectedFolder instance to get live count
-    final activeFolderMatch = folders.where((f) => f.name == _selectedFolder.name).firstOrNull;
+    final activeFolderMatch = folders
+        .where((f) => f.effectivePath == _selectedFolder.effectivePath || f.id == _selectedFolder.id)
+        .firstOrNull;
     final currentSelectedFolder = activeFolderMatch ?? folders.first;
 
     final notesInCurrentFolder = _folderService.filterDocsByFolder(
       _allNotes,
-      currentSelectedFolder.name,
+      currentSelectedFolder,
     );
 
     return Scaffold(
@@ -638,11 +585,15 @@ class _NotesHubViewState extends State<NotesHubView> {
             selectedFolder: currentSelectedFolder,
             notesInSelectedFolder: notesInCurrentFolder,
             activeNoteId: _activeNote?.id,
+            editingNoteId: _editingNoteId,
             onFolderSelected: (folder) {
               setState(() {
                 _selectedFolder = folder;
-                final inFolder = _folderService.filterDocsByFolder(_allNotes, folder.name);
-                if (inFolder.isNotEmpty && !_allNotes.any((n) => n.id == _activeNote?.id && _folderService.getFolderForNote(n) == folder.name)) {
+                final inFolder = _folderService.filterDocsByFolder(_allNotes, folder);
+                if (inFolder.isNotEmpty &&
+                    !_allNotes.any((n) =>
+                        n.id == _activeNote?.id &&
+                        _folderService.getFolderForNote(n) == folder.effectivePath)) {
                   _activeNote = inFolder.first;
                 }
               });
@@ -653,10 +604,12 @@ class _NotesHubViewState extends State<NotesHubView> {
                 _activeNote = note;
               });
             },
-            onAddFolder: _showAddFolderDialog,
-            onAddNote: _showAddNoteDialog,
+            onAddFolder: () => _showAddFolderDialog(),
+            onAddSubfolder: (parent) => _showAddFolderDialog(parentFolder: parent),
+            onAddNote: _createInlineNote,
             onFolderOptions: _showFolderOptionsDialog,
             onNoteOptions: _showNoteOptionsDialog,
+            onCommitNoteTitle: _commitNoteTitle,
             isExpanded: _isHeaderExpanded,
             onExpansionChanged: (expanded) {
               setState(() => _isHeaderExpanded = expanded);
@@ -742,7 +695,7 @@ class _NotesHubViewState extends State<NotesHubView> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: _showAddNoteDialog,
+              onPressed: _createInlineNote,
               icon: const Icon(Icons.add, size: 18),
               label: const Text(
                 'Nuova Nota',

@@ -14,8 +14,11 @@ class NotesCollapsibleHeader extends StatefulWidget {
   final ValueChanged<NoteDocument> onNoteSelected;
   final VoidCallback onAddFolder;
   final VoidCallback onAddNote;
+  final String? editingNoteId;
+  final void Function(NoteFolder currentFolder)? onAddSubfolder;
   final void Function(NoteFolder folder)? onFolderOptions;
   final void Function(NoteDocument doc)? onNoteOptions;
+  final void Function(NoteDocument note, String newTitle)? onCommitNoteTitle;
   final bool isExpanded;
   final ValueChanged<bool>? onExpansionChanged;
 
@@ -25,12 +28,15 @@ class NotesCollapsibleHeader extends StatefulWidget {
     required this.selectedFolder,
     required this.notesInSelectedFolder,
     required this.activeNoteId,
+    this.editingNoteId,
     required this.onFolderSelected,
     required this.onNoteSelected,
     required this.onAddFolder,
     required this.onAddNote,
+    this.onAddSubfolder,
     this.onFolderOptions,
     this.onNoteOptions,
+    this.onCommitNoteTitle,
     this.isExpanded = false,
     this.onExpansionChanged,
   });
@@ -194,13 +200,18 @@ class _NotesCollapsibleHeaderState extends State<NotesCollapsibleHeader>
                               },
                               onNoteSelected: (note) {
                                 widget.onNoteSelected(note);
-                                _collapse();
+                                if (widget.editingNoteId != note.id) {
+                                  _collapse();
+                                }
                               },
                               activeNoteId: widget.activeNoteId,
+                              editingNoteId: widget.editingNoteId,
                               onAddFolder: widget.onAddFolder,
                               onAddNote: widget.onAddNote,
+                              onAddSubfolder: widget.onAddSubfolder,
                               onFolderOptions: widget.onFolderOptions,
                               onNoteOptions: widget.onNoteOptions,
+                              onCommitNoteTitle: widget.onCommitNoteTitle,
                             ),
                           ),
                         ),
