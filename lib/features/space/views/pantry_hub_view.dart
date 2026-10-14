@@ -16,10 +16,21 @@ class PantryHubView extends StatelessWidget {
       title: 'Dispensa',
       documentType: 'dispensa',
       accentColor: const Color(0xFF0EA5E9), // Sky Blue OLED
-      icon: Icons.kitchen_outlined,
-      showAllOption: false,
+      showAllOption: true,
+      allLabel: 'Totale',
       managementLabel: 'Dispense',
       showDensityToggle: false,
+      buildAllPage: (context, allDocs, showAllNotifier) {
+        if (allDocs.isEmpty) return const SizedBox.shrink();
+        return PantryDetailView(
+          key: const ValueKey('pantry_totale'),
+          documentId: 'all',
+          isAllMode: true,
+          allDocuments: allDocs,
+          isEmbeddedMode: true,
+          showAllPropertiesNotifier: showAllNotifier,
+        );
+      },
       buildDocumentPage: (context, doc, showAllNotifier) {
         return PantryDetailView(
           key: ValueKey('pantry_${doc.id}'),

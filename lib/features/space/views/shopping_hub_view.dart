@@ -18,15 +18,16 @@ class ShoppingHubView extends StatelessWidget {
       accentColor: const Color(0xFF10B981), // Smeraldo OLED
       icon: Icons.shopping_cart_outlined,
       showAllOption: true,
-      allLabel: 'Tutte',
+      allLabel: 'Totale',
       managementLabel: 'Liste',
       showDensityToggle: true,
       buildAllPage: (context, allDocs, showAllNotifier) {
-        // Mostra la prima lista oppure un placeholder/aggregatore
         if (allDocs.isEmpty) return const SizedBox.shrink();
         return ShoppingListDetailView(
-          key: const ValueKey('shopping_list_all'),
-          documentId: allDocs.first.id,
+          key: const ValueKey('shopping_list_totale'),
+          documentId: 'all',
+          isAllMode: true,
+          allDocuments: allDocs,
           isEmbeddedMode: true,
           showAllPropertiesNotifier: showAllNotifier,
         );

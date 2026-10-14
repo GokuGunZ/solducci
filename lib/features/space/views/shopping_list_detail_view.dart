@@ -13,11 +13,16 @@ class ShoppingListDetailView extends StatefulWidget {
   final bool isEmbeddedMode;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
 
+  final bool isAllMode;
+  final List<ShoppingListDocument>? allDocuments;
+
   const ShoppingListDetailView({
     super.key,
     required this.documentId,
     this.isEmbeddedMode = false,
     this.showAllPropertiesNotifier,
+    this.isAllMode = false,
+    this.allDocuments,
   });
 
   @override
@@ -32,6 +37,8 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
   List<ShoppingListItem> _items = [];
   List<PantryItem> _allPantryProducts = [];
   StreamSubscription? _itemsSubscription;
+  final List<StreamSubscription> _multiSubscriptions = [];
+  Map<String, ShoppingListDocument> _docMap = {};
   bool _isLoading = true;
 
   // Title editing
@@ -64,14 +71,24 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
       parent: _selectionController,
       curve: Curves.easeInOut,
     );
-    _loadDocument();
+
+    if (widget.isAllMode && widget.allDocuments != null) {
+      _docMap = {for (var d in widget.allDocuments!) d.id: d};
+      _setupAllItemsSubscription();
+      _isLoading = false;
+    } else {
+      _loadDocument();
+      _setupItemsSubscription();
+    }
     _loadPantryProducts();
-    _setupItemsSubscription();
   }
 
   @override
   void dispose() {
     _itemsSubscription?.cancel();
+    for (var sub in _multiSubscriptions) {
+      sub.cancel();
+    }
     _titleController.dispose();
     _titleFocusNode.dispose();
     _searchController.dispose();
@@ -79,7 +96,31 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
     super.dispose();
   }
 
+  void _setupAllItemsSubscription() {
+    for (var sub in _multiSubscriptions) {
+      sub.cancel();
+    }
+    _multiSubscriptions.clear();
+
+    final Map<String, List<ShoppingListItem>> docItems = {};
+
+    for (var doc in widget.allDocuments ?? []) {
+      final sub = _spaceService.watchShoppingListItems(doc.id).listen((items) {
+        if (mounted) {
+          docItems[doc.id] = items;
+          final allItems = docItems.values.expand((element) => element).toList();
+          setState(() {
+            _items = allItems;
+            _isLoading = false;
+          });
+        }
+      });
+      _multiSubscriptions.add(sub);
+    }
+  }
+
   void _setupItemsSubscription() {
+    if (widget.isAllMode) return;
     _itemsSubscription = _spaceService.watchShoppingListItems(widget.documentId).listen((items) {
       if (mounted) {
         setState(() {
@@ -137,6 +178,9 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
 
   Future<void> _addPantryItem(PantryItem pantryItem) async {
     final existingIndex = _items.indexWhere((i) => i.pantryItemId == pantryItem.id);
+    final targetDocId = widget.isAllMode 
+        ? (widget.allDocuments?.firstOrNull?.id ?? widget.documentId)
+        : widget.documentId;
     
     if (existingIndex != -1) {
       final existing = _items[existingIndex];
@@ -147,7 +191,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
         name: existing.name,
         quantity: existing.quantity + 1.0,
         unit: existing.unit,
-        isBought: existing.isBought,
+        isBought: false, // Return to active items!
         position: existing.position,
         createdAt: existing.createdAt,
         updatedAt: DateTime.now(),
@@ -155,7 +199,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
     } else {
       await _spaceService.createShoppingListItem(ShoppingListItem(
         id: '',
-        documentId: widget.documentId,
+        documentId: targetDocId,
         pantryItemId: pantryItem.id,
         name: pantryItem.name,
         quantity: 1.0,
@@ -176,6 +220,10 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
     final name = _searchController.text.trim();
     if (name.isEmpty) return;
 
+    final targetDocId = widget.isAllMode 
+        ? (widget.allDocuments?.firstOrNull?.id ?? widget.documentId)
+        : widget.documentId;
+
     final existingIndex = _items.indexWhere((i) => i.name.toLowerCase() == name.toLowerCase() && i.pantryItemId == null);
     
     if (existingIndex != -1) {
@@ -187,7 +235,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
         name: existing.name,
         quantity: existing.quantity + 1.0,
         unit: existing.unit,
-        isBought: existing.isBought,
+        isBought: false, // Return to active items!
         position: existing.position,
         createdAt: existing.createdAt,
         updatedAt: DateTime.now(),
@@ -195,7 +243,7 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
     } else {
       await _spaceService.createShoppingListItem(ShoppingListItem(
         id: '',
-        documentId: widget.documentId,
+        documentId: targetDocId,
         name: name,
         quantity: 1.0,
         isBought: false,
@@ -283,12 +331,21 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF10B981))),
+      );
     }
 
-    if (_document == null) {
-      return const Scaffold(body: Center(child: Text('Lista non trovata')));
+    if (!widget.isAllMode && _document == null) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: Text('Lista non trovata', style: TextStyle(color: Colors.white70))),
+      );
     }
+
+    final pendingItems = _items.where((i) => !i.isBought).toList();
+    final completedItems = _items.where((i) => i.isBought).toList();
 
     final scaffold = Scaffold(
         backgroundColor: const Color(0xFF09090B),
@@ -310,9 +367,13 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
                 onSubmitted: (_) => _saveTitle(),
               )
             : GestureDetector(
-                onTap: () => setState(() => _isEditingTitle = true),
+                onTap: () {
+                  if (!widget.isAllMode) {
+                    setState(() => _isEditingTitle = true);
+                  }
+                },
                 child: Text(
-                  _document!.title,
+                  widget.isAllMode ? 'Totale Spesa' : (_document?.title ?? 'Lista'),
                   style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5),
                 ),
               ),
@@ -515,14 +576,19 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
                 ),
               ],
             ),
+            if (completedItems.isNotEmpty && _selectedItemIds.isEmpty)
+              _buildPresiMiniDock(completedItems),
             _buildSelectionBar(),
           ],
         ),
         floatingActionButton: AnimatedBuilder(
           animation: _selectionAnimation,
           builder: (context, child) {
+            final offsetBottom = _selectedItemIds.isNotEmpty
+                ? -_selectionAnimation.value * 80
+                : (completedItems.isNotEmpty ? -70.0 : 0.0);
             return Transform.translate(
-              offset: Offset(0, -_selectionAnimation.value * 80),
+              offset: Offset(0, offsetBottom),
               child: FloatingActionButton(
                 heroTag: 'shopping_list_fab_${widget.documentId}',
                 backgroundColor: const Color(0xFF10B981),
@@ -553,6 +619,249 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
     );
   }
 
+  Widget _buildListBadge(String documentId) {
+    final doc = _docMap[documentId];
+    if (doc == null) return const SizedBox.shrink();
+    final color = doc.colorObject ?? const Color(0xFF10B981);
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.4), width: 0.8),
+      ),
+      child: Text(
+        doc.title,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  void _toggleBought(ShoppingListItem item) {
+    HapticFeedback.selectionClick();
+    final updated = ShoppingListItem(
+      id: item.id,
+      documentId: item.documentId,
+      pantryItemId: item.pantryItemId,
+      name: item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      isBought: !item.isBought,
+      position: item.position,
+      createdAt: item.createdAt,
+      updatedAt: DateTime.now(),
+    );
+    setState(() {
+      final idx = _items.indexWhere((i) => i.id == item.id);
+      if (idx != -1) {
+        _items[idx] = updated;
+      }
+    });
+    _spaceService.updateShoppingListItem(updated);
+  }
+
+  Widget _buildPresiMiniDock(List<ShoppingListItem> completedItems) {
+    return Positioned(
+      bottom: 16,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF18181B),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.6),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: const Color(0xFF10B981).withOpacity(0.15),
+              blurRadius: 16,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${completedItems.length} ${completedItems.length == 1 ? "elemento preso" : "elementi presi"}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    completedItems.map((e) => e.name).take(3).join(', ') +
+                        (completedItems.length > 3 ? '...' : ''),
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFEF4444),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+              onPressed: () => _cancelCompletedItems(completedItems),
+              child: const Text('Cancella', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            ),
+            const SizedBox(width: 4),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.kitchen_outlined, size: 16),
+              label: const Text('Compra', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.black,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => _buyCompletedItems(completedItems),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _cancelCompletedItems(List<ShoppingListItem> items) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Cancella elementi presi', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Vuoi eliminare ${items.length} ${items.length == 1 ? "elemento preso" : "elementi presi"} dalla lista?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancella'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final idsToDelete = items.map((e) => e.id).toSet();
+      setState(() {
+        _items.removeWhere((i) => idsToDelete.contains(i.id));
+      });
+      for (final item in items) {
+        await _spaceService.deleteShoppingListItem(item.id);
+      }
+    }
+  }
+
+  Future<void> _buyCompletedItems(List<ShoppingListItem> items) async {
+    HapticFeedback.heavyImpact();
+    final currentContext = ContextManager().currentContext;
+
+    final rawPantries = await _documentService.getDocumentsForContext(currentContext, 'dispensa');
+    final pantries = rawPantries.whereType<DispensaDocument>().toList();
+
+    final Map<String, List<ShoppingListItem>> itemsByPantryTitle = {};
+
+    for (final item in items) {
+      String targetTitle = _document?.title ?? 'Alimentari';
+      if (widget.isAllMode) {
+        final itemDoc = _docMap[item.documentId];
+        if (itemDoc != null) {
+          targetTitle = itemDoc.title;
+        }
+      }
+      itemsByPantryTitle.putIfAbsent(targetTitle, () => []).add(item);
+    }
+
+    final itemIds = items.map((e) => e.id).toSet();
+    setState(() {
+      _items.removeWhere((i) => itemIds.contains(i.id));
+    });
+
+    for (final entry in itemsByPantryTitle.entries) {
+      final pantryTitle = entry.key;
+      final groupItems = entry.value;
+
+      var targetPantry = pantries.where((p) => p.title.trim().toLowerCase() == pantryTitle.trim().toLowerCase()).firstOrNull;
+      if (targetPantry == null) {
+        final newPantryDoc = DispensaDocument(
+          id: '',
+          userId: currentContext.isPersonal ? currentContext.id : null,
+          groupId: currentContext.isGroup ? currentContext.groupId : null,
+          title: pantryTitle,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        targetPantry = (await _documentService.createDocument(newPantryDoc)) as DispensaDocument;
+      }
+
+      await _spaceService.transferBoughtItemsToPantry(
+        itemsToTransfer: groupItems,
+        targetPantryDocId: targetPantry.id,
+      );
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.kitchen_outlined, color: Color(0xFF10B981), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${items.length} ${items.length == 1 ? "prodotto trasferito" : "prodotti trasferiti"} in Dispensa!',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF18181B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFF10B981)),
+          ),
+        ),
+      );
+    }
+  }
+
   Widget _buildItemTile(ShoppingListItem item) {
     final isSelected = _selectedItemIds.contains(item.id);
 
@@ -571,7 +880,13 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         onLongPress: () => _toggleSelection(item.id),
-        onTap: () => _toggleSelection(item.id),
+        onTap: () {
+          if (_selectedItemIds.isNotEmpty) {
+            _toggleSelection(item.id);
+          } else {
+            _toggleBought(item);
+          }
+        },
         leading: IconButton(
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
@@ -584,32 +899,29 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
                 item.isBought ? Icons.check_circle : Icons.radio_button_unchecked, 
                 color: item.isBought ? const Color(0xFF10B981) : Colors.white38,
               ),
-          onPressed: _selectedItemIds.isNotEmpty 
-            ? () => _toggleSelection(item.id)
-            : () {
-                HapticFeedback.lightImpact();
-                _spaceService.updateShoppingListItem(ShoppingListItem(
-                  id: item.id,
-                  documentId: item.documentId,
-                  pantryItemId: item.pantryItemId,
-                  name: item.name,
-                  quantity: item.quantity,
-                  unit: item.unit,
-                  isBought: !item.isBought,
-                  position: item.position,
-                  createdAt: item.createdAt,
-                  updatedAt: DateTime.now(),
-                ));
-              },
+          onPressed: () {
+            if (_selectedItemIds.isNotEmpty) {
+              _toggleSelection(item.id);
+            } else {
+              _toggleBought(item);
+            }
+          },
         ),
-        title: Text(
-          item.name, 
-          style: TextStyle(
-            decoration: item.isBought ? TextDecoration.lineThrough : null,
-            color: item.isBought ? Colors.white38 : Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+        title: Row(
+          children: [
+            if (widget.isAllMode) _buildListBadge(item.documentId),
+            Expanded(
+              child: Text(
+                item.name, 
+                style: TextStyle(
+                  decoration: item.isBought ? TextDecoration.lineThrough : null,
+                  color: item.isBought ? Colors.white38 : Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
         ),
         subtitle: (widget.showAllPropertiesNotifier == null 
             ? (item.unit != null && item.unit!.isNotEmpty ? Text('${item.quantity} ${item.unit!}', style: const TextStyle(color: Colors.white38, fontSize: 11)) : null)
@@ -1238,7 +1550,7 @@ class _ProductSelectorDialogState extends State<_ProductSelectorDialog> {
           name: existing.name,
           quantity: existing.quantity + entry.value,
           unit: existing.unit,
-          isBought: existing.isBought,
+          isBought: false,
           position: existing.position,
           createdAt: existing.createdAt,
           updatedAt: DateTime.now(),

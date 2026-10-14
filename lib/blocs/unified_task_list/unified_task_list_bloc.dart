@@ -70,7 +70,16 @@ class UnifiedTaskListBloc extends Bloc<UnifiedTaskListEvent, UnifiedTaskListStat
       });
 
       // Fetch tasks from data source
-      final tasks = await event.dataSource.loadTasks();
+      var tasks = await event.dataSource.loadTasks();
+
+      // Check if custom order is saved for this document
+      final documentId = _getDocumentId();
+      if (documentId != null) {
+        final savedOrder = await _orderPersistenceService.loadCustomOrder(documentId);
+        if (savedOrder != null && savedOrder.isNotEmpty) {
+          tasks = tasks.applyCustomOrder(savedOrder);
+        }
+      }
 
       AppLogger.debug('📋 UnifiedTaskListBloc: Loaded ${tasks.length} tasks');
 
@@ -157,10 +166,27 @@ class UnifiedTaskListBloc extends Bloc<UnifiedTaskListEvent, UnifiedTaskListStat
       // Set flag to prevent refresh during reorder
       _isReordering = true;
 
-      // Create new list with reordered tasks
-      final reorderedTasks = List<Task>.from(currentState.tasks);
-      final task = reorderedTasks.removeAt(event.oldIndex);
-      reorderedTasks.insert(event.newIndex, task);
+      List<Task> reorderedTasks;
+      if (event.orderedTaskIds != null && event.orderedTaskIds!.isNotEmpty) {
+        final taskMap = {for (var t in currentState.tasks) t.id: t};
+        final reordered = <Task>[];
+        for (final id in event.orderedTaskIds!) {
+          if (taskMap.containsKey(id)) {
+            reordered.add(taskMap.remove(id)!);
+          }
+        }
+        reordered.addAll(taskMap.values);
+        reorderedTasks = reordered;
+      } else {
+        reorderedTasks = List<Task>.from(currentState.tasks);
+        if (event.oldIndex >= 0 &&
+            event.oldIndex < reorderedTasks.length &&
+            event.newIndex >= 0 &&
+            event.newIndex < reorderedTasks.length) {
+          final task = reorderedTasks.removeAt(event.oldIndex);
+          reorderedTasks.insert(event.newIndex, task);
+        }
+      }
 
       // Persist custom order (for DocumentTaskDataSource and TagTaskDataSource)
       final documentId = _getDocumentId();
@@ -172,7 +198,10 @@ class UnifiedTaskListBloc extends Bloc<UnifiedTaskListEvent, UnifiedTaskListStat
         );
       }
 
-      emit(currentState.copyWith(tasks: reorderedTasks));
+      emit(currentState.copyWith(
+        tasks: reorderedTasks,
+        rawTasks: reorderedTasks,
+      ));
 
       // Reset flag after a short delay to allow persistence to complete
       await Future.delayed(const Duration(milliseconds: 100));
@@ -237,8 +266,9 @@ class UnifiedTaskListBloc extends Bloc<UnifiedTaskListEvent, UnifiedTaskListStat
           filteredTasks = filteredTasks.applyFilterSort(currentState.filterConfig);
         }
 
-        // Re-apply custom order if active
-        if (currentState.filterConfig.sortBy == TaskSortOption.custom &&
+        // Re-apply custom order if active or default
+        if ((currentState.filterConfig.sortBy == null ||
+                currentState.filterConfig.sortBy == TaskSortOption.custom) &&
             currentState.supportsReordering) {
           final documentId = _getDocumentId();
           if (documentId != null) {

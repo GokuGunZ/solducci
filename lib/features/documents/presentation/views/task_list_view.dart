@@ -335,7 +335,7 @@ class _TaskListSectionState extends State<_TaskListSection> {
                     },
                     itemBuilder: (context, index) {
                       final task = activeTasks[index];
-                      return ReorderableDragStartListener(
+                      return ReorderableDelayedDragStartListener(
                         key: ValueKey('task_${task.id}'),
                         index: index,
                         child: GranularTaskItem(
@@ -408,17 +408,24 @@ class _TaskListSectionState extends State<_TaskListSection> {
 
   void _handleReorder(int oldIndex, int newIndex, List<Task> tasks) {
     // Adjust newIndex if moving down (ReorderableListView behavior)
-    // When moving an item down, ReorderableListView provides newIndex as if
-    // the item hasn't been removed yet, so we need to subtract 1
     if (newIndex > oldIndex) {
       newIndex -= 1;
     }
+
+    final reorderedActive = List<Task>.from(tasks);
+    final moved = reorderedActive.removeAt(oldIndex);
+    reorderedActive.insert(newIndex, moved);
+
+    final activeIds = reorderedActive.map((t) => t.id).toSet();
+    final nonActive = widget.tasks.where((t) => !activeIds.contains(t.id)).toList();
+    final allReordered = [...reorderedActive, ...nonActive];
 
     // Dispatch reorder event to BLoC
     context.read<UnifiedTaskListBloc>().add(
           TaskListTaskReordered(
             oldIndex: oldIndex,
             newIndex: newIndex,
+            orderedTaskIds: allReordered.map((t) => t.id).toList(),
           ),
         );
   }

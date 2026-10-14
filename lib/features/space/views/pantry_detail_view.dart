@@ -13,11 +13,16 @@ class PantryDetailView extends StatefulWidget {
   final bool isEmbeddedMode;
   final ValueNotifier<bool>? showAllPropertiesNotifier;
 
+  final bool isAllMode;
+  final List<DispensaDocument>? allDocuments;
+
   const PantryDetailView({
     super.key,
     required this.documentId,
     this.isEmbeddedMode = false,
     this.showAllPropertiesNotifier,
+    this.isAllMode = false,
+    this.allDocuments,
   });
 
   @override
@@ -49,6 +54,14 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
   }
 
   Future<void> _loadDocument() async {
+    if (widget.isAllMode) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      return;
+    }
     final doc = await _documentService.getDocumentById(widget.documentId);
     if (doc is DispensaDocument && mounted) {
       setState(() {
@@ -73,14 +86,22 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9))),
+      );
     }
 
-    if (_document == null) {
-      return const Scaffold(body: Center(child: Text('Dispensa non trovata')));
+    if (!widget.isAllMode && _document == null) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: Text('Dispensa non trovata', style: TextStyle(color: Colors.white70))),
+      );
     }
 
-    final docColor = _document!.colorObject ?? const Color(0xFF0EA5E9);
+    final docColor = widget.isAllMode
+        ? const Color(0xFF0EA5E9)
+        : (_document?.colorObject ?? const Color(0xFF0EA5E9));
 
     final tabBar = Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -118,7 +139,7 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
             decoration: BoxDecoration(
               color: docColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: docColor.withOpacity(0.4)),
+              border: Border.all(color: docColor.withOpacity(0.3)),
             ),
             child: Row(
               children: [
@@ -157,6 +178,8 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
                 isSelectionMode: _isSelectionMode,
                 selectedItemIds: _selectedItemIds,
                 onToggleSelection: _toggleSelection,
+                allDocuments: widget.allDocuments,
+                isAllMode: widget.isAllMode,
               ),
               _PantryList(
                 documentId: widget.documentId, 
@@ -164,6 +187,8 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
                 isSelectionMode: _isSelectionMode,
                 selectedItemIds: _selectedItemIds,
                 onToggleSelection: _toggleSelection,
+                allDocuments: widget.allDocuments,
+                isAllMode: widget.isAllMode,
               ),
             ],
           ),
@@ -334,12 +359,14 @@ class _PantryDetailViewState extends State<PantryDetailView> with SingleTickerPr
   }
 }
 
-class _PantryList extends StatelessWidget {
+class _PantryList extends StatefulWidget {
   final String documentId;
   final bool showOnlyLow;
   final bool isSelectionMode;
   final Set<String> selectedItemIds;
   final Function(String) onToggleSelection;
+  final List<DispensaDocument>? allDocuments;
+  final bool isAllMode;
 
   const _PantryList({
     required this.documentId, 
@@ -347,100 +374,194 @@ class _PantryList extends StatelessWidget {
     required this.isSelectionMode,
     required this.selectedItemIds,
     required this.onToggleSelection,
+    this.allDocuments,
+    this.isAllMode = false,
   });
 
   @override
+  State<_PantryList> createState() => _PantryListState();
+}
+
+class _PantryListState extends State<_PantryList> {
+  final _spaceService = SpaceService();
+  final List<StreamSubscription> _subscriptions = [];
+  List<PantryItem> _items = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupSubscriptions();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PantryList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.documentId != widget.documentId ||
+        oldWidget.isAllMode != widget.isAllMode) {
+      _setupSubscriptions();
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var sub in _subscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  void _setupSubscriptions() {
+    for (var sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
+
+    if (widget.isAllMode) {
+      final Map<String, List<PantryItem>> docItems = {};
+      for (var doc in widget.allDocuments ?? []) {
+        final sub = _spaceService.watchPantryItems(doc.id).listen((items) {
+          if (mounted) {
+            docItems[doc.id] = items;
+            setState(() {
+              _items = docItems.values.expand((e) => e).toList();
+              _isLoading = false;
+            });
+          }
+        });
+        _subscriptions.add(sub);
+      }
+      if ((widget.allDocuments ?? []).isEmpty && mounted) {
+        setState(() => _isLoading = false);
+      }
+    } else {
+      final sub = _spaceService.watchPantryItems(widget.documentId).listen((items) {
+        if (mounted) {
+          setState(() {
+            _items = items;
+            _isLoading = false;
+          });
+        }
+      });
+      _subscriptions.add(sub);
+    }
+  }
+
+  Widget _buildPantryBadge(String documentId) {
+    final doc = widget.allDocuments?.where((d) => d.id == documentId).firstOrNull;
+    if (doc == null) return const SizedBox.shrink();
+    final color = doc.colorObject ?? const Color(0xFF0EA5E9);
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.4), width: 0.8),
+      ),
+      child: Text(
+        doc.title,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final spaceService = SpaceService();
+    if (_isLoading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
+    }
 
-    return StreamBuilder<List<PantryItem>>(
-      stream: spaceService.watchPantryItems(documentId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        var items = snapshot.data ?? [];
-        
-        if (items.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF10B981).withOpacity(0.1),
-                  ),
-                  child: const Icon(Icons.kitchen_outlined, size: 48, color: Color(0xFF10B981)),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  showOnlyLow ? 'Nessun prodotto sotto soglia 🎉' : 'Nessun prodotto in dispensa',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
+    if (_items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF10B981).withOpacity(0.1),
+              ),
+              child: const Icon(Icons.kitchen_outlined, size: 48, color: Color(0xFF10B981)),
             ),
-          );
-        }
+            const SizedBox(height: 12),
+            Text(
+              widget.showOnlyLow ? 'Nessun prodotto sotto soglia 🎉' : 'Nessun prodotto in dispensa',
+              style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
+    }
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final isSelected = selectedItemIds.contains(item.id);
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      itemCount: _items.length,
+      itemBuilder: (context, index) {
+        final item = _items[index];
+        final isSelected = widget.selectedItemIds.contains(item.id);
 
-            return FutureBuilder<List<PantryQuantity>>(
-              future: spaceService.getPantryQuantities(item.id),
-              builder: (context, qSnapshot) {
-                final qtyList = qSnapshot.data ?? [];
-                final total = qtyList.fold(0.0, (sum, q) => sum + q.totalQuantity);
-                final isLow = item.thresholdLow != null && total <= item.thresholdLow!;
+        return FutureBuilder<List<PantryQuantity>>(
+          future: _spaceService.getPantryQuantities(item.id),
+          builder: (context, qSnapshot) {
+            final qtyList = qSnapshot.data ?? [];
+            final total = qtyList.fold(0.0, (sum, q) => sum + q.totalQuantity);
+            final isLow = item.thresholdLow != null && total <= item.thresholdLow!;
 
-                if (showOnlyLow && !isLow) return const SizedBox.shrink();
+            if (widget.showOnlyLow && !isLow) return const SizedBox.shrink();
 
-                final accentColor = isLow ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+            final accentColor = isLow ? const Color(0xFFEF4444) : const Color(0xFF10B981);
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected 
-                        ? const Color(0xFF10B981).withOpacity(0.18) 
-                        : const Color(0xFF18181B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected 
-                          ? const Color(0xFF10B981) 
-                          : (isLow ? const Color(0xFFEF4444).withOpacity(0.4) : Colors.white10),
-                      width: 1,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: isSelected 
+                    ? const Color(0xFF10B981).withOpacity(0.18) 
+                    : const Color(0xFF18181B),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected 
+                      ? const Color(0xFF10B981) 
+                      : (isLow ? const Color(0xFFEF4444).withOpacity(0.4) : Colors.white10),
+                  width: 1,
+                ),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                leading: widget.isSelectionMode 
+                  ? Checkbox(
+                      value: isSelected, 
+                      activeColor: const Color(0xFF10B981),
+                      onChanged: (_) => widget.onToggleSelection(item.id),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accentColor.withOpacity(0.12),
+                      ),
+                      child: Icon(
+                        isLow ? Icons.warning_amber_rounded : Icons.inventory_2_outlined,
+                        color: accentColor,
+                        size: 18,
+                      ),
                     ),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    leading: isSelectionMode 
-                      ? Checkbox(
-                          value: isSelected, 
-                          activeColor: const Color(0xFF10B981),
-                          onChanged: (_) => onToggleSelection(item.id),
-                        )
-                      : Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: accentColor.withOpacity(0.12),
-                          ),
-                          child: Icon(
-                            isLow ? Icons.warning_amber_rounded : Icons.inventory_2_outlined,
-                            color: accentColor,
-                            size: 18,
-                          ),
-                        ),
-                    title: Text(
-                      item.name, 
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 15),
+                title: Row(
+                  children: [
+                    if (widget.isAllMode) _buildPantryBadge(item.documentId),
+                    Expanded(
+                      child: Text(
+                        item.name, 
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 15),
+                      ),
                     ),
+                  ],
+                ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 2.0),
                       child: Row(

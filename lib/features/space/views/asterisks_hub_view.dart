@@ -19,7 +19,7 @@ class AsterisksHubView extends StatelessWidget {
       icon: Icons.emergency,
       showAllOption: false,
       managementLabel: 'Liste',
-      showDensityToggle: true,
+      showDensityToggle: false,
       buildDocumentPage: (context, doc, showAllNotifier) {
         return AsteriskDetailView(
           key: ValueKey('asterisk_${doc.id}'),

@@ -129,6 +129,18 @@ class SpaceService {
     await _supabase.from('asterisk_items').delete().eq('id', id);
   }
 
+  Future<List<AsteriskItem>> getAsterisks(String documentId, {bool? isResolved}) async {
+    var query = _supabase
+        .from('asterisk_items')
+        .select()
+        .eq('document_id', documentId);
+    if (isResolved != null) {
+      query = query.eq('is_resolved', isResolved);
+    }
+    final response = await query.order('position', ascending: true);
+    return (response as List).map((map) => AsteriskItem.fromMap(map)).toList();
+  }
+
   // --- RESOURCES ---
 
   Stream<List<ResourceItem>> watchResources(String documentId) {
@@ -189,6 +201,17 @@ class SpaceService {
       'user_id': userId,
       'read_at': DateTime.now().toIso8601String(),
     });
+  }
+
+  Future<void> markResourceAsUnread(String resourceItemId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    await _supabase
+        .from('resource_item_reads')
+        .delete()
+        .eq('resource_item_id', resourceItemId)
+        .eq('user_id', userId);
   }
 
   Future<List<String>> getReadResourceIds(String documentId) async {
@@ -338,12 +361,64 @@ class SpaceService {
         await addPantryQuantity(PantryQuantity(
           id: '',
           pantryItemId: item.pantryItemId!,
-          sizePerUnit: item.quantity, // We assume quantity in shopping list is the size
-          unitsCount: 1, // Default to 1 unit of that size
+          sizePerUnit: item.quantity,
+          unitsCount: 1,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ));
       }
+      await deleteShoppingListItem(item.id);
+    }
+  }
+
+  Future<void> transferBoughtItemsToPantry({
+    required List<ShoppingListItem> itemsToTransfer,
+    required String targetPantryDocId,
+  }) async {
+    for (var item in itemsToTransfer) {
+      if (item.pantryItemId != null) {
+        await addPantryQuantity(PantryQuantity(
+          id: '',
+          pantryItemId: item.pantryItemId!,
+          sizePerUnit: item.quantity > 0 ? item.quantity : 1.0,
+          unitsCount: 1,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ));
+      } else {
+        // Find existing pantry item by name or create a new one
+        final response = await _supabase
+            .from('pantry_items')
+            .select()
+            .eq('document_id', targetPantryDocId)
+            .ilike('name', item.name.trim());
+
+        String targetPantryItemId;
+        if ((response as List).isNotEmpty) {
+          targetPantryItemId = response.first['id'] as String;
+        } else {
+          final createdPantryItem = await createPantryItem(PantryItem(
+            id: '',
+            documentId: targetPantryDocId,
+            name: item.name.trim(),
+            unit: item.unit,
+            position: 0,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ));
+          targetPantryItemId = createdPantryItem.id;
+        }
+
+        await addPantryQuantity(PantryQuantity(
+          id: '',
+          pantryItemId: targetPantryItemId,
+          sizePerUnit: item.quantity > 0 ? item.quantity : 1.0,
+          unitsCount: 1,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ));
+      }
+
       await deleteShoppingListItem(item.id);
     }
   }

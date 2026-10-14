@@ -1,10 +1,11 @@
-import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/space_items.dart';
 import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/service/document_service.dart';
+import 'package:solducci/widgets/solducci_app_bar.dart';
 
 class AsteriskDetailView extends StatefulWidget {
   final String documentId;
@@ -24,11 +25,13 @@ class AsteriskDetailView extends StatefulWidget {
 
 class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTickerProviderStateMixin {
   final _documentService = DocumentService();
-  final _spaceService = SpaceService();
-  
+
   AsteriskDocument? _document;
   bool _isLoading = true;
   late TabController _tabController;
+
+  // Key to control active list inline creation
+  final GlobalKey<_AsteriskListState> _activeListKey = GlobalKey<_AsteriskListState>();
 
   @override
   void initState() {
@@ -53,17 +56,31 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
     }
   }
 
+  void _triggerAddAsterisk() {
+    HapticFeedback.selectionClick();
+    if (_tabController.index != 0) {
+      _tabController.animateTo(0);
+    }
+    _activeListKey.currentState?.startInlineCreation();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (_document == null) {
-      return const Scaffold(body: Center(child: Text('Documento non trovato')));
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: Text('Documento non trovato', style: TextStyle(color: Colors.white70))),
+      );
     }
 
-    final docColor = _document!.colorObject ?? const Color(0xFFFBBF24);
+    final docColor = _document!.colorObject ?? const Color(0xFFEAB308);
 
     final tabBar = Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -100,16 +117,15 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
             controller: _tabController,
             children: [
               _AsteriskList(
+                key: _activeListKey,
                 documentId: widget.documentId,
                 isResolved: false,
                 accentColor: docColor,
-                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
               ),
               _AsteriskList(
                 documentId: widget.documentId,
                 isResolved: true,
                 accentColor: docColor,
-                showAllPropertiesNotifier: widget.showAllPropertiesNotifier,
               ),
             ],
           ),
@@ -127,7 +143,7 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
           foregroundColor: Colors.black,
           elevation: 4,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          onPressed: _showAddAsteriskDialog,
+          onPressed: _triggerAddAsterisk,
           child: const Icon(Icons.add),
         ),
       );
@@ -153,59 +169,10 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
         backgroundColor: docColor,
         foregroundColor: Colors.black,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        onPressed: _showAddAsteriskDialog,
+        onPressed: _triggerAddAsterisk,
         child: const Icon(Icons.add),
       ),
     );
-  }
-
-  Future<void> _showAddAsteriskDialog() async {
-    final controller = TextEditingController();
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nuovo punto di discussione'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'Cosa vuoi discutere?'),
-          autofocus: true,
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              _addAsterisk(value.trim());
-              Navigator.pop(context);
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                _addAsterisk(controller.text.trim());
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Aggiungi'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _addAsterisk(String content) async {
-    final newItem = AsteriskItem(
-      id: '',
-      documentId: widget.documentId,
-      content: content,
-      isResolved: false,
-      position: 0,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-    await _spaceService.createAsteriskItem(newItem);
   }
 
   Future<void> _showEditTitleDialog() async {
@@ -213,18 +180,24 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
     return showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Modifica titolo'),
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Modifica titolo', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(hintText: 'Titolo'),
           autofocus: true,
+          style: const TextStyle(color: Colors.white),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annulla'),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _document!.colorObject ?? const Color(0xFFEAB308),
+              foregroundColor: Colors.black,
+            ),
             onPressed: () async {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
@@ -257,138 +230,173 @@ class _AsteriskDetailViewState extends State<AsteriskDetailView> with SingleTick
   }
 }
 
-class _AsteriskList extends StatelessWidget {
+class _AsteriskList extends StatefulWidget {
   final String documentId;
   final bool isResolved;
   final Color accentColor;
-  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
   const _AsteriskList({
+    super.key,
     required this.documentId,
     required this.isResolved,
     required this.accentColor,
-    this.showAllPropertiesNotifier,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final spaceService = SpaceService();
+  State<_AsteriskList> createState() => _AsteriskListState();
+}
 
-    return StreamBuilder<List<AsteriskItem>>(
-      stream: spaceService.watchAsterisks(documentId, isResolved: isResolved),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+class _AsteriskListState extends State<_AsteriskList> {
+  final _spaceService = SpaceService();
+  StreamSubscription<List<AsteriskItem>>? _subscription;
 
-        final items = snapshot.data ?? [];
+  List<AsteriskItem> _items = [];
+  bool _isLoading = true;
 
-        if (items.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: accentColor.withOpacity(0.1),
-                  ),
-                  child: Icon(Icons.star_outline, size: 48, color: accentColor),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isResolved ? 'Nessun punto risolto' : 'Nessun punto attivo 📝',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          );
-        }
+  // Aggiunta immersiva state
+  bool _isCreatingInline = false;
+  final TextEditingController _inlineController = TextEditingController();
+  final FocusNode _inlineFocusNode = FocusNode();
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: item.isResolved ? Colors.white10 : accentColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                leading: Checkbox(
-                  value: item.isResolved,
-                  activeColor: accentColor,
-                  checkColor: Colors.black,
-                  side: const BorderSide(color: Colors.white38, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                  onChanged: (value) {
-                    final updatedItem = AsteriskItem(
-                      id: item.id,
-                      documentId: item.documentId,
-                      content: item.content,
-                      isResolved: value ?? false,
-                      position: item.position,
-                      createdAt: item.createdAt,
-                      updatedAt: DateTime.now(),
-                    );
-                    spaceService.updateAsteriskItem(updatedItem);
-                  },
-                ),
-                title: Text(
-                  item.content,
-                  style: TextStyle(
-                    decoration: item.isResolved ? TextDecoration.lineThrough : null,
-                    color: item.isResolved ? Colors.white38 : Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-                subtitle: showAllPropertiesNotifier != null
-                    ? ValueListenableBuilder<bool>(
-                        valueListenable: showAllPropertiesNotifier!,
-                        builder: (context, showAll, _) {
-                          if (!showAll) return const SizedBox.shrink();
-                          final dateStr = '${item.createdAt.day.toString().padLeft(2, '0')}/${item.createdAt.month.toString().padLeft(2, '0')}';
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text(
-                              'Creato: $dateStr',
-                              style: const TextStyle(color: Colors.white38, fontSize: 11),
-                            ),
-                          );
-                        },
-                      )
-                    : null,
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 20, color: Colors.white38),
-                  onPressed: () => _confirmDelete(context, item),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  // Animating transition items
+  final Set<String> _animatingItemIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _startWatching();
   }
 
-  Future<void> _confirmDelete(BuildContext context, AsteriskItem item) async {
+  void _startWatching() {
+    _subscription = _spaceService
+        .watchAsterisks(widget.documentId, isResolved: widget.isResolved)
+        .listen((items) {
+      if (mounted) {
+        setState(() {
+          // Preserve local optimistic animations by merging
+          _items = items.where((it) => !_animatingItemIds.contains(it.id)).toList();
+          _isLoading = false;
+        });
+      }
+    }, onError: (_) {
+      if (mounted) setState(() => _isLoading = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    _inlineController.dispose();
+    _inlineFocusNode.dispose();
+    super.dispose();
+  }
+
+  void startInlineCreation() {
+    setState(() {
+      _isCreatingInline = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _inlineFocusNode.requestFocus();
+    });
+  }
+
+  void _cancelInlineCreation() {
+    setState(() {
+      _isCreatingInline = false;
+      _inlineController.clear();
+    });
+  }
+
+  Future<void> _submitInlineCreation() async {
+    final text = _inlineController.text.trim();
+    if (text.isEmpty) {
+      _cancelInlineCreation();
+      return;
+    }
+
+    _inlineController.clear();
+    final tempItem = AsteriskItem(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      documentId: widget.documentId,
+      content: text,
+      isResolved: false,
+      position: _items.length,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    setState(() {
+      _items.add(tempItem);
+      _isCreatingInline = false;
+    });
+
+    try {
+      final realItem = AsteriskItem(
+        id: '',
+        documentId: widget.documentId,
+        content: text,
+        isResolved: false,
+        position: _items.length,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      await _spaceService.createAsteriskItem(realItem);
+    } catch (e) {
+      debugPrint('Error creating asterisk: $e');
+    }
+  }
+
+  Future<void> _toggleResolve(AsteriskItem item) async {
+    HapticFeedback.mediumImpact();
+    final newResolved = !item.isResolved;
+
+    setState(() {
+      _animatingItemIds.add(item.id);
+    });
+
+    // Wait for the slide and strikethrough animation to complete smoothly
+    await Future.delayed(const Duration(milliseconds: 320));
+
+    if (mounted) {
+      setState(() {
+        _items.removeWhere((i) => i.id == item.id);
+        _animatingItemIds.remove(item.id);
+      });
+    }
+
+    try {
+      final updated = AsteriskItem(
+        id: item.id,
+        documentId: item.documentId,
+        content: item.content,
+        isResolved: newResolved,
+        position: item.position,
+        createdAt: item.createdAt,
+        updatedAt: DateTime.now(),
+      );
+      await _spaceService.updateAsteriskItem(updated);
+    } catch (e) {
+      debugPrint('Error updating asterisk: $e');
+    }
+  }
+
+  Future<void> _deleteItem(AsteriskItem item) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Elimina asterisco'),
-        content: const Text('Sei sicuro di voler eliminare questo punto di discussione?'),
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Elimina asterisco', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Sei sicuro di voler eliminare questo punto di discussione?',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true), 
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Elimina'),
           ),
@@ -397,7 +405,221 @@ class _AsteriskList extends StatelessWidget {
     );
 
     if (confirm == true) {
-      await SpaceService().deleteAsteriskItem(item.id);
+      HapticFeedback.mediumImpact();
+      // Optimistic removal: remove immediately so the UI refreshes instantly
+      setState(() {
+        _items.removeWhere((it) => it.id == item.id);
+      });
+      try {
+        await _spaceService.deleteAsteriskItem(item.id);
+      } catch (e) {
+        debugPrint('Error deleting asterisk: $e');
+      }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Column(
+      children: [
+        // Aggiunta immersiva tile (appears inline at the top of the list)
+        if (_isCreatingInline)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF18181B),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: widget.accentColor.withOpacity(0.8), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.accentColor.withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: widget.accentColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: widget.accentColor.withOpacity(0.4)),
+                  ),
+                  child: Icon(Icons.emergency, color: widget.accentColor, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _inlineController,
+                    focusNode: _inlineFocusNode,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'Cosa vuoi discutere?...',
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 16),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onSubmitted: (_) => _submitInlineCreation(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white38, size: 20),
+                  onPressed: _cancelInlineCreation,
+                ),
+                IconButton(
+                  icon: Icon(Icons.check_circle, color: widget.accentColor, size: 24),
+                  onPressed: _submitInlineCreation,
+                ),
+              ],
+            ),
+          ),
+
+        // List or empty state
+        Expanded(
+          child: _items.isEmpty && !_isCreatingInline
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.accentColor.withOpacity(0.1),
+                        ),
+                        child: Icon(Icons.emergency, size: 48, color: widget.accentColor),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.isResolved ? 'Nessun punto risolto' : 'Nessun punto attivo 📝',
+                        style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      if (!widget.isResolved) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: widget.accentColor.withOpacity(0.5)),
+                            foregroundColor: widget.accentColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: startInlineCreation,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Aggiungi punto'),
+                        ),
+                      ],
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  itemCount: _items.length,
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    final isAnimating = _animatingItemIds.contains(item.id);
+
+                    // Animation slide offset: slide right if completing, slide left/fade if uncompleting
+                    final targetOffset = widget.isResolved
+                        ? const Offset(-1.2, 0.0)
+                        : const Offset(1.2, 0.0);
+
+                    return AnimatedSlide(
+                      offset: isAnimating ? targetOffset : Offset.zero,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOutCubic,
+                      child: AnimatedOpacity(
+                        opacity: isAnimating ? 0.0 : 1.0,
+                        duration: const Duration(milliseconds: 280),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF18181B),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: item.isResolved
+                                  ? Colors.white10
+                                  : widget.accentColor.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                            // Asterisk icon button instead of checkbox
+                            leading: GestureDetector(
+                              onTap: () => _toggleResolve(item),
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: item.isResolved
+                                      ? Colors.white.withOpacity(0.06)
+                                      : widget.accentColor.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: item.isResolved
+                                        ? Colors.white24
+                                        : widget.accentColor.withOpacity(0.5),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.emergency,
+                                    size: 20,
+                                    color: item.isResolved
+                                        ? Colors.white38
+                                        : widget.accentColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              item.content,
+                              style: TextStyle(
+                                decoration: (item.isResolved || isAnimating)
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                decorationColor: widget.accentColor,
+                                decorationThickness: 2,
+                                color: (item.isResolved || isAnimating)
+                                    ? Colors.white38
+                                    : Colors.white,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 16, // Increased text size
+                              ),
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                'Creato il ${item.createdAt.day.toString().padLeft(2, '0')}/${item.createdAt.month.toString().padLeft(2, '0')}/${item.createdAt.year}',
+                                style: const TextStyle(color: Colors.white38, fontSize: 12),
+                              ),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.white38),
+                              onPressed: () => _deleteItem(item),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
   }
 }

@@ -34,14 +34,16 @@ class TaskListFilterChanged extends UnifiedTaskListEvent {
 class TaskListTaskReordered extends UnifiedTaskListEvent {
   final int oldIndex;
   final int newIndex;
+  final List<String>? orderedTaskIds;
 
   const TaskListTaskReordered({
     required this.oldIndex,
     required this.newIndex,
+    this.orderedTaskIds,
   });
 
   @override
-  List<Object?> get props => [oldIndex, newIndex];
+  List<Object?> get props => [oldIndex, newIndex, orderedTaskIds];
 }
 
 /// Start inline task creation

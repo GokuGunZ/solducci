@@ -118,7 +118,11 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
         widget.documentType,
       );
 
-      final typedDocs = rawDocs.whereType<TDoc>().toList();
+      var typedDocs = rawDocs.whereType<TDoc>().toList();
+
+      if (typedDocs.isEmpty && (widget.documentType == 'shopping_list' || widget.documentType == 'dispensa')) {
+        typedDocs = await _seedDefaultPresets(currentContext);
+      }
 
       if (mounted) {
         setState(() {
@@ -137,6 +141,39 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<List<TDoc>> _seedDefaultPresets(dynamic currentContext) async {
+    final presets = [
+      {'title': 'Alimentari', 'color': '10B981'},
+      {'title': 'Casa', 'color': '3B82F6'},
+      {'title': 'Pulizie', 'color': '06B6D4'},
+      {'title': 'Oggettistica', 'color': 'A855F7'},
+    ];
+
+    final createdList = <TDoc>[];
+    for (final p in presets) {
+      final docMap = {
+        'id': '',
+        'user_id': currentContext.isPersonal ? currentContext.id : null,
+        'group_id': currentContext.isGroup ? currentContext.groupId : null,
+        'document_type': widget.documentType,
+        'title': p['title'],
+        'metadata': {'color': p['color']},
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      try {
+        final newDoc = Document.fromMap(docMap);
+        final created = await _documentService.createDocument(newDoc);
+        if (created is TDoc) {
+          createdList.add(created as TDoc);
+        }
+      } catch (e) {
+        debugPrint('Error creating preset doc: $e');
+      }
+    }
+    return createdList;
   }
 
   int get _offsetForDocs => widget.showAllOption ? 1 : 0;
@@ -277,44 +314,43 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
                 ),
               ),
               const SizedBox(height: 10),
-              SizedBox(
-                height: 38,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: presetColors.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, i) {
-                    final color = presetColors[i];
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: presetColors.map((color) {
                     final isPicked = color.value == selectedColor.value;
-                    return GestureDetector(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setDialogState(() => selectedColor = color);
-                      },
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: color,
-                          border: Border.all(
-                            color: isPicked ? Colors.white : Colors.white24,
-                            width: isPicked ? 2.5 : 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: color.withOpacity(isPicked ? 0.6 : 0.25),
-                              blurRadius: isPicked ? 8 : 4,
-                              offset: const Offset(0, 2),
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setDialogState(() => selectedColor = color);
+                        },
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: color,
+                            border: Border.all(
+                              color: isPicked ? Colors.white : Colors.white24,
+                              width: isPicked ? 2.5 : 1,
                             ),
-                          ],
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withOpacity(isPicked ? 0.6 : 0.25),
+                                blurRadius: isPicked ? 8 : 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: isPicked
+                              ? const Icon(Icons.check, color: Colors.black, size: 18)
+                              : null,
                         ),
-                        child: isPicked
-                            ? const Icon(Icons.check, color: Colors.black, size: 18)
-                            : null,
                       ),
                     );
-                  },
+                  }).toList(),
                 ),
               ),
             ],
