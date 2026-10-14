@@ -48,6 +48,26 @@ class _NoteDetailViewState extends State<NoteDetailView> {
   }
 
   @override
+  void didUpdateWidget(covariant NoteDetailView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.documentId != widget.documentId) {
+      if (_debounceTimer?.isActive ?? false) {
+        _debounceTimer!.cancel();
+        _saveContent(_contentController.text);
+      }
+      _itemsSubscription?.cancel();
+      _contentController.text = '';
+      setState(() {
+        _isLoading = true;
+        _document = null;
+        _items = [];
+      });
+      _loadDocument();
+      _subscribeToItems();
+    }
+  }
+
+  @override
   void dispose() {
     _itemsSubscription?.cancel();
     _debounceTimer?.cancel();
