@@ -8,8 +8,15 @@ import 'package:solducci/service/document_service.dart';
 
 class NoteDetailView extends StatefulWidget {
   final String documentId;
+  final bool isEmbeddedMode;
+  final ValueNotifier<bool>? showAllPropertiesNotifier;
 
-  const NoteDetailView({super.key, required this.documentId});
+  const NoteDetailView({
+    super.key,
+    required this.documentId,
+    this.isEmbeddedMode = false,
+    this.showAllPropertiesNotifier,
+  });
 
   @override
   State<NoteDetailView> createState() => _NoteDetailViewState();
@@ -147,6 +154,132 @@ class _NoteDetailViewState extends State<NoteDetailView> {
       );
     }
 
+    final docColor = _document!.colorObject ?? const Color(0xFFF59E0B);
+
+    final content = Column(
+      children: [
+        // Top status/properties bar (especially useful in embedded mode)
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: 16.0,
+            vertical: widget.isEmbeddedMode ? 8.0 : 4.0,
+          ),
+          child: Row(
+            children: [
+              // Saving status badge
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _isSaving
+                      ? const Color(0xFFF59E0B).withOpacity(0.15)
+                      : const Color(0xFF10B981).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _isSaving
+                        ? const Color(0xFFF59E0B).withOpacity(0.3)
+                        : const Color(0xFF10B981).withOpacity(0.25),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isSaving ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isSaving ? 'Salvataggio...' : 'Salvato',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _isSaving ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // Density properties (word & char count, updated date)
+              if (widget.showAllPropertiesNotifier != null)
+                ValueListenableBuilder<bool>(
+                  valueListenable: widget.showAllPropertiesNotifier!,
+                  builder: (context, showAll, _) {
+                    if (!showAll) return const SizedBox.shrink();
+                    final text = _contentController.text;
+                    final charCount = text.length;
+                    final wordCount = text.trim().isEmpty
+                        ? 0
+                        : text.trim().split(RegExp(r'\s+')).length;
+
+                    return AnimatedOpacity(
+                      opacity: showAll ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 250),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white10),
+                        ),
+                        child: Text(
+                          '$wordCount parole  •  $charCount caratteri',
+                          style: const TextStyle(fontSize: 11, color: Colors.white60),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+
+        // Text editor area
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF141417),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white10),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _contentController,
+                maxLines: null,
+                expands: true,
+                cursorColor: docColor,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  height: 1.6,
+                  fontWeight: FontWeight.w400,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'Scrivi qui i tuoi appunti...',
+                  hintStyle: TextStyle(color: Colors.white38, fontSize: 15),
+                  border: InputBorder.none,
+                ),
+                onChanged: _onContentChanged,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbeddedMode) {
+      return content;
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -200,85 +333,10 @@ class _NoteDetailViewState extends State<NoteDetailView> {
               IconButton(
                 icon: const Icon(Icons.check, color: Color(0xFF10B981)),
                 onPressed: _saveTitle,
-              )
-            else ...[
-              // Saving indicator badge
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _isSaving 
-                          ? const Color(0xFFF59E0B).withOpacity(0.15)
-                          : const Color(0xFF10B981).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _isSaving
-                            ? const Color(0xFFF59E0B).withOpacity(0.3)
-                            : const Color(0xFF10B981).withOpacity(0.25),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _isSaving ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _isSaving ? 'Salvataggio...' : 'Salvato',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _isSaving ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ),
-            ],
           ],
         ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white10),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _contentController,
-                maxLines: null,
-                expands: true,
-                cursorColor: const Color(0xFFF59E0B),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  height: 1.6,
-                  fontWeight: FontWeight.w400,
-                ),
-                decoration: const InputDecoration(
-                  hintText: 'Scrivi qui i tuoi appunti...',
-                  hintStyle: TextStyle(color: Colors.white38, fontSize: 15),
-                  border: InputBorder.none,
-                ),
-                onChanged: _onContentChanged,
-              ),
-            ),
-          ),
-        ),
+        body: SafeArea(child: content),
       ),
     );
   }
