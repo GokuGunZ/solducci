@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.recurring_transactions (
     -- Supporto Multi-User / Gruppi
     group_id UUID REFERENCES public.groups(id) ON DELETE CASCADE,
     paid_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    split_type TEXT DEFAULT 'equal' CHECK (split_type IN ('equal', 'custom', 'full', 'none')),
+    split_type TEXT DEFAULT 'equal' CHECK (split_type IN ('equal', 'custom', 'lend', 'offer', 'full', 'none')),
     split_data JSONB,
     
     -- Frequenza & Calendarizzazione
