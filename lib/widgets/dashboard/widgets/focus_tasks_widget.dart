@@ -328,29 +328,29 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
           itemBuilder: (context, task, index) {
             final isCompleting = _completingTaskIds.contains(task.id);
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () async {
-                      HapticFeedback.mediumImpact();
-                      setState(() {
-                        _completingTaskIds.add(task.id);
-                      });
-                      try {
-                        await TaskService().completeTask(task.id);
-                      } catch (e) {
-                        debugPrint('Error completing task: $e');
-                        if (mounted) {
-                          setState(() {
-                            _completingTaskIds.remove(task.id);
-                          });
-                        }
-                      }
-                    },
-                    child: Container(
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () async {
+                HapticFeedback.mediumImpact();
+                setState(() {
+                  _completingTaskIds.add(task.id);
+                });
+                try {
+                  await TaskService().completeTask(task.id);
+                } catch (e) {
+                  debugPrint('Error completing task: $e');
+                  if (mounted) {
+                    setState(() {
+                      _completingTaskIds.remove(task.id);
+                    });
+                  }
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  children: [
+                    Container(
                       width: 20,
                       height: 20,
                       decoration: BoxDecoration(
@@ -365,31 +365,31 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
                           ? const Icon(Icons.check, size: 13, color: Colors.black)
                           : null,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      task.title,
-                      style: TextStyle(
-                        color: isCompleting ? Colors.white38 : Colors.white,
-                        decoration: isCompleting ? TextDecoration.lineThrough : null,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (task.priority != null)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: task.priority!.color,
-                        shape: BoxShape.circle,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        task.title,
+                        style: TextStyle(
+                          color: isCompleting ? Colors.white38 : Colors.white,
+                          decoration: isCompleting ? TextDecoration.lineThrough : null,
+                          fontSize: 13,
+                          fontFamily: 'Inter',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                ],
+                    if (task.priority != null)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: task.priority!.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             );
           },

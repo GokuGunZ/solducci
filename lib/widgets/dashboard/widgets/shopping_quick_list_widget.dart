@@ -30,6 +30,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
   bool _isLoadingDocs = true;
 
   final Set<String> _optimisticBoughtIds = {};
+  final Set<String> _optimisticUnboughtIds = {};
 
   final TextEditingController _addController = TextEditingController();
   final FocusNode _addFocusNode = FocusNode();
@@ -178,15 +179,56 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
     return widget.def.customProps?['title'] as String? ?? 'Lista Spesa';
   }
 
+  bool _computeIsBought(ShoppingListItem item) {
+    if (_optimisticBoughtIds.contains(item.id)) return true;
+    if (_optimisticUnboughtIds.contains(item.id)) return false;
+    return item.isBought;
+  }
+
+  Future<void> _toggleItemBought(ShoppingListItem item) async {
+    HapticFeedback.selectionClick();
+    final currentlyBought = _computeIsBought(item);
+    final nextBought = !currentlyBought;
+
+    setState(() {
+      if (nextBought) {
+        _optimisticBoughtIds.add(item.id);
+        _optimisticUnboughtIds.remove(item.id);
+      } else {
+        _optimisticUnboughtIds.add(item.id);
+        _optimisticBoughtIds.remove(item.id);
+      }
+    });
+
+    try {
+      await Supabase.instance.client
+          .from('shopping_list_items')
+          .update({'is_bought': nextBought})
+          .eq('id', item.id);
+    } catch (e) {
+      debugPrint('Error toggling shopping item: $e');
+      if (mounted) {
+        setState(() {
+          if (nextBought) {
+            _optimisticBoughtIds.remove(item.id);
+          } else {
+            _optimisticUnboughtIds.remove(item.id);
+          }
+        });
+      }
+    }
+  }
+
   Future<void> _cancelCompletedItems(List<ShoppingListItem> items) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF18181B),
-        title: const Text('Cancella elementi presi', style: TextStyle(color: Colors.white)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cancella elementi presi', style: TextStyle(color: Colors.white, fontSize: 16)),
         content: Text(
           'Vuoi eliminare ${items.length} ${items.length == 1 ? "elemento preso" : "elementi presi"} dalla lista?',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
         ),
         actions: [
           TextButton(
@@ -194,7 +236,11 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
             child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Cancella'),
           ),
@@ -203,8 +249,10 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
     );
 
     if (confirm == true) {
+      final idsToDelete = items.map((e) => e.id).toSet();
       setState(() {
-        _optimisticBoughtIds.clear();
+        _optimisticBoughtIds.removeAll(idsToDelete);
+        _optimisticUnboughtIds.removeAll(idsToDelete);
       });
       for (final item in items) {
         await SpaceService().deleteShoppingListItem(item.id);
@@ -242,8 +290,10 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
       }
     }
 
+    final idsToTransfer = items.map((e) => e.id).toSet();
     setState(() {
-      _optimisticBoughtIds.clear();
+      _optimisticBoughtIds.removeAll(idsToTransfer);
+      _optimisticUnboughtIds.removeAll(idsToTransfer);
     });
 
     await SpaceService().transferBoughtItemsToPantry(
@@ -277,6 +327,133 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
     }
   }
 
+  Widget _buildBentoDock(List<ShoppingListItem> bought) {
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF10B981).withOpacity(0.45),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final showLabel = w >= 170;
+          final isUltraNarrow = w < 130;
+
+          return Row(
+            children: [
+              // Left badge: check icon + count
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 12),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${bought.length}',
+                      style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (showLabel) ...[
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    bought.length == 1 ? 'preso' : 'presi',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              const Spacer(),
+              // Delete Action
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _cancelCompletedItems(bought),
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              // Buy Action (Transfer to pantry)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _buyCompletedItems(bought),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isUltraNarrow ? 6 : 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.kitchen_outlined,
+                        color: Colors.black,
+                        size: 12,
+                      ),
+                      if (!isUltraNarrow) ...[
+                        const SizedBox(width: 4),
+                        const Text(
+                          'Compra',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10.5,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingDocs) {
@@ -300,8 +477,9 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
         final allItems = snapshot.data ?? [];
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
 
-        final unbought = allItems.where((i) => !i.isBought && !_optimisticBoughtIds.contains(i.id)).toList();
-        final bought = allItems.where((i) => i.isBought || _optimisticBoughtIds.contains(i.id)).toList();
+        final unbought = allItems.where((i) => !_computeIsBought(i)).toList();
+        final bought = allItems.where((i) => _computeIsBought(i)).toList();
+        final sortedItems = [...unbought, ...bought];
 
         return BaseListWidget<ShoppingListItem>(
           heroTag: widget.def.id,
@@ -338,31 +516,31 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
             }
           },
           size: widget.def.size,
-          items: unbought,
-          emptyMessage: 'Lista spesa completata 🎉',
-          emptySubtitle: 'Tutti i prodotti sono stati acquistati',
+          items: sortedItems,
+          emptyMessage: 'Nessun prodotto',
+          emptySubtitle: 'Aggiungi ciò che ti serve comprare',
           emptyActionLabel: 'Aggiungi Prodotto',
           onEmptyAction: () => _addFocusNode.requestFocus(),
           quickActionRow: Container(
-            height: 34,
+            height: 30,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(9),
               border: Border.all(color: Colors.white12, width: 0.8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                const Icon(Icons.search_rounded, color: Colors.white38, size: 15),
+                const Icon(Icons.search_rounded, color: Colors.white38, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
                   child: TextField(
                     controller: _addController,
                     focusNode: _addFocusNode,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    style: const TextStyle(color: Colors.white, fontSize: 11.5),
                     decoration: const InputDecoration(
-                      hintText: 'Cerca prodotto o aggiungi...',
-                      hintStyle: TextStyle(color: Colors.white38, fontSize: 11),
+                      hintText: 'Aggiungi o cerca...',
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 10.5),
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
@@ -373,8 +551,8 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
                 ),
                 if (_isAdding)
                   const SizedBox(
-                    width: 14,
-                    height: 14,
+                    width: 12,
+                    height: 12,
                     child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF3B82F6)),
                   )
                 else if (_addController.text.trim().isNotEmpty)
@@ -386,107 +564,25 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
                         color: Color(0xFF3B82F6),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 12),
+                      child: const Icon(Icons.add, color: Colors.white, size: 11),
                     ),
                   ),
               ],
             ),
           ),
-          bottomDock: bought.isNotEmpty
-              ? Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF18181B),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5), width: 1.2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 15),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${bought.length} ${bought.length == 1 ? "preso" : "presi"}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFEF4444),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () => _cancelCompletedItems(bought),
-                        child: const Text('Cancella', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
-                      ),
-                      const SizedBox(width: 4),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.kitchen_outlined, size: 12),
-                        label: const Text('Compra', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onPressed: () => _buyCompletedItems(bought),
-                      ),
-                    ],
-                  ),
-                )
-              : null,
+          bottomDock: bought.isNotEmpty ? _buildBentoDock(bought) : null,
           itemBuilder: (context, item, index) {
-            final isBought = item.isBought || _optimisticBoughtIds.contains(item.id);
+            final isBought = _computeIsBought(item);
+            final isFirstBought = isBought && index == unbought.length && unbought.isNotEmpty;
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6.0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () async {
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        _optimisticBoughtIds.add(item.id);
-                      });
-                      try {
-                        await Supabase.instance.client
-                            .from('shopping_list_items')
-                            .update({'is_bought': true})
-                            .eq('id', item.id);
-                      } catch (e) {
-                        debugPrint('Error completing item: $e');
-                        if (mounted) {
-                          setState(() {
-                            _optimisticBoughtIds.remove(item.id);
-                          });
-                        }
-                      }
-                    },
-                    child: Container(
+            final Widget itemTile = GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _toggleItemBought(item),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.5),
+                child: Row(
+                  children: [
+                    Container(
                       width: 18,
                       height: 18,
                       decoration: BoxDecoration(
@@ -501,29 +597,66 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
                           ? const Icon(Icons.check, size: 12, color: Colors.black)
                           : null,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      item.name,
-                      style: TextStyle(
-                        color: isBought ? Colors.white38 : Colors.white,
-                        decoration: isBought ? TextDecoration.lineThrough : null,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        style: TextStyle(
+                          color: isBought ? Colors.white38 : Colors.white,
+                          decoration: isBought ? TextDecoration.lineThrough : null,
+                          decorationColor: Colors.white38,
+                          fontSize: 12.5,
+                          fontWeight: isBought ? FontWeight.normal : FontWeight.w500,
+                          fontFamily: 'Inter',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  if (item.quantity > 1 || item.unit != null)
-                    Text(
-                      '${item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 1)} ${item.unit ?? ''}',
-                      style: const TextStyle(color: Colors.white54, fontSize: 11),
-                    ),
-                ],
+                    if (item.quantity > 1 || (item.unit != null && item.unit!.isNotEmpty))
+                      Text(
+                        '${item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 1)} ${item.unit ?? ''}',
+                        style: TextStyle(
+                          color: isBought ? Colors.white24 : Colors.white54,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             );
+
+            if (isFirstBought) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded, size: 10, color: Color(0xFF10B981)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'PRESI (${bought.length})',
+                          style: const TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Expanded(child: Divider(color: Colors.white12, height: 1)),
+                      ],
+                    ),
+                  ),
+                  itemTile,
+                ],
+              );
+            }
+
+            return itemTile;
           },
         );
       },
