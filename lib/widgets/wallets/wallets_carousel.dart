@@ -4,7 +4,7 @@ import 'package:solducci/models/wallet_type.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/theme/app_theme.dart';
 
-class WalletsCarousel extends StatelessWidget {
+class WalletsCarousel extends StatefulWidget {
   final String? selectedWalletId;
   final ValueChanged<String?> onWalletSelected;
 
@@ -13,6 +13,19 @@ class WalletsCarousel extends StatelessWidget {
     required this.selectedWalletId,
     required this.onWalletSelected,
   });
+
+  @override
+  State<WalletsCarousel> createState() => _WalletsCarouselState();
+}
+
+class _WalletsCarouselState extends State<WalletsCarousel> {
+  @override
+  void initState() {
+    super.initState();
+    if (WalletService().currentWallets.isEmpty) {
+      WalletService().fetchWallets();
+    }
+  }
 
   void _showAddWalletDialog(BuildContext context) {
     final nameController = TextEditingController();
@@ -155,11 +168,11 @@ class WalletsCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<List<Wallet>>(
       stream: WalletService().stream,
+      initialData: WalletService().currentWallets,
       builder: (context, snapshot) {
         final wallets = snapshot.data ?? WalletService().currentWallets;
 
         if (wallets.isEmpty) {
-          WalletService().fetchWallets();
           return const SizedBox(height: 105);
         }
 
@@ -196,7 +209,7 @@ class WalletsCarousel extends StatelessWidget {
               }
 
               final wallet = wallets[idx];
-              final isSelected = selectedWalletId == wallet.id;
+              final isSelected = widget.selectedWalletId == wallet.id;
 
               return Container(
                 width: 175,
@@ -224,9 +237,9 @@ class WalletsCarousel extends StatelessWidget {
                   child: InkWell(
                     onTap: () {
                       if (isSelected) {
-                        onWalletSelected(null); // Deseleziona per mostrare tutti i conti
+                        widget.onWalletSelected(null); // Deseleziona per mostrare tutti i conti
                       } else {
-                        onWalletSelected(wallet.id);
+                        widget.onWalletSelected(wallet.id);
                       }
                     },
                     borderRadius: BorderRadius.circular(20),

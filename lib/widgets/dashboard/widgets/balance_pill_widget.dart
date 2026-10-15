@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/models/wallet.dart';
 import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
@@ -35,8 +36,18 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
     super.initState();
     _loadFromCacheFirst();
     _loadBalance();
-    _walletSub = WalletService().stream.listen((_) => _loadBalance());
-    _expenseSub = ExpenseServiceCached().stream.listen((_) => _loadBalance());
+    _walletSub = WalletService().stream.listen((wallets) {
+      final currentContext = ContextManager().currentContext;
+      if (!currentContext.isGroup) {
+        _updateFromWallets(wallets);
+      }
+    });
+    _expenseSub = ExpenseServiceCached().stream.listen((_) {
+      final currentContext = ContextManager().currentContext;
+      if (currentContext.isGroup) {
+        _loadGroupBalance();
+      }
+    });
   }
 
   void _loadFromCacheFirst() {
@@ -84,43 +95,57 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
     super.dispose();
   }
 
-  Future<void> _loadBalance() async {
+  void _updateFromWallets(List<Wallet> wallets) {
+    if (!mounted) return;
+    final customProps = widget.def.customProps;
+    final specificWalletId = customProps?['walletId'] as String?;
+
+    List<MapEntry<String, double>> freshBalances = [];
+
+    if (specificWalletId != null) {
+      final match = wallets.where((w) => w.id == specificWalletId).firstOrNull;
+      if (match != null) {
+        freshBalances = [MapEntry(match.name, match.currentBalance)];
+      } else {
+        freshBalances = [const MapEntry('Conto non trovato', 0.0)];
+      }
+    } else {
+      if (wallets.isNotEmpty) {
+        final double totalBalance = wallets.fold(0.0, (sum, w) => sum + w.currentBalance);
+        freshBalances = [
+          MapEntry('Totale', totalBalance),
+          ...wallets.map((w) => MapEntry(w.name, w.currentBalance)),
+        ];
+      } else {
+        freshBalances = [const MapEntry('Nessun conto', 0.0)];
+      }
+    }
+
+    setState(() {
+      _balancesList = freshBalances;
+      _isLoading = false;
+      _isStale = false;
+    });
+
+    BentoDataCache.saveSnapshot(_cacheKey, {
+      'items': freshBalances.map((e) => {'k': e.key, 'v': e.value}).toList(),
+    });
+  }
+
+  Future<void> _loadGroupBalance() async {
+    final currentContext = ContextManager().currentContext;
+    if (!currentContext.isGroup || currentContext.groupId == null) return;
+
     try {
-      final contextManager = ContextManager();
-      final currentContext = contextManager.currentContext;
-      final customProps = widget.def.customProps;
-      final specificWalletId = customProps?['walletId'] as String?;
+      final balances = await ExpenseServiceCached()
+          .calculateGroupBalance(currentContext.groupId!)
+          .timeout(const Duration(seconds: 4));
 
       List<MapEntry<String, double>> freshBalances = [];
-
-      if (specificWalletId != null) {
-        final wallets = await WalletService().fetchWallets().timeout(const Duration(seconds: 4));
-        final match = wallets.where((w) => w.id == specificWalletId).firstOrNull;
-        if (match != null) {
-          freshBalances = [MapEntry(match.name, match.currentBalance)];
-        } else {
-          freshBalances = [const MapEntry('Conto non trovato', 0.0)];
-        }
-      } else if (currentContext.isGroup && currentContext.groupId != null) {
-        final balances = await ExpenseServiceCached()
-            .calculateGroupBalance(currentContext.groupId!)
-            .timeout(const Duration(seconds: 4));
-        if (balances.isNotEmpty) {
-          freshBalances = balances.entries.toList();
-        } else {
-          freshBalances = [const MapEntry('Nessun saldo', 0.0)];
-        }
+      if (balances.isNotEmpty) {
+        freshBalances = balances.entries.toList();
       } else {
-        final wallets = await WalletService().fetchWallets().timeout(const Duration(seconds: 4));
-        if (wallets.isNotEmpty) {
-          final double totalBalance = wallets.fold(0.0, (sum, w) => sum + w.currentBalance);
-          freshBalances = [
-            MapEntry('Totale', totalBalance),
-            ...wallets.map((w) => MapEntry(w.name, w.currentBalance)),
-          ];
-        } else {
-          freshBalances = [const MapEntry('Nessun conto', 0.0)];
-        }
+        freshBalances = [const MapEntry('Nessun saldo', 0.0)];
       }
 
       if (mounted) {
@@ -130,10 +155,25 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
           _isStale = false;
         });
 
-        // Persistiamo lo snapshot valido
         BentoDataCache.saveSnapshot(_cacheKey, {
           'items': freshBalances.map((e) => {'k': e.key, 'v': e.value}).toList(),
         });
+      }
+    } catch (e) {
+      debugPrint('[BalancePillWidget] Errore fetch group balance: $e');
+    }
+  }
+
+  Future<void> _loadBalance() async {
+    try {
+      final currentContext = ContextManager().currentContext;
+      if (currentContext.isGroup && currentContext.groupId != null) {
+        await _loadGroupBalance();
+      } else {
+        final wallets = WalletService().currentWallets.isNotEmpty
+            ? WalletService().currentWallets
+            : await WalletService().fetchWallets().timeout(const Duration(seconds: 4));
+        _updateFromWallets(wallets);
       }
     } catch (e) {
       debugPrint('[BalancePillWidget] Errore o timeout fetch balance: $e');

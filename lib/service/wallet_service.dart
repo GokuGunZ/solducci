@@ -25,8 +25,34 @@ class WalletService {
   List<Wallet> _cachedWallets = [];
   List<Wallet> get currentWallets => _cachedWallets;
 
+  Future<List<Wallet>>? _inFlightFetch;
+  DateTime? _lastFetchTime;
+  static const Duration _cacheTtl = Duration(seconds: 15);
+
   /// Recupera tutti i portafogli attivi dell'utente con saldi aggiornati
-  Future<List<Wallet>> fetchWallets() async {
+  Future<List<Wallet>> fetchWallets({bool forceRefresh = false}) async {
+    // 1. Se c'è già una richiesta di rete in corso, riutilizzala (deduplicazione in-flight)
+    if (_inFlightFetch != null) {
+      return _inFlightFetch!;
+    }
+
+    // 2. Se abbiamo dati in cache e non è forzato il refresh, rispetta il cooldown TTL
+    if (!forceRefresh &&
+        _cachedWallets.isNotEmpty &&
+        _lastFetchTime != null &&
+        DateTime.now().difference(_lastFetchTime!) < _cacheTtl) {
+      return _cachedWallets;
+    }
+
+    _inFlightFetch = _executeFetchWallets();
+    try {
+      return await _inFlightFetch!;
+    } finally {
+      _inFlightFetch = null;
+    }
+  }
+
+  Future<List<Wallet>> _executeFetchWallets() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
@@ -49,6 +75,7 @@ class WalletService {
       }
 
       _cachedWallets = list;
+      _lastFetchTime = DateTime.now();
       await _recalculateBalances();
       return _cachedWallets;
     } catch (e) {
