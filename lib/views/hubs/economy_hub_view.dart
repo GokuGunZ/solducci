@@ -18,6 +18,7 @@ import 'package:solducci/widgets/economy/group_debts_section.dart';
 import 'package:solducci/widgets/economy/real_cashflow_timeline_graph.dart';
 import 'package:solducci/widgets/quick_add/unified_transaction_modal.dart';
 import 'package:solducci/service/recurring_transaction_service.dart';
+import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/widgets/economy/recurring_inbox_sheet.dart';
 import 'package:solducci/widgets/wallets/cashflow_hero_card.dart';
 import 'package:solducci/widgets/wallets/investments_carousel.dart';
@@ -206,9 +207,20 @@ class _EconomyHubViewState extends State<EconomyHubView> {
             });
           }
 
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 80),
-            children: [
+          return RefreshIndicator(
+            color: const Color(0xFF10B981),
+            backgroundColor: const Color(0xFF18181B),
+            onRefresh: () async {
+              _expenseService.refresh();
+              await Future.wait([
+                WalletService().fetchWallets(forceRefresh: true),
+                RecurringTransactionService().fetchRecurringTransactions(),
+              ]);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 80),
+              children: [
               // Banner Movimenti Ricorrenti in Sospeso
               ValueListenableBuilder<int>(
                 valueListenable: RecurringTransactionService().pendingInboxCountNotifier,
@@ -480,9 +492,10 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                 ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
+    ),
     );
   }
 

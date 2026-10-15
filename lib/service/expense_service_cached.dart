@@ -50,6 +50,11 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
   // Manual refresh trigger for streams
   final _cacheInvalidationController = StreamController<void>.broadcast();
 
+  /// Manually trigger a refresh across all expense streams
+  void refresh() {
+    _cacheInvalidationController.add(null);
+  }
+
   /// Cache for expense splits (expense_id to List of ExpenseSplit)
   /// Reduces queries for split calculations
   final Map<int, List<ExpenseSplit>> _splitsCache = {};

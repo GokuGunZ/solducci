@@ -16,6 +16,14 @@ class WalletService {
     // Ricalcola quando cambiano entrate o trasferimenti
     IncomeService().stream.listen((_) => _recalculateBalances());
     WalletTransferService().stream.listen((_) => _recalculateBalances());
+
+    _supabase.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedOut || data.event == AuthChangeEvent.userUpdated) {
+        _cachedWallets = [];
+        _lastFetchTime = null;
+        _inFlightFetch = null;
+      }
+    });
   }
 
   final _supabase = Supabase.instance.client;

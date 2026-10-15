@@ -18,7 +18,7 @@ class _WalletsManagementViewState extends State<WalletsManagementView> {
   @override
   void initState() {
     super.initState();
-    _walletService.fetchWallets();
+    _walletService.fetchWallets(forceRefresh: true);
   }
 
   void _openEditDialog(Wallet wallet) {
@@ -234,10 +234,15 @@ class _WalletsManagementViewState extends State<WalletsManagementView> {
             return const Center(child: CircularProgressIndicator(color: AppTheme.success));
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-            itemCount: wallets.length,
-            itemBuilder: (ctx, idx) {
+          return RefreshIndicator(
+            color: AppTheme.success,
+            backgroundColor: const Color(0xFF18181B),
+            onRefresh: () => _walletService.fetchWallets(forceRefresh: true),
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+              itemCount: wallets.length,
+              itemBuilder: (ctx, idx) {
               final wallet = wallets[idx];
 
               return Container(
@@ -297,9 +302,10 @@ class _WalletsManagementViewState extends State<WalletsManagementView> {
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
+    ),
     );
   }
 }
