@@ -12,7 +12,7 @@ import 'package:solducci/views/monthly_view.dart';
 import 'package:solducci/views/category_view.dart';
 import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/bento_dashboard_page.dart';
-import 'package:solducci/views/placeholders/recurring_expenses_page.dart';
+import 'package:solducci/views/economy/recurring_hub_view.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
 import 'package:solducci/features/space/views/note_detail_view.dart';
@@ -150,10 +150,14 @@ class AppRouter {
         builder: (context, state) => const TimelineView(),
       ),
 
-      // Placeholder Routes (future features)
+      // Recurring & Fixed Transactions
       GoRoute(
         path: '/recurring-expenses',
-        builder: (context, state) => const RecurringExpensesPage(),
+        builder: (context, state) => const RecurringHubView(),
+      ),
+      GoRoute(
+        path: '/economy/recurring',
+        builder: (context, state) => const RecurringHubView(),
       ),
       GoRoute(
         path: '/personal-expenses',

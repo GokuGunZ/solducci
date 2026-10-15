@@ -17,7 +17,8 @@ import 'package:solducci/widgets/economy/category_breakdown_deck.dart';
 import 'package:solducci/widgets/economy/group_debts_section.dart';
 import 'package:solducci/widgets/economy/real_cashflow_timeline_graph.dart';
 import 'package:solducci/widgets/quick_add/unified_transaction_modal.dart';
-import 'package:solducci/widgets/solducci_app_bar.dart';
+import 'package:solducci/service/recurring_transaction_service.dart';
+import 'package:solducci/widgets/economy/recurring_inbox_sheet.dart';
 import 'package:solducci/widgets/wallets/cashflow_hero_card.dart';
 import 'package:solducci/widgets/wallets/investments_carousel.dart';
 import 'package:solducci/widgets/wallets/wallets_carousel.dart';
@@ -103,7 +104,7 @@ class _EconomyHubViewState extends State<EconomyHubView> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: SolducciAppBar(
+      appBar: AppBar(
         title: Text(
           isGroupContext ? 'Economy Hub • ${_contextManager.contextDisplayName}' : 'Economy Hub',
           style: const TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold),
@@ -130,6 +131,26 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                 MaterialPageRoute(builder: (ctx) => const WalletsManagementView()),
               );
             },
+          ),
+          ValueListenableBuilder<int>(
+            valueListenable: RecurringTransactionService().pendingInboxCountNotifier,
+            builder: (context, pendingCount, child) {
+              if (pendingCount > 0) {
+                return Badge.count(
+                  count: pendingCount,
+                  backgroundColor: Colors.amber,
+                  textColor: Colors.black,
+                  alignment: const Alignment(0.6, -0.6),
+                  child: child!,
+                );
+              }
+              return child!;
+            },
+            child: IconButton(
+              icon: const Icon(Icons.repeat_rounded, color: Color(0xFF10B981)),
+              tooltip: 'Spese Fisse & Ricorrenze',
+              onPressed: () => context.push('/economy/recurring'),
+            ),
           ),
           ValueListenableBuilder<int>(
             valueListenable: CsvStagingService().pendingCountNotifier,
@@ -188,6 +209,61 @@ class _EconomyHubViewState extends State<EconomyHubView> {
           return ListView(
             padding: const EdgeInsets.only(bottom: 80),
             children: [
+              // Banner Movimenti Ricorrenti in Sospeso
+              ValueListenableBuilder<int>(
+                valueListenable: RecurringTransactionService().pendingInboxCountNotifier,
+                builder: (context, pendingCount, _) {
+                  if (pendingCount == 0) return const SizedBox.shrink();
+                  return Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.amber.withOpacity(0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.mark_email_unread_rounded, color: Colors.amber, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$pendingCount ${pendingCount == 1 ? "movimento in scadenza" : "movimenti in scadenza"}',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              const Text(
+                                'Verifica o modifica l\'importo prima di scalare',
+                                style: TextStyle(color: Colors.white70, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => RecurringInboxSheet.show(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Rivedi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
               // Banner Bozza CSV in Sospeso (reattivo)
               ValueListenableBuilder<int>(
                 valueListenable: CsvStagingService().pendingCountNotifier,

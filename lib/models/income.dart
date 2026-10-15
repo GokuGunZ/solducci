@@ -42,6 +42,9 @@ class Income implements CacheableModel<String> {
   @HiveField(11)
   final String? assetId;
 
+  @HiveField(12)
+  final String? recurringTransactionId;
+
   Income({
     required this.id,
     required this.userId,
@@ -53,6 +56,7 @@ class Income implements CacheableModel<String> {
     this.isRecurring = false,
     this.portfolioId,
     this.assetId,
+    this.recurringTransactionId,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -83,6 +87,7 @@ class Income implements CacheableModel<String> {
     bool? isRecurring,
     String? portfolioId,
     String? assetId,
+    String? recurringTransactionId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -97,6 +102,7 @@ class Income implements CacheableModel<String> {
       isRecurring: isRecurring ?? this.isRecurring,
       portfolioId: portfolioId ?? this.portfolioId,
       assetId: assetId ?? this.assetId,
+      recurringTransactionId: recurringTransactionId ?? this.recurringTransactionId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -118,6 +124,7 @@ class Income implements CacheableModel<String> {
     };
     if (portfolioId != null) map['portfolio_id'] = portfolioId;
     if (assetId != null) map['asset_id'] = assetId;
+    if (recurringTransactionId != null) map['recurring_transaction_id'] = recurringTransactionId;
     return map;
   }
 
@@ -128,6 +135,7 @@ class Income implements CacheableModel<String> {
       walletId: map['wallet_id'] as String?,
       portfolioId: map['portfolio_id'] as String?,
       assetId: map['asset_id'] as String?,
+      recurringTransactionId: map['recurring_transaction_id'] as String?,
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       description: map['description'] as String? ?? '',
       date: DateTime.tryParse(map['date'] as String? ?? '') ?? DateTime.now(),

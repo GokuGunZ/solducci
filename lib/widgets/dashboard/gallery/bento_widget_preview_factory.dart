@@ -139,6 +139,8 @@ class BentoWidgetPreviewFactory {
         return _buildMarkdownPreview(size, color);
       case 'unresolved_asterisks':
         return _buildAsterisksPreview(size, color);
+      case 'recurring_movements':
+        return _buildRecurringMovementsPreview(size, color);
       default:
         return _buildGenericPreview(type, size, color);
     }
@@ -201,6 +203,145 @@ class BentoWidgetPreviewFactory {
             ],
           ),
         ],
+      ],
+    );
+  }
+
+  static Widget _buildRecurringMovementsPreview(BentoWidgetSize size, Color color) {
+    final isCompact = size.crossAxisCellCount <= 2 && size.mainAxisCellCount <= 1;
+
+    if (isCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.repeat_rounded, size: 12, color: color),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Ricorrenti',
+                    style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const Text(
+                '€ 240/m',
+                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Netflix Premium',
+                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('tra 3gg', style: TextStyle(color: Colors.white70, fontSize: 8)),
+              ),
+              const SizedBox(width: 4),
+              const Text('€ 17,99', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.repeat_rounded, size: 13, color: color),
+                const SizedBox(width: 5),
+                const Text(
+                  'Ricorrenti',
+                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                '1 da confermare',
+                style: TextStyle(color: Color(0xFFF59E0B), fontSize: 8, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Uscite: € 320/m', style: TextStyle(color: Colors.white70, fontSize: 8.5)),
+              Text('+€ 1.850/m', style: TextStyle(color: Color(0xFF10B981), fontSize: 8.5, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        _buildPreviewRecurringRow('Affitto Casa', 'tra 2gg', '-€ 650,00', const Color(0xFF3B82F6)),
+        const SizedBox(height: 4),
+        _buildPreviewRecurringRow('Spotify Duo', 'tra 5gg', '-€ 14,99', const Color(0xFF10B981)),
+      ],
+    );
+  }
+
+  static Widget _buildPreviewRecurringRow(String title, String badge, String amount, Color iconColor) {
+    return Row(
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(color: iconColor.withOpacity(0.2), shape: BoxShape.circle),
+          child: Icon(Icons.circle, size: 6, color: iconColor),
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w500),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(badge, style: const TextStyle(color: Colors.white60, fontSize: 7.5)),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          amount,
+          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }

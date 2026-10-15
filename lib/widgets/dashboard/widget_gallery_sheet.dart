@@ -164,6 +164,17 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
       keywords: ['categorie', 'spese', 'breakdown', 'cibo', 'trasporti', 'svago'],
     ),
+    const WidgetMetadata(
+      type: 'recurring_movements',
+      name: 'Spese Ricorrenti',
+      description: 'Monitora abbonamenti, affitti, bollette e stipendi con inbox per le conferme.',
+      category: WidgetCategory.finance,
+      icon: Icons.repeat_rounded,
+      color: Color(0xFF8B5CF6),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
+      keywords: ['ricorrenti', 'abbonamenti', 'affitto', 'bollette', 'stipendio', 'rate', 'mensile'],
+    ),
 
     // Tempo & Focus
     const WidgetMetadata(

@@ -46,6 +46,9 @@ class Expense implements CacheableModel<int> {
   @HiveField(12)
   String? portfolioId; // UUID of investment portfolio if type == Tipologia.investimento
 
+  @HiveField(13)
+  String? recurringTransactionId; // UUID of recurring transaction template
+
   Expense({
     required this.id,
     required this.description,
@@ -59,6 +62,7 @@ class Expense implements CacheableModel<int> {
     this.splitData,
     this.walletId,
     this.portfolioId,
+    this.recurringTransactionId,
   });
 
   /// Check if expense is personal (not in a group)
@@ -94,6 +98,7 @@ class Expense implements CacheableModel<int> {
     Map<String, double>? splitData,
     String? walletId,
     String? portfolioId,
+    String? recurringTransactionId,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -108,6 +113,7 @@ class Expense implements CacheableModel<int> {
       splitData: splitData ?? this.splitData,
       walletId: walletId ?? this.walletId,
       portfolioId: portfolioId ?? this.portfolioId,
+      recurringTransactionId: recurringTransactionId ?? this.recurringTransactionId,
     );
   }
 
@@ -152,6 +158,7 @@ class Expense implements CacheableModel<int> {
           : null,
       walletId: map['wallet_id'] as String?,
       portfolioId: map['portfolio_id'] as String?,
+      recurringTransactionId: map['recurring_transaction_id'] as String?,
     );
   }
 
@@ -204,6 +211,9 @@ class Expense implements CacheableModel<int> {
     }
     if (portfolioId != null) {
       map['portfolio_id'] = portfolioId!;
+    }
+    if (recurringTransactionId != null) {
+      map['recurring_transaction_id'] = recurringTransactionId!;
     }
 
     // Don't send ID for new records (let Supabase auto-generate)

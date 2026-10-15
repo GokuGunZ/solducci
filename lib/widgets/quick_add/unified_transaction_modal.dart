@@ -22,6 +22,7 @@ import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/widgets/economy/recurring_form_sheet.dart';
 
 enum TransactionMode { expense, income, transfer }
 
@@ -743,7 +744,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: _isLoading
-                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                       ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                       : Text(
                           _mode == TransactionMode.expense
                               ? 'Salva Spesa'
@@ -752,6 +753,39 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                         ),
                 ),
               ),
+
+              if (_mode != TransactionMode.transfer) ...[
+                const SizedBox(height: 10),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      final cleanAmt = _amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
+                      final amount = double.tryParse(cleanAmt);
+                      final title = _descController.text.trim();
+                      final isIncome = _mode == TransactionMode.income;
+                      final category = isIncome ? _incomeCategory.name : _expenseCategory.name;
+                      final walletId = _selectedWallet?.id;
+
+                      Navigator.of(context).pop();
+                      RecurringFormSheet.show(
+                        context,
+                        initialIsIncome: isIncome,
+                        initialTitle: title.isNotEmpty ? title : null,
+                        initialAmount: amount,
+                        initialCategory: category,
+                        initialWalletId: walletId,
+                      );
+                    },
+                    icon: const Icon(Icons.repeat_rounded, size: 16, color: Colors.white60),
+                    label: Text(
+                      _mode == TransactionMode.income
+                          ? 'Rendi entrata ricorrente'
+                          : 'Rendi spesa ricorrente',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
