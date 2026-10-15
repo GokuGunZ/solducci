@@ -46,6 +46,11 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
   double _animEndDy = 0.0;
   int _targetIndex = 0;
 
+  // Scroll & overscroll state for active note
+  final ScrollController _scrollController = ScrollController();
+  double _overscrollDy = 0.0;
+  bool _canScrollCurrentNote = false;
+
   // Inline editing state
   bool _isEditingContent = false;
   final TextEditingController _editController = TextEditingController();
@@ -73,15 +78,21 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
       if (status == AnimationStatus.completed) {
         if (_targetIndex != _currentIndex) {
           _exitEditMode();
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(0.0);
+          }
           setState(() {
             _currentIndex = _targetIndex;
             _dragDx = 0.0;
             _dragDy = 0.0;
+            _overscrollDy = 0.0;
+            _canScrollCurrentNote = false;
           });
         } else {
           setState(() {
             _dragDx = 0.0;
             _dragDy = 0.0;
+            _overscrollDy = 0.0;
           });
         }
       }
@@ -114,6 +125,7 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     _contextManager.removeListener(_onContextChanged);
     _docSubscription?.cancel();
     _animController.dispose();
+    _scrollController.dispose();
     _debounceSaveTimer?.cancel();
     _editController.dispose();
     _editFocusNode.dispose();
@@ -226,16 +238,16 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     final velocity = details.primaryVelocity ?? 0.0;
     const threshold = 40.0;
 
-    // Swiping downwards: dismiss downwards and reveal next note
-    if (_dragDy > threshold || velocity > 400) {
+    // Swiping upwards (dy < -threshold): dismiss upwards and reveal next note
+    if (_dragDy < -threshold || velocity < -400) {
       HapticFeedback.selectionClick();
       _targetIndex = (_currentIndex + 1) % _notes.length;
-      _animateDismiss(toDown: true);
-    } else if (_dragDy < -threshold || velocity < -400) {
-      // Swiping upwards: dismiss upwards and reveal previous note
+      _animateDismiss(toUp: true);
+    } else if (_dragDy > threshold || velocity > 400) {
+      // Swiping downwards (dy > threshold): dismiss downwards and reveal previous note
       HapticFeedback.selectionClick();
       _targetIndex = (_currentIndex - 1 + _notes.length) % _notes.length;
-      _animateDismiss(toUp: true);
+      _animateDismiss(toDown: true);
     } else {
       _animateBack();
     }
@@ -922,8 +934,8 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                   behavior: HitTestBehavior.opaque,
                   onHorizontalDragUpdate: _isEditingContent ? null : _onHorizontalDragUpdate,
                   onHorizontalDragEnd: _isEditingContent ? null : _onHorizontalDragEnd,
-                  onVerticalDragUpdate: _isEditingContent ? null : _onVerticalDragUpdate,
-                  onVerticalDragEnd: _isEditingContent ? null : _onVerticalDragEnd,
+                  onVerticalDragUpdate: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragUpdate,
+                  onVerticalDragEnd: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragEnd,
                   onTap: _isEditingContent ? null : () => _startEditing(activeDoc),
                   child: Transform.translate(
                     offset: Offset(_dragDx, _dragDy),
@@ -1108,16 +1120,108 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                                       ),
                                       onChanged: (val) => _onInlineContentChanged(val, activeDoc),
                                     )
-                                  : Text(
-                                      previewText.isNotEmpty ? previewText : 'Nota vuota... Tocca per scrivere',
-                                      maxLines: 6,
-                                      overflow: TextOverflow.fade,
-                                      style: TextStyle(
-                                        color: previewText.isNotEmpty ? Colors.white70 : Colors.white30,
-                                        fontStyle: previewText.isNotEmpty ? FontStyle.normal : FontStyle.italic,
-                                        fontSize: 12,
-                                        height: 1.4,
-                                      ),
+                                  : LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final text = previewText.isNotEmpty ? previewText : 'Nota vuota... Tocca per scrivere';
+                                        final textStyle = TextStyle(
+                                          color: previewText.isNotEmpty ? Colors.white70 : Colors.white30,
+                                          fontStyle: previewText.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                                          fontSize: 12,
+                                          height: 1.4,
+                                        );
+
+                                        // Measure if content overflows available card height
+                                        final span = TextSpan(text: text, style: textStyle);
+                                        final tp = TextPainter(
+                                          text: span,
+                                          textDirection: TextDirection.ltr,
+                                          maxLines: null,
+                                        )..layout(maxWidth: constraints.maxWidth);
+
+                                        final canScroll = tp.size.height > (constraints.maxHeight + 2);
+                                        if (canScroll != _canScrollCurrentNote) {
+                                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                                            if (mounted && canScroll != _canScrollCurrentNote) {
+                                              setState(() {
+                                                _canScrollCurrentNote = canScroll;
+                                              });
+                                            }
+                                          });
+                                        }
+
+                                        if (!canScroll) {
+                                          return Text(
+                                            text,
+                                            style: textStyle,
+                                          );
+                                        }
+
+                                        return NotificationListener<ScrollNotification>(
+                                          onNotification: (notification) {
+                                            if (_isEditingContent) return false;
+
+                                            if (notification is ScrollStartNotification) {
+                                              _overscrollDy = 0.0;
+                                            } else if (notification is OverscrollNotification) {
+                                              if (_notes.length <= 1) return false;
+                                              // Dragging beyond boundary
+                                              if (notification.overscroll > 0) {
+                                                // Pulling up past the bottom -> advance to next note
+                                                _overscrollDy += notification.overscroll;
+                                                setState(() {
+                                                  _dragDy = -(_overscrollDy * 0.6).clamp(0.0, 100.0);
+                                                });
+                                              } else if (notification.overscroll < 0) {
+                                                // Pulling down past the top -> go back to previous note
+                                                _overscrollDy += notification.overscroll;
+                                                setState(() {
+                                                  _dragDy = -(_overscrollDy * 0.6).clamp(-100.0, 0.0);
+                                                });
+                                              }
+                                            } else if (notification is ScrollUpdateNotification) {
+                                              if (_overscrollDy != 0.0 && notification.scrollDelta != null) {
+                                                _overscrollDy += notification.scrollDelta!;
+                                                setState(() {
+                                                  _dragDy = -(_overscrollDy * 0.6).clamp(-100.0, 100.0);
+                                                });
+                                              }
+                                            } else if (notification is ScrollEndNotification) {
+                                              if (_notes.length > 1) {
+                                                const threshold = 35.0;
+                                                if (_dragDy < -threshold) {
+                                                  HapticFeedback.selectionClick();
+                                                  _targetIndex = (_currentIndex + 1) % _notes.length;
+                                                  _animateDismiss(toUp: true);
+                                                } else if (_dragDy > threshold) {
+                                                  HapticFeedback.selectionClick();
+                                                  _targetIndex = (_currentIndex - 1 + _notes.length) % _notes.length;
+                                                  _animateDismiss(toDown: true);
+                                                } else if (_dragDy != 0.0) {
+                                                  _animateBack();
+                                                }
+                                              } else if (_dragDy != 0.0) {
+                                                _animateBack();
+                                              }
+                                              _overscrollDy = 0.0;
+                                            }
+                                            return false;
+                                          },
+                                          child: RawScrollbar(
+                                            controller: _scrollController,
+                                            thumbColor: const Color(0xFFF59E0B).withOpacity(0.35),
+                                            radius: const Radius.circular(3),
+                                            thickness: 2.5,
+                                            child: SingleChildScrollView(
+                                              controller: _scrollController,
+                                              physics: const ClampingScrollPhysics(),
+                                              child: Text(
+                                                text,
+                                                style: textStyle,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
                             ),
 
