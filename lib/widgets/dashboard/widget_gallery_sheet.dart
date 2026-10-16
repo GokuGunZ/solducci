@@ -106,7 +106,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.account_balance_wallet_rounded,
       color: Color(0xFF10B981),
       defaultSize: BentoWidgetSize(2, 1),
-      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(1, 1), BentoWidgetSize(1, 2)],
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(1, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(4, 1)],
       keywords: ['saldo', 'conto', 'banca', 'portafoglio', 'denaro', 'soldi'],
     ),
     const WidgetMetadata(
@@ -161,7 +161,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.category_rounded,
       color: Color(0xFF10B981),
       defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
+      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(4, 2), BentoWidgetSize(2, 4)],
       keywords: ['categorie', 'spese', 'breakdown', 'cibo', 'trasporti', 'svago'],
     ),
     const WidgetMetadata(

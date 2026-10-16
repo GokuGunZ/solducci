@@ -110,7 +110,7 @@ class DashboardWidgetFactory {
       case 'recurring_movements':
         return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
       case 'balance':
-        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(1, 2)];
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 1)];
       case 'quick_expense':
         return [const BentoWidgetSize(2, 4), const BentoWidgetSize(3, 4), const BentoWidgetSize(2, 2)];
       case 'focus_tasks':
@@ -138,7 +138,7 @@ class DashboardWidgetFactory {
       case 'peer_debts':
         return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
       case 'category_expenses':
-        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2), const BentoWidgetSize(2, 4)];
       case 'recent_notes':
         return [const BentoWidgetSize(2, 4), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(3, 4)];
       default:

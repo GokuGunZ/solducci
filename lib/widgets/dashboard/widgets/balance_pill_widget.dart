@@ -196,6 +196,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
     final size = widget.def.size;
     final is1x1 = size.crossAxisCellCount <= 1 && size.mainAxisCellCount <= 1;
     final is2x1 = size.crossAxisCellCount >= 2 && size.mainAxisCellCount <= 1;
+    final isHeight3 = size.mainAxisCellCount >= 3;
     final is2x2OrLarger = size.mainAxisCellCount >= 2;
 
     final hasValidAccounts = _balancesList.isNotEmpty &&
@@ -261,6 +262,172 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
                           ],
                         ),
                         _buildBalanceAmount(item.value, is1x1: false, isLarge: false, customFontSize: 16.0),
+                      ],
+                    ),
+                  );
+                }
+
+                if (isHeight3) {
+                  final now = DateTime.now();
+                  final allExp = ExpenseServiceCached().getAllCachedExpenses();
+                  double mSpent = 0.0;
+                  for (final e in allExp) {
+                    if (e.date.year == now.year && e.date.month == now.month) {
+                      mSpent += e.amount;
+                    }
+                  }
+                  final totalLiquidity = _balancesList.isNotEmpty ? _balancesList.first.value : 1.0;
+                  final otherWallets = _balancesList.skip(1).toList();
+
+                  return Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Livello 1: Saldo attivo + Indicatore Swipe + Mese
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              item.key.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 10,
+                                letterSpacing: 1.2,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.swipe_rounded, size: 9, color: Colors.white38),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${index + 1}/${_balancesList.length}',
+                                    style: const TextStyle(color: Colors.white38, fontSize: 9.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        _buildBalanceAmount(item.value, isLarge: true, customFontSize: 24.0),
+                        const SizedBox(height: 4),
+                        if (mSpent > 0)
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.arrow_downward_rounded, size: 9, color: Color(0xFFEF4444)),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '-€${mSpent.toStringAsFixed(0)} questo mese',
+                                      style: const TextStyle(color: Color(0xFFEF4444), fontSize: 9.5, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 8),
+                        Container(height: 0.8, color: Colors.white.withOpacity(0.08)),
+                        const SizedBox(height: 6),
+
+                        // Livello 2: Ripartizione conti o quota patrimonio
+                        Expanded(
+                          child: (index == 0 && otherWallets.isNotEmpty)
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    const Text(
+                                      'CONTI ATTIVI',
+                                      style: TextStyle(
+                                        color: Colors.white38,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                    ...otherWallets.take(2).map((w) => Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFF10B981),
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(maxWidth: 85),
+                                              child: Text(
+                                                w.key,
+                                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Text(
+                                          '€${w.value.toStringAsFixed(0)}',
+                                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    )),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'QUOTA SUL TOTALE',
+                                          style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                                        ),
+                                        Text(
+                                          totalLiquidity > 0 ? '${((item.value / totalLiquidity) * 100).clamp(0, 100).toStringAsFixed(1)}%' : '0%',
+                                          style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(3),
+                                      child: LinearProgressIndicator(
+                                        value: totalLiquidity > 0 ? (item.value / totalLiquidity).clamp(0.0, 1.0) : 0.0,
+                                        backgroundColor: Colors.white10,
+                                        color: const Color(0xFF10B981),
+                                        minHeight: 4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
                       ],
                     ),
                   );
