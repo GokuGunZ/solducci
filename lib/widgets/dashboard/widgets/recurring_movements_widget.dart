@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_config.dart';
@@ -29,6 +30,40 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
   StreamSubscription? _sub;
   List<RecurringTransaction> _items = [];
   bool _isLoading = true;
+  final Set<String> _confirmingIds = {};
+
+  Future<void> _quickConfirm(RecurringTransaction item) async {
+    HapticFeedback.lightImpact();
+    setState(() => _confirmingIds.add(item.id));
+    try {
+      await _service.confirmOccurrence(item);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registrato: ${item.title} (€${item.amount.toStringAsFixed(2)})'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore: $e'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _confirmingIds.remove(item.id));
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -267,6 +302,8 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
   }
 
   Widget _buildExpandedView() {
+    final size = widget.def.size;
+    final isH3 = size.mainAxisCellCount <= 3;
     final activeItems = _items.where((i) => i.isActive).toList();
     final pendingCount = _items.where((i) => i.isActive && i.requiresConfirmation && i.isDueTodayOrOverdue).length;
 
@@ -342,11 +379,11 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
           ],
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
         // Monthly Summary Bar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: const Color(0xFF27272A).withOpacity(0.6),
             borderRadius: BorderRadius.circular(10),
@@ -378,7 +415,7 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
           ),
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
         // Upcoming List
         Expanded(
@@ -409,10 +446,10 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
                   ),
                 )
               : ListView.separated(
-                  physics: const NeverScrollableScrollPhysics(),
+                  physics: isH3 ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
                   padding: EdgeInsets.zero,
-                  itemCount: upcoming.length > 3 ? 3 : upcoming.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemCount: isH3 ? (upcoming.length > 2 ? 2 : upcoming.length) : upcoming.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 7),
                   itemBuilder: (context, index) {
                     final item = upcoming[index];
                     return _buildItemRow(item);
@@ -480,12 +517,17 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
   Widget _buildCountdownChip(RecurringTransaction item) {
     final days = item.daysUntilNextDue;
     final isDue = item.isDueTodayOrOverdue;
+    final isConfirming = _confirmingIds.contains(item.id);
 
     Color bg;
     Color fg;
     String label;
 
-    if (isDue) {
+    if (isDue && item.requiresConfirmation) {
+      bg = AppTheme.warning.withOpacity(0.25);
+      fg = AppTheme.warning;
+      label = item.isIncome ? 'Incassa' : 'Paga';
+    } else if (isDue) {
       bg = AppTheme.warning.withOpacity(0.2);
       fg = AppTheme.warning;
       label = days < 0 ? 'Scaduto' : 'Oggi';
@@ -503,16 +545,47 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
       label = DateFormat('d MMM', 'it').format(item.nextDueDate);
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+    final chipContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),
+        border: (isDue && item.requiresConfirmation)
+            ? Border.all(color: AppTheme.warning.withOpacity(0.55), width: 1)
+            : null,
       ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 9.5, fontWeight: FontWeight.w600),
-      ),
+      child: isConfirming
+          ? SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: fg,
+              ),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isDue && item.requiresConfirmation) ...[
+                  Icon(Icons.check_rounded, size: 10, color: fg),
+                  const SizedBox(width: 3),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(color: fg, fontSize: 9.5, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
     );
+
+    if (isDue && item.requiresConfirmation) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: isConfirming ? null : () => _quickConfirm(item),
+        child: chipContent,
+      );
+    }
+
+    return chipContent;
   }
 }

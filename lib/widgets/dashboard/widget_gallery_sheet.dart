@@ -172,7 +172,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.repeat_rounded,
       color: Color(0xFF8B5CF6),
       defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(2, 4), BentoWidgetSize(4, 1)],
       keywords: ['ricorrenti', 'abbonamenti', 'affitto', 'bollette', 'stipendio', 'rate', 'mensile'],
     ),
 
@@ -207,7 +207,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.repeat_rounded,
       color: Color(0xFFEC4899),
       defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 1), BentoWidgetSize(4, 2)],
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(4, 2)],
       keywords: ['abitudini', 'routine', 'streak', 'giornaliere', 'disciplina'],
     ),
     const WidgetMetadata(

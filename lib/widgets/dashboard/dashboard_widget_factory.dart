@@ -108,7 +108,7 @@ class DashboardWidgetFactory {
   static List<BentoWidgetSize> getAllowedSizes(String type) {
     switch (type) {
       case 'recurring_movements':
-        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(4, 1)];
       case 'balance':
         return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 1)];
       case 'quick_expense':
@@ -124,7 +124,7 @@ class DashboardWidgetFactory {
       case 'daily_progress':
         return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(1, 2)];
       case 'habit_tracker':
-        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 1), const BentoWidgetSize(4, 2)];
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2)];
       case 'hero_countdown':
         return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
       case 'pantry_alert':
