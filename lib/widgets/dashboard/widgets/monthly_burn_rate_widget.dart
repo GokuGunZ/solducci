@@ -123,7 +123,10 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 14.0,
+                          vertical: isWide ? 14.0 : 12.0,
+                        ),
                         child: isWide
                             ? Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,

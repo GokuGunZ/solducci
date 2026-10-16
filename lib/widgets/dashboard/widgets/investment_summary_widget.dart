@@ -72,150 +72,356 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
         final isPositive = unrealizedPnl >= 0;
         final pnlColor = isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444);
 
+        final isHeight1 = widget.def.size.mainAxisCellCount <= 1;
+
         return BentoWidgetContainer(
           heroTag: widget.def.id,
+          size: widget.def.size,
           isLoading: _isLoading,
+          onTap: () {
+            GoRouter.of(context).push('/investments');
+          },
           onExpand: () {
             GoRouter.of(context).push('/investments');
           },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(14.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.trending_up_rounded,
-                                    color: Color(0xFF818CF8),
-                                    size: 14,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  title.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.8,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+          child: isHeight1
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withOpacity(0.18),
+                              shape: BoxShape.circle,
                             ),
-
-                            // Mini ROI pill
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: pnlColor.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: pnlColor.withOpacity(0.3), width: 1),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isPositive ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
-                                    color: pnlColor,
-                                    size: 14,
-                                  ),
-                                  Text(
-                                    '${roiPercent >= 0 ? '+' : ''}${roiPercent.toStringAsFixed(1)}%',
-                                    style: TextStyle(
-                                      color: pnlColor,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            child: const Icon(
+                              Icons.trending_up_rounded,
+                              color: Color(0xFF818CF8),
+                              size: 13,
                             ),
-                          ],
-                        ),
-
-                        // Main Value
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              currencyFormatter.format(totalValue),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Text(
-                                  '${isPositive ? '+' : ''}${currencyFormatter.format(unrealizedPnl)}',
-                                  style: TextStyle(
-                                    color: pnlColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'non realizzato',
-                                  style: TextStyle(color: Colors.white38, fontSize: 10),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-
-                        // Mini progress/footer info navigabile
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => GoRouter.of(context).push('/investments'),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                targetPortfolioId != null
-                                    ? 'Conto singolo selezionato'
-                                    : '${_portfolioService.currentPortfolios.length} ${_portfolioService.currentPortfolios.length == 1 ? 'conto' : 'conti'} attivi',
-                                style: const TextStyle(color: Colors.white38, fontSize: 10),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.06),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 10),
-                              ),
-                            ],
                           ),
+                          const SizedBox(width: 8),
+                          Text(
+                            title.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            currencyFormatter.format(totalValue),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: pnlColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              '${roiPercent >= 0 ? '+' : ''}${roiPercent.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                color: pnlColor,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 240;
+
+                    return Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(14.0),
+                          child: isWide
+                              ? Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    // Left: Values & Header
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF6366F1).withOpacity(0.15),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.trending_up_rounded,
+                                                  color: Color(0xFF818CF8),
+                                                  size: 13,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                title.toUpperCase(),
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 0.8,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            currencyFormatter.format(totalValue),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: -0.5,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                '${isPositive ? '+' : ''}${currencyFormatter.format(unrealizedPnl)}',
+                                                style: TextStyle(
+                                                  color: pnlColor,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Text(
+                                                'non realizzato',
+                                                style: TextStyle(color: Colors.white38, fontSize: 10),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    // Right: Performance & Action pill
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                            decoration: BoxDecoration(
+                                              color: pnlColor.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: pnlColor.withOpacity(0.3), width: 1),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  isPositive ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
+                                                  color: pnlColor,
+                                                  size: 16,
+                                                ),
+                                                Text(
+                                                  '${roiPercent >= 0 ? '+' : ''}${roiPercent.toStringAsFixed(1)}% ROI',
+                                                  style: TextStyle(
+                                                    color: pnlColor,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          GestureDetector(
+                                            onTap: () => GoRouter.of(context).push('/investments'),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(0.06),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    targetPortfolioId != null
+                                                        ? 'Conto selezionato'
+                                                        : '${_portfolioService.currentPortfolios.length} ${_portfolioService.currentPortfolios.length == 1 ? "conto" : "conti"}',
+                                                    style: const TextStyle(color: Colors.white70, fontSize: 10.5),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 9),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Header
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF6366F1).withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: const Icon(
+                                                Icons.trending_up_rounded,
+                                                color: Color(0xFF818CF8),
+                                                size: 14,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              title.toUpperCase(),
+                                              style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.8,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+
+                                        // Mini ROI pill
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: pnlColor.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: pnlColor.withOpacity(0.3), width: 1),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                isPositive ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
+                                                color: pnlColor,
+                                                size: 14,
+                                              ),
+                                              Text(
+                                                '${roiPercent >= 0 ? '+' : ''}${roiPercent.toStringAsFixed(1)}%',
+                                                style: TextStyle(
+                                                  color: pnlColor,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    // Main Value
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          currencyFormatter.format(totalValue),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -0.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              '${isPositive ? '+' : ''}${currencyFormatter.format(unrealizedPnl)}',
+                                              style: TextStyle(
+                                                color: pnlColor,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Text(
+                                              'non realizzato',
+                                              style: TextStyle(color: Colors.white38, fontSize: 10),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+
+                                    // Mini progress/footer info navigabile
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => GoRouter.of(context).push('/investments'),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            targetPortfolioId != null
+                                                ? 'Conto singolo selezionato'
+                                                : '${_portfolioService.currentPortfolios.length} ${_portfolioService.currentPortfolios.length == 1 ? 'conto' : 'conti'} attivi',
+                                            style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withOpacity(0.06),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 10),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
                       ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                    );
+                  },
+                ),
         );
       },
     );

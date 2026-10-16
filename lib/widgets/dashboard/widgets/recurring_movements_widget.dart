@@ -72,16 +72,87 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
   @override
   Widget build(BuildContext context) {
     final size = widget.def.size;
-    final isCompact = size.crossAxisCellCount <= 2 && size.mainAxisCellCount <= 1;
+    final isHeight1 = size.mainAxisCellCount <= 1;
 
     return BentoWidgetContainer(
+      heroTag: widget.def.id,
       size: size,
       isLoading: _isLoading,
       onTap: () => context.push('/economy/recurring'),
       child: Padding(
-        padding: const EdgeInsets.all(14.0),
-        child: isCompact ? _buildCompactView() : _buildExpandedView(),
+        padding: isHeight1
+            ? const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0)
+            : const EdgeInsets.all(14.0),
+        child: isHeight1 ? _buildMiniBanner() : (size.mainAxisCellCount <= 2 ? _buildCompactView() : _buildExpandedView()),
       ),
+    );
+  }
+
+  Widget _buildMiniBanner() {
+    final activeItems = _items.where((i) => i.isActive).toList();
+    final pendingCount = _items.where((i) => i.isActive && i.requiresConfirmation && i.isDueTodayOrOverdue).length;
+
+    double monthlyExpenses = 0.0;
+    for (final item in activeItems) {
+      if (!item.isIncome) {
+        monthlyExpenses += item.monthlyEquivalentAmount;
+      }
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.repeat_rounded, size: 13, color: Color(0xFFA78BFA)),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'RICORRENTI',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+              ),
+            ),
+            if (pendingCount > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: AppTheme.warning.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppTheme.warning.withOpacity(0.5)),
+                ),
+                child: Text(
+                  '$pendingCount!',
+                  style: const TextStyle(
+                    color: AppTheme.warning,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        Text(
+          '€ ${monthlyExpenses.toStringAsFixed(0)}/m',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 

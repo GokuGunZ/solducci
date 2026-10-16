@@ -195,6 +195,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
   Widget build(BuildContext context) {
     final size = widget.def.size;
     final is1x1 = size.crossAxisCellCount <= 1 && size.mainAxisCellCount <= 1;
+    final is2x1 = size.crossAxisCellCount >= 2 && size.mainAxisCellCount <= 1;
     final is2x2OrLarger = size.mainAxisCellCount >= 2;
 
     final hasValidAccounts = _balancesList.isNotEmpty &&
@@ -220,11 +221,51 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
               color: const Color(0xFF10B981),
               actionLabel: 'Aggiungi',
               onAction: () => GoRouter.of(context).push('/wallets'),
-              isCompact: is1x1,
+              isCompact: is1x1 || is2x1,
             )
           : SwipeableBentoStack<MapEntry<String, double>>(
               items: _balancesList.isEmpty ? [const MapEntry('', 0.0)] : _balancesList,
               builder: (context, item, index) {
+                if (is2x1) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withOpacity(0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF10B981), size: 13),
+                            ),
+                            const SizedBox(width: 8),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 85),
+                              child: Text(
+                                item.key.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10.5,
+                                  letterSpacing: 0.8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        _buildBalanceAmount(item.value, is1x1: false, isLarge: false, customFontSize: 16.0),
+                      ],
+                    ),
+                  );
+                }
+
                 return Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: is1x1 ? 8.0 : 16.0),
@@ -246,23 +287,66 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
                         _buildBalanceAmount(item.value, is1x1: is1x1, isLarge: is2x2OrLarger),
                         if (is2x2OrLarger) ...[
                           const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.06),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.swipe_rounded, size: 11, color: Colors.white38),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Conto ${index + 1} di ${_balancesList.length}',
-                                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final now = DateTime.now();
+                                  final allExp = ExpenseServiceCached().getAllCachedExpenses();
+                                  double mSpent = 0.0;
+                                  for (final e in allExp) {
+                                    if (e.date.year == now.year && e.date.month == now.month) {
+                                      mSpent += e.amount;
+                                    }
+                                  }
+                                  if (mSpent <= 0) return const SizedBox.shrink();
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 6.0),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444).withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(7),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.arrow_downward_rounded, size: 10, color: Color(0xFFEF4444)),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '-€${mSpent.toStringAsFixed(0)}',
+                                            style: const TextStyle(
+                                              color: Color(0xFFEF4444),
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(7),
                                 ),
-                              ],
-                            ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.swipe_rounded, size: 10, color: Colors.white38),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${index + 1} di ${_balancesList.length}',
+                                      style: const TextStyle(color: Colors.white38, fontSize: 9.5),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -274,13 +358,13 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
     );
   }
 
-  Widget _buildBalanceAmount(double balance, {bool is1x1 = false, bool isLarge = false}) {
+  Widget _buildBalanceAmount(double balance, {bool is1x1 = false, bool isLarge = false, double? customFontSize}) {
     final formatter = NumberFormat.currency(locale: 'it_IT', symbol: '€');
     final isPositive = balance >= 0;
     final color = isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444);
     final sign = isPositive ? '+' : '';
 
-    final double fontSize = is1x1 ? 16.0 : (isLarge ? 26.0 : 21.0);
+    final double fontSize = customFontSize ?? (is1x1 ? 16.0 : (isLarge ? 26.0 : 21.0));
 
     return Stack(
       alignment: Alignment.center,

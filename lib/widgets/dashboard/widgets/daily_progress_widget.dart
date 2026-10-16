@@ -90,37 +90,35 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
 
           final double progress = totalToday > 0 ? (completedToday / totalToday) : 0.0;
 
+          final is1x1 = widget.def.size.crossAxisCellCount <= 1 && widget.def.size.mainAxisCellCount <= 1;
+          final is2x1 = widget.def.size.crossAxisCellCount >= 2 && widget.def.size.mainAxisCellCount <= 1;
+
           return BentoWidgetContainer(
             heroTag: widget.def.id,
+            size: widget.def.size,
             isLoading: false,
+            onTap: () {
+              GoRouter.of(context).push('/focus', extra: {'heroTag': widget.def.id});
+            },
             onExpand: () {
               GoRouter.of(context).push('/focus', extra: {'heroTag': widget.def.id});
             },
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 16),
-                ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 70,
-                      height: 70,
+            child: is1x1
+                ? Center(
+                    child: SizedBox(
+                      width: 46,
+                      height: 46,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
                           CircularProgressIndicator(
                             value: 1.0,
-                            strokeWidth: 8,
+                            strokeWidth: 4.5,
                             color: const Color(0xFF10B981).withOpacity(0.15),
                           ),
                           CircularProgressIndicator(
                             value: progress,
-                            strokeWidth: 8,
+                            strokeWidth: 4.5,
                             strokeCap: StrokeCap.round,
                             color: const Color(0xFF10B981),
                             backgroundColor: Colors.transparent,
@@ -130,7 +128,7 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
                               '$completedToday/$totalToday',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 16,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -138,20 +136,121 @@ class _DailyProgressWidgetState extends State<DailyProgressWidget> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'TASK DI OGGI',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  )
+                : (is2x1
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withOpacity(0.18),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 13),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'TASK DI OGGI',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 48,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      minHeight: 5,
+                                      backgroundColor: Colors.white10,
+                                      valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$completedToday/$totalToday',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                    : Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned(
+                            top: 12,
+                            left: 12,
+                            child: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 16),
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 68,
+                                height: 68,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    CircularProgressIndicator(
+                                      value: 1.0,
+                                      strokeWidth: 7,
+                                      color: const Color(0xFF10B981).withOpacity(0.15),
+                                    ),
+                                    CircularProgressIndicator(
+                                      value: progress,
+                                      strokeWidth: 7,
+                                      strokeCap: StrokeCap.round,
+                                      color: const Color(0xFF10B981),
+                                      backgroundColor: Colors.transparent,
+                                    ),
+                                    Center(
+                                      child: Text(
+                                        '$completedToday/$totalToday',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'TASK DI OGGI',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )),
           );
       },
     );

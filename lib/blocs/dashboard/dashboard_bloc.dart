@@ -78,16 +78,25 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           ];
         }
 
-        // Auto-migrate quick_expense to 2x3 across all tabs
+        // Auto-migrate quick_expense and dense list widgets to 2x4 across all tabs
         bool changed = false;
         final updatedTabs = currentTabs.map((tab) {
           final newLayout = tab.layout.map((def) {
-            if (def.type == 'quick_expense' && def.size.mainAxisCellCount < 3) {
+            if (def.type == 'quick_expense' && def.size.mainAxisCellCount < 4) {
               changed = true;
               return BentoWidgetDef(
                 id: def.id, 
                 type: def.type, 
-                size: BentoWidgetSize(def.size.crossAxisCellCount, 3),
+                size: const BentoWidgetSize(2, 4),
+                customProps: def.customProps,
+              );
+            }
+            if ((def.type == 'shopping_quick_list' || def.type == 'focus_tasks' || def.type == 'recent_notes') && def.size.mainAxisCellCount < 3) {
+              changed = true;
+              return BentoWidgetDef(
+                id: def.id,
+                type: def.type,
+                size: BentoWidgetSize(def.size.crossAxisCellCount, 4),
                 customProps: def.customProps,
               );
             }
@@ -391,8 +400,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   List<BentoWidgetDef> _getDefaultLayout() {
     return [
       BentoWidgetDef(id: 'w1', type: 'balance', size: const BentoWidgetSize(2, 1)),
-      BentoWidgetDef(id: 'w2', type: 'quick_expense', size: const BentoWidgetSize(2, 3)),
-      BentoWidgetDef(id: 'w3', type: 'focus_tasks', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w2', type: 'quick_expense', size: const BentoWidgetSize(2, 4)),
+      BentoWidgetDef(id: 'w3', type: 'focus_tasks', size: const BentoWidgetSize(2, 4)),
       BentoWidgetDef(id: 'w4', type: 'monthly_burn_rate', size: const BentoWidgetSize(2, 2)),
     ];
   }

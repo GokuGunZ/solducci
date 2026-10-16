@@ -58,26 +58,29 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
           }
         }
 
+        void navigateToScenario() {
+          if (targetScenario != null) {
+            final type = targetScenario.scenarioType.toLowerCase();
+            if (type == 'trip') {
+              GoRouter.of(context).push('/space/time_management/scenario/trip/${targetScenario.id}');
+            } else if (type == 'event') {
+              GoRouter.of(context).push('/space/time_management/scenario/event/${targetScenario.id}');
+            } else if (type == 'outing') {
+              GoRouter.of(context).push('/space/time_management/scenario/outing/${targetScenario.id}');
+            } else {
+              GoRouter.of(context).push('/space/time_management');
+            }
+          } else {
+            GoRouter.of(context).push('/space/time_management');
+          }
+        }
+
         return BentoWidgetContainer(
           heroTag: widget.def.id,
           size: widget.def.size,
           isLoading: isLoading,
-          onExpand: () {
-            if (targetScenario != null) {
-              final type = targetScenario.scenarioType.toLowerCase();
-              if (type == 'trip') {
-                GoRouter.of(context).push('/space/time_management/scenario/trip/${targetScenario.id}');
-              } else if (type == 'event') {
-                GoRouter.of(context).push('/space/time_management/scenario/event/${targetScenario.id}');
-              } else if (type == 'outing') {
-                GoRouter.of(context).push('/space/time_management/scenario/outing/${targetScenario.id}');
-              } else {
-                GoRouter.of(context).push('/space/time_management');
-              }
-            } else {
-              GoRouter.of(context).push('/space/time_management');
-            }
-          },
+          onTap: navigateToScenario,
+          onExpand: navigateToScenario,
           child: targetScenario == null
               ? _buildEmptyState(context)
               : _buildCountdownContent(context, targetScenario, now),
@@ -108,6 +111,70 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
 
     final color = _getScenarioColor(scenario.scenarioType);
     final icon = _getScenarioIcon(scenario.scenarioType);
+
+    if (widget.def.size.mainAxisCellCount <= 1) {
+      String countdownText;
+      if (isInProgress) {
+        countdownText = 'IN CORSO';
+      } else if (isPast) {
+        countdownText = 'CONCLUSO';
+      } else {
+        countdownText = '-$days ${days == 1 ? "GIORNO" : "GIORNI"}';
+      }
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 13),
+                ),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 130),
+                  child: Text(
+                    scenario.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: color.withOpacity(0.3)),
+              ),
+              child: Text(
+                countdownText,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {

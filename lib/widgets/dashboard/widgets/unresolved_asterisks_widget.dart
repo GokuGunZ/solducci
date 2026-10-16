@@ -136,10 +136,6 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
           return !a.isResolved || _locallyResolved.contains(a.id);
         }).toList();
 
-        // Limit to 5 or so for display if needed
-        if (displayAsterisks.length > 8) {
-          displayAsterisks = displayAsterisks.sublist(0, 8);
-        }
 
         return BaseListWidget<AsteriskItem>(
           heroTag: widget.def.id,

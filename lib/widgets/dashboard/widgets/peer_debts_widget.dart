@@ -139,18 +139,25 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
   Widget build(BuildContext context) {
     final ctx = _contextManager.currentContext;
     final is1x1 = widget.def.size.crossAxisCellCount == 1 && widget.def.size.mainAxisCellCount == 1;
+    final is2x1 = widget.def.size.crossAxisCellCount >= 2 && widget.def.size.mainAxisCellCount <= 1;
+
+    void navigateToDebts() {
+      GoRouter.of(context).push('/expenses_dashboard', extra: {'heroTag': widget.def.id});
+    }
 
     // Se siamo nel contesto personale, il widget non è applicabile
     if (ctx.isPersonal) {
       return BentoWidgetContainer(
         heroTag: widget.def.id,
         size: widget.def.size,
+        onTap: navigateToDebts,
+        onExpand: navigateToDebts,
         child: BentoEmptyState(
           icon: Icons.group_off_rounded,
           title: 'Solo nei Gruppi',
           subtitle: 'Seleziona un gruppo o una vista per visualizzare i saldi e i debiti',
           color: const Color(0xFF8B5CF6),
-          isCompact: is1x1,
+          isCompact: is1x1 || is2x1,
         ),
       );
     }
@@ -163,12 +170,11 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
       skeletonType: BentoSkeletonType.list,
       isLoading: _isLoading && !hasData,
       onRetry: _loadDebts,
-      onExpand: () {
-        GoRouter.of(context).push('/expenses_dashboard', extra: {'heroTag': widget.def.id});
-      },
+      onTap: navigateToDebts,
+      onExpand: navigateToDebts,
       child: !hasData && !_isLoading
-          ? _buildAllBalancedState(is1x1)
-          : (_isViewMode ? _buildViewGroupedContent(is1x1) : _buildBalancesContent(is1x1)),
+          ? _buildAllBalancedState(is1x1 || is2x1)
+          : (_isViewMode ? _buildViewGroupedContent(is1x1) : _buildBalancesContent(is1x1: is1x1, is2x1: is2x1)),
     );
   }
 
@@ -208,7 +214,7 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
   }
 
   /// Visualizzazione per singolo gruppo (compatta o a lista)
-  Widget _buildBalancesContent(bool is1x1) {
+  Widget _buildBalancesContent({required bool is1x1, required bool is2x1}) {
     if (is1x1) {
       final top = _balances.first;
       final isDebtor = top.youOwe;
@@ -255,6 +261,68 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
               ),
             ],
           ),
+        ),
+      );
+    }
+
+    if (is2x1) {
+      final top = _balances.first;
+      final isDebtor = top.youOwe;
+      final color = isDebtor ? const Color(0xFFF59E0B) : const Color(0xFF10B981);
+      final icon = isDebtor ? Icons.south_west_rounded : Icons.north_east_rounded;
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.compare_arrows_rounded, size: 13, color: Color(0xFF8B5CF6)),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'SALDO & DEBITI',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: color.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 11, color: color),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${isDebtor ? "Devi" : "Ti spetta"} €${top.amount.abs().toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }

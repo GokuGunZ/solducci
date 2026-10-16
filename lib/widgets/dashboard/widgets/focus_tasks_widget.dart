@@ -233,9 +233,6 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
           return 0;
         });
 
-        if (displayTasks.length > 5) {
-          displayTasks = displayTasks.sublist(0, 5);
-        }
 
         return BaseListWidget<Task>(
           heroTag: widget.def.id,

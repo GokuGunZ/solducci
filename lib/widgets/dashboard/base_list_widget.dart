@@ -55,7 +55,8 @@ class BaseListWidget<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCompactHeight = size != null && size!.mainAxisCellCount <= 1;
+    final height = size?.mainAxisCellCount ?? 2;
+    final isCompactHeight = height <= 1;
 
     return BentoWidgetContainer(
       isLoading: isLoading,
@@ -83,10 +84,14 @@ class BaseListWidget<T> extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: EdgeInsets.all(isCompactHeight ? 12.0 : 16.0),
+            padding: isCompactHeight
+                ? const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0)
+                : (height == 2
+                    ? const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0)
+                    : const EdgeInsets.all(14.0)),
             child: isCompactHeight
                 ? _buildCompactLayout(context)
-                : _buildFullLayout(context),
+                : _buildFullLayout(context, height: height),
           ),
         ],
       ),
@@ -165,8 +170,13 @@ class BaseListWidget<T> extends StatelessWidget {
     );
   }
 
-  /// Layout completo per taglie standard (2x2, 2x3, 4x2)
-  Widget _buildFullLayout(BuildContext context) {
+  /// Layout completo per taglie standard (2x2, 2x3, 2x4, 4x2)
+  Widget _buildFullLayout(BuildContext context, {required int height}) {
+    // In height 2 (~124px), vertical space is compact.
+    // If the list has items, prioritize displaying items cleanly rather than squishing with the input field.
+    // In height >= 3 (194px, 265px), both input row and items list fit with plenty of room.
+    final showQuickAction = quickActionRow != null && (height >= 3 || items.isEmpty);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -178,12 +188,12 @@ class BaseListWidget<T> extends StatelessWidget {
           onNext: onNextSource,
           onTitleTap: onExpand,
         ),
-        if (quickActionRow != null) ...[
-          const SizedBox(height: 8),
+        if (showQuickAction) ...[
+          const SizedBox(height: 6),
           quickActionRow!,
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
         ] else ...[
-          const SizedBox(height: 12),
+          SizedBox(height: height == 2 ? 6 : 10),
         ],
         Expanded(
           child: items.isEmpty
@@ -194,10 +204,11 @@ class BaseListWidget<T> extends StatelessWidget {
                   color: color,
                   actionLabel: emptyActionLabel,
                   onAction: onEmptyAction,
-                  isCompact: false,
+                  isCompact: height <= 2,
                 )
               : ListView.separated(
                   physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.zero,
                   itemCount: items.length,
                   separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
                   itemBuilder: (context, index) => itemBuilder(context, items[index], index),

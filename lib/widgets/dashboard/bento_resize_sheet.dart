@@ -159,7 +159,7 @@ class BentoResizeSheet extends StatelessWidget {
                       // Mini visual aspect ratio box
                       Container(
                         width: size.crossAxisCellCount * 14.0,
-                        height: size.mainAxisCellCount * 14.0,
+                        height: size.mainAxisCellCount * 10.5,
                         decoration: BoxDecoration(
                           color: isSelected
                               ? const Color(0xFF6366F1)
@@ -196,13 +196,14 @@ class BentoResizeSheet extends StatelessWidget {
   }
 
   String _getSizeLabel(BentoWidgetSize size) {
-    if (size.crossAxisCellCount == 1 && size.mainAxisCellCount == 1) return 'Compatto';
-    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 1) return 'Largo';
-    if (size.crossAxisCellCount == 1 && size.mainAxisCellCount == 2) return 'Verticale';
-    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 2) return 'Standard';
-    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 3) return 'Espanso';
+    if (size.crossAxisCellCount == 1 && size.mainAxisCellCount == 1) return 'Icona';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 1) return 'Mini-Banner';
+    if (size.crossAxisCellCount == 4 && size.mainAxisCellCount == 1) return 'Banner Sottile';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 2) return 'Compatto';
+    if (size.crossAxisCellCount == 4 && size.mainAxisCellCount == 2) return 'Banner Esteso';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 3) return 'Medio';
     if (size.crossAxisCellCount == 3 && size.mainAxisCellCount == 2) return 'Panoramico';
-    if (size.crossAxisCellCount == 4 && size.mainAxisCellCount == 2) return 'Banner';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 4) return 'Lista Densa';
     if (size.crossAxisCellCount >= 3 && size.mainAxisCellCount >= 3) return 'Grande';
     return '${size.crossAxisCellCount}x${size.mainAxisCellCount}';
   }

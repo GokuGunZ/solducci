@@ -36,28 +36,82 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
             ? allRoutines.where((r) => r.id == specificRoutineId).toList()
             : allRoutines;
 
+        final isHeight1 = widget.def.size.mainAxisCellCount <= 1;
+
+        void navigateToRoutines() {
+          GoRouter.of(context).push('/space/time_management/routines');
+        }
+
         return BentoWidgetContainer(
           heroTag: widget.def.id,
+          size: widget.def.size,
           isLoading: isLoading,
-          onExpand: () {
-            GoRouter.of(context).push('/space/time_management/routines');
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF8B5CF6).withOpacity(0.12),
-                  const Color(0xFF8B5CF6).withOpacity(0.02),
-                ],
-              ),
-            ),
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          onTap: navigateToRoutines,
+          onExpand: navigateToRoutines,
+          child: isHeight1
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.loop_rounded, color: Color(0xFF8B5CF6), size: 13),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            (widget.def.customProps?['title'] as String? ?? 'ROUTINE').toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          routines.isEmpty ? 'Nessuna' : '${routines.length} attive',
+                          style: const TextStyle(
+                            color: Color(0xFF8B5CF6),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF8B5CF6).withOpacity(0.12),
+                        const Color(0xFF8B5CF6).withOpacity(0.02),
+                      ],
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(14.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

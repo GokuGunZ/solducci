@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/context_manager.dart';
@@ -93,9 +94,15 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = widget.def.size.mainAxisCellCount <= 2;
+
     return BentoWidgetContainer(
-      child: Column(
-        children: [
+      heroTag: widget.def.id,
+      size: widget.def.size,
+      child: isCompact
+          ? _buildCompactLauncher(context)
+          : Column(
+              children: [
           // Payment Info Bar
           ListenableBuilder(
             listenable: ContextManager(),
@@ -231,6 +238,177 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _recordQuickPreset(String description, double amount, Tipologia category) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final currentContext = ContextManager().currentContext;
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Utente non autenticato');
+
+      final newExpense = Expense(
+        id: 0,
+        description: description,
+        amount: amount,
+        date: DateTime.now(),
+        type: category,
+        userId: userId,
+        groupId: currentContext.isGroup ? currentContext.groupId : null,
+      );
+
+      await ExpenseServiceCached().insert(newExpense);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$description: registrata spesa di €${amount.toStringAsFixed(2)}!'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Widget _buildCompactLauncher(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.bolt_rounded, color: Color(0xFFEF4444), size: 13),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'SPESA RAPIDA',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+              RadialCategorySelector(
+                selectedCategory: _selectedCategory,
+                onCategoryChanged: (cat) => setState(() => _selectedCategory = cat),
+              ),
+            ],
+          ),
+          // 4 Quick Presets in 2x2
+          Row(
+            children: [
+              Expanded(
+                child: _buildPresetButton('☕ Caffè', '1.50€', () => _recordQuickPreset('Caffè', 1.50, Tipologia.cibo)),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildPresetButton('🍕 Pranzo', '12€', () => _recordQuickPreset('Pranzo', 12.0, Tipologia.ristorante)),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPresetButton('🛒 Spesa', '25€', () => _recordQuickPreset('Spesa', 25.0, Tipologia.cibo)),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => GoRouter.of(context).push('/expenses/add'),
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.4)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_rounded, color: Color(0xFF818CF8), size: 13),
+                        SizedBox(width: 4),
+                        Text(
+                          'Altro...',
+                          style: TextStyle(
+                            color: Color(0xFF818CF8),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPresetButton(String label, String price, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: _isSaving ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              price,
+              style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }

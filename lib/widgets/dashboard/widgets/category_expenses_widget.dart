@@ -82,12 +82,18 @@ class _CategoryExpensesWidgetState extends State<CategoryExpensesWidget> {
   @override
   Widget build(BuildContext context) {
     final is1x1 = widget.def.size.crossAxisCellCount == 1 && widget.def.size.mainAxisCellCount == 1;
+    final is2x1 = widget.def.size.crossAxisCellCount >= 2 && widget.def.size.mainAxisCellCount <= 1;
 
     return BentoWidgetContainer(
       heroTag: widget.def.id,
       size: widget.def.size,
       skeletonType: BentoSkeletonType.list,
       isLoading: _isLoading && _categories.isEmpty,
+      onTap: () {
+        if (_categories.isNotEmpty) {
+          _openCategoryDetail(_categories.first.category);
+        }
+      },
       onRetry: _calculateCategories,
       child: _categories.isEmpty && !_isLoading
           ? BentoEmptyState(
@@ -95,13 +101,13 @@ class _CategoryExpensesWidgetState extends State<CategoryExpensesWidget> {
               title: 'Nessuna spesa',
               subtitle: 'Nessuna spesa registrata questo mese',
               color: const Color(0xFF10B981),
-              isCompact: is1x1,
+              isCompact: is1x1 || is2x1,
             )
-          : _buildContent(is1x1),
+          : _buildContent(is1x1: is1x1, is2x1: is2x1),
     );
   }
 
-  Widget _buildContent(bool is1x1) {
+  Widget _buildContent({required bool is1x1, required bool is2x1}) {
     if (is1x1) {
       final top = _categories.first;
       final color = CategoryHelpers.getCategoryColor(top.category);
@@ -129,6 +135,65 @@ class _CategoryExpensesWidgetState extends State<CategoryExpensesWidget> {
               ),
             ],
           ),
+        ),
+      );
+    }
+
+    if (is2x1) {
+      final top = _categories.first;
+      final color = CategoryHelpers.getCategoryColor(top.category);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.category_rounded, size: 13, color: Color(0xFF10B981)),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'TOP SPESA',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: color.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CategoryHelpers.getCategoryIcon(top.category), size: 11, color: color),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${top.category.label}: €${top.total.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }

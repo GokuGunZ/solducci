@@ -116,8 +116,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.finance,
       icon: Icons.bolt_rounded,
       color: Color(0xFFEF4444),
-      defaultSize: BentoWidgetSize(2, 3),
-      allowedSizes: [BentoWidgetSize(2, 3), BentoWidgetSize(3, 3)],
+      defaultSize: BentoWidgetSize(2, 4),
+      allowedSizes: [BentoWidgetSize(2, 4), BentoWidgetSize(3, 4), BentoWidgetSize(2, 2)],
       keywords: ['spesa', 'uscita', 'pagamento', 'registra', 'compra'],
     ),
     const WidgetMetadata(
@@ -128,7 +128,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.local_fire_department_rounded,
       color: Color(0xFFF97316),
       defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
+      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(4, 2), BentoWidgetSize(2, 3)],
       keywords: ['budget', 'burn rate', 'limite', 'mese', 'proiezione'],
     ),
     const WidgetMetadata(
@@ -195,8 +195,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.time,
       icon: Icons.check_circle_outline_rounded,
       color: Color(0xFF6366F1),
-      defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 2), BentoWidgetSize(3, 3), BentoWidgetSize(2, 4)],
+      defaultSize: BentoWidgetSize(2, 4),
+      allowedSizes: [BentoWidgetSize(2, 4), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 4)],
       keywords: ['task', 'todo', 'attività', 'completare', 'focus', 'obiettivi'],
     ),
     const WidgetMetadata(
@@ -206,8 +206,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.time,
       icon: Icons.repeat_rounded,
       color: Color(0xFFEC4899),
-      defaultSize: BentoWidgetSize(2, 1),
-      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(4, 2), BentoWidgetSize(4, 4)],
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 1), BentoWidgetSize(4, 2)],
       keywords: ['abitudini', 'routine', 'streak', 'giornaliere', 'disciplina'],
     ),
     const WidgetMetadata(
@@ -230,8 +230,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.notes,
       icon: Icons.layers_rounded,
       color: Color(0xFFF59E0B),
-      defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 1), BentoWidgetSize(2, 3), BentoWidgetSize(4, 2)],
+      defaultSize: BentoWidgetSize(2, 3),
+      allowedSizes: [BentoWidgetSize(2, 3), BentoWidgetSize(2, 4), BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
       keywords: ['note', 'sticky', 'post-it', 'appunti', 'stack', 'pila', 'scrittura'],
     ),
     const WidgetMetadata(
@@ -241,8 +241,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.notes,
       icon: Icons.notes_rounded,
       color: Color(0xFFF59E0B),
-      defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 2), BentoWidgetSize(3, 3), BentoWidgetSize(2, 4)],
+      defaultSize: BentoWidgetSize(2, 4),
+      allowedSizes: [BentoWidgetSize(2, 4), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 4)],
       keywords: ['note', 'elenco', 'lista note', 'testo', 'recenti'],
     ),
     const WidgetMetadata(
@@ -252,8 +252,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.notes,
       icon: Icons.description_rounded,
       color: Color(0xFF6366F1),
-      defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 2)],
+      defaultSize: BentoWidgetSize(2, 3),
+      allowedSizes: [BentoWidgetSize(2, 3), BentoWidgetSize(2, 4), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
       keywords: ['markdown', 'md', 'documenti', 'file'],
     ),
 
@@ -265,8 +265,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.home,
       icon: Icons.shopping_cart_outlined,
       color: Color(0xFF3B82F6),
-      defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 2), BentoWidgetSize(3, 3), BentoWidgetSize(2, 4)],
+      defaultSize: BentoWidgetSize(2, 4),
+      allowedSizes: [BentoWidgetSize(2, 4), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 4)],
       keywords: ['spesa', 'supermercato', 'comprare', 'articoli', 'lista spesa'],
     ),
     const WidgetMetadata(
@@ -355,15 +355,16 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
   }
 
   String _formatSize(BentoWidgetSize size) {
-    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 2) return '2x2 (Quadrato)';
-    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 1) return '2x1 (Compatto)';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 4) return '2x4 (Lista Densa)';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 3) return '2x3 (Medio)';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 2) return '2x2 (Compatto)';
+    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 1) return '2x1 (Mini-Banner)';
     if (size.crossAxisCellCount == 1 && size.mainAxisCellCount == 1) return '1x1 (Icona)';
     if (size.crossAxisCellCount == 1 && size.mainAxisCellCount == 2) return '1x2 (Verticale)';
-    if (size.crossAxisCellCount == 2 && size.mainAxisCellCount == 3) return '2x3 (Medio)';
     if (size.crossAxisCellCount == 3 && size.mainAxisCellCount == 2) return '3x2 (Ampio)';
-    if (size.crossAxisCellCount == 3 && size.mainAxisCellCount == 3) return '3x3 (Grande)';
+    if (size.crossAxisCellCount == 3 && size.mainAxisCellCount == 4) return '3x4 (Ampio Denso)';
     if (size.crossAxisCellCount == 4 && size.mainAxisCellCount == 2) return '4x2 (Panoramico)';
-    if (size.crossAxisCellCount == 4 && size.mainAxisCellCount == 4) return '4x4 (Massimo)';
+    if (size.crossAxisCellCount == 4 && size.mainAxisCellCount == 4) return '4x4 (Grande)';
     return '${size.crossAxisCellCount}x${size.mainAxisCellCount}';
   }
 

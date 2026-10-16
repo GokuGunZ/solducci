@@ -680,7 +680,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
 
             final double previewWidth = (widgetDef.size.crossAxisCellCount * colWidth + 
                 (widgetDef.size.crossAxisCellCount - 1) * 16).clamp(80.0, availableWidth);
-            final double previewHeight = widgetDef.size.mainAxisCellCount * 90.0;
+            final double previewHeight = widgetDef.size.mainAxisCellCount * 67.5;
 
             finalContent = DragTarget<_DraggingItemData>(
               onWillAcceptWithDetails: (details) {
@@ -780,7 +780,7 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           return StaggeredGridTile.count(
             key: ValueKey('${widgetDef.id}_$contextKeySuffix'),
             crossAxisCellCount: widgetDef.size.crossAxisCellCount,
-            mainAxisCellCount: widgetDef.size.mainAxisCellCount,
+            mainAxisCellCount: widgetDef.size.mainAxisCellCount * 0.75,
             child: WobbleWidget(
               isWobbling: state.isEditing,
               wobbleSeed: index,

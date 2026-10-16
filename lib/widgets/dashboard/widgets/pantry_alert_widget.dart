@@ -101,19 +101,24 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
   Widget build(BuildContext context) {
     final hasLowStock = _lowStockItems.isNotEmpty;
     final alertColor = hasLowStock ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+    final is1x1 = widget.def.size.crossAxisCellCount <= 1 && widget.def.size.mainAxisCellCount <= 1;
+    final is2x1 = widget.def.size.crossAxisCellCount >= 2 && widget.def.size.mainAxisCellCount <= 1;
     final isExpanded = widget.def.size.mainAxisCellCount >= 2;
+
+    void navigateToPantry() {
+      if (_documentId != null) {
+        GoRouter.of(context).push('/space/pantry/$_documentId');
+      } else {
+        GoRouter.of(context).push('/space/pantry');
+      }
+    }
 
     return BentoWidgetContainer(
       heroTag: widget.def.id,
       size: widget.def.size,
       isLoading: _isLoading,
-      onExpand: () {
-        if (_documentId != null) {
-          GoRouter.of(context).push('/space/pantry/$_documentId');
-        } else {
-          GoRouter.of(context).push('/space/pantry');
-        }
-      },
+      onTap: navigateToPantry,
+      onExpand: navigateToPantry,
       child: _documentId == null && !_isLoading
           ? BentoEmptyState(
               icon: Icons.kitchen_rounded,
@@ -122,10 +127,68 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
               color: const Color(0xFF10B981),
               actionLabel: 'Crea Dispensa',
               onAction: () => GoRouter.of(context).push('/space/pantry'),
+              isCompact: is1x1 || is2x1,
             )
-          : Stack(
-              alignment: Alignment.center,
-              children: [
+          : is2x1
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: alertColor.withOpacity(0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              hasLowStock ? Icons.warning_amber_rounded : Icons.kitchen_rounded,
+                              color: alertColor,
+                              size: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 90),
+                            child: Text(
+                              _documentTitle.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: alertColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: alertColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          hasLowStock ? '${_lowStockItems.length} da comprare' : 'Scorte OK',
+                          style: TextStyle(
+                            color: alertColor,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Stack(
+                  alignment: Alignment.center,
+                  children: [
                 // Ambient Glow behind count if low stock
                 if (hasLowStock)
                   Center(

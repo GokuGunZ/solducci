@@ -124,8 +124,8 @@ class BentoWidgetContainer extends StatelessWidget {
                 ),
               ),
             ),
-          // Pulsante Expand (se disponibile)
-          if (onExpand != null && !isLoading && !hasError)
+          // Pulsante Expand (se disponibile e NON in formato 1x1 compatto)
+          if (onExpand != null && !isLoading && !hasError && !(size != null && size!.crossAxisCellCount <= 1 && size!.mainAxisCellCount <= 1))
             Positioned(
               top: 8,
               right: 8,
@@ -146,9 +146,13 @@ class BentoWidgetContainer extends StatelessWidget {
       ),
     );
 
-    if (onTap != null) {
+    final is1x1 = size != null && size!.crossAxisCellCount <= 1 && size!.mainAxisCellCount <= 1;
+    final effectiveTap = onTap ?? (is1x1 ? onExpand : null);
+
+    if (effectiveTap != null) {
       content = GestureDetector(
-        onTap: onTap,
+        onTap: effectiveTap,
+        behavior: HitTestBehavior.opaque,
         child: content,
       );
     }
