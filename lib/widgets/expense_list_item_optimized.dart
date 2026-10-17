@@ -1,8 +1,8 @@
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense.dart';
-import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/utils/category_helpers.dart';
@@ -539,27 +539,8 @@ class ExpenseListItemOptimized extends StatelessWidget {
     required String title,
     required bool isEdit,
   }) {
-    final ExpenseForm form = ExpenseForm.fromExpense(expense, isEdit: isEdit);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(
-            title: Text(title),
-            leading: IconButton(
-              icon: Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: form.getExpenseView(context),
-            ),
-          ),
-        ),
-      ),
-    ).then((_) => onUpdated?.call());
+    GoRouter.of(context)
+        .push('/expense/${expense.id}', extra: expense)
+        .then((_) => onUpdated?.call());
   }
 }

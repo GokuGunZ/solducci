@@ -47,6 +47,9 @@ class CategoryHelpers {
     }
   }
 
+  /// Get localized display label for category
+  static String getCategoryLabel(Tipologia type) => type.label;
+
   /// Convert string to Tipologia safely
   static Tipologia fromString(String categoryName) {
     final lower = categoryName.toLowerCase().trim();

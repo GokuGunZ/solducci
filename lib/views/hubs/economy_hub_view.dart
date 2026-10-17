@@ -7,7 +7,6 @@ import 'package:solducci/features/csv_importer/views/widgets/category_picker_she
 import 'package:solducci/features/investments/views/investments_hub_view.dart';
 import 'package:solducci/features/wallets/views/wallets_management_view.dart';
 import 'package:solducci/models/expense.dart';
-import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
@@ -73,30 +72,7 @@ class _EconomyHubViewState extends State<EconomyHubView> {
   }
 
   void _openExpenseDetails(Expense expense) {
-    final form = ExpenseForm.fromExpense(expense, isEdit: true);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: const Color(0xFF09090B),
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: const Text('Dettaglio Spesa', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            leading: IconButton(
-              icon: const Icon(Icons.close_rounded, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: form.getExpenseView(context),
-            ),
-          ),
-        ),
-      ),
-    );
+    GoRouter.of(context).push('/expense/${expense.id}', extra: expense);
   }
 
   @override

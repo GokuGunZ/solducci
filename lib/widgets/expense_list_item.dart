@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense.dart';
-import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/expense_service.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -483,34 +483,15 @@ class ExpenseListItem extends StatelessWidget {
     );
   }
 
-  // Open expense form
+  // Open expense form / details
   void _openExpenseForm(
     BuildContext context, {
     required Expense expense,
     required String title,
     required bool isEdit,
   }) {
-    final ExpenseForm form = ExpenseForm.fromExpense(expense, isEdit: isEdit);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(
-            title: Text(title),
-            leading: IconButton(
-              icon: Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: form.getExpenseView(context),
-            ),
-          ),
-        ),
-      ),
-    ).then((_) => onUpdated?.call());
+    GoRouter.of(context)
+        .push('/expense/${expense.id}', extra: expense)
+        .then((_) => onUpdated?.call());
   }
 }

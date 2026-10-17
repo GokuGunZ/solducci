@@ -9,6 +9,7 @@ import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/widgets/dashboard/widgets/radial_selectors.dart';
+import 'package:solducci/widgets/quick_add/unified_transaction_modal.dart';
 
 class QuickExpenseWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -23,6 +24,9 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
   String _amount = '';
   Tipologia _selectedCategory = Tipologia.cibo;
   bool _isSaving = false;
+  String? _selectedPayerId;
+  List<String> _selectedTargetUserIds = [];
+  String? _selectedGroupId;
 
   void _onKeyPress(String key) {
     setState(() {
@@ -52,6 +56,29 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) throw Exception('Utente non autenticato');
 
+      final effectiveGroupId = currentContext.isGroup
+          ? currentContext.groupId
+          : (currentContext.isView ? _selectedGroupId : null);
+      final isGroupOrView = effectiveGroupId != null;
+
+      final payerId = isGroupOrView ? (_selectedPayerId ?? userId) : null;
+
+      SplitType? splitType;
+      Map<String, double>? splitData;
+
+      if (isGroupOrView) {
+        if (_selectedTargetUserIds.isNotEmpty) {
+          splitType = SplitType.custom;
+          final perPerson = parsedAmount / _selectedTargetUserIds.length;
+          final rounded = double.parse(perPerson.toStringAsFixed(2));
+          splitData = {
+            for (final uid in _selectedTargetUserIds) uid: rounded,
+          };
+        } else {
+          splitType = SplitType.equal;
+        }
+      }
+
       final newExpense = Expense(
         id: 0,
         description: 'Spesa Rapida',
@@ -59,19 +86,51 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
         date: DateTime.now(),
         type: _selectedCategory,
         userId: userId,
-        groupId: currentContext.isGroup ? currentContext.groupId : null,
-        paidBy: currentContext.isGroup ? userId : null,
-        splitType: currentContext.isGroup ? SplitType.equal : null,
+        groupId: effectiveGroupId,
+        paidBy: payerId,
+        splitType: splitType,
+        splitData: splitData,
       );
 
-      await ExpenseServiceCached().insert(newExpense);
+      final createdExpense = await ExpenseServiceCached().insert(newExpense);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Spesa di €${parsedAmount.toStringAsFixed(2)} registrata!'),
-            backgroundColor: const Color(0xFF10B981),
+            content: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                GoRouter.of(context).push('/expense/${createdExpense.id}');
+              },
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Spesa di €${parsedAmount.toStringAsFixed(2)} registrata!',
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: const Color(0xFF18181B),
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: const Color(0xFF10B981).withOpacity(0.5)),
+            ),
+            action: SnackBarAction(
+              label: 'DETTAGLI',
+              textColor: const Color(0xFF10B981),
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                GoRouter.of(context).push('/expense/${createdExpense.id}');
+              },
+            ),
           ),
         );
         setState(() {
@@ -114,7 +173,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
               final isView = contextManager.currentContext.isView;
               
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                 decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: Colors.white10)),
                 ),
@@ -122,20 +181,31 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     if (isView) ...[
-                      const RadialGroupSelector(label: 'Gruppi:'),
+                      RadialGroupSelector(
+                        label: 'Gruppi:',
+                        onGroupChanged: (groupId) => setState(() => _selectedGroupId = groupId),
+                      ),
                       Container(
                         height: 24,
-                        width: 2,
-                        color: Colors.white24,
+                        width: 1,
+                        color: Colors.white10,
                       ),
                     ],
-                    const RadialUserSelector(label: 'Paga:'),
+                    RadialUserSelector(
+                      label: 'Paga:',
+                      isDefaultAll: false,
+                      onPayerChanged: (userId) => setState(() => _selectedPayerId = userId),
+                    ),
                     Container(
                       height: 24,
                       width: 1,
                       color: Colors.white10,
                     ),
-                    const RadialUserSelector(label: 'Per:', isDefaultAll: true),
+                    RadialUserSelector(
+                      label: 'Per:',
+                      isDefaultAll: true,
+                      onSplitMembersChanged: (userIds) => setState(() => _selectedTargetUserIds = userIds),
+                    ),
                     Container(
                       height: 24,
                       width: 1,
@@ -266,14 +336,45 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
         splitType: currentContext.isGroup ? SplitType.equal : null,
       );
 
-      await ExpenseServiceCached().insert(newExpense);
+      final createdExpense = await ExpenseServiceCached().insert(newExpense);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$description: registrata spesa di €${amount.toStringAsFixed(2)}!'),
-            backgroundColor: const Color(0xFF10B981),
+            content: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                GoRouter.of(context).push('/expense/${createdExpense.id}');
+              },
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$description: registrata spesa di €${amount.toStringAsFixed(2)}!',
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: const Color(0xFF18181B),
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: const Color(0xFF10B981).withOpacity(0.5)),
+            ),
+            action: SnackBarAction(
+              label: 'DETTAGLI',
+              textColor: const Color(0xFF10B981),
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                GoRouter.of(context).push('/expense/${createdExpense.id}');
+              },
+            ),
           ),
         );
       }
@@ -352,7 +453,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
               const SizedBox(width: 6),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => GoRouter.of(context).push('/expenses/add'),
+                  onTap: () => UnifiedTransactionModal.show(context),
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     height: 28,

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:solducci/models/expense_form.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/widgets/expense_list_item_optimized.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
+import 'package:solducci/widgets/quick_add/unified_transaction_modal.dart';
 
 class ExpenseList extends StatefulWidget {
   const ExpenseList({super.key});
@@ -38,40 +39,21 @@ class _ExpenseListState extends State<ExpenseList> {
     setState(() {});
   }
 
-  // Unified method to open expense form for add/edit/duplicate
+  // Unified method to open expense form / details
   void openExpenseForm({
     Expense? expense,
     required String title,
     bool isEdit = false,
   }) {
-    final ExpenseForm form = expense != null
-        ? ExpenseForm.fromExpense(expense, isEdit: isEdit)
-        : ExpenseForm.empty();
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(
-            title: Text(title),
-            leading: IconButton(
-              icon: Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: form.getExpenseView(context),
-            ),
-          ),
-        ),
-      ),
-    );
+    if (expense != null) {
+      GoRouter.of(context).push('/expense/${expense.id}', extra: expense);
+    } else {
+      UnifiedTransactionModal.show(context);
+    }
   }
 
   void addExpense() {
-    openExpenseForm(title: "Nuova Spesa");
+    UnifiedTransactionModal.show(context);
   }
 
   @override

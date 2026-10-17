@@ -13,6 +13,8 @@ import 'package:solducci/views/category_view.dart';
 import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/bento_dashboard_page.dart';
 import 'package:solducci/views/economy/recurring_hub_view.dart';
+import 'package:solducci/views/economy/expense_detail_view.dart';
+import 'package:solducci/models/expense.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
 import 'package:solducci/features/space/views/note_detail_view.dart';
@@ -162,6 +164,22 @@ class AppRouter {
       GoRoute(
         path: '/personal-expenses',
         builder: (context, state) => const PersonalExpensesPage(),
+      ),
+      GoRoute(
+        path: '/expense/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          final extraExpense = state.extra as Expense?;
+          return ExpenseDetailView(expenseId: id, initialExpense: extraExpense);
+        },
+      ),
+      GoRoute(
+        path: '/expenses/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          final extraExpense = state.extra as Expense?;
+          return ExpenseDetailView(expenseId: id, initialExpense: extraExpense);
+        },
       ),
       
 
