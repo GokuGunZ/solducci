@@ -211,7 +211,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       isLoading: _isLoading && _balancesList.isEmpty,
       isStale: _isStale,
       onRetry: _loadBalance,
-      onExpand: () {
+      onTap: () {
         GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
       },
       child: !hasValidAccounts && !_isLoading
@@ -433,25 +433,52 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
                   );
                 }
 
+                if (is1x1) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            item.key.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 9.0,
+                              letterSpacing: 0.8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          _buildBalanceAmount(item.value, is1x1: true, isLarge: false, customFontSize: 16.0),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
                 return Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: is1x1 ? 8.0 : 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           item.key.toUpperCase(),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white54,
-                            fontSize: is1x1 ? 9 : 10,
+                            fontSize: 10,
                             letterSpacing: 1.2,
                             fontWeight: FontWeight.bold,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: is1x1 ? 2 : 4),
-                        _buildBalanceAmount(item.value, is1x1: is1x1, isLarge: is2x2OrLarger),
+                        const SizedBox(height: 4),
+                        _buildBalanceAmount(item.value, is1x1: false, isLarge: is2x2OrLarger),
                         if (is2x2OrLarger) ...[
                           const SizedBox(height: 8),
                           Row(

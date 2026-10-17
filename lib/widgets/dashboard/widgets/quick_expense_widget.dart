@@ -5,6 +5,7 @@ import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/models/expense.dart';
+import 'package:solducci/models/split_type.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/widgets/dashboard/widgets/radial_selectors.dart';
@@ -59,6 +60,8 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
         type: _selectedCategory,
         userId: userId,
         groupId: currentContext.isGroup ? currentContext.groupId : null,
+        paidBy: currentContext.isGroup ? userId : null,
+        splitType: currentContext.isGroup ? SplitType.equal : null,
       );
 
       await ExpenseServiceCached().insert(newExpense);
@@ -259,6 +262,8 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
         type: category,
         userId: userId,
         groupId: currentContext.isGroup ? currentContext.groupId : null,
+        paidBy: currentContext.isGroup ? userId : null,
+        splitType: currentContext.isGroup ? SplitType.equal : null,
       );
 
       await ExpenseServiceCached().insert(newExpense);

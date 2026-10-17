@@ -519,7 +519,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
           items: sortedItems,
           emptyMessage: 'Nessun prodotto',
           emptySubtitle: 'Aggiungi ciò che ti serve comprare',
-          emptyActionLabel: 'Aggiungi Prodotto',
+          emptyActionLabel: widget.def.size.crossAxisCellCount <= 2 ? 'Aggiungi' : 'Aggiungi Prodotto',
           onEmptyAction: () => _addFocusNode.requestFocus(),
           quickActionRow: Container(
             height: 30,

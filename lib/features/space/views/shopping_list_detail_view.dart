@@ -301,12 +301,13 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
   }
 
   Future<bool> _onWillPop() async {
-    if (_items.isEmpty) {
+    final isTemporary = _document?.metadata['is_temporary'] == true;
+    if (isTemporary && _items.isEmpty) {
       final result = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Lista vuota'),
-          content: const Text('Se esci senza aggiungere elementi, la lista verrà cancellata.'),
+          title: const Text('Lista temporanea vuota'),
+          content: const Text('Se esci senza aggiungere elementi, la lista temporanea verrà cancellata.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, 'stay'),

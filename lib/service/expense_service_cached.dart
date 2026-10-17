@@ -9,6 +9,7 @@ import 'package:solducci/core/cache/persistent/persistent_cache_config.dart';
 import 'package:solducci/core/cache/cache_config.dart';
 import 'package:solducci/core/cache/cache_manager.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:async/async.dart';
 
@@ -581,136 +582,215 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
     if (currentUserId == null) return {};
 
     try {
-      // Parallel queries for performance (following caching best practices)
-      final results = await Future.wait<dynamic>([
-        // Query 1: Get all expense splits with user info
-        _supabase.from('expense_splits').select('''
-            *,
-            expenses!inner(group_id, paid_by),
-            profiles:user_id(nickname, email)
-          ''').eq('expenses.group_id', groupId) as Future<dynamic>,
-
-        // Query 2: Get group members for name fallback
-        GroupService().getGroupMembers(groupId) as Future<dynamic>,
-      ]);
-
-      final splitsResponse = results[0] as List;
-      final members = results[1] as List<GroupMember>;
-
-      // Create member name lookup
+      final members = await GroupService().getGroupMembers(groupId);
       final memberNames = <String, String>{};
       for (final member in members) {
         memberNames[member.userId] = member.nickname ?? member.email ?? 'Utente';
       }
 
-      // Calculate balances per user
+      // Query 1: Get expense splits with expenses info (avoid failing profiles join)
+      List<dynamic> splitsResponse = [];
+      try {
+        final res = await _supabase.from('expense_splits').select('''
+            *,
+            expenses!inner(id, group_id, paid_by, user_id, amount)
+          ''').eq('expenses.group_id', groupId);
+        splitsResponse = res as List;
+      } catch (e) {
+        debugPrint('[ExpenseServiceCached] Errore fetch splits: $e');
+      }
+
+      // Query 2: Get all group expenses directly to catch any expenses created without splits
+      List<dynamic> groupExpensesResponse = [];
+      try {
+        final res = await _supabase.from('expenses').select('''
+            id, group_id, paid_by, user_id, amount, split_type, split_data
+          ''').eq('group_id', groupId);
+        groupExpensesResponse = res as List;
+      } catch (e) {
+        debugPrint('[ExpenseServiceCached] Errore fetch group expenses: $e');
+      }
+
+      final handledExpenseIds = splitsResponse
+          .map((s) => s['expense_id'].toString())
+          .toSet();
+
       final balances = <String, double>{};
       final userNames = <String, String>{};
 
+      // 1. Process explicit splits
       for (final splitData in splitsResponse) {
         final split = ExpenseSplit.fromMap(splitData);
-        final expense = splitData['expenses'] as Map<String, dynamic>;
-        final paidBy = expense['paid_by'] as String;
-
-        // Skip if already paid
         if (split.isPaid) continue;
 
-        // Get user name from profile or fallback to member name
-        final profile = splitData['profiles'] as Map<String, dynamic>?;
-        final userName = profile?['nickname'] ?? memberNames[split.userId] ?? 'Utente';
+        final expense = splitData['expenses'] as Map<String, dynamic>;
+        final paidBy = (expense['paid_by'] as String?) ?? (expense['user_id'] as String?);
+        if (paidBy == null) continue;
+
+        final userName = memberNames[split.userId] ?? 'Utente';
         userNames[split.userId] = userName;
 
         if (paidBy == currentUserId) {
-          // Current user paid, others owe them
           if (split.userId != currentUserId) {
             balances[split.userId] = (balances[split.userId] ?? 0.0) + split.amount;
             userNames[split.userId] = userName;
           }
         } else if (split.userId == currentUserId) {
-          // Someone else paid, current user owes them
           balances[paidBy] = (balances[paidBy] ?? 0.0) - split.amount;
-          final payerProfile = memberNames[paidBy] ?? 'Utente';
-          userNames[paidBy] = payerProfile;
+          final payerName = memberNames[paidBy] ?? 'Utente';
+          userNames[paidBy] = payerName;
         }
       }
 
-      // Build result map with names and balances
+      // 2. Process expenses that had NO records in expense_splits (e.g. quick expenses or legacy)
+      if (members.isNotEmpty) {
+        for (final expData in groupExpensesResponse) {
+          final expId = expData['id'].toString();
+          if (handledExpenseIds.contains(expId)) continue; // Already processed via splits
+
+          final paidBy = (expData['paid_by'] as String?) ?? (expData['user_id'] as String?);
+          if (paidBy == null) continue;
+
+          final amount = (expData['amount'] as num?)?.toDouble() ?? 0.0;
+          if (amount <= 0) continue;
+
+          final splitTypeStr = expData['split_type'] as String?;
+          if (splitTypeStr == 'offer') continue; // Payer offered, no debts
+
+          final perPersonShare = amount / members.length;
+
+          if (paidBy == currentUserId) {
+            // Current user paid: other members owe their share
+            for (final member in members) {
+              if (member.userId != currentUserId) {
+                balances[member.userId] = (balances[member.userId] ?? 0.0) + perPersonShare;
+                userNames[member.userId] = memberNames[member.userId] ?? 'Utente';
+              }
+            }
+          } else {
+            // Someone else paid: current user owes them their share
+            balances[paidBy] = (balances[paidBy] ?? 0.0) - perPersonShare;
+            userNames[paidBy] = memberNames[paidBy] ?? 'Utente';
+          }
+        }
+      }
+
+      // Build result map
       final result = <String, Map<String, dynamic>>{};
       for (final userId in balances.keys) {
-        result[userId] = {
-          'name': userNames[userId] ?? 'Utente',
-          'balance': balances[userId] ?? 0.0,
-        };
+        final bal = balances[userId] ?? 0.0;
+        if (bal.abs() >= 0.01) {
+          result[userId] = {
+            'name': userNames[userId] ?? memberNames[userId] ?? 'Utente',
+            'balance': bal,
+          };
+        }
       }
 
       return result;
     } catch (e) {
+      debugPrint('[ExpenseServiceCached] calculateGroupBalanceMultiPerson error: $e');
       return {};
     }
   }
 
   /// Calculate grouped balance for view context (multi-group aggregation)
   /// Returns map: {groupId: {groupName, peopleYouOwe, peopleWhoOweYou, totalYouOwe, totalTheyOweYou}}
-  ///
-  /// This implements the new requirement for view context to show aggregated debts by group
   Future<Map<String, Map<String, dynamic>>> calculateViewBalanceGrouped(List<String> groupIds) async {
     final currentUserId = _supabase.auth.currentUser?.id;
     if (currentUserId == null || groupIds.isEmpty) return {};
 
     try {
-      // Parallel queries for all groups (optimized with Future.wait)
       final results = await Future.wait([
-        // Query 1: Get all splits for all groups in one query
         _supabase.from('expense_splits').select('''
             *,
-            expenses!inner(group_id, paid_by)
+            expenses!inner(id, group_id, paid_by, user_id, amount)
           ''').inFilter('expenses.group_id', groupIds),
-
-        // Query 2: Get group info for names
+        _supabase.from('expenses').select('''
+            id, group_id, paid_by, user_id, amount, split_type, split_data
+          ''').inFilter('group_id', groupIds),
         Future.wait(groupIds.map((id) =>
           _supabase.from('groups').select('id, name').eq('id', id).single()
+        )),
+        Future.wait(groupIds.map((id) =>
+          GroupService().getGroupMembers(id)
         )),
       ]);
 
       final splitsResponse = results[0] as List;
-      final groupsResponse = results[1] as List;
+      final groupExpensesResponse = results[1] as List;
+      final groupsResponse = results[2] as List;
+      final groupMembersList = results[3] as List<List<GroupMember>>;
 
-      // Build group name lookup
       final groupNames = <String, String>{};
       for (final groupData in groupsResponse) {
         final data = groupData as Map<String, dynamic>;
         groupNames[data['id']] = data['name'] ?? 'Gruppo';
       }
 
-      // Aggregate debts by group
+      final groupMembersMap = <String, List<GroupMember>>{};
+      for (int i = 0; i < groupIds.length; i++) {
+        groupMembersMap[groupIds[i]] = groupMembersList[i];
+      }
+
+      final handledExpenseIds = splitsResponse
+          .map((s) => s['expense_id'].toString())
+          .toSet();
+
       final groupedResults = <String, Map<String, dynamic>>{};
 
       for (final groupId in groupIds) {
-        // STEP 1: Calculate NET balance per person in this group
-        // This is critical: we must first calculate the net balance per person,
-        // THEN aggregate by direction (positive/negative)
-        final balancesPerPerson = <String, double>{}; // userId -> net balance (positive = they owe you)
+        final balancesPerPerson = <String, double>{};
+        final members = groupMembersMap[groupId] ?? [];
 
+        // 1. Process explicit splits for this group
         for (final splitData in splitsResponse) {
           final split = ExpenseSplit.fromMap(splitData);
           final expense = splitData['expenses'] as Map<String, dynamic>;
           final expenseGroupId = expense['group_id'] as String;
 
-          // Skip if not this group or already paid
           if (expenseGroupId != groupId || split.isPaid) continue;
 
-          final paidBy = expense['paid_by'] as String;
+          final paidBy = (expense['paid_by'] as String?) ?? (expense['user_id'] as String?);
+          if (paidBy == null) continue;
 
           if (paidBy == currentUserId && split.userId != currentUserId) {
-            // Someone owes you - ADD to their balance (positive)
             balancesPerPerson[split.userId] = (balancesPerPerson[split.userId] ?? 0.0) + split.amount;
           } else if (split.userId == currentUserId && paidBy != currentUserId) {
-            // You owe someone - SUBTRACT from their balance (negative)
             balancesPerPerson[paidBy] = (balancesPerPerson[paidBy] ?? 0.0) - split.amount;
           }
         }
 
-        // STEP 2: Aggregate by direction (credit vs debt) based on NET balances
+        // 2. Process group expenses without explicit splits
+        if (members.isNotEmpty) {
+          for (final expData in groupExpensesResponse) {
+            if (expData['group_id'] != groupId) continue;
+            final expId = expData['id'].toString();
+            if (handledExpenseIds.contains(expId)) continue;
+
+            final paidBy = (expData['paid_by'] as String?) ?? (expData['user_id'] as String?);
+            if (paidBy == null) continue;
+
+            final amount = (expData['amount'] as num?)?.toDouble() ?? 0.0;
+            if (amount <= 0) continue;
+
+            final splitTypeStr = expData['split_type'] as String?;
+            if (splitTypeStr == 'offer') continue;
+
+            final perPersonShare = amount / members.length;
+
+            if (paidBy == currentUserId) {
+              for (final member in members) {
+                if (member.userId != currentUserId) {
+                  balancesPerPerson[member.userId] = (balancesPerPerson[member.userId] ?? 0.0) + perPersonShare;
+                }
+              }
+            } else {
+              balancesPerPerson[paidBy] = (balancesPerPerson[paidBy] ?? 0.0) - perPersonShare;
+            }
+          }
+        }
+
         int peopleYouOwe = 0;
         int peopleWhoOweYou = 0;
         double totalYouOwe = 0.0;
@@ -719,19 +799,15 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
         for (final entry in balancesPerPerson.entries) {
           final netBalance = entry.value;
 
-          if (netBalance > 0) {
-            // Positive net balance = they owe you (after all transactions)
+          if (netBalance > 0.009) {
             peopleWhoOweYou++;
             totalTheyOweYou += netBalance;
-          } else if (netBalance < 0) {
-            // Negative net balance = you owe them (after all transactions)
+          } else if (netBalance < -0.009) {
             peopleYouOwe++;
-            totalYouOwe += -netBalance; // Convert to positive for display
+            totalYouOwe += -netBalance;
           }
-          // If netBalance == 0, skip (perfectly balanced with this person)
         }
 
-        // Only include groups with actual debts
         if (peopleYouOwe > 0 || peopleWhoOweYou > 0) {
           groupedResults[groupId] = {
             'groupName': groupNames[groupId] ?? 'Gruppo',
@@ -745,6 +821,7 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
 
       return groupedResults;
     } catch (e) {
+      debugPrint('[ExpenseServiceCached] calculateViewBalanceGrouped error: $e');
       return {};
     }
   }
