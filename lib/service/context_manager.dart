@@ -438,6 +438,14 @@ class ContextManager extends ChangeNotifier {
 
     await _viewStorage.setIncludePersonal(viewId, newValue);
     await loadUserViews();
+
+    // If it's the current view context, re-switch to apply the preference and notify listeners
+    if (_currentContext.isView && _currentContext.viewId == viewId) {
+      final updatedView = _userViews.firstWhere((v) => v.id == viewId);
+      switchToView(updatedView);
+    } else {
+      notifyListeners();
+    }
   }
 
   /// Toggle "include personal" preference for current group

@@ -183,6 +183,95 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     }
   }
 
+  Future<void> _updateGroupImage() async {
+    final controller = TextEditingController(text: _group?.imageUrl ?? '');
+    final newUrl = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181D),
+        title: const Text('Immagine Gruppo', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Inserisci l\'URL dell\'immagine o avatar per questo gruppo:',
+              style: TextStyle(fontSize: 13, color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'https://...',
+                hintStyle: const TextStyle(color: Colors.white38),
+                filled: true,
+                fillColor: const Color(0xFF27272A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.white38, size: 18),
+                  onPressed: () => controller.clear(),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+          ),
+          if (_group?.imageUrl != null && _group!.imageUrl!.isNotEmpty)
+            TextButton(
+              onPressed: () => Navigator.pop(context, ''), // Rimuovi immagine
+              child: const Text('Rimuovi', style: TextStyle(color: Colors.redAccent)),
+            ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Salva', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (newUrl != null && mounted && _group != null) {
+      try {
+        final updatedGroup = _group!.copyWith(imageUrl: newUrl.isEmpty ? null : newUrl);
+        await _groupService.updateGroup(updatedGroup);
+        await _contextManager.loadUserGroups();
+        if (_contextManager.currentContext.groupId == widget.groupId) {
+          _contextManager.switchToGroup(updatedGroup);
+        }
+
+        setState(() {
+          _group = updatedGroup;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Immagine del gruppo aggiornata!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Errore: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -228,14 +317,46 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.blue[200],
-                      child: Icon(
-                        Icons.group,
-                        size: 50,
-                        color: Colors.blue[700],
-                      ),
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        GestureDetector(
+                          onTap: _isAdmin ? _updateGroupImage : null,
+                          child: CircleAvatar(
+                            radius: 44,
+                            backgroundColor: const Color(0xFF10B981).withOpacity(0.2),
+                            backgroundImage: _group!.imageUrl != null && _group!.imageUrl!.isNotEmpty
+                                ? NetworkImage(_group!.imageUrl!)
+                                : null,
+                            child: _group!.imageUrl == null || _group!.imageUrl!.isEmpty
+                                ? Text(
+                                    _group!.initials,
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF34D399),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        if (_isAdmin)
+                          GestureDetector(
+                            onTap: _updateGroupImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                size: 16,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Text(

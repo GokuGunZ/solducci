@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/group_service_cached.dart';
+import 'package:solducci/models/group.dart';
 import 'package:solducci/widgets/context_chip.dart';
 import 'package:solducci/widgets/create_view_bubble.dart';
 import 'package:solducci/widgets/circular_context_avatar.dart';
@@ -404,6 +406,15 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
           _selectedViewIds.clear(); // Reset anche viste selezionate
           _nameController.clear();
         });
+        return;
+      } else if (contextManager.currentContext.isGroup && contextManager.currentContext.group != null) {
+        // Fallback: se stiamo modificando il gruppo del contesto corrente
+        final updatedGroup = contextManager.currentContext.group!.copyWith(name: name);
+        await contextManager.updateGroup(updatedGroup);
+      } else if (contextManager.currentContext.isView && contextManager.currentContext.view != null) {
+        // Fallback: se stiamo modificando la vista del contesto corrente
+        final updatedView = contextManager.currentContext.view!.copyWith(name: name);
+        await contextManager.updateView(updatedView);
       }
 
       setState(() {
@@ -413,147 +424,542 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Errore: $e')));
+        ).showSnackBar(SnackBar(content: Text('Errore durante il salvataggio: $e')));
       }
     }
   }
 
-  /// Build dynamic header with editable title
+  /// Build dynamic header with group avatar, editable title, participants, and personal toggle
   Widget _buildDynamicHeader(ContextManager contextManager) {
     String titleText;
     String? placeholder;
     bool showEditButton = false;
     bool isEditable = false;
+    ExpenseGroup? selectedGroup;
+    ExpenseView? selectedView;
+    List<ExpenseGroup> viewGroups = [];
 
     // Determina stato dell'header
     if (_selectedGroupIds.length == 1 && _selectedViewIds.isEmpty) {
       // Single gruppo selezionato
-      final group = contextManager.userGroups.firstWhere(
-        (g) => g.id == _selectedGroupIds.first,
-      );
-      titleText = group.name;
-      isEditable = true; // TODO: Check if user is admin
-      showEditButton = isEditable;
+      final matching = contextManager.userGroups.where((g) => g.id == _selectedGroupIds.first).toList();
+      if (matching.isNotEmpty) {
+        selectedGroup = matching.first;
+        titleText = selectedGroup.name;
+        isEditable = true;
+        showEditButton = true;
+      } else {
+        titleText = contextManager.currentContext.displayName;
+      }
     } else if (_selectedViewIds.length == 1 && _selectedGroupIds.isEmpty) {
       // Vista selezionata
-      final view = contextManager.userViews.firstWhere(
-        (v) => v.id == _selectedViewIds.first,
-      );
-      titleText = view.name;
-      isEditable = true; // Viste sono sempre editabili (local)
-      showEditButton = true;
+      final matching = contextManager.userViews.where((v) => v.id == _selectedViewIds.first).toList();
+      if (matching.isNotEmpty) {
+        selectedView = matching.first;
+        titleText = selectedView.name;
+        isEditable = true;
+        showEditButton = true;
+        viewGroups = contextManager.userGroups.where((g) => selectedView!.groupIds.contains(g.id)).toList();
+      } else {
+        titleText = contextManager.currentContext.displayName;
+      }
     } else if (_selectedGroupIds.length > 1 || _selectedViewIds.length > 1) {
       // Multi-select gruppi o viste
-      ExpenseView? relatedView;
       for (final view in contextManager.userViews) {
         if (_isViewRelated(view.id)) {
-          relatedView = view;
+          selectedView = view;
           break;
         }
       }
 
-      if (relatedView != null) {
-        // Vista esistente corrispondente
-        titleText = relatedView.name;
+      if (selectedView != null) {
+        titleText = selectedView.name;
         isEditable = true;
         showEditButton = true;
+        viewGroups = contextManager.userGroups.where((g) => selectedView!.groupIds.contains(g.id)).toList();
       } else {
-        // Nessuna vista corrispondente
         titleText = '';
         placeholder = 'Nuova Vista';
         isEditable = true;
         showEditButton = true;
+        viewGroups = contextManager.userGroups.where((g) => _selectedGroupIds.contains(g.id)).toList();
       }
     } else {
-      // Nessuna selezione o personal
-      titleText = contextManager.currentContext.displayName;
-      isEditable = false;
+      // Nessuna selezione esplicita: verifica current context
+      if (contextManager.currentContext.isGroup && contextManager.currentContext.group != null) {
+        selectedGroup = contextManager.currentContext.group;
+        titleText = selectedGroup!.name;
+        isEditable = true;
+        showEditButton = true;
+      } else if (contextManager.currentContext.isView && contextManager.currentContext.view != null) {
+        selectedView = contextManager.currentContext.view;
+        titleText = selectedView!.name;
+        isEditable = true;
+        showEditButton = true;
+        viewGroups = contextManager.userGroups.where((g) => selectedView!.groupIds.contains(g.id)).toList();
+      } else {
+        titleText = contextManager.currentContext.displayName;
+        isEditable = false;
+      }
     }
 
-    // Inizializza controller se in modalità edit
-    if (isEditable && !_isEditingName) {
+    // Inizializza controller solo se non stiamo attualmente scrivendo
+    if (isEditable && !_isEditingName && _nameController.text != titleText) {
       _nameController.text = titleText;
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    final bool isPersonalActive = contextManager.currentContext.isPersonal && _selectedGroupIds.isEmpty && _selectedViewIds.isEmpty;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Titolo dinamico con form (centrato)
+          // Section header label
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Bottone cestino per eliminare viste
-              if (showEditButton && _isEditingName && _selectedViewIds.length == 1 && _selectedGroupIds.isEmpty) ...[
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
-                  onPressed: () => _deleteView(_selectedViewIds.first, contextManager),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: 'Elimina vista',
+              const Text(
+                'CONTESTO SELEZIONATO',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: Colors.white38,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(width: 8),
-              ],
-              Flexible(
-                child: isEditable
-                    ? TextField(
-                        controller: _nameController,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: placeholder,
-                          hintStyle: const TextStyle(
-                            color: Colors.white38,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        onTap: () {
-                          setState(() {
-                            _isEditingName = true;
-                          });
-                        },
-                      )
-                    : Text(
-                        titleText,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
               ),
-              if (showEditButton && _isEditingName) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981)),
-                  onPressed: _saveEditedName,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+              if (selectedGroup != null)
+                InkWell(
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/groups/${selectedGroup!.id}');
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Apri team',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(width: 2),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFF10B981)),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
             ],
           ),
-          const SizedBox(height: 4),
-          // "Seleziona Contesto" piccolo (allineato a sinistra)
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'SELEZIONA CONTESTO',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white54,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.bold,
+          const SizedBox(height: 10),
+
+          // Main Selected Context Card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF18181D),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Context / Group Avatar with direct navigation
+                GestureDetector(
+                  onTap: () {
+                    if (selectedGroup != null) {
+                      Navigator.pop(context);
+                      context.push('/groups/${selectedGroup.id}');
+                    } else if (selectedView != null && viewGroups.isNotEmpty) {
+                      // Navigate to first group in view if tapped
+                      Navigator.pop(context);
+                      context.push('/groups/${viewGroups.first.id}');
+                    }
+                  },
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selectedGroup != null
+                                ? const Color(0xFF10B981).withOpacity(0.6)
+                                : selectedView != null
+                                    ? const Color(0xFF3B82F6).withOpacity(0.6)
+                                    : const Color(0xFFA855F7).withOpacity(0.6),
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: selectedGroup != null && selectedGroup.imageUrl != null && selectedGroup.imageUrl!.isNotEmpty
+                              ? Image.network(
+                                  selectedGroup.imageUrl!,
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (ctx, _, __) => _buildGroupFallbackAvatar(selectedGroup!),
+                                )
+                              : selectedGroup != null
+                                  ? _buildGroupFallbackAvatar(selectedGroup)
+                                  : selectedView != null
+                                      ? Container(
+                                          color: const Color(0xFF3B82F6).withOpacity(0.2),
+                                          child: const Icon(Icons.view_list_rounded, color: Color(0xFF60A5FA), size: 26),
+                                        )
+                                      : Container(
+                                          color: const Color(0xFFA855F7).withOpacity(0.2),
+                                          child: const Icon(Icons.person_rounded, color: Color(0xFFC084FC), size: 26),
+                                        ),
+                        ),
+                      ),
+                      if (selectedGroup != null)
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.open_in_new_rounded, size: 10, color: Colors.black),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Name and Participants Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Name editing row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: isEditable
+                                ? TextField(
+                                    controller: _nameController,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: placeholder ?? 'Nome contesto...',
+                                      hintStyle: const TextStyle(
+                                        color: Colors.white38,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      border: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    onTap: () {
+                                      setState(() {
+                                        _isEditingName = true;
+                                      });
+                                    },
+                                    onSubmitted: (_) => _saveEditedName(),
+                                  )
+                                : Text(
+                                    titleText,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                          if (showEditButton && _isEditingName) ...[
+                            const SizedBox(width: 4),
+                            // Save button
+                            IconButton(
+                              icon: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 22),
+                              onPressed: _saveEditedName,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: 'Salva nome',
+                            ),
+                            const SizedBox(width: 8),
+                            // Cancel edit button
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 20),
+                              onPressed: () {
+                                setState(() {
+                                  _isEditingName = false;
+                                  _nameController.text = titleText;
+                                });
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: 'Annulla',
+                            ),
+                          ] else if (showEditButton) ...[
+                            IconButton(
+                              icon: const Icon(Icons.edit_rounded, color: Colors.white38, size: 16),
+                              onPressed: () {
+                                setState(() {
+                                  _isEditingName = true;
+                                });
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: 'Modifica nome',
+                            ),
+                          ],
+                          if (showEditButton && _selectedViewIds.length == 1 && _selectedGroupIds.isEmpty) ...[
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 18),
+                              onPressed: () => _deleteView(_selectedViewIds.first, contextManager),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: 'Elimina vista',
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Participants Display
+                      _buildParticipantsPreview(
+                        selectedGroup: selectedGroup,
+                        selectedView: selectedView,
+                        viewGroups: viewGroups,
+                        isPersonal: isPersonalActive,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Personal Expenses Toggle Pill (for groups and views)
+          if (!isPersonalActive) ...[
+            const SizedBox(height: 10),
+            _buildPersonalExpensesToggle(contextManager, selectedGroup, selectedView),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupFallbackAvatar(ExpenseGroup group) {
+    return Container(
+      color: const Color(0xFF10B981).withOpacity(0.2),
+      child: Center(
+        child: Text(
+          group.initials,
+          style: const TextStyle(
+            color: Color(0xFF34D399),
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build participants list for the selected context
+  Widget _buildParticipantsPreview({
+    ExpenseGroup? selectedGroup,
+    ExpenseView? selectedView,
+    required List<ExpenseGroup> viewGroups,
+    required bool isPersonal,
+  }) {
+    if (isPersonal) {
+      return const Text(
+        'Solo tu • Spese personali',
+        style: TextStyle(fontSize: 11.5, color: Colors.white54),
+      );
+    }
+
+    if (selectedGroup != null) {
+      return FutureBuilder<List<GroupMember>>(
+        future: GroupServiceCached().getGroupMembers(selectedGroup.id),
+        builder: (context, snapshot) {
+          final members = snapshot.data ?? selectedGroup.members ?? [];
+          if (members.isEmpty) {
+            return const Text(
+              'Nessun partecipante caricato',
+              style: TextStyle(fontSize: 11, color: Colors.white38),
+            );
+          }
+
+          final memberNames = members.map((m) => m.nickname ?? m.email?.split('@').first ?? 'Membro').take(4).join(', ');
+          final extraCount = members.length > 4 ? ' +${members.length - 4}' : '';
+
+          return Row(
+            children: [
+              const Icon(Icons.people_outline_rounded, size: 13, color: Colors.white38),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '$memberNames$extraCount',
+                  style: const TextStyle(fontSize: 11, color: Colors.white60),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+            ],
+          );
+        },
+      );
+    }
+
+    if (selectedView != null || viewGroups.isNotEmpty) {
+      return FutureBuilder<Map<String, List<GroupMember>>>(
+        future: GroupServiceCached().getBulkGroupMembers(
+          viewGroups.map((g) => g.id).toList(),
+        ),
+        builder: (context, snapshot) {
+          final data = snapshot.data ?? {};
+          if (viewGroups.isEmpty) {
+            return const Text('Nessun gruppo nella vista', style: TextStyle(fontSize: 11, color: Colors.white38));
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: viewGroups.take(3).map((g) {
+              final members = data[g.id] ?? g.members ?? [];
+              final names = members.map((m) => m.nickname ?? m.email?.split('@').first ?? 'Membro').take(3).join(', ');
+              return Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF3B82F6),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        '${g.name}: ${names.isNotEmpty ? names : "membri..."}',
+                        style: const TextStyle(fontSize: 10.5, color: Colors.white60),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          );
+        },
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  /// Build toggle switch for including/excluding personal expenses in the context
+  Widget _buildPersonalExpensesToggle(
+    ContextManager contextManager,
+    ExpenseGroup? selectedGroup,
+    ExpenseView? selectedView,
+  ) {
+    bool includePersonal = false;
+    VoidCallback onToggle;
+
+    if (selectedGroup != null) {
+      includePersonal = contextManager.getGroupIncludesPersonal(selectedGroup.id);
+      onToggle = () async {
+        await contextManager.toggleIncludePersonalForGroup(selectedGroup.id);
+        setState(() {});
+      };
+    } else if (selectedView != null) {
+      includePersonal = selectedView.includePersonal;
+      onToggle = () async {
+        await contextManager.toggleIncludePersonalForView(selectedView.id);
+        setState(() {});
+      };
+    } else if (_isAllGroupsViewSelected(contextManager)) {
+      includePersonal = _getAllGroupsIncludesPersonal(contextManager);
+      onToggle = () => _toggleAllGroupsPersonal(contextManager);
+    } else {
+      includePersonal = contextManager.currentContext.includesPersonal;
+      onToggle = () async {
+        if (contextManager.currentContext.isGroup) {
+          await contextManager.toggleIncludePersonalForCurrentGroup();
+        } else if (contextManager.currentContext.isView) {
+          await contextManager.toggleIncludePersonalForCurrentView();
+        }
+        setState(() {});
+      };
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF16161B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: includePersonal ? const Color(0xFFA855F7).withOpacity(0.4) : Colors.white.withOpacity(0.06),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.person_rounded,
+            size: 16,
+            color: includePersonal ? const Color(0xFFC084FC) : Colors.white38,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Includi spese personali',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  includePersonal
+                      ? 'I pagamenti personali sono visibili in questo contesto'
+                      : 'Mostra solo le spese condivise',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Transform.scale(
+            scale: 0.8,
+            child: Switch(
+              value: includePersonal,
+              onChanged: (_) => onToggle(),
+              activeColor: const Color(0xFFA855F7),
+              activeTrackColor: const Color(0xFFA855F7).withOpacity(0.3),
+              inactiveThumbColor: Colors.white38,
+              inactiveTrackColor: Colors.white10,
             ),
           ),
         ],

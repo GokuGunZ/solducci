@@ -23,6 +23,7 @@ class ExpenseGroupAdapter extends TypeAdapter<ExpenseGroup> {
       createdBy: fields[3] as String,
       createdAt: fields[4] as DateTime,
       updatedAt: fields[5] as DateTime,
+      imageUrl: fields[8] as String?,
       members: (fields[6] as List?)?.cast<GroupMember>(),
       memberCount: fields[7] as int?,
     );
@@ -31,7 +32,7 @@ class ExpenseGroupAdapter extends TypeAdapter<ExpenseGroup> {
   @override
   void write(BinaryWriter writer, ExpenseGroup obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,6 +45,8 @@ class ExpenseGroupAdapter extends TypeAdapter<ExpenseGroup> {
       ..write(obj.createdAt)
       ..writeByte(5)
       ..write(obj.updatedAt)
+      ..writeByte(8)
+      ..write(obj.imageUrl)
       ..writeByte(6)
       ..write(obj.members)
       ..writeByte(7)
