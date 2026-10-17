@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
+import 'package:solducci/core/context/context_bound.dart';
 
 part 'investment_portfolio.g.dart';
 
 @HiveType(typeId: 14)
-class InvestmentPortfolio implements CacheableModel<String> {
+class InvestmentPortfolio with DirectContextBound implements CacheableModel<String> {
   @HiveField(0)
   final String id;
 
+  @override
   @HiveField(1)
   final String userId;
 
+  @override
   @HiveField(2)
   final String? groupId;
 

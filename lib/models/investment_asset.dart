@@ -1,14 +1,16 @@
 import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
+import 'package:solducci/core/context/context_bound.dart';
 import 'package:solducci/models/asset_class.dart';
 
 part 'investment_asset.g.dart';
 
 @HiveType(typeId: 16)
-class InvestmentAsset implements CacheableModel<String> {
+class InvestmentAsset implements CacheableModel<String>, PortfolioBound {
   @HiveField(0)
   final String id;
 
+  @override
   @HiveField(1)
   final String portfolioId;
 

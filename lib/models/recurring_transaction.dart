@@ -1,3 +1,4 @@
+import 'package:solducci/core/context/context_bound.dart';
 import 'package:solducci/models/split_type.dart';
 
 enum RecurringFrequency {
@@ -53,8 +54,9 @@ enum RecurringFrequency {
   }
 }
 
-class RecurringTransaction {
+class RecurringTransaction with DirectContextBound {
   final String id;
+  @override
   final String userId;
   final bool isIncome;
   final String title;
@@ -63,6 +65,7 @@ class RecurringTransaction {
   final String category;
   final String? walletId;
   final String? portfolioId;
+  @override
   final String? groupId;
   final String? paidBy;
   final SplitType splitType;

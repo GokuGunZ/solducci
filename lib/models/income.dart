@@ -1,14 +1,16 @@
 import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
+import 'package:solducci/core/context/context_bound.dart';
 import 'package:solducci/models/income_category.dart';
 
 part 'income.g.dart';
 
 @HiveType(typeId: 11)
-class Income implements CacheableModel<String> {
+class Income with DirectContextBound implements CacheableModel<String> {
   @HiveField(0)
   final String id;
 
+  @override
   @HiveField(1)
   final String userId;
 
@@ -45,10 +47,15 @@ class Income implements CacheableModel<String> {
   @HiveField(12)
   final String? recurringTransactionId;
 
+  @override
+  @HiveField(13)
+  final String? groupId;
+
   Income({
     required this.id,
     required this.userId,
     this.walletId,
+    this.groupId,
     required this.amount,
     required this.description,
     required this.date,
@@ -80,6 +87,7 @@ class Income implements CacheableModel<String> {
     String? id,
     String? userId,
     String? walletId,
+    String? groupId,
     double? amount,
     String? description,
     DateTime? date,
@@ -95,6 +103,7 @@ class Income implements CacheableModel<String> {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       walletId: walletId ?? this.walletId,
+      groupId: groupId ?? this.groupId,
       amount: amount ?? this.amount,
       description: description ?? this.description,
       date: date ?? this.date,
@@ -114,6 +123,7 @@ class Income implements CacheableModel<String> {
       'id': id,
       'user_id': userId,
       'wallet_id': walletId,
+      'group_id': groupId,
       'amount': amount,
       'description': description,
       'date': date.toIso8601String().split('T').first,
@@ -133,6 +143,7 @@ class Income implements CacheableModel<String> {
       id: map['id'] as String,
       userId: map['user_id'] as String? ?? '',
       walletId: map['wallet_id'] as String?,
+      groupId: map['group_id'] as String?,
       portfolioId: map['portfolio_id'] as String?,
       assetId: map['asset_id'] as String?,
       recurringTransactionId: map['recurring_transaction_id'] as String?,

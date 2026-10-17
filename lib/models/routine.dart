@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/core/context/context_bound.dart';
 
-class RoutineTemplate {
+class RoutineTemplate with DirectContextBound {
   final String id;
+  @override
   final String userId;
+  @override
   final String? groupId;
   final String name;
   final String? description;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/core/context/context_bound.dart';
 
 /// Abstract base class for all document types (polymorphic design)
 /// This enables extensibility for future document types like shopping lists,
@@ -6,9 +7,11 @@ import 'package:flutter/material.dart';
 ///
 /// Each document type should extend this class and implement its own
 /// specific fields and behavior while maintaining common document properties.
-abstract class Document {
+abstract class Document with DirectContextBound {
   final String id;
+  @override
   final String? userId; // For personal documents
+  @override
   final String? groupId; // For shared group documents (future)
   final String documentType; // 'todo', 'shopping_list', 'dispensa', etc.
   String title;

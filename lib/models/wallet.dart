@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
+import 'package:solducci/core/context/context_bound.dart';
 import 'package:solducci/models/wallet_type.dart';
 
 part 'wallet.g.dart';
 
 @HiveType(typeId: 9)
-class Wallet implements CacheableModel<String> {
+class Wallet with DirectContextBound implements CacheableModel<String> {
   @HiveField(0)
   final String id;
 
+  @override
   @HiveField(1)
   final String userId;
 
@@ -40,6 +42,10 @@ class Wallet implements CacheableModel<String> {
   @HiveField(10)
   final DateTime updatedAt;
 
+  @override
+  @HiveField(11)
+  final String? groupId;
+
   // Saldo corrente calcolato dinamicamente (non memorizzato come colonna statica)
   double currentBalance;
 
@@ -53,6 +59,7 @@ class Wallet implements CacheableModel<String> {
     this.iconName = 'account_balance',
     this.isDefault = false,
     this.isArchived = false,
+    this.groupId,
     DateTime? createdAt,
     DateTime? updatedAt,
     double? currentBalance,
@@ -93,6 +100,7 @@ class Wallet implements CacheableModel<String> {
     String? iconName,
     bool? isDefault,
     bool? isArchived,
+    String? groupId,
     DateTime? createdAt,
     DateTime? updatedAt,
     double? currentBalance,
@@ -107,6 +115,7 @@ class Wallet implements CacheableModel<String> {
       iconName: iconName ?? this.iconName,
       isDefault: isDefault ?? this.isDefault,
       isArchived: isArchived ?? this.isArchived,
+      groupId: groupId ?? this.groupId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       currentBalance: currentBalance ?? this.currentBalance,
@@ -118,6 +127,7 @@ class Wallet implements CacheableModel<String> {
     return {
       'id': id,
       'user_id': userId,
+      'group_id': groupId,
       'name': name,
       'type': type.dbValue,
       'initial_balance': initialBalance,
@@ -134,6 +144,7 @@ class Wallet implements CacheableModel<String> {
     return Wallet(
       id: map['id'] as String,
       userId: map['user_id'] as String? ?? '',
+      groupId: map['group_id'] as String?,
       name: map['name'] as String? ?? 'Senza Nome',
       type: WalletType.fromDb(map['type'] as String? ?? 'bank'),
       initialBalance: (map['initial_balance'] as num?)?.toDouble() ?? 0.0,

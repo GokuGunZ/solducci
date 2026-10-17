@@ -28,13 +28,14 @@ class WalletAdapter extends TypeAdapter<Wallet> {
       isArchived: fields[8] as bool,
       createdAt: fields[9] as DateTime,
       updatedAt: fields[10] as DateTime,
+      groupId: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Wallet obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class WalletAdapter extends TypeAdapter<Wallet> {
       ..writeByte(9)
       ..write(obj.createdAt)
       ..writeByte(10)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(11)
+      ..write(obj.groupId);
   }
 
   @override

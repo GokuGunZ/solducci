@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/core/context/context_bound.dart';
 
 /// Task status enum
 enum TaskStatus {
@@ -125,8 +126,9 @@ enum TShirtSize {
 /// Task model with hierarchical support (parent-child relationships)
 /// Tasks can have sub-tasks forming an arbitrary deep tree structure.
 /// They inherit tags and recurrence from parent tasks and associated tags.
-class Task {
+class Task implements DocumentBound {
   final String id;
+  @override
   final String documentId;
   final String? parentTaskId;
   final String? assignedTo;
