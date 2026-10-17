@@ -515,6 +515,8 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
         return BaseListWidget<ShoppingListItem>(
           heroTag: widget.def.id,
           isLoading: isLoading,
+          currentSourceIndex: _currentSourceIndex,
+          totalSources: _documents.length,
           onExpand: () {
             final activeDocId = _documents.isNotEmpty && _currentSourceIndex < _documents.length
                 ? _documents[_currentSourceIndex].id

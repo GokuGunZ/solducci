@@ -15,6 +15,7 @@ class PantryHubView extends StatelessWidget {
     return UnifiedResourceHubView<DispensaDocument>(
       title: 'Dispensa',
       documentType: 'dispensa',
+      initialDocumentId: initialDocumentId,
       icon: Icons.kitchen_outlined,
       accentColor: const Color(0xFF0EA5E9), // Sky Blue OLED
       showAllOption: true,

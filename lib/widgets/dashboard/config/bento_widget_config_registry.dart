@@ -437,8 +437,58 @@ class BentoWidgetConfigRegistry {
 
   // --- 7. Dispensa ---
   static Future<BentoWidgetConfigData> _buildPantryConfig(ExpenseContext context) async {
-    final options = <BentoConfigOption>[
-      const BentoConfigOption(
+    final supabase = Supabase.instance.client;
+    final options = <BentoConfigOption>[];
+
+    try {
+      final contextDocs = await DocumentService().getDocumentsForContext(context, 'dispensa');
+      List<Document> userDocs = [];
+      try {
+        userDocs = await DocumentService().getDocumentsByType('dispensa').first.timeout(
+          const Duration(milliseconds: 1500),
+          onTimeout: () => [],
+        );
+      } catch (_) {}
+
+      final Map<String, Document> uniqueDocs = {};
+      for (final doc in contextDocs) {
+        uniqueDocs[doc.id] = doc;
+      }
+      for (final doc in userDocs) {
+        uniqueDocs[doc.id] = doc;
+      }
+
+      for (final doc in uniqueDocs.values) {
+        String? preview;
+        try {
+          final res = await supabase
+              .from('pantry_items')
+              .select('name')
+              .eq('document_id', doc.id)
+              .limit(3);
+          final items = res as List;
+          if (items.isNotEmpty) {
+            final names = items.map((t) => t['name'] as String).join(', ');
+            preview = '${items.length}+ prodotti: $names';
+          } else {
+            preview = 'Nessun prodotto censito';
+          }
+        } catch (_) {}
+
+        options.add(BentoConfigOption(
+          id: 'doc_${doc.id}',
+          title: doc.title,
+          subtitle: 'Dispensa',
+          icon: Icons.kitchen_rounded,
+          color: const Color(0xFF10B981),
+          preview: preview,
+          props: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
+        ));
+      }
+    } catch (_) {}
+
+    if (options.isEmpty) {
+      options.add(const BentoConfigOption(
         id: 'default',
         title: 'Dispensa Principale',
         subtitle: 'Monitora tutte le scorte e i prodotti vicini alla scadenza',
@@ -446,28 +496,15 @@ class BentoWidgetConfigRegistry {
         color: Color(0xFF10B981),
         badge: 'Default',
         props: {'source': 'default', 'title': 'Dispensa'},
-      ),
-    ];
-
-    try {
-      final docs = await DocumentService().getDocumentsForContext(context, 'dispensa');
-      for (final doc in docs) {
-        options.add(BentoConfigOption(
-          id: 'doc_${doc.id}',
-          title: doc.title,
-          subtitle: 'Dispensa specifica',
-          icon: Icons.kitchen_rounded,
-          color: const Color(0xFF10B981),
-          props: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
-        ));
-      }
-    } catch (_) {}
+      ));
+    }
 
     return BentoWidgetConfigData(
       title: 'Configura Dispensa',
-      description: 'Seleziona quale dispensa o locale monitorare per prevenire gli sprechi alimentari.',
+      description: 'Seleziona quali dispense o locali monitorare nel widget (swipe per cambiare dispensa).',
       options: options,
-      defaultOptionId: 'default',
+      defaultOptionId: options.isNotEmpty ? options.first.id : 'default',
+      isMultiSelect: true,
     );
   }
 

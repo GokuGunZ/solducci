@@ -25,8 +25,10 @@ class BaseListWidget<T> extends StatelessWidget {
   final String? heroTag;
   final Widget? quickActionRow;
   final BentoSkeletonType? skeletonType;
-  final BentoWidgetSize? size;
   final Widget? bottomDock;
+  final BentoWidgetSize? size;
+  final int? currentSourceIndex;
+  final int? totalSources;
 
   const BaseListWidget({
     super.key,
@@ -51,6 +53,8 @@ class BaseListWidget<T> extends StatelessWidget {
     this.skeletonType,
     this.size,
     this.bottomDock,
+    this.currentSourceIndex,
+    this.totalSources,
   });
 
   @override
@@ -199,6 +203,8 @@ class BaseListWidget<T> extends StatelessWidget {
           title: currentSource,
           color: color,
           icon: icon,
+          currentIndex: currentSourceIndex,
+          totalSources: totalSources,
           onPrevious: onPreviousSource,
           onNext: onNextSource,
           onTitleTap: onExpand,

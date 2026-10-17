@@ -255,10 +255,17 @@ class AppRouter {
       // Resources (Unified Multi-List Hub)
       GoRoute(
         path: '/space/resources', 
-        builder: (context, state) => const ResourcesHubView(),
+        builder: (context, state) {
+          final docId = state.uri.queryParameters['id'] ?? (state.extra as String?);
+          return ResourcesHubView(initialDocumentId: docId);
+        },
       ),
       GoRoute(
         path: '/space/resources/:id',
+        builder: (context, state) => ResourcesHubView(initialDocumentId: state.pathParameters['id']),
+      ),
+      GoRoute(
+        path: '/space/resources/detail/:id',
         builder: (context, state) => ResourceDetailView(documentId: state.pathParameters['id']!),
       ),
 
@@ -282,10 +289,17 @@ class AppRouter {
       // Pantry (Unified Multi-List Hub)
       GoRoute(
         path: '/space/pantry', 
-        builder: (context, state) => const PantryHubView(),
+        builder: (context, state) {
+          final docId = state.uri.queryParameters['id'] ?? (state.extra as String?);
+          return PantryHubView(initialDocumentId: docId);
+        },
       ),
       GoRoute(
         path: '/space/pantry/:id',
+        builder: (context, state) => PantryHubView(initialDocumentId: state.pathParameters['id']),
+      ),
+      GoRoute(
+        path: '/space/pantry/detail/:id',
         builder: (context, state) => PantryDetailView(documentId: state.pathParameters['id']!),
       ),
       GoRoute(

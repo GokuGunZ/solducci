@@ -7,6 +7,8 @@ class DataSourceSwitcherHeader extends StatelessWidget {
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback? onTitleTap;
+  final int? currentIndex;
+  final int? totalSources;
 
   const DataSourceSwitcherHeader({
     super.key,
@@ -16,6 +18,8 @@ class DataSourceSwitcherHeader extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     this.onTitleTap,
+    this.currentIndex,
+    this.totalSources,
   });
 
   @override
@@ -71,6 +75,24 @@ class DataSourceSwitcherHeader extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (totalSources != null && totalSources! > 1) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${(currentIndex ?? 0) + 1}/$totalSources',
+                        style: TextStyle(
+                          color: color.withOpacity(0.8),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

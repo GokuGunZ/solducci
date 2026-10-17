@@ -229,6 +229,8 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
           heroTag: widget.def.id,
           size: widget.def.size,
           isLoading: isLoading,
+          currentSourceIndex: _currentSourceIndex,
+          totalSources: _documents.length,
           onExpand: () {
             final activeDocId = _documents.isNotEmpty && _currentSourceIndex < _documents.length
                 ? _documents[_currentSourceIndex].id

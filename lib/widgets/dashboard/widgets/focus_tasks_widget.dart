@@ -304,6 +304,8 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
             }
           },
           currentSource: activeSource.title,
+          currentSourceIndex: _currentSourceIndex,
+          totalSources: _sources.length,
           color: activeSource.color,
           icon: activeSource.icon,
           onPreviousSource: () {

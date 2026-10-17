@@ -14,6 +14,7 @@ class ResourcesHubView extends StatelessWidget {
     return UnifiedResourceHubView<ResourceListDocument>(
       title: 'Risorse',
       documentType: 'resource_list',
+      initialDocumentId: initialDocumentId,
       accentColor: const Color(0xFF3B82F6), // Deep Sky Blue OLED
       icon: Icons.bookmark_border_rounded,
       showAllOption: false,

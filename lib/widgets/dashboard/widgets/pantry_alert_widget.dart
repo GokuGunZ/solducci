@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/models/document.dart';
 import 'package:solducci/models/space_items.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/features/space/services/space_service.dart';
@@ -23,6 +24,8 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
   final _spaceService = SpaceService();
 
   bool _isLoading = true;
+  List<Document> _documents = [];
+  int _currentSourceIndex = 0;
   String? _documentId;
   String _documentTitle = 'Dispensa';
   List<PantryItem> _lowStockItems = [];
@@ -47,71 +50,118 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
   }
 
   Future<void> _initPantry(ExpenseContext ctx) async {
+    setState(() => _isLoading = true);
     await _pantrySub?.cancel();
     _pantrySub = null;
 
-    final customDocId = widget.def.customProps?['documentId'] as String?;
+    final customProps = widget.def.customProps;
+    final selectedSourceIds = (customProps?['selectedSourceIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toSet() ??
+        {};
+    final legacyDocId = customProps?['documentId'] as String?;
 
     try {
-      if (customDocId != null && customDocId.isNotEmpty) {
-        final doc = await _documentService.getDocumentById(customDocId);
-        final belongsToContext = doc != null && (
-          (ctx.isPersonal && doc.groupId == null) ||
-          (ctx.isGroup && doc.groupId == ctx.groupId) ||
-          (ctx.isView && (ctx.groupIds.contains(doc.groupId) || (ctx.includesPersonal && doc.groupId == null)))
+      final contextDocs = await _documentService.getDocumentsForContext(ctx, 'dispensa');
+      List<Document> userDocs = [];
+      try {
+        userDocs = await _documentService.getDocumentsByType('dispensa').first.timeout(
+          const Duration(milliseconds: 1500),
+          onTimeout: () => [],
         );
-        if (belongsToContext) {
-          _documentId = customDocId;
-          _documentTitle = doc.title;
-        } else {
-          _documentId = null;
-        }
-      } else {
-        // Fetch the first pantry document for current context
-        final docs = await _documentService.getDocumentsForContext(ctx, 'dispensa');
-        if (docs.isNotEmpty) {
-          _documentId = docs.first.id;
-          _documentTitle = docs.first.title;
-        } else {
-          _documentId = null;
-        }
+      } catch (_) {}
+
+      final Map<String, Document> uniqueMap = {};
+      for (final doc in contextDocs) {
+        uniqueMap[doc.id] = doc;
+      }
+      for (final doc in userDocs) {
+        uniqueMap[doc.id] = doc;
       }
 
-      if (_documentId != null) {
-        _pantrySub = _spaceService.watchPantryItems(_documentId!).listen((items) async {
-          final lowItems = <PantryItem>[];
-          for (final item in items) {
-            final quantities = await _spaceService.getPantryQuantities(item.id);
-            final total = quantities.fold<double>(0.0, (sum, q) => sum + q.totalQuantity);
-            if (item.thresholdLow != null && total <= item.thresholdLow!) {
-              lowItems.add(item);
-            }
-          }
+      var allDocs = uniqueMap.values.toList();
+      if (selectedSourceIds.isNotEmpty) {
+        allDocs = allDocs
+            .where((d) => selectedSourceIds.contains('doc_${d.id}') || selectedSourceIds.contains(d.id))
+            .toList();
+      } else if (legacyDocId != null && legacyDocId.isNotEmpty) {
+        allDocs = allDocs.where((d) => d.id == legacyDocId).toList();
+      }
 
-          if (mounted) {
-            setState(() {
-              _totalItemsCount = items.length;
-              _lowStockItems = lowItems;
-              _isLoading = false;
-            });
+      if (mounted) {
+        setState(() {
+          _documents = allDocs;
+          if (_currentSourceIndex >= _documents.length) {
+            _currentSourceIndex = 0;
+          }
+          if (_documents.isNotEmpty) {
+            _documentId = _documents[_currentSourceIndex].id;
+            _documentTitle = _documents[_currentSourceIndex].title;
+          } else {
+            _documentId = null;
+            _documentTitle = 'Dispensa';
           }
         });
-      } else {
-        if (mounted) {
-          setState(() {
-            _lowStockItems = [];
-            _totalItemsCount = 0;
-            _isLoading = false;
-          });
-        }
+        _listenToActivePantry();
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _listenToActivePantry() {
+    _pantrySub?.cancel();
+    _pantrySub = null;
+
+    if (_documentId == null) {
+      setState(() {
+        _lowStockItems = [];
+        _totalItemsCount = 0;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    _pantrySub = _spaceService.watchPantryItems(_documentId!).listen((items) async {
+      final lowItems = <PantryItem>[];
+      for (final item in items) {
+        final quantities = await _spaceService.getPantryQuantities(item.id);
+        final total = quantities.fold<double>(0.0, (sum, q) => sum + q.totalQuantity);
+        if (item.thresholdLow != null && total <= item.thresholdLow!) {
+          lowItems.add(item);
+        }
+      }
+
+      if (mounted) {
         setState(() {
+          _totalItemsCount = items.length;
+          _lowStockItems = lowItems;
           _isLoading = false;
         });
       }
-    }
+    });
+  }
+
+  void _nextPantry() {
+    if (_documents.length <= 1) return;
+    setState(() {
+      _currentSourceIndex = (_currentSourceIndex + 1) % _documents.length;
+      _documentId = _documents[_currentSourceIndex].id;
+      _documentTitle = _documents[_currentSourceIndex].title;
+    });
+    _listenToActivePantry();
+  }
+
+  void _previousPantry() {
+    if (_documents.length <= 1) return;
+    setState(() {
+      _currentSourceIndex = (_currentSourceIndex - 1 + _documents.length) % _documents.length;
+      _documentId = _documents[_currentSourceIndex].id;
+      _documentTitle = _documents[_currentSourceIndex].title;
+    });
+    _listenToActivePantry();
   }
 
   @override
@@ -136,54 +186,76 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
       isLoading: _isLoading,
       onTap: navigateToPantry,
       onExpand: navigateToPantry,
-      child: _documentId == null && !_isLoading
-          ? BentoEmptyState(
-              icon: Icons.kitchen_rounded,
-              title: 'Nessuna dispensa',
-              subtitle: 'Crea una dispensa per tracciare le scorte',
-              color: const Color(0xFF10B981),
-              actionLabel: 'Crea Dispensa',
-              onAction: () => GoRouter.of(context).push('/space/pantry'),
-              isCompact: is1x1 || is2x1,
-            )
-          : is2x1
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: alertColor.withOpacity(0.18),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              hasLowStock ? Icons.warning_amber_rounded : Icons.kitchen_rounded,
-                              color: alertColor,
-                              size: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 90),
-                            child: Text(
-                              _documentTitle.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.8,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity != null) {
+            if (details.primaryVelocity! < -150) {
+              _nextPantry();
+            } else if (details.primaryVelocity! > 150) {
+              _previousPantry();
+            }
+          }
+        },
+        child: _documentId == null && !_isLoading
+            ? BentoEmptyState(
+                icon: Icons.kitchen_rounded,
+                title: 'Nessuna dispensa',
+                subtitle: 'Crea una dispensa per tracciare le scorte',
+                color: const Color(0xFF10B981),
+                actionLabel: 'Crea Dispensa',
+                onAction: () => GoRouter.of(context).push('/space/pantry'),
+                isCompact: is1x1 || is2x1,
+              )
+            : is2x1
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: alertColor.withOpacity(0.18),
+                                shape: BoxShape.circle,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              child: Icon(
+                                hasLowStock ? Icons.warning_amber_rounded : Icons.kitchen_rounded,
+                                color: alertColor,
+                                size: 13,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 90),
+                              child: Text(
+                                _documentTitle.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (_documents.length > 1) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_currentSourceIndex + 1}/${_documents.length}',
+                                style: TextStyle(
+                                  color: alertColor.withOpacity(0.85),
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                         decoration: BoxDecoration(
@@ -285,7 +357,6 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEF4444).withOpacity(0.14),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
                               ),
                               child: Text(
                                 item.name,
@@ -302,6 +373,7 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
                 ),
               ],
             ),
+      ),
     );
   }
 
@@ -331,16 +403,40 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _documentTitle.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _documentTitle.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_documents.length > 1) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${_currentSourceIndex + 1}/${_documents.length}',
+                              style: TextStyle(
+                                color: alertColor.withOpacity(0.85),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     Text(
                       hasLowStock ? '${_lowStockItems.length} in esaurimento' : 'Tutte le scorte ok',
@@ -353,6 +449,29 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
                   ],
                 ),
               ),
+              if (_documents.length > 1) ...[
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _previousPantry,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.chevron_left_rounded, size: 18, color: Colors.white70),
+                  ),
+                ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _nextPantry,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.chevron_right_rounded, size: 18, color: Colors.white70),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
