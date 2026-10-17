@@ -151,6 +151,22 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                 )
               : LayoutBuilder(
                   builder: (context, constraints) {
+                    final isH3 = widget.def.size.mainAxisCellCount == 3;
+                    if (isH3) {
+                      return Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: _buildH3View(
+                          title: title,
+                          totalValue: totalValue,
+                          unrealizedPnl: unrealizedPnl,
+                          roiPercent: roiPercent,
+                          isPositive: isPositive,
+                          pnlColor: pnlColor,
+                          currencyFormatter: currencyFormatter,
+                        ),
+                      );
+                    }
+
                     final isWide = constraints.maxWidth > 240;
 
                     return Stack(
@@ -424,6 +440,175 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                 ),
         );
       },
+    );
+  }
+
+  Widget _buildH3View({
+    required String title,
+    required double totalValue,
+    required double unrealizedPnl,
+    required double roiPercent,
+    required bool isPositive,
+    required Color pnlColor,
+    required NumberFormat currencyFormatter,
+  }) {
+    final portfolios = _portfolioService.currentPortfolios;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.trending_up_rounded,
+                    color: Color(0xFF818CF8),
+                    size: 14,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: pnlColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: pnlColor.withOpacity(0.3), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPositive ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
+                    color: pnlColor,
+                    size: 14,
+                  ),
+                  Text(
+                    '${roiPercent >= 0 ? '+' : ''}${roiPercent.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      color: pnlColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // Livello 1: Valore Complessivo & PnL
+        Text(
+          currencyFormatter.format(totalValue),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            Text(
+              '${isPositive ? '+' : ''}${currencyFormatter.format(unrealizedPnl)}',
+              style: TextStyle(
+                color: pnlColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              'non realizzato',
+              style: TextStyle(color: Colors.white38, fontSize: 10),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // Livello 2: Portafogli Attivi a Confronto
+        Expanded(
+          child: portfolios.isEmpty
+              ? Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A).withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text('Nessun portafoglio attivo', style: TextStyle(color: Colors.white38, fontSize: 10.5)),
+                )
+              : ListView.separated(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  itemCount: portfolios.length > 2 ? 2 : portfolios.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 5),
+                  itemBuilder: (context, index) {
+                    final p = portfolios[index];
+                    final pAssets = _assetService.getAssetsForPortfolio(p.id);
+                    final pVal = pAssets.fold(0.0, (s, a) => s + a.currentValue);
+                    final share = totalValue > 0 ? (pVal / totalValue).clamp(0.0, 1.0) : 0.0;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF27272A).withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p.name,
+                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${(share * 100).toInt()}% del totale',
+                                  style: const TextStyle(color: Colors.white38, fontSize: 9),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            currencyFormatter.format(pVal),
+                            style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }

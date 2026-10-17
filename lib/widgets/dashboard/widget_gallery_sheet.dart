@@ -139,7 +139,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.trending_up_rounded,
       color: Color(0xFF8B5CF6),
       defaultSize: BentoWidgetSize(2, 1),
-      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(4, 2)],
       keywords: ['patrimonio', 'investimenti', 'azioni', 'etf', 'crypto', 'asset'],
     ),
     const WidgetMetadata(
@@ -150,7 +150,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.compare_arrows_rounded,
       color: Color(0xFF8B5CF6),
       defaultSize: BentoWidgetSize(2, 2),
-      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
+      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(2, 4), BentoWidgetSize(3, 2)],
       keywords: ['debiti', 'crediti', 'gruppo', 'saldo', 'rimborsi', 'pari'],
     ),
     const WidgetMetadata(
@@ -310,7 +310,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       icon: Icons.kitchen_rounded,
       color: Color(0xFF10B981),
       defaultSize: BentoWidgetSize(1, 1),
-      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1)],
+      allowedSizes: [BentoWidgetSize(1, 1), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3)],
       keywords: ['dispensa', 'scadenza', 'cibo', 'scorte', 'pantry'],
     ),
     const WidgetMetadata(

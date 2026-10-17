@@ -149,15 +149,15 @@ class DashboardWidgetFactory {
       case 'hero_countdown':
         return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
       case 'pantry_alert':
-        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1)];
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3)];
       case 'investment_summary':
-        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
+        return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2)];
       case 'recent_markdown':
         return [const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
       case 'note_stack':
         return [const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
       case 'peer_debts':
-        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
+        return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(3, 2)];
       case 'category_expenses':
         return [const BentoWidgetSize(1, 1), const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2), const BentoWidgetSize(2, 4)];
       case 'recent_notes':

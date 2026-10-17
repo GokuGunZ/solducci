@@ -327,12 +327,26 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
       );
     }
 
+    final mainAxis = widget.def.size.mainAxisCellCount;
+    final isH2 = mainAxis <= 2;
+    final isH3 = mainAxis == 3;
+
+    double netTotal = 0.0;
+    for (final b in _balances) {
+      if (b.youOwe) {
+        netTotal -= b.amount.abs();
+      } else {
+        netTotal += b.amount.abs();
+      }
+    }
+    final netColor = netTotal >= 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -366,21 +380,70 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
           ),
         ),
 
-        // List
+        // Livello 1: Barra Saldo Netto per H3 e H4
+        if (!isH2) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF27272A).withOpacity(0.55),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white.withOpacity(0.06)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        netTotal >= 0 ? Icons.north_east_rounded : Icons.south_west_rounded,
+                        size: 13,
+                        color: netColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        netTotal >= 0
+                            ? 'A credito: +€${netTotal.toStringAsFixed(2)}'
+                            : 'A debito: -€${netTotal.abs().toStringAsFixed(2)}',
+                        style: TextStyle(color: netColor, fontSize: 11.5, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: netColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Saldo Netto',
+                      style: TextStyle(color: netColor, fontSize: 9, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        // Livello 2: Lista membri
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            itemCount: _balances.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            physics: isH2 || isH3 ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
+            itemCount: isH2
+                ? (_balances.length > 2 ? 2 : _balances.length)
+                : (isH3 ? (_balances.length > 2 ? 2 : _balances.length) : _balances.length),
+            separatorBuilder: (_, __) => const SizedBox(height: 5),
             itemBuilder: (context, index) {
               final b = _balances[index];
               final isDebtor = b.youOwe;
-              // Crediti in su (verde), Debiti in giù (ambra)
               final color = isDebtor ? const Color(0xFFF59E0B) : const Color(0xFF10B981);
               final icon = isDebtor ? Icons.south_west_rounded : Icons.north_east_rounded;
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
                 decoration: BoxDecoration(
                   color: const Color(0xFF18181D),
                   borderRadius: BorderRadius.circular(10),
@@ -389,11 +452,11 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 13,
+                      radius: 12,
                       backgroundColor: color.withOpacity(0.18),
                       child: Text(
                         b.userInitial,
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: color),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -403,13 +466,13 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
                         children: [
                           Text(
                             b.userName,
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                            style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
                             isDebtor ? 'Devi rimborsare' : 'Ti deve rimborsare',
-                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
+                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 9.5),
                           ),
                         ],
                       ),
@@ -417,17 +480,13 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          icon,
-                          size: 13,
-                          color: color,
-                        ),
+                        Icon(icon, size: 12, color: color),
                         const SizedBox(width: 3),
                         Text(
                           '€${b.amount.abs().toStringAsFixed(2)}',
                           style: TextStyle(
                             color: color,
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

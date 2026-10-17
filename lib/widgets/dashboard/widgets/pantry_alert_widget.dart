@@ -186,7 +186,9 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
                     ],
                   ),
                 )
-              : Stack(
+              : widget.def.size.mainAxisCellCount >= 3
+                  ? _buildH3View(hasLowStock: hasLowStock, alertColor: alertColor)
+                  : Stack(
                   alignment: Alignment.center,
                   children: [
                 // Ambient Glow behind count if low stock
@@ -283,6 +285,168 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildH3View({required bool hasLowStock, required Color alertColor}) {
+    return Padding(
+      padding: const EdgeInsets.all(14.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Level 1: Status banner & count
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: alertColor.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  hasLowStock ? Icons.warning_amber_rounded : Icons.kitchen_rounded,
+                  color: alertColor,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _documentTitle.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      hasLowStock ? '${_lowStockItems.length} in esaurimento' : 'Tutte le scorte ok',
+                      style: TextStyle(
+                        color: alertColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: alertColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: alertColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  hasLowStock ? '${_lowStockItems.length}' : '$_totalItemsCount',
+                  style: TextStyle(
+                    color: alertColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Level 2: Critical items list
+          Expanded(
+            child: hasLowStock
+                ? ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: _lowStockItems.length.clamp(0, 3),
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (context, index) {
+                      final item = _lowStockItems[index];
+                      final thresholdStr = item.thresholdLow != null
+                          ? '≤ ${item.thresholdLow! % 1 == 0 ? item.thresholdLow!.toInt() : item.thresholdLow!.toStringAsFixed(1)} ${item.unit}'
+                          : null;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.remove_shopping_cart_outlined,
+                              size: 13,
+                              color: Color(0xFFFCA5A5),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (thresholdStr != null)
+                              Text(
+                                thresholdStr,
+                                style: const TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  )
+                : Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 24,
+                          color: Colors.white.withOpacity(0.25),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Scorte sufficienti',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.4),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+          if (hasLowStock && _lowStockItems.length > 3)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Center(
+                child: Text(
+                  '+${_lowStockItems.length - 3} altri articoli in esaurimento',
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
