@@ -20,13 +20,17 @@ class DataSourceSwitcherHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double dragDx = 0;
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: (_) => dragDx = 0,
+      onHorizontalDragUpdate: (details) => dragDx += details.primaryDelta ?? 0,
       onHorizontalDragEnd: (details) {
         final velocity = details.primaryVelocity ?? 0;
-        if (velocity < -100) {
+        if (dragDx < -25 || velocity < -120) {
           onNext();
-        } else if (velocity > 100) {
+        } else if (dragDx > 25 || velocity > 120) {
           onPrevious();
         }
       },

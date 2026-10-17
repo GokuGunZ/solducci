@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/models/document.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
@@ -7,6 +8,7 @@ import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/dashboard/config/bento_config_models.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Registro asincrono che carica e costruisce le opzioni di configurazione per ogni widget
 class BentoWidgetConfigRegistry {
@@ -25,6 +27,9 @@ class BentoWidgetConfigRegistry {
 
       case 'shopping_quick_list':
         return _buildShoppingListConfig(currentContext);
+
+      case 'unresolved_asterisks':
+        return _buildAsterisksConfig(currentContext);
 
       case 'habit_tracker':
         return _buildHabitTrackerConfig();
@@ -109,27 +114,83 @@ class BentoWidgetConfigRegistry {
 
   // --- 2. Focus Tasks ---
   static Future<BentoWidgetConfigData> _buildFocusTasksConfig(ExpenseContext context) async {
-    final options = <BentoConfigOption>[
-      const BentoConfigOption(
-        id: 'focus_today',
-        title: 'Focus Oggi & Urgenti',
-        subtitle: 'Attività in scadenza oggi o contrassegnate con priorità alta',
-        icon: Icons.bolt_rounded,
-        color: Color(0xFFF59E0B),
-        badge: 'Consigliato',
-        props: {'source': 'focus_today', 'title': 'Focus Oggi'},
-      ),
-    ];
+    final supabase = Supabase.instance.client;
+    final options = <BentoConfigOption>[];
+
+    // Preview for focus_today
+    String? focusPreview;
+    try {
+      final now = DateTime.now();
+      final endDayStr = DateTime(now.year, now.month, now.day, 23, 59, 59).toIso8601String();
+      final urgentTasks = await supabase
+          .from('tasks')
+          .select('title')
+          .neq('status', 'completed')
+          .or('priority.in.(urgent,high),due_date.lte.$endDayStr')
+          .limit(3);
+      final count = (urgentTasks as List).length;
+      if (count > 0) {
+        final titles = urgentTasks.map((t) => t['title'] as String).join(', ');
+        focusPreview = '$count task: $titles';
+      } else {
+        focusPreview = 'Tutte le attività in pari 🎉';
+      }
+    } catch (_) {}
+
+    options.add(BentoConfigOption(
+      id: 'focus_today',
+      title: 'Focus Oggi & Urgenti',
+      subtitle: 'Attività in scadenza oggi o contrassegnate con priorità alta',
+      icon: Icons.bolt_rounded,
+      color: const Color(0xFFF59E0B),
+      badge: 'Consigliato',
+      preview: focusPreview,
+      props: {'source': 'focus_today', 'title': 'Focus Oggi'},
+    ));
 
     try {
-      final docs = await DocumentService().getDocumentsForContext(context, 'todo');
-      for (final doc in docs) {
+      final contextDocs = await DocumentService().getDocumentsForContext(context, 'todo');
+      List<Document> userDocs = [];
+      try {
+        userDocs = await DocumentService().getDocumentsByType('todo').first.timeout(
+          const Duration(milliseconds: 1500),
+          onTimeout: () => [],
+        );
+      } catch (_) {}
+
+      final Map<String, Document> uniqueDocs = {};
+      for (final doc in contextDocs) {
+        uniqueDocs[doc.id] = doc;
+      }
+      for (final doc in userDocs) {
+        uniqueDocs[doc.id] = doc;
+      }
+
+      for (final doc in uniqueDocs.values) {
+        String? docPreview;
+        try {
+          final res = await supabase
+              .from('tasks')
+              .select('title')
+              .eq('document_id', doc.id)
+              .neq('status', 'completed')
+              .limit(3);
+          final items = res as List;
+          if (items.isNotEmpty) {
+            final titles = items.map((t) => t['title'] as String).join(', ');
+            docPreview = '${items.length}+ task: $titles';
+          } else {
+            docPreview = 'Nessun task attivo';
+          }
+        } catch (_) {}
+
         options.add(BentoConfigOption(
           id: 'doc_${doc.id}',
           title: doc.title,
-          subtitle: 'Elenco task da documento',
+          subtitle: 'Elenco task',
           icon: Icons.checklist_rounded,
           color: const Color(0xFF6366F1),
+          preview: docPreview,
           props: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
         ));
       }
@@ -137,45 +198,118 @@ class BentoWidgetConfigRegistry {
 
     return BentoWidgetConfigData(
       title: 'Configura Focus Task',
-      description: 'Decidi se aggregare le attività del giorno o collegare una lista To-Do specifica.',
+      description: 'Scegli quali liste task visualizzare nel widget (swipe per cambiare lista).',
       options: options,
       defaultOptionId: 'focus_today',
+      isMultiSelect: true,
     );
   }
 
   // --- 3. Lista Spesa ---
   static Future<BentoWidgetConfigData> _buildShoppingListConfig(ExpenseContext context) async {
-    final options = <BentoConfigOption>[
-      const BentoConfigOption(
-        id: 'default',
-        title: 'Lista della Spesa Principale',
-        subtitle: 'Lista spesa rapida condivisa della dashboard',
-        icon: Icons.shopping_cart_rounded,
-        color: Color(0xFF3B82F6),
-        badge: 'Predefinita',
-        props: {'source': 'default', 'title': 'Lista Spesa'},
-      ),
-    ];
+    final supabase = Supabase.instance.client;
+    final options = <BentoConfigOption>[];
 
     try {
-      final docs = await DocumentService().getDocumentsForContext(context, 'shopping_list');
-      for (final doc in docs) {
+      final contextDocs = await DocumentService().getDocumentsForContext(context, 'shopping_list');
+      List<Document> userDocs = [];
+      try {
+        userDocs = await DocumentService().getDocumentsByType('shopping_list').first.timeout(
+          const Duration(milliseconds: 1500),
+          onTimeout: () => [],
+        );
+      } catch (_) {}
+
+      final Map<String, Document> uniqueDocs = {};
+      for (final doc in contextDocs) {
+        uniqueDocs[doc.id] = doc;
+      }
+      for (final doc in userDocs) {
+        uniqueDocs[doc.id] = doc;
+      }
+
+      for (final doc in uniqueDocs.values) {
+        String? docPreview;
+        try {
+          final res = await supabase
+              .from('shopping_list_items')
+              .select('name')
+              .eq('document_id', doc.id)
+              .eq('is_bought', false)
+              .limit(3);
+          final items = res as List;
+          if (items.isNotEmpty) {
+            final names = items.map((t) => t['name'] as String).join(', ');
+            docPreview = '${items.length}+ prodotti: $names';
+          } else {
+            docPreview = 'Nessun prodotto da acquistare';
+          }
+        } catch (_) {}
+
         options.add(BentoConfigOption(
           id: 'doc_${doc.id}',
           title: doc.title,
-          subtitle: 'Lista spesa specifica',
+          subtitle: 'Lista della spesa',
           icon: Icons.shopping_bag_rounded,
-          color: const Color(0xFF3B82F6),
+          color: const Color(0xFF10B981),
+          preview: docPreview,
           props: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
         ));
       }
     } catch (_) {}
 
     return BentoWidgetConfigData(
-      title: 'Configura Lista Spesa',
-      description: 'Scegli quale elenco di prodotti mostrare sul widget della spesa.',
+      title: 'Configura Liste Spesa',
+      description: 'Scegli quali liste della spesa includere nella navigazione del widget.',
       options: options,
-      defaultOptionId: 'default',
+      defaultOptionId: options.isNotEmpty ? options.first.id : null,
+      isMultiSelect: true,
+    );
+  }
+
+  // --- Asterischi ---
+  static Future<BentoWidgetConfigData> _buildAsterisksConfig(ExpenseContext context) async {
+    final supabase = Supabase.instance.client;
+    final options = <BentoConfigOption>[];
+
+    try {
+      final docs = await DocumentService().getDocumentsForContext(context, 'asterisk');
+      for (final doc in docs) {
+        String? preview;
+        try {
+          final res = await supabase
+              .from('asterisk_items')
+              .select('content')
+              .eq('document_id', doc.id)
+              .eq('is_resolved', false)
+              .limit(3);
+          final items = res as List;
+          if (items.isNotEmpty) {
+            final contents = items.map((t) => t['content'] as String).join(', ');
+            preview = '${items.length}+ aperti: $contents';
+          } else {
+            preview = 'Tutti risolti 🎉';
+          }
+        } catch (_) {}
+
+        options.add(BentoConfigOption(
+          id: 'doc_${doc.id}',
+          title: doc.title,
+          subtitle: 'Raccolta asterischi e note',
+          icon: Icons.emergency,
+          color: const Color(0xFFFBBF24),
+          preview: preview,
+          props: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
+        ));
+      }
+    } catch (_) {}
+
+    return BentoWidgetConfigData(
+      title: 'Configura Asterischi',
+      description: 'Scegli quali elenchi di asterischi visualizzare e navigare nel widget.',
+      options: options,
+      defaultOptionId: options.isNotEmpty ? options.first.id : null,
+      isMultiSelect: true,
     );
   }
 
@@ -215,6 +349,7 @@ class BentoWidgetConfigRegistry {
       description: 'Visualizza tutte le tue routine giornaliere o dedicati a una sequenza specifica.',
       options: options,
       defaultOptionId: 'all',
+      isMultiSelect: true,
     );
   }
 

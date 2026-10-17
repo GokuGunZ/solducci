@@ -178,9 +178,22 @@ class BaseListWidget<T> extends StatelessWidget {
     // If the list has items, prioritize displaying items cleanly rather than squishing with the input field.
     // In height >= 3 (194px, 265px), both input row and items list fit with plenty of room.
     final showQuickAction = quickActionRow != null && (height >= 3 || items.isEmpty);
+    double dragDx = 0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (_) => dragDx = 0,
+      onHorizontalDragUpdate: (details) => dragDx += details.primaryDelta ?? 0,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (dragDx < -40 || velocity < -200) {
+          onNextSource();
+        } else if (dragDx > 40 || velocity > 200) {
+          onPreviousSource();
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DataSourceSwitcherHeader(
           title: currentSource,
@@ -218,6 +231,7 @@ class BaseListWidget<T> extends StatelessWidget {
         ),
         if (bottomDock != null) bottomDock!,
       ],
-    );
+    ),
+  );
   }
 }

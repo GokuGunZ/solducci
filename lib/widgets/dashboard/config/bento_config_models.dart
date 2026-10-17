@@ -9,6 +9,7 @@ class BentoConfigOption {
   final Color color;
   final String? badge;
   final Map<String, dynamic> props;
+  final String? preview;
 
   const BentoConfigOption({
     required this.id,
@@ -18,6 +19,7 @@ class BentoConfigOption {
     required this.color,
     this.badge,
     required this.props,
+    this.preview,
   });
 }
 
@@ -27,11 +29,13 @@ class BentoWidgetConfigData {
   final String description;
   final List<BentoConfigOption> options;
   final String? defaultOptionId;
+  final bool isMultiSelect;
 
   const BentoWidgetConfigData({
     required this.title,
     required this.description,
     required this.options,
     this.defaultOptionId,
+    this.isMultiSelect = false,
   });
 }

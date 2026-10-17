@@ -853,6 +853,14 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     return '${date.day}/${date.month}/${date.year}';
   }
 
+  double _calculateAdaptiveTitleFontSize(String title) {
+    final len = title.length;
+    if (len <= 10) return 15.0;
+    if (len <= 18) return 13.5;
+    if (len <= 26) return 12.0;
+    return 11.0;
+  }
+
   Widget _buildPanoramicView(Document activeDoc, String previewText) {
     return BentoWidgetContainer(
       size: widget.def.size,
@@ -868,28 +876,14 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Top: Tag + Stack icon
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.sticky_note_2_rounded, color: Color(0xFFF59E0B), size: 14),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'NOTE',
-                        style: TextStyle(
-                          color: Color(0xFFF59E0B),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ],
+                  // Top: Stack icon only
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.sticky_note_2_rounded, color: Color(0xFFF59E0B), size: 14),
                   ),
 
                   // Middle: Stepper (< X/N >) and Date
@@ -1031,10 +1025,10 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                               activeDoc.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                                fontSize: _calculateAdaptiveTitleFontSize(activeDoc.title),
                               ),
                             ),
                           ),
@@ -1199,21 +1193,7 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.layers_rounded, color: Color(0xFFF59E0B), size: 13),
-                    SizedBox(width: 5),
-                    Text(
-                      'STICKY NOTES',
-                      style: TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
+                const Icon(Icons.layers_rounded, color: Color(0xFFF59E0B), size: 14),
                 Row(
                   children: [
                     // Stack indicator pill - tap to choose notes!
@@ -1354,28 +1334,15 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                                   // Card Header: Title now has full space
                                   Row(
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF59E0B).withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: const Icon(
-                                          Icons.sticky_note_2_rounded,
-                                          color: Color(0xFFF59E0B),
-                                          size: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
                                           activeDoc.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 13,
+                                            fontSize: _calculateAdaptiveTitleFontSize(activeDoc.title),
                                             letterSpacing: -0.2,
                                           ),
                                         ),

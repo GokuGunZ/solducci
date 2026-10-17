@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/models/document.dart';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
 import 'package:solducci/core/di/service_locator.dart';
@@ -55,16 +56,38 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
   final FocusNode _taskFocusNode = FocusNode();
   bool _isCreating = false;
 
+  StreamSubscription? _docSubscription;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final currentContext = DashboardContextScope.of(context);
     if (_lastContext != currentContext) {
       _lastContext = currentContext;
+      _updateTaskStream();
+      _loadSources(currentContext);
+
+      _docSubscription?.cancel();
+      _docSubscription = DocumentService()
+          .watchDocumentsForContext(currentContext, 'todo')
+          .listen((_) => _loadSources(currentContext));
+    }
+  }
+
+  void _updateTaskStream() {
+    final activeSource = _sources.isNotEmpty && _currentSourceIndex < _sources.length
+        ? _sources[_currentSourceIndex]
+        : _sources.first;
+
+    if (activeSource.type == 'document') {
+      _taskStream = TaskService()
+          .getTasksForDocument(activeSource.id)
+          .asBroadcastStream();
+    } else {
+      final currentContext = _lastContext ?? ContextManager().currentContext;
       _taskStream = getIt<TaskRepository>()
           .watchByContext(currentContext)
           .asBroadcastStream();
-      _loadSources(currentContext);
     }
   }
 
@@ -72,6 +95,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
 
   @override
   void dispose() {
+    _docSubscription?.cancel();
     _taskController.dispose();
     _taskFocusNode.dispose();
     super.dispose();
@@ -117,7 +141,6 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
         priority: activeSource.type == 'focus_today' ? TaskPriority.high : null,
         dueDate: activeSource.type == 'focus_today' ? DateTime(now.year, now.month, now.day, 23, 59) : null,
       );
-
       await TaskService().createTask(newTask);
       _taskController.clear();
       _taskFocusNode.unfocus();
@@ -139,7 +162,25 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
   }
 
   Future<void> _loadSources([ExpenseContext? contextOverride]) async {
-    final sources = <_TaskFilterSource>[
+    final currentContext = contextOverride ?? _lastContext ?? ContextManager().currentContext;
+    final contextDocs = await DocumentService().getDocumentsForContext(currentContext, 'todo');
+    List<Document> userDocs = [];
+    try {
+      userDocs = await DocumentService().getDocumentsByType('todo').first.timeout(
+        const Duration(milliseconds: 1500),
+        onTimeout: () => [],
+      );
+    } catch (_) {}
+
+    final Map<String, Document> uniqueDocs = {};
+    for (final doc in contextDocs) {
+      uniqueDocs[doc.id] = doc;
+    }
+    for (final doc in userDocs) {
+      uniqueDocs[doc.id] = doc;
+    }
+
+    final allSources = <_TaskFilterSource>[
       const _TaskFilterSource(
         id: 'focus_today',
         title: 'Focus Oggi',
@@ -149,33 +190,42 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
       ),
     ];
 
-    try {
-      final currentContext = contextOverride ?? _lastContext ?? ContextManager().currentContext;
-      final docs = await DocumentService().getDocumentsForContext(currentContext, 'todo');
-      for (final doc in docs) {
-        sources.add(_TaskFilterSource(
-          id: doc.id,
-          title: doc.title,
-          type: 'document',
-          icon: Icons.checklist_rounded,
-          color: const Color(0xFF6366F1),
-        ));
-      }
-    } catch (e) {
-      debugPrint('Error loading task sources: $e');
+    for (final doc in uniqueDocs.values) {
+      allSources.add(_TaskFilterSource(
+        id: doc.id,
+        title: doc.title,
+        type: 'document',
+        icon: Icons.checklist_rounded,
+        color: const Color(0xFF6366F1),
+      ));
+    }
+
+    // Filter by selectedSourceIds if configured
+    final customProps = widget.def.customProps;
+    final rawSelected = customProps?['selectedSourceIds'] as List?;
+    final selectedIds = rawSelected?.map((e) => e.toString()).toSet();
+
+    List<_TaskFilterSource> filtered;
+    if (selectedIds != null && selectedIds.isNotEmpty) {
+      filtered = allSources.where((s) {
+        if (s.type == 'focus_today') {
+          return selectedIds.contains('focus_today');
+        } else {
+          return selectedIds.contains('doc_${s.id}') || selectedIds.contains(s.id);
+        }
+      }).toList();
+      if (filtered.isEmpty) filtered = allSources;
+    } else {
+      filtered = allSources;
     }
 
     if (mounted) {
       setState(() {
-        _sources = sources;
-        final customProps = widget.def.customProps;
-        if (customProps != null) {
-          final requestedDocId = customProps['documentId'] as String?;
-          if (requestedDocId != null) {
-            final idx = _sources.indexWhere((s) => s.type == 'document' && s.id == requestedDocId);
-            if (idx != -1) _currentSourceIndex = idx;
-          }
+        _sources = filtered;
+        if (_currentSourceIndex >= _sources.length) {
+          _currentSourceIndex = 0;
         }
+        _updateTaskStream();
       });
     }
   }
@@ -262,6 +312,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
                 _currentSourceIndex = (_currentSourceIndex - 1) < 0
                     ? _sources.length - 1
                     : _currentSourceIndex - 1;
+                _updateTaskStream();
               });
             }
           },
@@ -269,6 +320,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
             if (_sources.length > 1) {
               setState(() {
                 _currentSourceIndex = (_currentSourceIndex + 1) % _sources.length;
+                _updateTaskStream();
               });
             }
           },

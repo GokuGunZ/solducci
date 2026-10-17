@@ -85,19 +85,42 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
   Future<void> _loadDocuments([ExpenseContext? contextOverride]) async {
     try {
       final ctx = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
-      final docs = await DocumentService().getDocumentsForContext(
+      final contextDocs = await DocumentService().getDocumentsForContext(
         ctx,
         'shopping_list',
       );
+      List<Document> userDocs = [];
+      try {
+        userDocs = await DocumentService().getDocumentsByType('shopping_list').first.timeout(
+          const Duration(milliseconds: 1500),
+          onTimeout: () => [],
+        );
+      } catch (_) {}
 
-      _documents = docs;
-      final requestedDocId = widget.def.customProps?['documentId'] as String?;
+      final Map<String, Document> uniqueDocs = {};
+      for (final d in contextDocs) {
+        uniqueDocs[d.id] = d;
+      }
+      for (final d in userDocs) {
+        uniqueDocs[d.id] = d;
+      }
+      final allDocs = uniqueDocs.values.toList();
 
-      if (requestedDocId != null) {
-        final matchIdx = _documents.indexWhere((d) => d.id == requestedDocId);
-        if (matchIdx != -1) {
-          _currentSourceIndex = matchIdx;
-        }
+      final customProps = widget.def.customProps;
+      final rawSelected = customProps?['selectedSourceIds'] as List?;
+      final selectedIds = rawSelected?.map((e) => e.toString()).toSet();
+
+      List<Document> filtered;
+      if (selectedIds != null && selectedIds.isNotEmpty) {
+        filtered = allDocs.where((d) => selectedIds.contains('doc_${d.id}') || selectedIds.contains(d.id)).toList();
+        if (filtered.isEmpty) filtered = allDocs;
+      } else {
+        filtered = allDocs;
+      }
+
+      _documents = filtered;
+      if (_currentSourceIndex >= _documents.length) {
+        _currentSourceIndex = 0;
       }
 
       _updateStream();

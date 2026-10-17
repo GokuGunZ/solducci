@@ -15,6 +15,7 @@ class ShoppingHubView extends StatelessWidget {
     return UnifiedResourceHubView<ShoppingListDocument>(
       title: 'Liste Spesa',
       documentType: 'shopping_list',
+      initialDocumentId: initialDocumentId,
       accentColor: const Color(0xFF10B981), // Smeraldo OLED
       icon: Icons.shopping_cart_outlined,
       showAllOption: true,

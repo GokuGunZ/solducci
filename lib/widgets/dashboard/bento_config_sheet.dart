@@ -59,18 +59,12 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
   bool _loading = true;
   BentoWidgetConfigData? _configData;
   String? _selectedOptionId;
-  final TextEditingController _customTitleController = TextEditingController();
+  Set<String> _selectedOptionIds = {};
 
   @override
   void initState() {
     super.initState();
     _loadConfiguration();
-  }
-
-  @override
-  void dispose() {
-    _customTitleController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadConfiguration() async {
@@ -80,55 +74,53 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
     );
 
     if (mounted) {
-      // Determina l'opzione inizialmente selezionata
-      String? initialSelectedId;
-      if (widget.initialProps != null) {
-        final currentSource = widget.initialProps!['source'] as String?;
-        final currentWalletId = widget.initialProps!['walletId'] as int?;
-        final currentDocId = widget.initialProps!['documentId'] as int?;
-        final currentRoutineId = widget.initialProps!['routineId'] as int?;
-        final currentScenarioId = widget.initialProps!['scenarioId'] as int?;
-        final currentCategory = widget.initialProps!['category'] as String?;
-
-        if (currentWalletId != null) {
-          initialSelectedId = 'wallet_$currentWalletId';
-        } else if (currentDocId != null) {
-          initialSelectedId = 'doc_$currentDocId';
-        } else if (currentRoutineId != null) {
-          initialSelectedId = 'routine_$currentRoutineId';
-        } else if (currentScenarioId != null) {
-          initialSelectedId = 'scenario_$currentScenarioId';
-        } else if (currentCategory != null) {
-          initialSelectedId = 'cat_$currentCategory';
-        } else if (currentSource != null) {
-          initialSelectedId = currentSource;
+      if (data.isMultiSelect) {
+        final rawSelected = widget.initialProps?['selectedSourceIds'] as List?;
+        if (rawSelected != null && rawSelected.isNotEmpty) {
+          final set = rawSelected.map((e) => e.toString()).toSet();
+          _selectedOptionIds = set.intersection(data.options.map((o) => o.id).toSet());
+          if (_selectedOptionIds.isEmpty) {
+            _selectedOptionIds = data.options.map((o) => o.id).toSet();
+          }
+        } else {
+          // Default: all options selected!
+          _selectedOptionIds = data.options.map((o) => o.id).toSet();
         }
-      }
-
-      initialSelectedId ??= data.defaultOptionId;
-      if (initialSelectedId == null && data.options.isNotEmpty) {
-        initialSelectedId = data.options.first.id;
-      }
-
-      // Imposta titolo personalizzato se presente
-      final existingTitle = widget.initialProps?['customTitle'] as String? ??
-          widget.initialProps?['title'] as String?;
-      if (existingTitle != null && existingTitle.isNotEmpty) {
-        _customTitleController.text = existingTitle;
       } else {
-        // Usa il titolo dell'opzione selezionata
-        final selectedOpt = data.options.cast<BentoConfigOption?>().firstWhere(
-              (o) => o?.id == initialSelectedId,
-              orElse: () => null,
-            );
-        if (selectedOpt != null) {
-          _customTitleController.text = selectedOpt.title;
+        // Determina l'opzione inizialmente selezionata
+        String? initialSelectedId;
+        if (widget.initialProps != null) {
+          final currentSource = widget.initialProps!['source'] as String?;
+          final currentWalletId = widget.initialProps!['walletId'] as int?;
+          final currentDocId = widget.initialProps!['documentId'] as int?;
+          final currentRoutineId = widget.initialProps!['routineId'] as int?;
+          final currentScenarioId = widget.initialProps!['scenarioId'] as int?;
+          final currentCategory = widget.initialProps!['category'] as String?;
+
+          if (currentWalletId != null) {
+            initialSelectedId = 'wallet_$currentWalletId';
+          } else if (currentDocId != null) {
+            initialSelectedId = 'doc_$currentDocId';
+          } else if (currentRoutineId != null) {
+            initialSelectedId = 'routine_$currentRoutineId';
+          } else if (currentScenarioId != null) {
+            initialSelectedId = 'scenario_$currentScenarioId';
+          } else if (currentCategory != null) {
+            initialSelectedId = 'cat_$currentCategory';
+          } else if (currentSource != null) {
+            initialSelectedId = currentSource;
+          }
         }
+
+        initialSelectedId ??= data.defaultOptionId;
+        if (initialSelectedId == null && data.options.isNotEmpty) {
+          initialSelectedId = data.options.first.id;
+        }
+        _selectedOptionId = initialSelectedId;
       }
 
       setState(() {
         _configData = data;
-        _selectedOptionId = initialSelectedId;
         _loading = false;
       });
     }
@@ -140,8 +132,39 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
     HapticFeedback.selectionClick();
     setState(() {
       _selectedOptionId = option.id;
-      // Aggiorna l'etichetta personalizzata solo se non era stata editata manualmente
-      _customTitleController.text = option.title;
+    });
+  }
+
+  void _onOptionToggle(BentoConfigOption option) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedOptionIds.contains(option.id)) {
+        if (_selectedOptionIds.length > 1) {
+          _selectedOptionIds.remove(option.id);
+        }
+      } else {
+        _selectedOptionIds.add(option.id);
+      }
+    });
+  }
+
+  void _onOptionSoloSelect(BentoConfigOption option) {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _selectedOptionIds = {option.id};
+    });
+  }
+
+  void _onToggleSelectAll() {
+    if (_configData == null) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (_selectedOptionIds.length == _configData!.options.length) {
+        // Keep only first
+        _selectedOptionIds = {_configData!.options.first.id};
+      } else {
+        _selectedOptionIds = _configData!.options.map((o) => o.id).toSet();
+      }
     });
   }
 
@@ -151,18 +174,30 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
       return;
     }
 
+    if (_configData!.isMultiSelect) {
+      final selectedList = _selectedOptionIds.toList();
+      final finalProps = <String, dynamic>{
+        'selectedSourceIds': selectedList,
+      };
+      if (selectedList.isNotEmpty) {
+        final firstOpt = _configData!.options.firstWhere(
+          (o) => o.id == selectedList.first,
+          orElse: () => _configData!.options.first,
+        );
+        finalProps.addAll(firstOpt.props);
+        finalProps['selectedSourceIds'] = selectedList;
+      }
+      HapticFeedback.mediumImpact();
+      Navigator.of(context).pop(finalProps);
+      return;
+    }
+
     final selectedOption = _configData!.options.cast<BentoConfigOption?>().firstWhere(
           (o) => o?.id == _selectedOptionId,
           orElse: () => _configData!.options.first,
         );
 
     final finalProps = Map<String, dynamic>.from(selectedOption?.props ?? {});
-    final customTitle = _customTitleController.text.trim();
-    if (customTitle.isNotEmpty) {
-      finalProps['customTitle'] = customTitle;
-      finalProps['title'] = customTitle;
-    }
-
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop(finalProps);
   }
@@ -265,16 +300,40 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Sezione 1: Sorgente Dati
+                    // Sezione: Sorgente Dati
                     if (_configData != null && _configData!.options.isNotEmpty) ...[
-                      const Text(
-                        'SORGENTE DATI',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _configData!.isMultiSelect
+                                ? 'SORGENTI ATTIVE (${_selectedOptionIds.length}/${_configData!.options.length})'
+                                : 'SORGENTE DATI',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          if (_configData!.isMultiSelect)
+                            GestureDetector(
+                              onTap: _onToggleSelectAll,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                child: Text(
+                                  _selectedOptionIds.length == _configData!.options.length
+                                      ? 'Deseleziona altri'
+                                      : 'Seleziona tutti',
+                                  style: TextStyle(
+                                    color: accentColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       ListView.separated(
@@ -284,11 +343,19 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final option = _configData!.options[index];
-                          final isSelected = option.id == _selectedOptionId;
+                          final isMulti = _configData!.isMultiSelect;
+                          final isSelected = isMulti
+                              ? _selectedOptionIds.contains(option.id)
+                              : option.id == _selectedOptionId;
 
                           return InkWell(
                             borderRadius: BorderRadius.circular(16),
-                            onTap: () => _onOptionSelected(option),
+                            onTap: isMulti
+                                ? () => _onOptionToggle(option)
+                                : () => _onOptionSelected(option),
+                            onLongPress: isMulti
+                                ? () => _onOptionSoloSelect(option)
+                                : null,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
                               padding: const EdgeInsets.all(12),
@@ -361,14 +428,48 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
                                             ),
                                           ),
                                         ],
+                                        if (option.preview != null && option.preview!.isNotEmpty) ...[
+                                          const SizedBox(height: 5),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: option.color.withOpacity(0.12),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: option.color.withOpacity(0.25), width: 0.8),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.remove_red_eye_outlined, size: 11, color: option.color.withOpacity(0.9)),
+                                                const SizedBox(width: 5),
+                                                Flexible(
+                                                  child: Text(
+                                                    option.preview!,
+                                                    style: TextStyle(
+                                                      color: option.color.withOpacity(0.95),
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Icon(
-                                    isSelected
-                                        ? Icons.check_circle_rounded
-                                        : Icons.radio_button_unchecked_rounded,
+                                    isMulti
+                                        ? (isSelected
+                                            ? Icons.check_box_rounded
+                                            : Icons.check_box_outline_blank_rounded)
+                                        : (isSelected
+                                            ? Icons.check_circle_rounded
+                                            : Icons.radio_button_unchecked_rounded),
                                     color: isSelected ? option.color : Colors.white24,
                                     size: 20,
                                   ),
@@ -378,62 +479,8 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
                           );
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                     ],
-
-                    // Sezione 2: Personalizzazione Nome Tile
-                    const Text(
-                      'PERSONALIZZAZIONE TILE',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.03),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.08)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Etichetta del Widget',
-                            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _customTitleController,
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
-                            decoration: InputDecoration(
-                              hintText: 'Es. Conto Personale, Spesa Famiglia',
-                              hintStyle: const TextStyle(color: Colors.white30),
-                              filled: true,
-                              fillColor: Colors.white.withOpacity(0.05),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: accentColor),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Questo testo apparirà come intestazione o nome di riferimento sulla tua dashboard.',
-                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),

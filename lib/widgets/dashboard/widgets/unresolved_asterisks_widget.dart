@@ -26,6 +26,9 @@ class UnresolvedAsterisksWidget extends StatefulWidget {
 class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
   Stream<List<AsteriskItem>>? _asterisksStream;
   ExpenseContext? _lastContext;
+  List<Document> _documents = [];
+  int _currentSourceIndex = 0;
+  StreamSubscription? _docSubscription;
   final Set<String> _locallyResolved = {};
   final TextEditingController _asteriskController = TextEditingController();
   final FocusNode _asteriskFocusNode = FocusNode();
@@ -37,30 +40,77 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
     final currentContext = DashboardContextScope.of(context);
     if (_lastContext != currentContext) {
       _lastContext = currentContext;
-      _asterisksStream = DocumentService()
+      _loadDocuments(currentContext);
+
+      _docSubscription?.cancel();
+      _docSubscription = DocumentService()
           .watchDocumentsForContext(currentContext, 'asterisk')
-          .asyncMap((docs) async {
-            if (docs.isEmpty) return <AsteriskItem>[];
-            final docIds = docs.map((d) => d.id).toList();
-            final data = await Supabase.instance.client
-                .from('asterisk_items')
-                .select()
-                .inFilter('document_id', docIds)
-                .order('created_at', ascending: false)
-                .limit(20);
-            return (data as List)
-                .map((m) => AsteriskItem.fromMap(m as Map<String, dynamic>))
-                .toList();
-          })
-          .asBroadcastStream();
+          .listen((_) => _loadDocuments(currentContext));
+    }
+  }
+
+  @override
+  void didUpdateWidget(UnresolvedAsterisksWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.def.customProps != widget.def.customProps) {
+      _loadDocuments(_lastContext);
     }
   }
 
   @override
   void dispose() {
+    _docSubscription?.cancel();
     _asteriskController.dispose();
     _asteriskFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadDocuments([ExpenseContext? contextOverride]) async {
+    try {
+      final currentContext = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
+      final docs = await DocumentService().getDocumentsForContext(currentContext, 'asterisk');
+
+      final customProps = widget.def.customProps;
+      final rawSelected = customProps?['selectedSourceIds'] as List?;
+      final selectedIds = rawSelected?.map((e) => e.toString()).toSet();
+
+      List<Document> filtered;
+      if (selectedIds != null && selectedIds.isNotEmpty) {
+        filtered = docs.where((d) => selectedIds.contains('doc_${d.id}') || selectedIds.contains(d.id)).toList();
+        if (filtered.isEmpty) filtered = docs;
+      } else {
+        filtered = docs;
+      }
+
+      if (mounted) {
+        setState(() {
+          _documents = filtered;
+          if (_currentSourceIndex >= _documents.length) {
+            _currentSourceIndex = 0;
+          }
+          _updateStream();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading asterisk documents: $e');
+    }
+  }
+
+  void _updateStream() {
+    if (_documents.isEmpty) {
+      setState(() => _asterisksStream = Stream.value([]));
+      return;
+    }
+    final activeDoc = _documents[_currentSourceIndex];
+    setState(() {
+      _asterisksStream = Supabase.instance.client
+          .from('asterisk_items')
+          .stream(primaryKey: ['id'])
+          .eq('document_id', activeDoc.id)
+          .order('created_at', ascending: false)
+          .map((data) => data.map((m) => AsteriskItem.fromMap(m)).toList())
+          .asBroadcastStream();
+    });
   }
 
   Future<void> _quickAddAsterisk(String text) async {
@@ -71,41 +121,44 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
 
     try {
       final currentContext = _lastContext ?? ContextManager().currentContext;
-      final docs = await DocumentService().getDocumentsForContext(currentContext, 'asterisk');
-      
       String? docId;
-      if (docs.isNotEmpty) {
-        docId = docs.first.id;
+      if (_documents.isNotEmpty && _currentSourceIndex < _documents.length) {
+        docId = _documents[_currentSourceIndex].id;
       } else {
-        String? targetGroupId = currentContext.groupId;
-        String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+        final docs = await DocumentService().getDocumentsForContext(currentContext, 'asterisk');
+        if (docs.isNotEmpty) {
+          docId = docs.first.id;
+        } else {
+          String? targetGroupId = currentContext.groupId;
+          String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
 
-        if (currentContext.isView) {
-          final choice = await ViewGroupPickerSheet.show(
-            context,
-            title: 'Note & Asterischi',
-            subtitle: 'Scegli in quale contesto creare questo elemento',
-          );
-          if (choice == null) return;
-          if (choice.isPersonal) {
-            targetUserId = Supabase.instance.client.auth.currentUser?.id;
-            targetGroupId = null;
-          } else {
-            targetGroupId = choice.groupId;
-            targetUserId = null;
+          if (currentContext.isView) {
+            if (!mounted) return;
+            final choice = await ViewGroupPickerSheet.show(
+              context,
+              title: 'Note & Asterischi',
+              subtitle: 'Scegli in quale contesto creare questo elemento',
+            );
+            if (choice == null) return;
+            if (choice.isPersonal) {
+              targetUserId = Supabase.instance.client.auth.currentUser?.id;
+              targetGroupId = null;
+            } else {
+              targetGroupId = choice.groupId;
+              targetUserId = null;
+            }
           }
-        }
 
-        // Create an initial asterisk document if none exists
-        final newDoc = await DocumentService().createDocument(AsteriskDocument(
-          id: '',
-          userId: targetUserId,
-          groupId: targetGroupId,
-          title: 'Note & Asterischi',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ));
-        docId = newDoc.id;
+          final newDoc = await DocumentService().createDocument(AsteriskDocument(
+            id: '',
+            userId: targetUserId,
+            groupId: targetGroupId,
+            title: 'Note & Asterischi',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ));
+          docId = newDoc.id;
+        }
       }
 
       await SpaceService().createAsteriskItem(AsteriskItem(
@@ -146,7 +199,6 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
           .update({'is_resolved': !isCurrentlyResolved})
           .eq('id', item.id);
     } catch (e) {
-      // Revert on error
       setState(() {
         if (isCurrentlyResolved) {
           _locallyResolved.add(item.id);
@@ -159,30 +211,53 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final currentSourceName = _documents.isNotEmpty && _currentSourceIndex < _documents.length
+        ? _documents[_currentSourceIndex].title
+        : 'Asterischi';
+
     return StreamBuilder<List<AsteriskItem>>(
       stream: _asterisksStream,
       builder: (context, snapshot) {
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final allAsterisks = snapshot.data ?? [];
         
-        // Filter to only show unresolved ones, OR ones that were just locally resolved during this session
         var displayAsterisks = allAsterisks.where((a) {
           return !a.isResolved || _locallyResolved.contains(a.id);
         }).toList();
-
 
         return BaseListWidget<AsteriskItem>(
           heroTag: widget.def.id,
           size: widget.def.size,
           isLoading: isLoading,
           onExpand: () {
-            GoRouter.of(context).push('/space/asterisks', extra: {'heroTag': widget.def.id});
+            final activeDocId = _documents.isNotEmpty && _currentSourceIndex < _documents.length
+                ? _documents[_currentSourceIndex].id
+                : null;
+            if (activeDocId != null) {
+              GoRouter.of(context).push('/space/asterisks/$activeDocId', extra: {'heroTag': widget.def.id});
+            } else {
+              GoRouter.of(context).push('/space/asterisks', extra: {'heroTag': widget.def.id});
+            }
           },
-          currentSource: 'Asterischi',
+          currentSource: currentSourceName,
           color: const Color(0xFFFBBF24),
           icon: Icons.emergency,
-          onPreviousSource: () {}, // No other sources for asterisks currently
-          onNextSource: () {},
+          onPreviousSource: () {
+            if (_documents.length > 1) {
+              setState(() {
+                _currentSourceIndex = (_currentSourceIndex - 1 + _documents.length) % _documents.length;
+                _updateStream();
+              });
+            }
+          },
+          onNextSource: () {
+            if (_documents.length > 1) {
+              setState(() {
+                _currentSourceIndex = (_currentSourceIndex + 1) % _documents.length;
+                _updateStream();
+              });
+            }
+          },
           items: displayAsterisks,
           emptyMessage: 'Nessun asterisco irrisolto 🎉',
           emptySubtitle: 'Tutti i conti e note sono allineati',

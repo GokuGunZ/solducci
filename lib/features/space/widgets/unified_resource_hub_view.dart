@@ -50,6 +50,9 @@ class UnifiedResourceHubView<TDoc extends Document> extends StatefulWidget {
   /// Callback personalizzato per creare un nuovo documento (se null, usa un dialog di default)
   final Future<TDoc?> Function(BuildContext context)? onCustomCreateDocument;
 
+  /// Documento opzionale da selezionare all'apertura
+  final String? initialDocumentId;
+
   /// Floating Action Button opzionale
   final Widget? floatingActionButton;
 
@@ -60,6 +63,7 @@ class UnifiedResourceHubView<TDoc extends Document> extends StatefulWidget {
     required this.accentColor,
     required this.icon,
     required this.buildDocumentPage,
+    this.initialDocumentId,
     this.showAllOption = false,
     this.allLabel = 'Tutte',
     this.managementLabel = 'Liste',
@@ -127,15 +131,33 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
       }
 
       if (mounted) {
+        int targetIndex = _currentIndex;
+        if (widget.initialDocumentId != null) {
+          final foundIdx = typedDocs.indexWhere((d) => d.id == widget.initialDocumentId);
+          if (foundIdx != -1) {
+            targetIndex = foundIdx + (widget.showAllOption ? 1 : 0);
+          }
+        }
+        final totalCount = typedDocs.length + (widget.showAllOption ? 1 : 0);
+        final maxIdx = totalCount > 0 ? totalCount - 1 : 0;
+        if (targetIndex > maxIdx) {
+          targetIndex = maxIdx;
+        }
+
         setState(() {
           _documents = typedDocs;
           _isLoading = false;
-          // Clamp index if documents list shrunk
-          final maxIdx = _totalTabsCount > 0 ? _totalTabsCount - 1 : 0;
-          if (_currentIndex > maxIdx) {
-            _currentIndex = maxIdx;
-          }
+          _currentIndex = targetIndex;
         });
+
+        if (targetIndex > 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _pageController.hasClients) {
+              _pageController.jumpToPage(targetIndex);
+              _scrollChipIntoView(targetIndex);
+            }
+          });
+        }
       }
     } catch (e) {
       debugPrint('[UnifiedResourceHubView] Error loading documents: $e');

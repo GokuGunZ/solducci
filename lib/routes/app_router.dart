@@ -238,10 +238,17 @@ class AppRouter {
       // Asterisks (Unified Multi-List Hub)
       GoRoute(
         path: '/space/asterisks', 
-        builder: (context, state) => const AsterisksHubView(),
+        builder: (context, state) {
+          final docId = state.uri.queryParameters['id'] ?? (state.extra as String?);
+          return AsterisksHubView(initialDocumentId: docId);
+        },
       ),
       GoRoute(
         path: '/space/asterisks/:id',
+        builder: (context, state) => AsterisksHubView(initialDocumentId: state.pathParameters['id']),
+      ),
+      GoRoute(
+        path: '/space/asterisks/detail/:id',
         builder: (context, state) => AsteriskDetailView(documentId: state.pathParameters['id']!),
       ),
 
@@ -258,10 +265,17 @@ class AppRouter {
       // Shopping (Unified Multi-List Hub)
       GoRoute(
         path: '/space/shopping', 
-        builder: (context, state) => const ShoppingHubView(),
+        builder: (context, state) {
+          final docId = state.uri.queryParameters['id'] ?? (state.extra as String?);
+          return ShoppingHubView(initialDocumentId: docId);
+        },
       ),
       GoRoute(
         path: '/space/shopping/:id',
+        builder: (context, state) => ShoppingHubView(initialDocumentId: state.pathParameters['id']),
+      ),
+      GoRoute(
+        path: '/space/shopping/detail/:id',
         builder: (context, state) => ShoppingListDetailView(documentId: state.pathParameters['id']!),
       ),
 

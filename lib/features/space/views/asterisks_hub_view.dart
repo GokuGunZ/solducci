@@ -15,6 +15,7 @@ class AsterisksHubView extends StatelessWidget {
     return UnifiedResourceHubView<AsteriskDocument>(
       title: 'Asterischi',
       documentType: 'asterisk',
+      initialDocumentId: initialDocumentId,
       accentColor: const Color(0xFFEAB308), // Giallo neon Solducci
       icon: Icons.emergency,
       showAllOption: false,
