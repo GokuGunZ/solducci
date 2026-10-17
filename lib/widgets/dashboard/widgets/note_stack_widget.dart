@@ -1168,195 +1168,232 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
 
     return BentoWidgetContainer(
       size: widget.def.size,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Layer 2 behind (if 3 or more notes)
-            if (_notes.length >= 3 && !_isEditingContent)
-              Positioned.fill(
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Transform.translate(
-                    offset: const Offset(0, 10),
-                    child: Transform.scale(
-                      scale: 0.90,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF141416),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.white.withOpacity(0.04)),
-                        ),
+      child: Column(
+        children: [
+          // Top widget toolbar - dedicated space on top edge
+          Padding(
+            padding: const EdgeInsets.only(left: 12, right: 12, top: 10, bottom: 2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.layers_rounded, color: Color(0xFFF59E0B), size: 13),
+                    SizedBox(width: 5),
+                    Text(
+                      'STICKY NOTES',
+                      style: TextStyle(
+                        color: Color(0xFFF59E0B),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ),
-
-            // Layer 1 behind (if 2 or more notes)
-            if (_notes.length >= 2 && !_isEditingContent)
-              Positioned.fill(
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Transform.translate(
-                    offset: const Offset(0, 5),
-                    child: Transform.scale(
-                      scale: 0.95,
+                Row(
+                  children: [
+                    // Stack indicator pill - tap to choose notes!
+                    GestureDetector(
+                      onTap: _showManageStackModal,
                       child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF161618),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.white.withOpacity(0.06)),
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.35), width: 0.8),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-            // Active front card with swipe gesture
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onHorizontalDragUpdate: _isEditingContent ? null : _onHorizontalDragUpdate,
-                  onHorizontalDragEnd: _isEditingContent ? null : _onHorizontalDragEnd,
-                  onVerticalDragUpdate: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragUpdate,
-                  onVerticalDragEnd: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragEnd,
-                  onTap: _isEditingContent ? null : () => _startEditing(activeDoc),
-                  child: Transform.translate(
-                    offset: Offset(_dragDx, _dragDy),
-                    child: Transform.rotate(
-                      angle: ((_dragDx / 400) + (_dragDy / 1000)).clamp(-0.15, 0.15),
-                      child: Container(
-                        padding: const EdgeInsets.all(14.0),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF18181B),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: _isEditingContent
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFFF59E0B).withOpacity(0.25),
-                            width: _isEditingContent ? 1.5 : 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.4),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${_currentIndex + 1}/${_notes.length}',
+                              style: const TextStyle(
+                                color: Color(0xFFF59E0B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.arrow_drop_down, color: Color(0xFFF59E0B), size: 12),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Card Header
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF59E0B).withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Icon(
-                                    Icons.sticky_note_2_rounded,
-                                    color: Color(0xFFF59E0B),
-                                    size: 14,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    activeDoc.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      letterSpacing: -0.2,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
 
-                                // If editing: show save status & exit checkmark
-                                if (_isEditingContent) ...[
-                                  if (_isSavingContent)
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFF59E0B),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  InkWell(
-                                    onTap: _exitEditMode,
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981).withOpacity(0.18),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.check, color: Color(0xFF10B981), size: 12),
-                                          SizedBox(width: 3),
-                                          Text('Fatto', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ] else ...[
-                                  // Stack indicator pill - tap to choose notes!
-                                  GestureDetector(
-                                    onTap: _showManageStackModal,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 0.8),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${_currentIndex + 1}/${_notes.length}',
-                                            style: const TextStyle(
-                                              color: Color(0xFFF59E0B),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 2),
-                                          const Icon(Icons.arrow_drop_down, color: Color(0xFFF59E0B), size: 12),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
+                    // Quick Add note button
+                    InkWell(
+                      onTap: _showCreateNoteDialog,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withOpacity(0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4), width: 0.8),
+                        ),
+                        child: const Icon(Icons.add, color: Color(0xFFF59E0B), size: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
 
-                                  // Quick Add note button
-                                  InkWell(
-                                    onTap: _showCreateNoteDialog,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(2.0),
-                                      child: Icon(Icons.add, color: Color(0xFFF59E0B), size: 16),
-                                    ),
+          // Main Card Stack
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Layer 2 behind (if 3 or more notes)
+                  if (_notes.length >= 3 && !_isEditingContent)
+                    Positioned.fill(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0, top: 4.0),
+                        child: Transform.translate(
+                          offset: const Offset(0, 8),
+                          child: Transform.scale(
+                            scale: 0.90,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF141416),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: Colors.white.withOpacity(0.04)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Layer 1 behind (if 2 or more notes)
+                  if (_notes.length >= 2 && !_isEditingContent)
+                    Positioned.fill(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0, top: 4.0),
+                        child: Transform.translate(
+                          offset: const Offset(0, 4),
+                          child: Transform.scale(
+                            scale: 0.95,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF161618),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: Colors.white.withOpacity(0.06)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Active front card with swipe gesture
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0, top: 4.0),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragUpdate: _isEditingContent ? null : _onHorizontalDragUpdate,
+                        onHorizontalDragEnd: _isEditingContent ? null : _onHorizontalDragEnd,
+                        onVerticalDragUpdate: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragUpdate,
+                        onVerticalDragEnd: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragEnd,
+                        onTap: _isEditingContent ? null : () => _startEditing(activeDoc),
+                        child: Transform.translate(
+                          offset: Offset(_dragDx, _dragDy),
+                          child: Transform.rotate(
+                            angle: ((_dragDx / 400) + (_dragDy / 1000)).clamp(-0.15, 0.15),
+                            child: Container(
+                              padding: const EdgeInsets.all(12.0),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF18181B),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: _isEditingContent
+                                      ? const Color(0xFFF59E0B)
+                                      : const Color(0xFFF59E0B).withOpacity(0.25),
+                                  width: _isEditingContent ? 1.5 : 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
-                              ],
-                            ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Card Header: Title now has full space
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF59E0B).withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Icon(
+                                          Icons.sticky_note_2_rounded,
+                                          color: Color(0xFFF59E0B),
+                                          size: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          activeDoc.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            letterSpacing: -0.2,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+
+                                      // If editing: show save status & exit checkmark
+                                      if (_isEditingContent) ...[
+                                        if (_isSavingContent)
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            margin: const EdgeInsets.only(right: 6),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFFF59E0B),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        InkWell(
+                                          onTap: _exitEditMode,
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF10B981).withOpacity(0.18),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.check, color: Color(0xFF10B981), size: 12),
+                                                SizedBox(width: 3),
+                                                Text('Fatto', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                             const SizedBox(height: 6),
 
                             // Date & full-screen button
@@ -1545,6 +1582,9 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
           ],
         ),
       ),
-    );
-  }
+    ),
+  ],
+),
+);
+}
 }

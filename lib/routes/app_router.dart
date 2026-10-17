@@ -205,10 +205,19 @@ class AppRouter {
       // Notes (Unified Multi-List Hub)
       GoRoute(
         path: '/space/notes', 
-        builder: (context, state) => const NotesHubView(),
+        builder: (context, state) {
+          final docId = state.uri.queryParameters['id'] ?? (state.extra as String?);
+          return NotesHubView(initialDocumentId: docId);
+        },
       ),
       GoRoute(
         path: '/space/notes/:id',
+        builder: (context, state) => NotesHubView(
+          initialDocumentId: state.pathParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: '/space/notes/detail/:id',
         builder: (context, state) => NoteDetailView(documentId: state.pathParameters['id']!),
       ),
 

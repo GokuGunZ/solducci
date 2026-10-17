@@ -120,6 +120,15 @@ class _NotesHubViewState extends State<NotesHubView> {
       final match = notes.where((n) => n.id == widget.initialDocumentId).firstOrNull;
       if (match != null) {
         nextActive = match;
+        _isHeaderExpanded = true;
+        final docFolder = _folderService.getDocFolder(match);
+        if (docFolder != null) {
+          final folders = _folderService.buildFolderList(notes, _customFolderNames);
+          final folderMatch = folders.where((f) => f.effectivePath == docFolder).firstOrNull;
+          if (folderMatch != null) {
+            _selectedFolder = folderMatch;
+          }
+        }
       }
     }
 
@@ -335,9 +344,11 @@ class _NotesHubViewState extends State<NotesHubView> {
     final folders = _folderService.buildFolderList(_allNotes, _customFolderNames);
     final assignableFolders = folders.where((f) => !f.isSpecialAll).toList();
     final currentFolderName = _folderService.getFolderForNote(note);
+    final titleController = TextEditingController(text: note.title);
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF141417),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -345,7 +356,12 @@ class _NotesHubViewState extends State<NotesHubView> {
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+            padding: EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              top: 16.0,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16.0,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,32 +377,65 @@ class _NotesHubViewState extends State<NotesHubView> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.article_outlined, color: Color(0xFFF59E0B), size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        note.title.trim().isEmpty ? 'Senza titolo' : note.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+
+                // Titolo Nota modificabile (Merged Form)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit_note_rounded, color: Color(0xFFF59E0B), size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: titleController,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            hintText: 'Titolo nota...',
+                            hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          onSubmitted: (newTitle) async {
+                            final trimmed = newTitle.trim();
+                            if (trimmed.isNotEmpty && trimmed != note.title) {
+                              await _commitNoteTitle(note, trimmed);
+                            }
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          },
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 28, top: 2),
-                  child: Text(
-                    'Cartella: $currentFolderName',
-                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+                      IconButton(
+                        icon: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                        tooltip: 'Salva Titolo',
+                        onPressed: () async {
+                          final trimmed = titleController.text.trim();
+                          if (trimmed.isNotEmpty && trimmed != note.title) {
+                            await _commitNoteTitle(note, trimmed);
+                          }
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.only(left: 6, top: 6),
+                  child: Text(
+                    'Cartella: $currentFolderName',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ),
+                const SizedBox(height: 14),
                 const Divider(color: Colors.white10),
                 const SizedBox(height: 8),
 
@@ -496,11 +545,29 @@ class _NotesHubViewState extends State<NotesHubView> {
     );
   }
 
+  Future<void> _renameFolder(NoteFolder folder, String newName) async {
+    final newPath = await _folderService.renameFolder(folder.effectivePath, newName, _allNotes);
+    await _loadCustomFolders();
+    await _subscribeToNotes();
+    if (mounted) {
+      setState(() {
+        _selectedFolder = NoteFolder(
+          id: newPath,
+          fullPath: newPath,
+          name: newName.trim(),
+          parentPath: folder.parentPath,
+        );
+      });
+    }
+  }
+
   void _showFolderOptionsDialog(NoteFolder folder) {
     if (folder.isSpecialAll || folder.isDefault) return;
+    final folderController = TextEditingController(text: folder.name);
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF141417),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -508,7 +575,12 @@ class _NotesHubViewState extends State<NotesHubView> {
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+            padding: EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              top: 16.0,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16.0,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,24 +596,61 @@ class _NotesHubViewState extends State<NotesHubView> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.folder_outlined, color: Color(0xFFF59E0B), size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Cartella "${folder.name}"',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+
+                // Nome Cartella modificabile (Merged Form)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.folder_outlined, color: Color(0xFFF59E0B), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: folderController,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            hintText: 'Nome cartella...',
+                            hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          onSubmitted: (newName) async {
+                            final trimmed = newName.trim();
+                            if (trimmed.isNotEmpty && trimmed != folder.name) {
+                              await _renameFolder(folder, trimmed);
+                            }
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                      IconButton(
+                        icon: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                        tooltip: 'Rinomina Cartella',
+                        onPressed: () async {
+                          final trimmed = folderController.text.trim();
+                          if (trimmed.isNotEmpty && trimmed != folder.name) {
+                            await _renameFolder(folder, trimmed);
+                          }
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Divider(color: Colors.white10),
 
-                // Elimina cartella
+                // Elimina cartella (con logica ricorsiva e conferma esplicita per contenuti)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
@@ -550,17 +659,114 @@ class _NotesHubViewState extends State<NotesHubView> {
                     style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
                   ),
                   subtitle: const Text(
-                    'Le note all\'interno non verranno cancellate ma spostate in "Note personali".',
+                    'Elimina questa cartella ed eventualmente tutte le sue note.',
                     style: TextStyle(color: Colors.white38, fontSize: 11),
                   ),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    await _folderService.deleteCustomFolder(folder.effectivePath);
-                    await _loadCustomFolders();
-                    if (mounted) {
-                      setState(() {
-                        _selectedFolder = NoteFolder.all;
-                      });
+                    final notesInFolder = _allNotes.where((d) {
+                      final f = _folderService.getDocFolder(d);
+                      return f == folder.effectivePath || (f != null && f.startsWith('${folder.effectivePath}/'));
+                    }).toList();
+                    final subfolders = _customFolderNames.where((p) => p.startsWith('${folder.effectivePath}/')).toList();
+                    final hasContent = notesInFolder.isNotEmpty || subfolders.isNotEmpty;
+
+                    if (hasContent) {
+                      // Conferma esplicita per cartella con note o sottocartelle
+                      final choice = await showDialog<String>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          backgroundColor: const Color(0xFF141417),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+                          ),
+                          title: const Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text('Elimina cartella con contenuto', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                          content: Text(
+                            'La cartella "${folder.name}" contiene ${notesInFolder.length} note'
+                            '${subfolders.isNotEmpty ? ' e ${subfolders.length} sottocartelle' : ''}.\n\n'
+                            'Come desideri procedere?',
+                            style: const TextStyle(color: Colors.white70, fontSize: 13.5, height: 1.4),
+                          ),
+                          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, 'cancel'),
+                              child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+                            ),
+                            OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: () => Navigator.pop(c, 'move'),
+                              child: const Text('Sposta note in "Personali"', style: TextStyle(color: Colors.white, fontSize: 11.5)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: () => Navigator.pop(c, 'delete_all'),
+                              child: const Text('Elimina tutto ricorsivamente', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (choice == 'delete_all') {
+                        await _folderService.deleteFolderRecursive(folder.effectivePath, _allNotes, deleteNotes: true);
+                        await _loadCustomFolders();
+                        await _subscribeToNotes();
+                        if (mounted) {
+                          setState(() => _selectedFolder = NoteFolder.all);
+                        }
+                      } else if (choice == 'move') {
+                        await _folderService.deleteFolderRecursive(folder.effectivePath, _allNotes, deleteNotes: false);
+                        await _loadCustomFolders();
+                        await _subscribeToNotes();
+                        if (mounted) {
+                          setState(() => _selectedFolder = NoteFolder.all);
+                        }
+                      }
+                    } else {
+                      // Cartella vuota
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          backgroundColor: const Color(0xFF141417),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: Colors.white10),
+                          ),
+                          title: const Text('Elimina Cartella', style: TextStyle(color: Colors.white)),
+                          content: Text('Vuoi davvero eliminare la cartella "${folder.name}"?', style: const TextStyle(color: Colors.white70)),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla', style: TextStyle(color: Colors.white54))),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Elimina'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        await _folderService.deleteFolderRecursive(folder.effectivePath, _allNotes, deleteNotes: false);
+                        await _loadCustomFolders();
+                        if (mounted) {
+                          setState(() => _selectedFolder = NoteFolder.all);
+                        }
+                      }
                     }
                   },
                 ),

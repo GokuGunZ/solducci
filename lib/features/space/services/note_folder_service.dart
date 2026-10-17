@@ -110,6 +110,80 @@ class NoteFolderService {
     await prefs.setStringList(_customFoldersKey, current);
   }
 
+  /// Rinomina una cartella (e aggiorna ricorsivamente sotto-cartelle e note associate)
+  Future<String> renameFolder(String oldPath, String newName, List<NoteDocument> allNotes) async {
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty) return oldPath;
+
+    // Se oldPath è es. "Progetti/Solducci", il nuovo path sarà "Progetti/$trimmedName"
+    final segments = oldPath.split('/');
+    segments[segments.length - 1] = trimmedName;
+    final newPath = segments.join('/');
+
+    if (oldPath == newPath) return oldPath;
+
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getStringList(_customFoldersKey) ?? [];
+
+    // Aggiorna cartella e sotto-cartelle in SharedPreferences
+    final updatedFolders = current.map((p) {
+      if (p == oldPath) return newPath;
+      if (p.startsWith('$oldPath/')) {
+        return '$newPath/${p.substring(oldPath.length + 1)}';
+      }
+      return p;
+    }).toList();
+
+    if (!updatedFolders.contains(newPath)) {
+      updatedFolders.add(newPath);
+    }
+    await prefs.setStringList(_customFoldersKey, updatedFolders);
+
+    // Aggiorna le note all'interno della cartella e delle relative sottocartelle
+    for (final doc in allNotes) {
+      final docFolder = getDocFolder(doc);
+      if (docFolder == null) continue;
+
+      if (docFolder == oldPath) {
+        await moveNoteToFolder(doc, newPath);
+      } else if (docFolder.startsWith('$oldPath/')) {
+        final updatedSubPath = '$newPath/${docFolder.substring(oldPath.length + 1)}';
+        await moveNoteToFolder(doc, updatedSubPath);
+      }
+    }
+
+    return newPath;
+  }
+
+  /// Elimina una cartella personalizzata, con opzione di eliminazione ricorsiva del contenuto
+  /// o di spostamento delle note nella cartella predefinita.
+  Future<void> deleteFolderRecursive(
+    String fullPath,
+    List<NoteDocument> allNotes, {
+    required bool deleteNotes,
+  }) async {
+    // 1. Rimuovi la cartella e tutte le sue sottocartelle da SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getStringList(_customFoldersKey) ?? [];
+    current.removeWhere((p) => p == fullPath || p.startsWith('$fullPath/'));
+    await prefs.setStringList(_customFoldersKey, current);
+
+    // 2. Gestisci le note appartenenti a questa cartella o a sue sottocartelle
+    final matchingNotes = allNotes.where((d) {
+      final folder = getDocFolder(d);
+      if (folder == null) return false;
+      return folder == fullPath || folder.startsWith('$fullPath/');
+    }).toList();
+
+    for (final note in matchingNotes) {
+      if (deleteNotes) {
+        await _documentService.deleteDocument(note.id);
+      } else {
+        await moveNoteToFolder(note, null); // Sposta in Note personali
+      }
+    }
+  }
+
   /// Restituisce il nome della cartella formattato per la visualizzazione
   String getFolderForNote(NoteDocument doc) => getDocFolder(doc) ?? defaultFolderName;
 
