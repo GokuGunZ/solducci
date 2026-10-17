@@ -9,6 +9,7 @@ import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/service/task_service.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
@@ -38,7 +39,8 @@ class FocusTasksWidget extends StatefulWidget {
 }
 
 class _FocusTasksWidgetState extends State<FocusTasksWidget> {
-  late Stream<List<Task>> _taskStream;
+  Stream<List<Task>>? _taskStream;
+  ExpenseContext? _lastContext;
   List<_TaskFilterSource> _sources = [
     const _TaskFilterSource(
       id: 'focus_today',
@@ -54,10 +56,16 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
   bool _isCreating = false;
 
   @override
-  void initState() {
-    super.initState();
-    _taskStream = getIt<TaskRepository>().watchAll().asBroadcastStream();
-    _loadSources();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _taskStream = getIt<TaskRepository>()
+          .watchByContext(currentContext)
+          .asBroadcastStream();
+      _loadSources(currentContext);
+    }
   }
 
   final Set<String> _completingTaskIds = {};
@@ -89,7 +97,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
     if (targetDocId == null) {
       // Try to create or find document
       try {
-        final currentContext = ContextManager().currentContext;
+        final currentContext = _lastContext ?? ContextManager().currentContext;
         final docs = await DocumentService().getDocumentsForContext(currentContext, 'todo');
         if (docs.isNotEmpty) {
           targetDocId = docs.first.id;
@@ -126,11 +134,11 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
   void didUpdateWidget(FocusTasksWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.def.customProps != widget.def.customProps) {
-      _loadSources();
+      _loadSources(_lastContext);
     }
   }
 
-  Future<void> _loadSources() async {
+  Future<void> _loadSources([ExpenseContext? contextOverride]) async {
     final sources = <_TaskFilterSource>[
       const _TaskFilterSource(
         id: 'focus_today',
@@ -142,7 +150,7 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
     ];
 
     try {
-      final currentContext = ContextManager().currentContext;
+      final currentContext = contextOverride ?? _lastContext ?? ContextManager().currentContext;
       final docs = await DocumentService().getDocumentsForContext(currentContext, 'todo');
       for (final doc in docs) {
         sources.add(_TaskFilterSource(

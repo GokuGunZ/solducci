@@ -5,8 +5,8 @@ import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/service/expense_service_cached.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/expense.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -20,44 +20,34 @@ class MonthlyBurnRateWidget extends StatefulWidget {
 }
 
 class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
-  late Stream<List<Expense>> _expenseStream;
-
-  @override
-  void initState() {
-    super.initState();
-    _expenseStream = ExpenseServiceCached().stream;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: ContextManager(),
-      builder: (context, _) {
-        return StreamBuilder<List<Expense>>(
-          stream: _expenseStream,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-              return BentoWidgetContainer(
-                heroTag: widget.def.id,
-                size: widget.def.size,
-                skeletonType: BentoSkeletonType.chart,
-                isLoading: true,
-                onTap: () {
-                  GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
-                },
-                child: const SizedBox.shrink(),
-              );
-            }
+    final currentContext = DashboardContextScope.of(context);
 
-            final allExpenses = snapshot.data ?? [];
-            final currentContext = ContextManager().currentContext;
-            final userId = Supabase.instance.client.auth.currentUser?.id;
-            final targetCategory = widget.def.customProps?['category'] as String?;
+    return StreamBuilder<List<Expense>>(
+      stream: ExpenseServiceCached().stream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return BentoWidgetContainer(
+            heroTag: widget.def.id,
+            size: widget.def.size,
+            skeletonType: BentoSkeletonType.chart,
+            isLoading: true,
+            onTap: () {
+              GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
+            },
+            child: const SizedBox.shrink(),
+          );
+        }
 
-            // Filter expenses by context and category
-            final expenses = allExpenses.where((e) {
-              if (currentContext.isGroup) {
-                if (e.groupId != currentContext.groupId) return false;
+        final allExpenses = snapshot.data ?? [];
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        final targetCategory = widget.def.customProps?['category'] as String?;
+
+        // Filter expenses by context and category
+        final expenses = allExpenses.where((e) {
+          if (currentContext.isGroup) {
+            if (e.groupId != currentContext.groupId) return false;
               } else if (currentContext.isPersonal) {
                 if (e.userId != userId || e.groupId != null) return false;
               }
@@ -490,7 +480,5 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
             );
           },
         );
-      },
-    );
   }
 }

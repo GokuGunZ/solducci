@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:solducci/models/task.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/core/logging/app_logger.dart';
 
 /// In-memory implementation of TaskRepository for testing
@@ -306,6 +307,16 @@ class InMemoryTaskRepository implements TaskRepository {
           AppLogger.error('InMemory: Stream error', error, stackTrace);
           throw RepositoryException('Stream error occurred', error, stackTrace);
         });
+  }
+
+  @override
+  Future<List<Task>> getAllByContext(ExpenseContext context) async {
+    return getAll();
+  }
+
+  @override
+  Stream<List<Task>> watchByContext(ExpenseContext context) {
+    return watchAll();
   }
 
   // ============================================================================

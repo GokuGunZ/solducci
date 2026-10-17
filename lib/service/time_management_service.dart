@@ -1,6 +1,8 @@
+import 'package:solducci/core/context/context_query_specification.dart';
 import 'package:solducci/models/time_scenario.dart';
 import 'package:solducci/models/routine.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/document_service.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:async/async.dart';
@@ -21,22 +23,26 @@ class TimeManagementService {
   // TIME SCENARIOS (Events, Trips, Outings, Radar)
   // ========================================
 
-  /// Stream of Time Scenarios based on the current context
-  Stream<List<TimeScenario>> get timeScenariosStream {
-
-    final supabaseStream = _supabase
-        .from('time_scenarios')
-        .stream(primaryKey: ['id'])
-        .map((data) => data.map((map) => TimeScenario.fromMap(map)).toList());
-
-    return StreamGroup.merge([
-      supabaseStream,
-      _refreshTrigger.stream.asyncMap((_) async {
-        final data = await _supabase.from('time_scenarios').select();
-        return data.map((m) => TimeScenario.fromMap(m)).toList();
-      })
-    ]);
+  /// Stream of Time Scenarios strictly scoped to an [ExpenseContext]
+  Stream<List<TimeScenario>> watchTimeScenariosForContext(ExpenseContext context) {
+    return DocumentService()
+        .watchDocumentsForContext(context, 'time_scenario')
+        .asyncMap((docs) async {
+          if (docs.isEmpty) return <TimeScenario>[];
+          final docIds = docs.map((d) => d.id).toList();
+          final data = await _supabase
+              .from('time_scenarios')
+              .select()
+              .inFilter('document_id', docIds);
+          return (data as List)
+              .map((map) => TimeScenario.fromMap(map as Map<String, dynamic>))
+              .toList();
+        });
   }
+
+  /// Stream of Time Scenarios based on the current context
+  Stream<List<TimeScenario>> get timeScenariosStream =>
+      watchTimeScenariosForContext(_contextManager.currentContext);
 
   /// Get specific TimeScenario details
   Future<TimeScenario?> getScenarioDetails(String documentId) async {
@@ -161,23 +167,48 @@ class TimeManagementService {
   // ROUTINES & ALARMS
   // ========================================
 
-  Stream<List<RoutineTemplate>> get routinesStream {
+  /// Stream of RoutineTemplates strictly scoped to an [ExpenseContext]
+  Stream<List<RoutineTemplate>> watchRoutinesForContext(ExpenseContext context) {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return Stream.value([]);
 
     final supabaseStream = _supabase
         .from('routine_templates')
         .stream(primaryKey: ['id'])
-        .map((data) => data.map((map) => RoutineTemplate.fromMap(map)).toList());
+        .map((data) {
+          final list = data.map((map) => RoutineTemplate.fromMap(map)).toList();
+          return list.where((r) {
+            if (context.isPersonal) {
+              return r.userId == userId && r.groupId == null;
+            } else if (context.isGroup) {
+              return r.groupId == context.groupId;
+            } else if (context.isView) {
+              final inGroups = context.groupIds.contains(r.groupId);
+              final isPersonalInView = context.includesPersonal &&
+                  r.userId == userId &&
+                  r.groupId == null;
+              return inGroups || isPersonalInView;
+            }
+            return false;
+          }).toList();
+        });
 
     return StreamGroup.merge([
       supabaseStream,
       _refreshTrigger.stream.asyncMap((_) async {
-        final data = await _supabase.from('routine_templates').select();
-        return data.map((m) => RoutineTemplate.fromMap(m)).toList();
+        final data = await _supabase
+            .from('routine_templates')
+            .select()
+            .filterByContext(context, currentUserId: userId);
+        return (data as List)
+            .map((m) => RoutineTemplate.fromMap(m as Map<String, dynamic>))
+            .toList();
       })
     ]);
   }
+
+  Stream<List<RoutineTemplate>> get routinesStream =>
+      watchRoutinesForContext(_contextManager.currentContext);
 
   Stream<List<RoutineAlarm>> getAlarmsStream(String templateId) {
     final supabaseStream = _supabase

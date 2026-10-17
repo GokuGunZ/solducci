@@ -1,8 +1,10 @@
+import 'package:solducci/core/context/context_bound.dart';
 import 'package:solducci/models/tag.dart';
 
 /// Item in a Note document
-class NoteItem {
+class NoteItem implements DocumentBound {
   final String id;
+  @override
   final String documentId;
   final String content;
   final int position;
@@ -40,8 +42,9 @@ class NoteItem {
 }
 
 /// Item in an Asterisk document
-class AsteriskItem {
+class AsteriskItem implements DocumentBound {
   final String id;
+  @override
   final String documentId;
   final String content;
   final bool isResolved;
@@ -83,8 +86,9 @@ class AsteriskItem {
 }
 
 /// Item in a Resource List document
-class ResourceItem {
+class ResourceItem implements DocumentBound {
   final String id;
+  @override
   final String documentId;
   final String title;
   final String? url;
@@ -150,8 +154,9 @@ class ResourceItem {
 }
 
 /// Item in a Pantry (Dispensa) document
-class PantryItem {
+class PantryItem implements DocumentBound {
   final String id;
+  @override
   final String documentId;
   final String name;
   final String? category;
@@ -258,8 +263,9 @@ class PantryQuantity {
 }
 
 /// Item in a Shopping List document
-class ShoppingListItem {
+class ShoppingListItem implements DocumentBound {
   final String id;
+  @override
   final String documentId;
   final String? pantryItemId;
   final String name;

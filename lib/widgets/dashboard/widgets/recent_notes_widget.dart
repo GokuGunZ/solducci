@@ -5,9 +5,10 @@ import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/features/space/services/note_folder_service.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RecentNotesWidget extends StatefulWidget {
@@ -23,7 +24,6 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
   final _documentService = DocumentService();
   final _spaceService = SpaceService();
   final _folderService = NoteFolderService();
-  final _contextManager = ContextManager();
 
   StreamSubscription? _docSubscription;
   List<NoteDocument> _notes = [];
@@ -31,33 +31,32 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
   NoteFolder _selectedFolder = NoteFolder.all;
   Map<String, String> _previews = {};
   bool _isLoading = true;
+  ExpenseContext? _lastContext;
 
   final TextEditingController _quickTitleController = TextEditingController();
   final FocusNode _quickTitleFocusNode = FocusNode();
 
   @override
-  void initState() {
-    super.initState();
-    _contextManager.addListener(_onContextChanged);
-    _initFoldersAndSubscription();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _initFoldersAndSubscription(currentContext);
+    }
   }
 
   @override
   void dispose() {
-    _contextManager.removeListener(_onContextChanged);
     _docSubscription?.cancel();
     _quickTitleController.dispose();
     _quickTitleFocusNode.dispose();
     super.dispose();
   }
 
-  void _onContextChanged() {
-    _initFoldersAndSubscription();
-  }
-
-  Future<void> _initFoldersAndSubscription() async {
+  Future<void> _initFoldersAndSubscription([ExpenseContext? ctx]) async {
     await _loadCustomFolders();
-    _setupNotesSubscription();
+    _setupNotesSubscription(ctx);
   }
 
   Future<void> _loadCustomFolders() async {
@@ -69,9 +68,9 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
     }
   }
 
-  void _setupNotesSubscription() {
+  void _setupNotesSubscription([ExpenseContext? contextOverride]) {
     _docSubscription?.cancel();
-    final currentContext = _contextManager.currentContext;
+    final currentContext = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
 
     _docSubscription = _documentService
         .watchDocumentsForContext(currentContext, 'note')
@@ -90,7 +89,6 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
       }
     });
   }
-
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     if (date.year == now.year && date.month == now.month && date.day == now.day) {
@@ -108,10 +106,27 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
     if (title.isEmpty) return;
 
     try {
-      final currentContext = _contextManager.currentContext;
-      final effectiveUserId = currentContext.isPersonal
+      final currentContext = _lastContext ?? DashboardContextScope.of(context);
+      String? targetGroupId = currentContext.groupId;
+      String? targetUserId = currentContext.isPersonal
           ? Supabase.instance.client.auth.currentUser?.id
           : null;
+
+      if (currentContext.isView) {
+        final choice = await ViewGroupPickerSheet.show(
+          context,
+          title: 'Nuova Nota',
+          subtitle: 'Scegli in quale contesto salvare questa nota',
+        );
+        if (choice == null) return;
+        if (choice.isPersonal) {
+          targetUserId = Supabase.instance.client.auth.currentUser?.id;
+          targetGroupId = null;
+        } else {
+          targetGroupId = choice.groupId;
+          targetUserId = null;
+        }
+      }
 
       String? targetFolder;
       if (!_selectedFolder.isSpecialAll && !_selectedFolder.isDefault) {
@@ -120,8 +135,8 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
 
       final newDoc = Document.fromMap({
         'id': '',
-        'user_id': effectiveUserId,
-        'group_id': currentContext.groupId,
+        'user_id': targetUserId,
+        'group_id': targetGroupId,
         'document_type': 'note',
         'title': title,
         'metadata': targetFolder != null ? {'folder': targetFolder} : {},

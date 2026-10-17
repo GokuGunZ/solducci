@@ -820,11 +820,14 @@ class _ShoppingListDetailViewState extends State<ShoppingListDetailView> with Si
 
       var targetPantry = pantries.where((p) => p.title.trim().toLowerCase() == pantryTitle.trim().toLowerCase()).firstOrNull;
       if (targetPantry == null) {
-        final currentUserId = AuthService().currentUserId;
+        final docTarget = _document ?? (groupItems.isNotEmpty ? _docMap[groupItems.first.documentId] : null);
+        final effectiveUserId = docTarget?.userId ?? (currentContext.isPersonal ? AuthService().currentUserId : null);
+        final effectiveGroupId = docTarget?.groupId ?? (currentContext.isGroup ? currentContext.groupId : null);
+
         final newPantryDoc = DispensaDocument(
           id: '',
-          userId: currentContext.isPersonal ? currentUserId : null,
-          groupId: currentContext.isGroup ? currentContext.groupId : null,
+          userId: effectiveUserId,
+          groupId: effectiveGroupId,
           title: pantryTitle,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),

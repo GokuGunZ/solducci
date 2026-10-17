@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:solducci/core/context/context_query_specification.dart';
 import 'package:solducci/models/income.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class IncomeService {
@@ -15,17 +17,18 @@ class IncomeService {
   List<Income> get currentIncomes => _cachedIncomes;
   List<Income> get cachedIncomes => _cachedIncomes;
 
-  /// Recupera tutte le entrate dell'utente autenticato
-  Future<List<Income>> fetchIncomes() async {
+  /// Recupera tutte le entrate per lo specifico contesto
+  Future<List<Income>> fetchIncomesForContext(ExpenseContext context) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
     try {
-      final response = await _supabase
+      final query = _supabase
           .from('incomes')
           .select()
-          .eq('user_id', userId)
-          .order('date', ascending: false);
+          .filterByContext(context, currentUserId: userId);
+
+      final response = await query.order('date', ascending: false);
 
       final list = (response as List)
           .map((item) => Income.fromMap(item as Map<String, dynamic>))
@@ -37,6 +40,11 @@ class IncomeService {
     } catch (e) {
       return _cachedIncomes;
     }
+  }
+
+  /// Recupera tutte le entrate dell'utente autenticato (o contesto corrente)
+  Future<List<Income>> fetchIncomes() async {
+    return fetchIncomesForContext(ContextManager().currentContext);
   }
 
   /// Crea una nuova entrata

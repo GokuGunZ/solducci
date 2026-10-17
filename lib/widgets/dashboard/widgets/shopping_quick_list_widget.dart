@@ -6,13 +6,13 @@ import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/space_items.dart';
 import 'package:solducci/service/auth_service.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
 import 'package:solducci/features/space/services/space_service.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 class ShoppingQuickListWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -28,6 +28,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
   List<Document> _documents = [];
   int _currentSourceIndex = 0;
   bool _isLoadingDocs = true;
+  ExpenseContext? _lastContext;
 
   final Set<String> _optimisticBoughtIds = {};
   final Set<String> _optimisticUnboughtIds = {};
@@ -38,10 +39,14 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
   bool _isAdding = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadDocuments();
-    _loadPantryProducts();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _loadDocuments(currentContext);
+      _loadPantryProducts(currentContext);
+    }
   }
 
   @override
@@ -51,10 +56,11 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
     super.dispose();
   }
 
-  Future<void> _loadPantryProducts() async {
+  Future<void> _loadPantryProducts([ExpenseContext? contextOverride]) async {
     try {
+      final ctx = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
       final pantryDocs = await DocumentService().getDocumentsForContext(
-        ContextManager().currentContext,
+        ctx,
         'dispensa',
       );
       if (pantryDocs.isNotEmpty) {
@@ -72,14 +78,15 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
   void didUpdateWidget(ShoppingQuickListWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.def.customProps != widget.def.customProps) {
-      _loadDocuments();
+      _loadDocuments(_lastContext);
     }
   }
 
-  Future<void> _loadDocuments() async {
+  Future<void> _loadDocuments([ExpenseContext? contextOverride]) async {
     try {
+      final ctx = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
       final docs = await DocumentService().getDocumentsForContext(
-        ContextManager().currentContext,
+        ctx,
         'shopping_list',
       );
 
@@ -262,7 +269,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
 
   Future<void> _buyCompletedItems(List<ShoppingListItem> items) async {
     HapticFeedback.heavyImpact();
-    final currentContext = ContextManager().currentContext;
+    final currentContext = _lastContext ?? DashboardContextScope.of(context);
 
     final rawPantries = await DocumentService().getDocumentsForContext(currentContext, 'dispensa');
     final pantries = rawPantries.whereType<DispensaDocument>().toList();
@@ -277,11 +284,12 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
       if (pantries.isNotEmpty) {
         targetPantry = pantries.first;
       } else {
-        final currentUserId = AuthService().currentUserId;
+        final effectiveUserId = activeDoc?.userId ?? (currentContext.isPersonal ? AuthService().currentUserId : null);
+        final effectiveGroupId = activeDoc?.groupId ?? (currentContext.isGroup ? currentContext.groupId : null);
         final newPantryDoc = DispensaDocument(
           id: '',
-          userId: currentContext.isPersonal ? currentUserId : null,
-          groupId: currentContext.isGroup ? currentContext.groupId : null,
+          userId: effectiveUserId,
+          groupId: effectiveGroupId,
           title: pantryTitle,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),

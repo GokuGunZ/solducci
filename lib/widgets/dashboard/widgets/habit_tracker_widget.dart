@@ -6,6 +6,7 @@ import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/routine.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 class HabitTrackerWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -18,22 +19,27 @@ class HabitTrackerWidget extends StatefulWidget {
 
 class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
   Set<String> _completedTodayIds = {};
+  ExpenseContext? _lastContext;
 
   @override
-  void initState() {
-    super.initState();
-    _loadTodayCompletions();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _loadTodayCompletions(currentContext);
+    }
   }
 
-  String get _todayKey {
+  String _todayKey(ExpenseContext ctx) {
     final now = DateTime.now();
-    return 'habit_done_${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}';
+    return 'habit_done_${ctx.contextKey}_${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _loadTodayCompletions() async {
+  Future<void> _loadTodayCompletions(ExpenseContext ctx) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final list = prefs.getStringList(_todayKey) ?? [];
+      final list = prefs.getStringList(_todayKey(ctx)) ?? [];
       if (mounted) {
         setState(() {
           _completedTodayIds = list.toSet();
@@ -53,17 +59,19 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
     });
 
     try {
+      final ctx = _lastContext ?? DashboardContextScope.of(context);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_todayKey, _completedTodayIds.toList());
+      await prefs.setStringList(_todayKey(ctx), _completedTodayIds.toList());
     } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     final specificRoutineId = widget.def.customProps?['routineId'] as String?;
+    final currentContext = DashboardContextScope.of(context);
 
     return StreamBuilder<List<RoutineTemplate>>(
-      stream: TimeManagementService().routinesStream,
+      stream: TimeManagementService().watchRoutinesForContext(currentContext),
       builder: (context, snapshot) {
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final allRoutines = snapshot.data ?? [];

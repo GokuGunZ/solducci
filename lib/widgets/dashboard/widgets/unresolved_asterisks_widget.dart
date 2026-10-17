@@ -11,6 +11,8 @@ import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 class UnresolvedAsterisksWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -22,23 +24,36 @@ class UnresolvedAsterisksWidget extends StatefulWidget {
 }
 
 class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
-  late Stream<List<AsteriskItem>> _asterisksStream;
+  Stream<List<AsteriskItem>>? _asterisksStream;
+  ExpenseContext? _lastContext;
   final Set<String> _locallyResolved = {};
   final TextEditingController _asteriskController = TextEditingController();
   final FocusNode _asteriskFocusNode = FocusNode();
   bool _isCreating = false;
 
   @override
-  void initState() {
-    super.initState();
-    // We fetch all recent asterisks, not just unresolved, so we can keep the crossed-out ones visible
-    _asterisksStream = Supabase.instance.client
-        .from('asterisk_items')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .limit(20)
-        .map((data) => data.map((map) => AsteriskItem.fromMap(map)).toList())
-        .asBroadcastStream();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _asterisksStream = DocumentService()
+          .watchDocumentsForContext(currentContext, 'asterisk')
+          .asyncMap((docs) async {
+            if (docs.isEmpty) return <AsteriskItem>[];
+            final docIds = docs.map((d) => d.id).toList();
+            final data = await Supabase.instance.client
+                .from('asterisk_items')
+                .select()
+                .inFilter('document_id', docIds)
+                .order('created_at', ascending: false)
+                .limit(20);
+            return (data as List)
+                .map((m) => AsteriskItem.fromMap(m as Map<String, dynamic>))
+                .toList();
+          })
+          .asBroadcastStream();
+    }
   }
 
   @override
@@ -55,18 +70,37 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
     setState(() => _isCreating = true);
 
     try {
-      final currentContext = ContextManager().currentContext;
+      final currentContext = _lastContext ?? ContextManager().currentContext;
       final docs = await DocumentService().getDocumentsForContext(currentContext, 'asterisk');
       
       String? docId;
       if (docs.isNotEmpty) {
         docId = docs.first.id;
       } else {
+        String? targetGroupId = currentContext.groupId;
+        String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+        if (currentContext.isView) {
+          final choice = await ViewGroupPickerSheet.show(
+            context,
+            title: 'Note & Asterischi',
+            subtitle: 'Scegli in quale contesto creare questo elemento',
+          );
+          if (choice == null) return;
+          if (choice.isPersonal) {
+            targetUserId = Supabase.instance.client.auth.currentUser?.id;
+            targetGroupId = null;
+          } else {
+            targetGroupId = choice.groupId;
+            targetUserId = null;
+          }
+        }
+
         // Create an initial asterisk document if none exists
         final newDoc = await DocumentService().createDocument(AsteriskDocument(
           id: '',
-          userId: currentContext.isGroup ? null : Supabase.instance.client.auth.currentUser?.id,
-          groupId: currentContext.isGroup ? currentContext.groupId : null,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: 'Note & Asterischi',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),

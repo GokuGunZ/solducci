@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
+import 'package:solducci/core/context/context_bound.dart';
 
-class CanvasNode extends Equatable {
+class CanvasNode extends Equatable with DirectContextBound {
   final String id;
   final String? parentId;
   final String type; // 'folder', 'markdown', 'url'
@@ -8,7 +9,9 @@ class CanvasNode extends Equatable {
   final String title;
   final Map<String, dynamic> metadata;
   final Map<String, dynamic> payload;
+  @override
   final String? userId;
+  @override
   final String? groupId;
   final DateTime lastAccessedAt;
   final DateTime createdAt;

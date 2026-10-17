@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Un hub unificato per qualsiasi risorsa dello Spazio con struttura multi-lista.
 ///
@@ -152,10 +154,11 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
     ];
 
     final createdList = <TDoc>[];
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     for (final p in presets) {
       final docMap = {
         'id': '',
-        'user_id': currentContext.isPersonal ? currentContext.id : null,
+        'user_id': currentContext.isPersonal ? currentUserId : null,
         'group_id': currentContext.isGroup ? currentContext.groupId : null,
         'document_type': widget.documentType,
         'title': p['title'],
@@ -387,10 +390,29 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
       final hexColor = color?.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
 
       final currentContext = _contextManager.currentContext;
+      String? targetGroupId = currentContext.groupId;
+      String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+      if (currentContext.isView) {
+        final choice = await ViewGroupPickerSheet.show(
+          context,
+          title: 'Crea Risorsa',
+          subtitle: 'Scegli in quale contesto creare questo elemento',
+        );
+        if (choice == null) return;
+        if (choice.isPersonal) {
+          targetUserId = Supabase.instance.client.auth.currentUser?.id;
+          targetGroupId = null;
+        } else {
+          targetGroupId = choice.groupId;
+          targetUserId = null;
+        }
+      }
+
       final newDoc = Document.fromMap({
         'id': '',
-        'user_id': null,
-        'group_id': currentContext.isGroup ? currentContext.groupId : null,
+        'user_id': targetUserId,
+        'group_id': targetGroupId,
         'document_type': widget.documentType,
         'title': title,
         'metadata': hexColor != null ? {'color': hexColor} : <String, dynamic>{},

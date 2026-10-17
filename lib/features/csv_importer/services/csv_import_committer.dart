@@ -37,6 +37,7 @@ class CsvImportCommitter {
           id: '',
           userId: currentUserId ?? '',
           walletId: t.walletId ?? walletId,
+          groupId: t.groupId,
           amount: t.amount,
           description: t.cleanDescription.isNotEmpty ? t.cleanDescription : t.rawDescription,
           date: t.date,

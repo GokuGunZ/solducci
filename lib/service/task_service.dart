@@ -10,6 +10,7 @@ import 'package:solducci/utils/task_state_manager.dart';
 import 'package:solducci/core/logging/app_logger.dart';
 import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for managing tasks with hierarchical structure and recurrence logic
@@ -44,6 +45,16 @@ class TaskService {
   Stream<List<Task>> getTasksForDocument(String documentId) {
     AppLogger.debug('Setting up stream for document: $documentId');
     return _repository.watchAll(documentId: documentId).asBroadcastStream();
+  }
+
+  /// Get real-time stream of tasks strictly scoped to an [ExpenseContext].
+  Stream<List<Task>> watchTasksForContext(ExpenseContext context) {
+    return _repository.watchByContext(context).asBroadcastStream();
+  }
+
+  /// Fetch tasks strictly scoped to an [ExpenseContext].
+  Future<List<Task>> fetchTasksForContext(ExpenseContext context) {
+    return _repository.getAllByContext(context);
   }
 
   /// Get flat list of tasks (without hierarchy structure)

@@ -484,9 +484,15 @@ class _RadialCategorySelectorState extends State<RadialCategorySelector> {
 
 class RadialGroupSelector extends StatefulWidget {
   final String label;
+  final String? selectedGroupId;
   final ValueChanged<String?>? onGroupChanged;
 
-  const RadialGroupSelector({super.key, required this.label, this.onGroupChanged});
+  const RadialGroupSelector({
+    super.key,
+    required this.label,
+    this.selectedGroupId,
+    this.onGroupChanged,
+  });
 
   @override
   State<RadialGroupSelector> createState() => _RadialGroupSelectorState();
@@ -496,7 +502,10 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
   final GlobalKey _key = GlobalKey();
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
-  String? _selectedGroupId;
+  
+  // We'll store the ID of the selected group.
+  String? _internalGroupId;
+  String? get _selectedGroupId => widget.selectedGroupId ?? _internalGroupId;
 
   List<ExpenseGroup> get _availableGroups {
     final ctx = ContextManager().currentContext;
@@ -567,7 +576,7 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
                     onSelected: (groupName) {
                       final g = groups.firstWhere((g) => g.name == groupName);
                       setState(() {
-                        _selectedGroupId = g.id;
+                        _internalGroupId = g.id;
                       });
                       widget.onGroupChanged?.call(g.id);
                       _closeMenu();
@@ -599,11 +608,11 @@ class _RadialGroupSelectorState extends State<RadialGroupSelector> {
     final groups = _availableGroups;
     if (groups.isEmpty) return const SizedBox.shrink();
 
-    if (_selectedGroupId == null || !groups.any((g) => g.id == _selectedGroupId)) {
-      _selectedGroupId = groups.first.id;
-    }
-
-    final selectedGroup = groups.firstWhere((g) => g.id == _selectedGroupId);
+    final effectiveGroupId = (_selectedGroupId != null && groups.any((g) => g.id == _selectedGroupId))
+        ? _selectedGroupId!
+        : groups.first.id;
+    
+    final selectedGroup = groups.firstWhere((g) => g.id == effectiveGroupId);
 
     return GestureDetector(
       key: _key,

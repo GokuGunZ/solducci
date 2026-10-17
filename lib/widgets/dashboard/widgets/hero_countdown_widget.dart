@@ -7,6 +7,7 @@ import 'package:solducci/models/time_scenario.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 class HeroCountdownWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -18,12 +19,17 @@ class HeroCountdownWidget extends StatefulWidget {
 }
 
 class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
-  late Stream<List<TimeScenario>> _scenarioStream;
+  Stream<List<TimeScenario>>? _scenarioStream;
+  ExpenseContext? _lastContext;
 
   @override
-  void initState() {
-    super.initState();
-    _scenarioStream = TimeManagementService().timeScenariosStream;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _scenarioStream = TimeManagementService().watchTimeScenariosForContext(currentContext);
+    }
   }
 
   @override

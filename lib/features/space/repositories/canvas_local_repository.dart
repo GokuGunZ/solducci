@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:solducci/features/space/models/canvas_node.dart';
+import 'package:solducci/service/context_manager.dart';
 
 class CanvasLocalRepository {
   static const String boxName = 'canvas_nodes';
@@ -53,13 +54,44 @@ class CanvasLocalRepository {
     return _cachedNodes!;
   }
 
-  List<CanvasNode> getChildren(String? parentId, {String? groupId, String? userId}) {
+  List<CanvasNode> getChildrenForContext(
+    String? parentId,
+    ExpenseContext context, {
+    String? userId,
+  }) {
+    return getAllNodes().where((n) {
+      if (n.parentId != parentId) return false;
+      if (context.isPersonal) {
+        return n.groupId == null && (userId == null || n.userId == userId);
+      } else if (context.isGroup) {
+        return n.groupId == context.groupId;
+      } else if (context.isView) {
+        final matchesGroup = context.groupIds.contains(n.groupId);
+        final matchesPersonal = context.includesPersonal &&
+            n.groupId == null &&
+            (userId == null || n.userId == userId);
+        return matchesGroup || matchesPersonal;
+      }
+      return false;
+    }).toList()
+      ..sort((a, b) => a.lexorank.compareTo(b.lexorank));
+  }
+
+  List<CanvasNode> getChildren(
+    String? parentId, {
+    String? groupId,
+    String? userId,
+    bool isPersonal = false,
+  }) {
     return getAllNodes()
-        .where((n) => n.parentId == parentId && 
-                      (groupId == null || n.groupId == groupId) &&
-                      (userId == null || n.userId == userId))
+        .where((n) =>
+            n.parentId == parentId &&
+            (isPersonal || (groupId == null && userId != null)
+                ? (n.groupId == null && (userId == null || n.userId == userId))
+                : ((groupId == null || n.groupId == groupId) &&
+                    (userId == null || n.userId == userId))))
         .toList()
-        ..sort((a, b) => a.lexorank.compareTo(b.lexorank));
+      ..sort((a, b) => a.lexorank.compareTo(b.lexorank));
   }
 
   Future<void> deleteNode(String id) async {

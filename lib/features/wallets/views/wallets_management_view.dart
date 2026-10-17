@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/models/wallet_type.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 
 class WalletsManagementView extends StatefulWidget {
@@ -181,9 +183,23 @@ class _WalletsManagementViewState extends State<WalletsManagementView> {
                           final cleanAmt = balanceController.text.replaceAll('.', '').replaceAll(',', '.');
                           final initBal = double.tryParse(cleanAmt) ?? 0.0;
 
+                          final currentContext = ContextManager().currentContext;
+                          String? targetGroupId = currentContext.groupId;
+
+                          if (currentContext.isView) {
+                            final choice = await ViewGroupPickerSheet.show(
+                              ctx,
+                              title: 'Nuovo Conto',
+                              subtitle: 'Scegli in quale contesto creare questo conto',
+                            );
+                            if (choice == null) return;
+                            targetGroupId = choice.isPersonal ? null : choice.groupId;
+                          }
+
                           final newWallet = Wallet(
                             id: '',
                             userId: '',
+                            groupId: targetGroupId,
                             name: name,
                             type: selectedType,
                             initialBalance: initBal,

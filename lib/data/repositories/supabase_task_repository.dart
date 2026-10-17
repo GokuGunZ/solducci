@@ -1,5 +1,7 @@
 import 'package:solducci/models/task.dart';
 import 'package:solducci/domain/repositories/task_repository.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/document_service.dart';
 import 'package:async/async.dart';
 import 'dart:async';
 import 'package:solducci/core/logging/app_logger.dart';
@@ -441,6 +443,53 @@ class SupabaseTaskRepository implements TaskRepository {
         e,
         stackTrace,
       );
+    }
+  }
+
+  @override
+  Future<List<Task>> getAllByContext(ExpenseContext context) async {
+    try {
+      final docs = await DocumentService().getDocumentsForContext(context, 'todo');
+      if (docs.isEmpty) return [];
+
+      final docIds = docs.map((d) => d.id).toList();
+      final response = await _executeWithRetry(
+        () => _supabase
+            .from('tasks')
+            .select()
+            .inFilter('document_id', docIds)
+            .order('position'),
+      );
+
+      final allTasks = _parseTasks(response);
+      return await _buildTaskTree(allTasks);
+    } catch (e, stackTrace) {
+      AppLogger.error('Error fetching tasks by context', e, stackTrace);
+      return [];
+    }
+  }
+
+  @override
+  Stream<List<Task>> watchByContext(ExpenseContext context) {
+    try {
+      return DocumentService()
+          .watchDocumentsForContext(context, 'todo')
+          .asyncMap((docs) async {
+            if (docs.isEmpty) return <Task>[];
+            final docIds = docs.map((d) => d.id).toList();
+            final response = await _executeWithRetry(
+              () => _supabase
+                  .from('tasks')
+                  .select()
+                  .inFilter('document_id', docIds)
+                  .order('position'),
+            );
+            final allTasks = _parseTasks(response);
+            return await _buildTaskTree(allTasks);
+          });
+    } catch (e, stackTrace) {
+      AppLogger.error('Error setting up watchByContext stream', e, stackTrace);
+      return Stream.value([]);
     }
   }
 

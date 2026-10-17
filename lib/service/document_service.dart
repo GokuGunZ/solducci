@@ -1,3 +1,4 @@
+import 'package:solducci/core/context/context_query_specification.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/context_manager.dart';
@@ -13,7 +14,7 @@ class DocumentService {
 
   final _supabase = Supabase.instance.client;
 
-  /// Get real-time stream of all user's documents
+  /// Get real-time stream of user's documents scoped to the active context
   Stream<List<Document>> get stream {
     final userId = _supabase.auth.currentUser?.id;
 
@@ -21,12 +22,28 @@ class DocumentService {
       return Stream.value([]);
     }
 
+    final contextManager = ContextManager();
     return _supabase
         .from('documents')
         .stream(primaryKey: ['id'])
-        .eq('user_id', userId)
-        .order('updated_at', ascending: false)
-        .map((data) => _parseDocuments(data));
+        .map((data) {
+          final documents = _parseDocuments(data);
+          final ctx = contextManager.currentContext;
+          return documents.where((doc) {
+            if (ctx.isPersonal) {
+              return doc.userId == userId && doc.groupId == null;
+            } else if (ctx.isGroup) {
+              return doc.groupId == ctx.groupId;
+            } else if (ctx.isView) {
+              final inGroups = ctx.groupIds.contains(doc.groupId);
+              final isPersonalInView = ctx.includesPersonal &&
+                  doc.userId == userId &&
+                  doc.groupId == null;
+              return inGroups || isPersonalInView;
+            }
+            return false;
+          }).toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        });
   }
 
   /// Get real-time stream of documents for a specific context and type
@@ -37,10 +54,6 @@ class DocumentService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return Stream.value([]);
 
-    // We use a stream of the whole documents table and filter client-side
-    // for complex contexts (Views) or specific contexts.
-    // Optimization: we could use different stream filters for Personal vs Group.
-    
     var stream = _supabase.from('documents').stream(primaryKey: ['id']);
 
     return stream.map((data) {
@@ -74,31 +87,13 @@ class DocumentService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
-    var query = _supabase
+    final response = await _supabase
         .from('documents')
         .select()
-        .eq('document_type', documentType);
+        .eq('document_type', documentType)
+        .filterByContext(context, currentUserId: userId)
+        .order('updated_at', ascending: false);
 
-    if (context.isPersonal) {
-      query = query.eq('user_id', userId).isFilter('group_id', null);
-    } else if (context.isGroup) {
-      query = query.eq('group_id', context.groupId!);
-    } else if (context.isView) {
-      // For views, we use 'in' filter for groups
-      // Note: if includesPersonal is true, we need a complex OR which Supabase
-      // syntax makes tricky. Simplest is to fetch and filter if includesPersonal is true,
-      // or use two queries.
-      if (context.includesPersonal) {
-        // Fetch everything for these groups OR my personal ones
-        // Using PostgREST syntax for OR: (group_id.in.(...),and(user_id.eq.my_id,group_id.is.null))
-        final groupList = context.groupIds.map((id) => id).join(',');
-        query = query.or('group_id.in.($groupList),and(user_id.eq.$userId,group_id.is.null)');
-      } else {
-        query = query.inFilter('group_id', context.groupIds);
-      }
-    }
-
-    final response = await query.order('updated_at', ascending: false);
     return _parseDocuments(response);
   }
 

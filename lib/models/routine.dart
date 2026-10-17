@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:solducci/core/context/context_bound.dart';
 
-class RoutineTemplate {
+class RoutineTemplate with DirectContextBound {
   final String id;
+  @override
   final String userId;
+  @override
   final String? groupId;
   final String name;
   final String? description;
@@ -23,24 +26,26 @@ class RoutineTemplate {
 
   factory RoutineTemplate.fromMap(Map<String, dynamic> map) {
     return RoutineTemplate(
-      id: map['id'] as String,
-      userId: map['user_id'] as String,
+      id: map['id'] as String? ?? '',
+      userId: map['user_id'] as String? ?? '',
       groupId: map['group_id'] as String?,
-      name: map['name'] as String,
+      name: map['name'] as String? ?? '',
       description: map['description'] as String?,
       isActive: map['is_active'] as bool? ?? true,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : DateTime.now(),
+      updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
+      if (id.isNotEmpty) 'id': id,
       'user_id': userId,
       'group_id': groupId,
       'name': name,
       'description': description,
       'is_active': isActive,
+      'created_at': createdAt.toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
     };
   }

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/split_type.dart';
 import 'package:solducci/core/cache/cacheable_model.dart';
-import 'package:hive/hive.dart';
+import 'package:solducci/core/context/context_bound.dart';
 
 part 'expense.g.dart';
 
 @HiveType(typeId: 1)
-class Expense implements CacheableModel<int> {
+class Expense with DirectContextBound implements CacheableModel<int> {
   @HiveField(0)
   int id;
 
@@ -24,10 +25,12 @@ class Expense implements CacheableModel<int> {
   @HiveField(5)
   Tipologia type;
 
+  @override
   @HiveField(6)
   String? userId; // User ID for personal expenses
 
   // NEW: Multi-user support
+  @override
   @HiveField(7)
   String? groupId; // Group ID for group expenses
 

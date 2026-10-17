@@ -5,6 +5,8 @@ import 'package:solducci/models/asset_class.dart';
 import 'package:solducci/models/asset_price_snapshot.dart';
 import 'package:solducci/models/expense_asset_allocation.dart';
 import 'package:solducci/models/investment_asset.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InvestmentAssetService extends ChangeNotifier {
@@ -60,6 +62,27 @@ class InvestmentAssetService extends ChangeNotifier {
       notifyListeners();
       return _assets;
     }
+  }
+
+  /// Recupera gli asset appartenenti ai portafogli validi per il contesto fornito
+  List<InvestmentAsset> getAssetsForContext(ExpenseContext context) {
+    final validPortfolios = InvestmentPortfolioService()
+        .currentPortfolios
+        .where((p) {
+          if (context.isPersonal) {
+            return p.groupId == null;
+          } else if (context.isGroup) {
+            return p.groupId == context.groupId;
+          } else if (context.isView) {
+            return context.groupIds.contains(p.groupId) ||
+                (context.includesPersonal && p.groupId == null);
+          }
+          return false;
+        })
+        .map((p) => p.id)
+        .toSet();
+
+    return _assets.where((a) => validPortfolios.contains(a.portfolioId)).toList();
   }
 
   /// Recupera gli asset di un singolo portafoglio
