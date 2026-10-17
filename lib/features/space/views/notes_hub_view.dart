@@ -7,6 +7,8 @@ import 'package:solducci/service/document_service.dart';
 import 'package:solducci/features/space/services/note_folder_service.dart';
 import 'package:solducci/features/space/views/note_detail_view.dart';
 import 'package:solducci/features/space/widgets/notes_collapsible_header.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Vista unificata per le Note con sistema a Cartelle, Sotto-cartelle e Finder a due stati (stile MacOS).
 ///
@@ -260,10 +262,29 @@ class _NotesHubViewState extends State<NotesHubView> {
       targetFolderPath = NoteFolderService.defaultFolderName;
     }
 
+    String? targetGroupId = currentContext.groupId;
+    String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+    if (currentContext.isView) {
+      final choice = await ViewGroupPickerSheet.show(
+        context,
+        title: 'Nuova Nota',
+        subtitle: 'Scegli in quale contesto creare questa nota',
+      );
+      if (choice == null) return;
+      if (choice.isPersonal) {
+        targetUserId = Supabase.instance.client.auth.currentUser?.id;
+        targetGroupId = null;
+      } else {
+        targetGroupId = choice.groupId;
+        targetUserId = null;
+      }
+    }
+
     final newDoc = Document.fromMap({
       'id': '',
-      'user_id': null,
-      'group_id': currentContext.isGroup ? currentContext.groupId : null,
+      'user_id': targetUserId,
+      'group_id': targetGroupId,
       'document_type': 'note',
       'title': 'Nuova nota',
       'metadata': {'folder': targetFolderPath},

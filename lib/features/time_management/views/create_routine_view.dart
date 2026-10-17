@@ -1,8 +1,10 @@
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/models/routine.dart';
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/service/time_management_service.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -132,10 +134,34 @@ class _CreateRoutineViewState extends State<CreateRoutineView> {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
 
+    final currentContext = ContextManager().currentContext;
+    String? targetGroupId = currentContext.groupId;
+    String? targetUserId = currentContext.isPersonal ? userId : null;
+
+    if (currentContext.isView) {
+      final choice = await ViewGroupPickerSheet.show(
+        context,
+        title: 'Nuova Routine',
+        subtitle: 'Scegli in quale contesto creare questa routine',
+      );
+      if (choice == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      if (choice.isPersonal) {
+        targetUserId = userId;
+        targetGroupId = null;
+      } else {
+        targetGroupId = choice.groupId;
+        targetUserId = null;
+      }
+    }
+
     final templateId = const Uuid().v4();
     final template = RoutineTemplate(
       id: templateId,
-      userId: userId,
+      userId: targetUserId ?? userId,
+      groupId: targetGroupId,
       name: _nameController.text,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),

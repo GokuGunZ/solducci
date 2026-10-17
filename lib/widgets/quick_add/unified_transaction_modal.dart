@@ -22,24 +22,58 @@ import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/economy/recurring_form_sheet.dart';
 
 enum TransactionMode { expense, income, transfer }
 
 class UnifiedTransactionModal extends StatefulWidget {
   final TransactionMode initialMode;
+  final ExpenseGroup? targetGroup;
+  final bool forcePersonal;
 
   const UnifiedTransactionModal({
     super.key,
     this.initialMode = TransactionMode.expense,
+    this.targetGroup,
+    this.forcePersonal = false,
   });
 
-  static Future<void> show(BuildContext context, {TransactionMode mode = TransactionMode.expense}) {
+  static Future<void> show(
+    BuildContext context, {
+    TransactionMode mode = TransactionMode.expense,
+    ExpenseGroup? destinationGroup,
+    bool? isPersonalOverride,
+  }) async {
+    final ctxMgr = ContextManager();
+    ExpenseGroup? targetGroup = destinationGroup;
+    bool forcePersonal = isPersonalOverride ?? false;
+
+    if (targetGroup == null && !forcePersonal && ctxMgr.currentContext.isView) {
+      final choice = await ViewGroupPickerSheet.show(
+        context,
+        title: 'Nuova Transazione',
+        subtitle: 'Scegli in quale contesto registrare la transazione',
+      );
+      if (choice == null) return;
+      if (choice.isPersonal) {
+        forcePersonal = true;
+      } else {
+        targetGroup = choice.group;
+      }
+    }
+
+    if (!context.mounted) return;
+
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => UnifiedTransactionModal(initialMode: mode),
+      builder: (ctx) => UnifiedTransactionModal(
+        initialMode: mode,
+        targetGroup: targetGroup,
+        forcePersonal: forcePersonal,
+      ),
     );
   }
 
@@ -79,6 +113,20 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
 
   // Stato per Spese di Gruppo & Split
   final _contextManager = ContextManager();
+
+  ExpenseContext get effectiveContext {
+    if (widget.forcePersonal) {
+      return ExpenseContext.personal();
+    }
+    if (widget.targetGroup != null) {
+      return ExpenseContext.group(widget.targetGroup!);
+    }
+    return _contextManager.currentContext;
+  }
+
+  bool get isGroup => effectiveContext.isGroup;
+  String? get effectiveGroupId => effectiveContext.groupId;
+
   List<GroupMember> _groupMembers = [];
   String? _selectedPayerId;
   SplitType _splitType = SplitType.equal;
@@ -116,13 +164,12 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   }
 
   Future<void> _initGroup() async {
-    final ctx = _contextManager.currentContext;
-    if (ctx.isGroup && ctx.groupId != null) {
+    if (isGroup && effectiveGroupId != null) {
       setState(() => _isLoadingGroup = true);
       final currentUserId = AuthService().currentUserId;
       _selectedPayerId = currentUserId;
       try {
-        final members = await GroupService().getGroupMembers(ctx.groupId!);
+        final members = await GroupService().getGroupMembers(effectiveGroupId!);
         if (mounted) {
           setState(() {
             _groupMembers = members;
@@ -141,7 +188,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   }
 
   Future<void> _initInvestments() async {
-    final portfolios = await InvestmentPortfolioService().fetchPortfolios();
+    final portfolios = await InvestmentPortfolioService().fetchPortfoliosForContext(effectiveContext);
     await InvestmentAssetService().fetchAllAssets();
     if (mounted && portfolios.isNotEmpty) {
       setState(() {
@@ -223,7 +270,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   }
 
   Future<void> _initWallets() async {
-    final wallets = await WalletService().fetchWallets();
+    final wallets = await WalletService().fetchWallets(context: effectiveContext);
     if (mounted && wallets.isNotEmpty) {
       setState(() {
         _selectedWallet = WalletService().getDefaultWallet() ?? wallets.first;
@@ -268,7 +315,6 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
 
     try {
       if (_mode == TransactionMode.expense) {
-        final isGroup = _contextManager.isGroupContext && _contextManager.currentGroupId != null;
         final currentUserId = AuthService().currentUserId;
         final isPaidByMe = !isGroup || (_selectedPayerId == currentUserId);
 
@@ -322,7 +368,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
           type: _expenseCategory,
           walletId: isPaidByMe ? _selectedWallet?.id : null,
           portfolioId: _expenseCategory == Tipologia.investimento ? _selectedPortfolio?.id : null,
-          groupId: isGroup ? _contextManager.currentGroupId : null,
+          groupId: isGroup ? effectiveGroupId : null,
           paidBy: isGroup ? (_selectedPayerId ?? currentUserId) : null,
           splitType: effectiveSplitType,
           splitData: splitData,
@@ -385,6 +431,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
           id: '',
           userId: '',
           walletId: _selectedWallet?.id,
+          groupId: isGroup ? effectiveGroupId : null,
           portfolioId: _incomeCategory == IncomeCategory.rendita ? _selectedPortfolio?.id : null,
           assetId: _incomeCategory == IncomeCategory.rendita ? _selectedIncomeAsset?.id : null,
           amount: amount,
@@ -542,7 +589,6 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
               if (_mode != TransactionMode.transfer) ...[
                 Builder(
                   builder: (context) {
-                    final isGroup = _contextManager.isGroupContext && _contextManager.currentGroupId != null;
                     final currentUserId = AuthService().currentUserId;
                     final isPaidByOther = isGroup && _mode == TransactionMode.expense && _selectedPayerId != null && _selectedPayerId != currentUserId;
                     final payerMember = isPaidByOther ? _groupMembers.where((m) => m.userId == _selectedPayerId).firstOrNull : null;
@@ -668,7 +714,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                 ),
 
                 // Sezione Divisione Gruppo (quando in contesto gruppo e modalità spesa)
-                if (_contextManager.isGroupContext && _mode == TransactionMode.expense && _groupMembers.isNotEmpty)
+                if (isGroup && _mode == TransactionMode.expense && _groupMembers.isNotEmpty)
                   _buildGroupSplitSection(),
               ],
 
@@ -911,7 +957,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'DIVISIONE GRUPPO • ${_contextManager.currentContext.displayName}',
+                  'DIVISIONE GRUPPO • ${effectiveContext.displayName}',
                   style: const TextStyle(
                     color: Color(0xFFDDD6FE),
                     fontWeight: FontWeight.bold,
@@ -1543,6 +1589,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                 final created = await InvestmentPortfolioService().createPortfolio(
                   name: name,
                   brokerName: brokerCtrl.text.trim().isNotEmpty ? brokerCtrl.text.trim() : null,
+                  groupId: isGroup ? effectiveGroupId : null,
                 );
                 setState(() {
                   _portfolios = InvestmentPortfolioService().currentPortfolios;

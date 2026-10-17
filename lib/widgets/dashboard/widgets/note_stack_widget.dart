@@ -9,9 +9,10 @@ import 'package:solducci/blocs/dashboard/dashboard_state.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/features/space/services/space_service.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NoteStackWidget extends StatefulWidget {
@@ -26,7 +27,6 @@ class NoteStackWidget extends StatefulWidget {
 class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProviderStateMixin {
   final _documentService = DocumentService();
   final _spaceService = SpaceService();
-  final _contextManager = ContextManager();
 
   StreamSubscription? _docSubscription;
   List<Document> _allDocs = [];
@@ -34,6 +34,7 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
   Set<String>? _selectedNoteIds;
   Map<String, String> _previews = {};
   bool _isLoading = true;
+  ExpenseContext? _lastContext;
 
   int _currentIndex = 0;
   double _dragDx = 0.0;
@@ -97,9 +98,17 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
         }
       }
     });
+  }
 
-    _contextManager.addListener(_onContextChanged);
-    _setupNotesSubscription();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _exitEditMode();
+      _setupNotesSubscription(currentContext);
+    }
   }
 
   @override
@@ -122,7 +131,6 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
 
   @override
   void dispose() {
-    _contextManager.removeListener(_onContextChanged);
     _docSubscription?.cancel();
     _animController.dispose();
     _scrollController.dispose();
@@ -132,14 +140,9 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
     super.dispose();
   }
 
-  void _onContextChanged() {
-    _exitEditMode();
-    _setupNotesSubscription();
-  }
-
-  void _setupNotesSubscription() {
+  void _setupNotesSubscription([ExpenseContext? contextOverride]) {
     _docSubscription?.cancel();
-    final currentContext = _contextManager.currentContext;
+    final currentContext = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
 
     _docSubscription = _documentService
         .watchDocumentsForContext(currentContext, 'note')
@@ -752,14 +755,34 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
                                 setModalState(() => isSaving = true);
 
                                 try {
-                                  final currentContext = _contextManager.currentContext;
-                                  final effectiveUserId = currentContext.isPersonal
+                                  final currentContext = _lastContext ?? DashboardContextScope.of(context);
+                                  String? targetGroupId = currentContext.groupId;
+                                  String? targetUserId = currentContext.isPersonal
                                       ? Supabase.instance.client.auth.currentUser?.id
                                       : null;
 
+                                  if (currentContext.isView) {
+                                    final choice = await ViewGroupPickerSheet.show(
+                                      sheetContext,
+                                      title: 'Nuova Nota',
+                                      subtitle: 'Scegli in quale contesto salvare questa nota',
+                                    );
+                                    if (choice == null) {
+                                      setModalState(() => isSaving = false);
+                                      return;
+                                    }
+                                    if (choice.isPersonal) {
+                                      targetUserId = Supabase.instance.client.auth.currentUser?.id;
+                                      targetGroupId = null;
+                                    } else {
+                                      targetGroupId = choice.groupId;
+                                      targetUserId = null;
+                                    }
+                                  }
+
                                   final newDoc = NoteDocument.create(
-                                    userId: effectiveUserId,
-                                    groupId: currentContext.groupId,
+                                    userId: targetUserId,
+                                    groupId: targetGroupId,
                                     title: title,
                                   );
 

@@ -1,3 +1,5 @@
+import 'package:solducci/service/context_manager.dart';
+
 // Core interfaces enforcing contextual scoping across all entities in Solducci.
 //
 // Prevents accidental data leaks by providing compile-time type safety:
@@ -18,6 +20,29 @@ abstract mixin class DirectContextBound {
 
   /// Whether this entity belongs to a shared group.
   bool get isGroupContext => groupId != null;
+
+  /// Validates whether this entity belongs to the given [ExpenseContext].
+  bool belongsToContext(ExpenseContext context, {String? currentUserId}) {
+    if (context.isPersonal) {
+      return groupId == null && (currentUserId == null || userId == currentUserId);
+    }
+    if (context.isGroup) {
+      return groupId == context.groupId;
+    }
+    if (context.isView) {
+      final view = context.view;
+      if (view == null) return false;
+      final groupIds = view.groupIds.toSet();
+      if (groupId != null && groupIds.contains(groupId)) {
+        return true;
+      }
+      if (view.includePersonal && groupId == null && (currentUserId == null || userId == currentUserId)) {
+        return true;
+      }
+      return false;
+    }
+    return false;
+  }
 }
 
 abstract interface class DocumentBound {

@@ -6,7 +6,9 @@ import 'package:solducci/models/document.dart';
 import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/dashboard/base_list_widget.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RecentNotesWidget extends StatefulWidget {
@@ -27,33 +29,32 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
   List<Document> _notes = [];
   Map<String, String> _previews = {};
   bool _isLoading = true;
+  ExpenseContext? _lastContext;
 
   final TextEditingController _titleController = TextEditingController();
   final FocusNode _titleFocusNode = FocusNode();
 
   @override
-  void initState() {
-    super.initState();
-    _contextManager.addListener(_onContextChanged);
-    _setupNotesSubscription();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _setupNotesSubscription(currentContext);
+    }
   }
 
   @override
   void dispose() {
-    _contextManager.removeListener(_onContextChanged);
     _docSubscription?.cancel();
     _titleController.dispose();
     _titleFocusNode.dispose();
     super.dispose();
   }
 
-  void _onContextChanged() {
-    _setupNotesSubscription();
-  }
-
-  void _setupNotesSubscription() {
+  void _setupNotesSubscription([ExpenseContext? contextOverride]) {
     _docSubscription?.cancel();
-    final currentContext = _contextManager.currentContext;
+    final currentContext = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
 
     _docSubscription = _documentService
         .watchDocumentsForContext(currentContext, 'note')
@@ -205,14 +206,34 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
                                 setModalState(() => isSaving = true);
 
                                 try {
-                                  final currentContext = _contextManager.currentContext;
-                                  final effectiveUserId = currentContext.isPersonal
+                                  final currentContext = _lastContext ?? DashboardContextScope.of(context);
+                                  String? targetGroupId = currentContext.groupId;
+                                  String? targetUserId = currentContext.isPersonal
                                       ? Supabase.instance.client.auth.currentUser?.id
                                       : null;
 
+                                  if (currentContext.isView) {
+                                    final choice = await ViewGroupPickerSheet.show(
+                                      sheetContext,
+                                      title: 'Nuova Nota',
+                                      subtitle: 'Scegli in quale contesto salvare questa nota',
+                                    );
+                                    if (choice == null) {
+                                      setModalState(() => isSaving = false);
+                                      return;
+                                    }
+                                    if (choice.isPersonal) {
+                                      targetUserId = Supabase.instance.client.auth.currentUser?.id;
+                                      targetGroupId = null;
+                                    } else {
+                                      targetGroupId = choice.groupId;
+                                      targetUserId = null;
+                                    }
+                                  }
+
                                   final newDoc = NoteDocument.create(
-                                    userId: effectiveUserId,
-                                    groupId: currentContext.groupId,
+                                    userId: targetUserId,
+                                    groupId: targetGroupId,
                                     title: title,
                                   );
 

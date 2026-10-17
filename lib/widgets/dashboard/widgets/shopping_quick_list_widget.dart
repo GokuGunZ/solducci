@@ -6,7 +6,6 @@ import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/space_items.dart';
 import 'package:solducci/service/auth_service.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -270,7 +269,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
 
   Future<void> _buyCompletedItems(List<ShoppingListItem> items) async {
     HapticFeedback.heavyImpact();
-    final currentContext = ContextManager().currentContext;
+    final currentContext = _lastContext ?? DashboardContextScope.of(context);
 
     final rawPantries = await DocumentService().getDocumentsForContext(currentContext, 'dispensa');
     final pantries = rawPantries.whereType<DispensaDocument>().toList();
@@ -285,11 +284,12 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
       if (pantries.isNotEmpty) {
         targetPantry = pantries.first;
       } else {
-        final currentUserId = AuthService().currentUserId;
+        final effectiveUserId = activeDoc?.userId ?? (currentContext.isPersonal ? AuthService().currentUserId : null);
+        final effectiveGroupId = activeDoc?.groupId ?? (currentContext.isGroup ? currentContext.groupId : null);
         final newPantryDoc = DispensaDocument(
           id: '',
-          userId: currentContext.isPersonal ? currentUserId : null,
-          groupId: currentContext.isGroup ? currentContext.groupId : null,
+          userId: effectiveUserId,
+          groupId: effectiveGroupId,
           title: pantryTitle,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),

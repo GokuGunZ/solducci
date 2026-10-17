@@ -11,6 +11,7 @@ import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 class UnresolvedAsterisksWidget extends StatefulWidget {
@@ -76,11 +77,30 @@ class _UnresolvedAsterisksWidgetState extends State<UnresolvedAsterisksWidget> {
       if (docs.isNotEmpty) {
         docId = docs.first.id;
       } else {
+        String? targetGroupId = currentContext.groupId;
+        String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+        if (currentContext.isView) {
+          final choice = await ViewGroupPickerSheet.show(
+            context,
+            title: 'Note & Asterischi',
+            subtitle: 'Scegli in quale contesto creare questo elemento',
+          );
+          if (choice == null) return;
+          if (choice.isPersonal) {
+            targetUserId = Supabase.instance.client.auth.currentUser?.id;
+            targetGroupId = null;
+          } else {
+            targetGroupId = choice.groupId;
+            targetUserId = null;
+          }
+        }
+
         // Create an initial asterisk document if none exists
         final newDoc = await DocumentService().createDocument(AsteriskDocument(
           id: '',
-          userId: currentContext.isGroup ? null : Supabase.instance.client.auth.currentUser?.id,
-          groupId: currentContext.isGroup ? currentContext.groupId : null,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: 'Note & Asterischi',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),

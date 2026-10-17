@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/features/investments/views/asset_detail_view.dart';
 import 'package:solducci/models/asset_class.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/income_service.dart';
 import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/neon_wave_graph.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 
@@ -28,7 +30,8 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
   }
 
   Future<void> _loadData() async {
-    await _portfolioService.fetchPortfolios();
+    final currentContext = ContextManager().currentContext;
+    await _portfolioService.fetchPortfoliosForContext(currentContext);
     await _assetService.fetchAllAssets();
     _targetAllocation = await _portfolioService.getTargetAllocation();
     if (mounted) {
@@ -85,9 +88,22 @@ class _InvestmentsHubViewState extends State<InvestmentsHubView> {
               final name = nameCtrl.text.trim();
               if (name.isNotEmpty) {
                 Navigator.pop(ctx);
+                final currentContext = ContextManager().currentContext;
+                String? targetGroupId = currentContext.groupId;
+                if (currentContext.isView) {
+                  final choice = await ViewGroupPickerSheet.show(
+                    context,
+                    title: 'Nuovo Portafoglio',
+                    subtitle: 'Scegli in quale contesto creare questo portafoglio',
+                  );
+                  if (choice == null) return;
+                  targetGroupId = choice.isPersonal ? null : choice.groupId;
+                }
+
                 await _portfolioService.createPortfolio(
                   name: name,
                   brokerName: brokerCtrl.text.trim().isNotEmpty ? brokerCtrl.text.trim() : null,
+                  groupId: targetGroupId,
                 );
               }
             },

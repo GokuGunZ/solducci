@@ -5,6 +5,7 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'base_quick_add_sheet.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 
 class RoutineQuickAddForm extends StatefulWidget {
   final String? selectedFolderId; // Usato qui come 'Categoria' per coerenza
@@ -66,16 +67,38 @@ class _RoutineQuickAddFormState extends State<RoutineQuickAddForm> {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
 
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final currentContext = ContextManager().currentContext;
+    String? targetGroupId = currentContext.groupId;
+    String? targetUserId = currentContext.isPersonal ? userId : null;
+
+    if (currentContext.isView) {
+      final choice = await ViewGroupPickerSheet.show(
+        context,
+        title: 'Nuova Routine',
+        subtitle: 'Scegli in quale contesto creare questa routine',
+      );
+      if (choice == null) return;
+      if (choice.isPersonal) {
+        targetUserId = userId;
+        targetGroupId = null;
+      } else {
+        targetGroupId = choice.groupId;
+        targetUserId = null;
+      }
+    }
+
     setState(() => _isSaving = true);
     try {
       final categoryName = ['Mattina', 'Sera', 'Lavoro', 'Fitness'].elementAtOrNull(int.tryParse(widget.selectedFolderId ?? '0') ?? 0) ?? 'Generale';
-      final currentContext = ContextManager().currentContext;
       
       final templateId = const Uuid().v4();
       final template = RoutineTemplate(
         id: templateId,
-        userId: Supabase.instance.client.auth.currentUser?.id ?? '', 
-        groupId: currentContext.isGroup ? currentContext.groupId : null,
+        userId: targetUserId ?? userId, 
+        groupId: targetGroupId,
         name: name,
         description: 'Categoria: $categoryName',
         isActive: true,

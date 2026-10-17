@@ -6,10 +6,11 @@ import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/document.dart';
 import 'package:solducci/models/space_items.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum _ScratchpadTarget { asterisk, note }
@@ -28,7 +29,6 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
   final _focusNode = FocusNode();
   final _documentService = DocumentService();
   final _spaceService = SpaceService();
-  final _contextManager = ContextManager();
 
   _ScratchpadTarget _target = _ScratchpadTarget.asterisk;
   bool _isSaving = false;
@@ -48,7 +48,7 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
     setState(() => _isSaving = true);
 
     try {
-      final currentContext = _contextManager.currentContext;
+      final currentContext = DashboardContextScope.of(context);
 
       if (_target == _ScratchpadTarget.asterisk) {
         final docs = await _documentService.getDocumentsForContext(currentContext, 'asterisk');
@@ -56,10 +56,32 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
         if (docs.isNotEmpty) {
           docId = docs.first.id;
         } else {
+          String? targetGroupId = currentContext.groupId;
+          String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+          if (currentContext.isView) {
+            final choice = await ViewGroupPickerSheet.show(
+              context,
+              title: 'Note & Asterischi',
+              subtitle: 'Scegli in quale contesto salvare questo elemento',
+            );
+            if (choice == null) {
+              if (mounted) setState(() => _isSaving = false);
+              return;
+            }
+            if (choice.isPersonal) {
+              targetUserId = Supabase.instance.client.auth.currentUser?.id;
+              targetGroupId = null;
+            } else {
+              targetGroupId = choice.groupId;
+              targetUserId = null;
+            }
+          }
+
           final newDoc = await _documentService.createDocument(AsteriskDocument(
             id: '',
-            userId: currentContext.isGroup ? null : Supabase.instance.client.auth.currentUser?.id,
-            groupId: currentContext.isGroup ? currentContext.groupId : null,
+            userId: targetUserId,
+            groupId: targetGroupId,
             title: 'Note & Asterischi',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -83,13 +105,31 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
             ? (lines.first.length > 30 ? '${lines.first.substring(0, 30)}...' : lines.first)
             : 'Appunto rapido';
 
-        final effectiveUserId = currentContext.isPersonal
-            ? Supabase.instance.client.auth.currentUser?.id
-            : null;
+        String? targetGroupId = currentContext.groupId;
+        String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+        if (currentContext.isView) {
+          final choice = await ViewGroupPickerSheet.show(
+            context,
+            title: 'Appunto Rapido',
+            subtitle: 'Scegli in quale contesto salvare questa nota',
+          );
+          if (choice == null) {
+            if (mounted) setState(() => _isSaving = false);
+            return;
+          }
+          if (choice.isPersonal) {
+            targetUserId = Supabase.instance.client.auth.currentUser?.id;
+            targetGroupId = null;
+          } else {
+            targetGroupId = choice.groupId;
+            targetUserId = null;
+          }
+        }
 
         final newDoc = NoteDocument.create(
-          userId: effectiveUserId,
-          groupId: currentContext.groupId,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: title,
         );
 

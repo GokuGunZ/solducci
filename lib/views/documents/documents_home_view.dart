@@ -11,6 +11,8 @@ import 'package:solducci/widgets/documents/tag_form_dialog.dart';
 import 'package:solducci/widgets/documents/task_form.dart';
 import 'package:solducci/views/documents/tag_management_view.dart';
 import 'package:solducci/widgets/common/glassmorphic_fab.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // NEW: Import new components
 import 'package:solducci/core/components/category_scroll_bar/controllers/category_scroll_bar_controller.dart';
@@ -155,8 +157,29 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 
   Future<void> _createFirstDocument() async {
     try {
+      final currentContext = ContextManager().currentContext;
+      String? targetGroupId = currentContext.groupId;
+      String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+      if (currentContext.isView) {
+        final choice = await ViewGroupPickerSheet.show(
+          context,
+          title: 'My Tasks',
+          subtitle: 'Scegli in quale contesto creare questa lista',
+        );
+        if (choice == null) return;
+        if (choice.isPersonal) {
+          targetUserId = Supabase.instance.client.auth.currentUser?.id;
+          targetGroupId = null;
+        } else {
+          targetGroupId = choice.groupId;
+          targetUserId = null;
+        }
+      }
+
       final doc = TodoDocument.create(
-        userId: '',
+        userId: targetUserId,
+        groupId: targetGroupId,
         title: 'My Tasks',
         description: 'Default todo list',
       );
@@ -944,10 +967,29 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
 
     if (result != null && result.isNotEmpty) {
       final currentContext = ContextManager().currentContext;
+      String? targetGroupId = currentContext.groupId;
+      String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
+
+      if (currentContext.isView) {
+        final choice = await ViewGroupPickerSheet.show(
+          context,
+          title: 'Nuova Lista',
+          subtitle: 'Scegli in quale contesto creare questa lista',
+        );
+        if (choice == null) return;
+        if (choice.isPersonal) {
+          targetUserId = Supabase.instance.client.auth.currentUser?.id;
+          targetGroupId = null;
+        } else {
+          targetGroupId = choice.groupId;
+          targetUserId = null;
+        }
+      }
+
       final newDoc = Document.fromMap({
         'id': '',
-        'user_id': null,
-        'group_id': currentContext.isGroup ? currentContext.groupId : null,
+        'user_id': targetUserId,
+        'group_id': targetGroupId,
         'document_type': 'todo',
         'title': result,
         'created_at': DateTime.now().toIso8601String(),

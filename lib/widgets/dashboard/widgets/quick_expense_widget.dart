@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
+import 'package:solducci/widgets/quick_add/unified_transaction_modal.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/models/expense.dart';
@@ -21,6 +23,7 @@ class QuickExpenseWidget extends StatefulWidget {
 class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
   String _amount = '';
   Tipologia _selectedCategory = Tipologia.cibo;
+  String? _selectedGroupId;
   bool _isSaving = false;
 
   void _onKeyPress(String key) {
@@ -47,9 +50,29 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
     setState(() => _isSaving = true);
 
     try {
-      final currentContext = ContextManager().currentContext;
+      final currentContext = DashboardContextScope.of(context);
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) throw Exception('Utente non autenticato');
+
+      String? targetGroupId;
+      if (currentContext.isGroup) {
+        targetGroupId = currentContext.groupId;
+      } else if (currentContext.isView) {
+        if (_selectedGroupId != null) {
+          targetGroupId = _selectedGroupId;
+        } else {
+          final choice = await ViewGroupPickerSheet.show(
+            context,
+            title: 'Spesa Rapida',
+            subtitle: 'Scegli in quale contesto salvare la spesa',
+          );
+          if (choice == null) {
+            if (mounted) setState(() => _isSaving = false);
+            return;
+          }
+          targetGroupId = choice.isPersonal ? null : choice.groupId;
+        }
+      }
 
       final newExpense = Expense(
         id: 0,
@@ -58,7 +81,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
         date: DateTime.now(),
         type: _selectedCategory,
         userId: userId,
-        groupId: currentContext.isGroup ? currentContext.groupId : null,
+        groupId: targetGroupId,
       );
 
       await ExpenseServiceCached().insert(newExpense);
@@ -119,7 +142,11 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     if (isView) ...[
-                      const RadialGroupSelector(label: 'Gruppi:'),
+                      RadialGroupSelector(
+                        label: 'Gruppi:',
+                        selectedGroupId: _selectedGroupId,
+                        onGroupChanged: (gid) => setState(() => _selectedGroupId = gid),
+                      ),
                       Container(
                         height: 24,
                         width: 2,
@@ -247,9 +274,29 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
     setState(() => _isSaving = true);
 
     try {
-      final currentContext = ContextManager().currentContext;
+      final currentContext = DashboardContextScope.of(context);
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) throw Exception('Utente non autenticato');
+
+      String? targetGroupId;
+      if (currentContext.isGroup) {
+        targetGroupId = currentContext.groupId;
+      } else if (currentContext.isView) {
+        if (_selectedGroupId != null) {
+          targetGroupId = _selectedGroupId;
+        } else {
+          final choice = await ViewGroupPickerSheet.show(
+            context,
+            title: 'Spesa Rapida',
+            subtitle: 'Scegli in quale contesto salvare la spesa',
+          );
+          if (choice == null) {
+            if (mounted) setState(() => _isSaving = false);
+            return;
+          }
+          targetGroupId = choice.isPersonal ? null : choice.groupId;
+        }
+      }
 
       final newExpense = Expense(
         id: 0,
@@ -258,7 +305,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
         date: DateTime.now(),
         type: category,
         userId: userId,
-        groupId: currentContext.isGroup ? currentContext.groupId : null,
+        groupId: targetGroupId,
       );
 
       await ExpenseServiceCached().insert(newExpense);
@@ -347,7 +394,7 @@ class _QuickExpenseWidgetState extends State<QuickExpenseWidget> {
               const SizedBox(width: 6),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => GoRouter.of(context).push('/expenses/add'),
+                  onTap: () => UnifiedTransactionModal.show(context),
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     height: 28,

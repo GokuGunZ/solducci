@@ -10,6 +10,7 @@ import 'package:solducci/core/widgets/donut_progress_indicator.dart';
 import 'package:solducci/models/space_items.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:solducci/features/space/views/vectorial_notes_view.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 
 class SpaceDocumentListView extends StatefulWidget {
   final String type;
@@ -307,76 +308,69 @@ class _SpaceDocumentListViewState extends State<SpaceDocumentListView> {
     if (userId == null) return;
 
     final context = _contextManager.currentContext;
-    
-    if (context.isView) {
-      if (mounted) {
-        ScaffoldMessenger.of(this.context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Seleziona un gruppo o il contesto Personale per creare una nuova lista',
-            ),
-          ),
-        );
-      }
-      return;
-    }
+    String? targetGroupId = context.groupId;
+    String? targetUserId = context.isPersonal ? userId : null;
 
-    final effectiveUserId = context.isPersonal ? userId : null;
-    final groupId = context.groupId;
+    if (context.isView) {
+      final choice = await ViewGroupPickerSheet.show(
+        this.context,
+        title: 'Crea Elemento',
+        subtitle: 'Scegli in quale contesto creare questo elemento',
+      );
+      if (choice == null) return;
+      if (choice.isPersonal) {
+        targetUserId = userId;
+        targetGroupId = null;
+      } else {
+        targetGroupId = choice.groupId;
+        targetUserId = null;
+      }
+    }
 
     Document newDoc;
     switch (widget.type) {
       case 'todo':
-        // If it's for a group, we need to override the userId/groupId manually 
-        if (context.isGroup) {
-          await _documentService.createDocument(TodoDocument(
-            id: '',
-            userId: null,
-            groupId: groupId,
-            title: title,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ));
-          return;
-        } else {
-          newDoc = TodoDocument.create(
-            userId: userId,
-            title: title,
-          );
-        }
+        newDoc = TodoDocument(
+          id: '',
+          userId: targetUserId,
+          groupId: targetGroupId,
+          title: title,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
         break;
       case 'note':
         newDoc = NoteDocument.create(
-          userId: effectiveUserId,
-          groupId: groupId,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: title,
         );
         break;
       case 'asterisk':
         newDoc = AsteriskDocument.create(
-          userId: effectiveUserId,
-          groupId: groupId,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: title,
         );
         break;
       case 'resource_list':
         newDoc = ResourceListDocument.create(
-          userId: effectiveUserId,
-          groupId: groupId,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: title,
         );
         break;
       case 'dispensa':
         newDoc = DispensaDocument.create(
-          userId: effectiveUserId,
-          groupId: groupId,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: title,
         );
         break;
       case 'shopping_list':
         newDoc = ShoppingListDocument.create(
-          userId: effectiveUserId,
-          groupId: groupId,
+          userId: targetUserId,
+          groupId: targetGroupId,
           title: title,
         );
         break;
