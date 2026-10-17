@@ -142,7 +142,7 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
     final is2x1 = widget.def.size.crossAxisCellCount >= 2 && widget.def.size.mainAxisCellCount <= 1;
 
     void navigateToDebts() {
-      GoRouter.of(context).push('/expenses_dashboard', extra: {'heroTag': widget.def.id});
+      GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
     }
 
     // Se siamo nel contesto personale, il widget non è applicabile

@@ -491,7 +491,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
             if (activeDocId != null) {
               GoRouter.of(context).push('/space/shopping/$activeDocId');
             } else {
-              GoRouter.of(context).push('/space');
+              GoRouter.of(context).push('/space/shopping');
             }
           },
           currentSource: _currentSourceName,

@@ -42,8 +42,8 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
                 size: widget.def.size,
                 skeletonType: BentoSkeletonType.chart,
                 isLoading: true,
-                onExpand: () {
-                  GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
+                onTap: () {
+                  GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
                 },
                 child: const SizedBox.shrink(),
               );
@@ -118,8 +118,8 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
               heroTag: widget.def.id,
               size: widget.def.size,
               isLoading: false,
-              onExpand: () {
-                GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
+              onTap: () {
+                GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
               },
               child: hasNoExpenses
                   ? BentoEmptyState(

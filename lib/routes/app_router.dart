@@ -53,6 +53,8 @@ import 'package:solducci/views/mosaico_view.dart';
 import 'package:solducci/features/space/views/infinite_canvas_view.dart';
 import 'package:solducci/views/standalone_markdown_page.dart';
 import 'package:solducci/features/investments/views/investments_hub_view.dart';
+import 'package:solducci/views/hubs/economy_hub_view.dart';
+import 'package:solducci/features/wallets/views/wallets_management_view.dart';
 
 /// Global router configuration for the app
 /// Handles authentication state and navigation
@@ -160,6 +162,18 @@ class AppRouter {
       GoRoute(
         path: '/economy/recurring',
         builder: (context, state) => const RecurringHubView(),
+      ),
+      GoRoute(
+        path: '/economy',
+        builder: (context, state) => const EconomyHubView(),
+      ),
+      GoRoute(
+        path: '/wallets',
+        builder: (context, state) => const WalletsManagementView(),
+      ),
+      GoRoute(
+        path: '/economy/wallets',
+        builder: (context, state) => const WalletsManagementView(),
       ),
       GoRoute(
         path: '/personal-expenses',

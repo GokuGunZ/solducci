@@ -124,30 +124,11 @@ class BentoWidgetContainer extends StatelessWidget {
                 ),
               ),
             ),
-          // Pulsante Expand (se disponibile e NON in formato 1x1 compatto)
-          if (onExpand != null && !isLoading && !hasError && !(size != null && size!.crossAxisCellCount <= 1 && size!.mainAxisCellCount <= 1))
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: onExpand,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.35),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.open_in_full, size: 13, color: Colors.white54),
-                ),
-              ),
-            ),
         ],
       ),
     );
 
-    final is1x1 = size != null && size!.crossAxisCellCount <= 1 && size!.mainAxisCellCount <= 1;
-    final effectiveTap = onTap ?? (is1x1 ? onExpand : null);
+    final effectiveTap = onTap ?? onExpand;
 
     if (effectiveTap != null) {
       content = GestureDetector(
