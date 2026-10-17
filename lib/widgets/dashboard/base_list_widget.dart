@@ -64,6 +64,8 @@ class BaseListWidget<T> extends StatelessWidget {
       onRetry: onRetry,
       heroTag: heroTag,
       size: size,
+      onTap: isCompactHeight ? onExpand : null,
+      onExpand: onExpand,
       skeletonType: skeletonType ?? BentoSkeletonType.list,
       child: Stack(
         children: [

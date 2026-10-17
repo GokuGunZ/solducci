@@ -175,6 +175,28 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(2, 4), BentoWidgetSize(4, 1)],
       keywords: ['ricorrenti', 'abbonamenti', 'affitto', 'bollette', 'stipendio', 'rate', 'mensile'],
     ),
+    const WidgetMetadata(
+      type: 'quick_transfer',
+      name: 'Giroconto Rapido',
+      description: 'Sposta denaro tra i tuoi conti personali con chip one-tap o importi rapidi.',
+      category: WidgetCategory.finance,
+      icon: Icons.swap_horiz_rounded,
+      color: Color(0xFF06B6D4),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3)],
+      keywords: ['giroconto', 'trasferimento', 'sposta', 'conti', 'salvadanaio'],
+    ),
+    const WidgetMetadata(
+      type: 'cashflow_forecast',
+      name: 'Cashflow 7 Giorni',
+      description: 'Previsione di liquidità a 7 giorni con timeline scadenze, entrate e uscite.',
+      category: WidgetCategory.finance,
+      icon: Icons.trending_up_rounded,
+      color: Color(0xFF38BDF8),
+      defaultSize: BentoWidgetSize(2, 3),
+      allowedSizes: [BentoWidgetSize(2, 3), BentoWidgetSize(4, 2)],
+      keywords: ['cashflow', 'previsione', 'liquidità', 'futuro', 'scadenze', '7 giorni'],
+    ),
 
     // Tempo & Focus
     const WidgetMetadata(
@@ -255,6 +277,17 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       defaultSize: BentoWidgetSize(2, 3),
       allowedSizes: [BentoWidgetSize(2, 3), BentoWidgetSize(2, 4), BentoWidgetSize(2, 2), BentoWidgetSize(3, 2)],
       keywords: ['markdown', 'md', 'documenti', 'file'],
+    ),
+    const WidgetMetadata(
+      type: 'quick_scratchpad',
+      name: 'Appunto al Volo',
+      description: 'Cattura rapida di pensieri, promemoria ed asterischi direttamente dalla Home.',
+      category: WidgetCategory.notes,
+      icon: Icons.edit_note_rounded,
+      color: Color(0xFFF59E0B),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(4, 1), BentoWidgetSize(2, 2)],
+      keywords: ['appunto', 'scratchpad', 'asterisco', 'volo', 'rapido', 'nota'],
     ),
 
     // Casa & Spazio

@@ -570,7 +570,9 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
               ],
             ),
           ),
-          bottomDock: bought.isNotEmpty ? _buildBentoDock(bought) : null,
+          bottomDock: (bought.isNotEmpty && (widget.def.size.mainAxisCellCount >= 3 || unbought.isEmpty))
+              ? _buildBentoDock(bought)
+              : null,
           itemBuilder: (context, item, index) {
             final isBought = _computeIsBought(item);
             final isFirstBought = isBought && index == unbought.length && unbought.isNotEmpty;
