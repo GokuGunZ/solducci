@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:solducci/core/context/context_query_specification.dart';
 import 'package:solducci/models/asset_class.dart';
 import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/investment_portfolio.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/investment_asset_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,22 +35,21 @@ class InvestmentPortfolioService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Recupera tutti i portafogli dell'utente o di un gruppo specifico
-  Future<List<InvestmentPortfolio>> fetchPortfolios({String? groupId}) async {
+  /// Recupera tutti i portafogli validi per un determinato contesto
+  Future<List<InvestmentPortfolio>> fetchPortfoliosForContext(ExpenseContext context) async {
     final currentUserId = _supabase.auth.currentUser?.id;
     if (currentUserId == null) {
       final box = await _getBox();
-      _portfolios = box.values.toList();
+      _portfolios = _filterPortfoliosByContext(box.values.toList(), context, currentUserId);
+      notifyListeners();
       return _portfolios;
     }
 
     try {
-      var query = _supabase.from('investment_portfolios').select();
-      if (groupId != null) {
-        query = query.eq('group_id', groupId);
-      } else {
-        query = query.or('user_id.eq.$currentUserId,group_id.is.null');
-      }
+      final query = _supabase
+          .from('investment_portfolios')
+          .select()
+          .filterByContext(context, currentUserId: currentUserId);
 
       final response = await query.order('created_at', ascending: true);
       final list = (response as List)
@@ -56,7 +57,6 @@ class InvestmentPortfolioService extends ChangeNotifier {
           .toList();
 
       final box = await _getBox();
-      await box.clear();
       for (final p in list) {
         await box.put(p.id, p);
       }
@@ -66,10 +66,43 @@ class InvestmentPortfolioService extends ChangeNotifier {
       return list;
     } catch (e) {
       final box = await _getBox();
-      _portfolios = box.values.toList();
+      _portfolios = _filterPortfoliosByContext(box.values.toList(), context, currentUserId);
       notifyListeners();
       return _portfolios;
     }
+  }
+
+  List<InvestmentPortfolio> _filterPortfoliosByContext(
+    List<InvestmentPortfolio> list,
+    ExpenseContext context,
+    String? currentUserId,
+  ) {
+    return list.where((p) {
+      if (context.isPersonal) {
+        return p.userId == currentUserId && p.groupId == null;
+      } else if (context.isGroup) {
+        return p.groupId == context.groupId;
+      } else if (context.isView) {
+        final inGroups = context.groupIds.contains(p.groupId);
+        final inPersonal = context.includesPersonal && p.userId == currentUserId && p.groupId == null;
+        return inGroups || inPersonal;
+      }
+      return false;
+    }).toList();
+  }
+
+  /// Recupera tutti i portafogli dell'utente o di un gruppo specifico
+  Future<List<InvestmentPortfolio>> fetchPortfolios({
+    String? groupId,
+    ExpenseContext? context,
+  }) async {
+    if (context != null) {
+      return fetchPortfoliosForContext(context);
+    }
+    if (groupId != null) {
+      return fetchPortfoliosForContext(ExpenseContext.fromGroupId(groupId));
+    }
+    return fetchPortfoliosForContext(ContextManager().currentContext);
   }
 
   /// Crea un nuovo portafoglio investimenti

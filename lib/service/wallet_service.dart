@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:solducci/core/context/context_query_specification.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/models/wallet_type.dart';
+import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/income_service.dart';
 import 'package:solducci/service/wallet_transfer_service.dart';
@@ -16,6 +18,11 @@ class WalletService {
     // Ricalcola quando cambiano entrate o trasferimenti
     IncomeService().stream.listen((_) => _recalculateBalances());
     WalletTransferService().stream.listen((_) => _recalculateBalances());
+
+    // Ricarica i portafogli quando cambia il contesto (Personale <-> Gruppo <-> Vista)
+    ContextManager().addListener(() {
+      fetchWallets(forceRefresh: true);
+    });
 
     _supabase.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.signedOut || data.event == AuthChangeEvent.userUpdated) {
@@ -37,8 +44,11 @@ class WalletService {
   DateTime? _lastFetchTime;
   static const Duration _cacheTtl = Duration(seconds: 15);
 
-  /// Recupera tutti i portafogli attivi dell'utente con saldi aggiornati
-  Future<List<Wallet>> fetchWallets({bool forceRefresh = false}) async {
+  /// Recupera tutti i portafogli attivi per il contesto corrente o specificato
+  Future<List<Wallet>> fetchWallets({
+    bool forceRefresh = false,
+    ExpenseContext? context,
+  }) async {
     // 1. Se c'è già una richiesta di rete in corso, riutilizzala (deduplicazione in-flight)
     if (_inFlightFetch != null) {
       return _inFlightFetch!;
@@ -52,7 +62,7 @@ class WalletService {
       return _cachedWallets;
     }
 
-    _inFlightFetch = _executeFetchWallets();
+    _inFlightFetch = _executeFetchWallets(context: context);
     try {
       return await _inFlightFetch!;
     } finally {
@@ -60,16 +70,19 @@ class WalletService {
     }
   }
 
-  Future<List<Wallet>> _executeFetchWallets() async {
+  Future<List<Wallet>> _executeFetchWallets({ExpenseContext? context}) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
     try {
-      final response = await _supabase
+      final effectiveContext = context ?? ContextManager().currentContext;
+      var query = _supabase
           .from('wallets')
           .select()
-          .eq('user_id', userId)
           .eq('is_archived', false)
+          .filterByContext(effectiveContext, currentUserId: userId);
+
+      final response = await query
           .order('is_default', ascending: false)
           .order('created_at', ascending: true);
 
@@ -77,8 +90,8 @@ class WalletService {
           .map((item) => Wallet.fromMap(item as Map<String, dynamic>))
           .toList();
 
-      // Se l'utente non ha portafogli, creiamo automaticamente i default (BNL/Principale + Contanti)
-      if (list.isEmpty) {
+      // Se l'utente non ha portafogli nel contesto personale, creiamo automaticamente i default
+      if (list.isEmpty && effectiveContext.isPersonal) {
         list = await _createInitialDefaultWallets(userId);
       }
 
@@ -95,12 +108,18 @@ class WalletService {
   Future<Wallet> createWallet(Wallet wallet) async {
     final userId = _supabase.auth.currentUser?.id;
     final map = wallet.toMap();
-    map['user_id'] = userId;
+    if (wallet.groupId != null) {
+      map['group_id'] = wallet.groupId;
+      map['user_id'] = null;
+    } else {
+      map['user_id'] = userId;
+      map['group_id'] = null;
+    }
     map.remove('id');
 
     // Se questo è impostato come default, rimuovi il default dagli altri
-    if (wallet.isDefault) {
-      await _clearDefaults(userId!);
+    if (wallet.isDefault && userId != null) {
+      await _clearDefaults(userId);
     }
 
     final response = await _supabase
@@ -176,7 +195,7 @@ class WalletService {
   Future<void> _recalculateBalances() async {
     if (_cachedWallets.isEmpty) return;
 
-    final expenses = ExpenseServiceCached().getAllCachedExpenses();
+    final expenses = ExpenseServiceCached().getAllCachedExpensesUnfiltered();
     final incomes = IncomeService().currentIncomes;
     final transfers = WalletTransferService().currentTransfers;
 

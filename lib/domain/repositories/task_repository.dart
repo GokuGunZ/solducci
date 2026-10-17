@@ -1,4 +1,5 @@
 import 'package:solducci/models/task.dart';
+import 'package:solducci/service/context_manager.dart';
 
 /// Repository interface for Task data operations
 ///
@@ -77,6 +78,12 @@ abstract class TaskRepository {
   /// Note: This may use polling or realtime subscriptions depending
   /// on the implementation.
   Stream<List<Task>> watchAll({String? documentId});
+
+  /// Stream of tasks strictly scoped to an [ExpenseContext].
+  Stream<List<Task>> watchByContext(ExpenseContext context);
+
+  /// Get tasks strictly scoped to an [ExpenseContext].
+  Future<List<Task>> getAllByContext(ExpenseContext context);
 }
 
 /// Base exception for repository operations

@@ -336,6 +336,9 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
   /// Get multiple expenses from cache
   Future<List<Expense>> getCachedExpenses(List<int> ids) => getByIds(ids);
 
+  /// Get all cached expenses unfiltered (for global wallet balance calculations)
+  List<Expense> getAllCachedExpensesUnfiltered() => getCached();
+
   /// Get all cached expenses for current context
   List<Expense> getAllCachedExpenses() {
     final context = _contextManager.currentContext;
