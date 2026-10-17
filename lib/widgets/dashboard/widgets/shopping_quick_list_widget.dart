@@ -333,6 +333,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
     );
 
     if (mounted) {
+      final pantryId = targetPantry.id;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -346,6 +347,13 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
                 ),
               ),
             ],
+          ),
+          action: SnackBarAction(
+            label: 'APRI DISPENSA',
+            textColor: const Color(0xFF10B981),
+            onPressed: () {
+              GoRouter.of(context).push('/space/pantry/$pantryId');
+            },
           ),
           backgroundColor: const Color(0xFF18181B),
           behavior: SnackBarBehavior.floating,

@@ -17,9 +17,16 @@ class HabitTrackerWidget extends StatefulWidget {
   State<HabitTrackerWidget> createState() => _HabitTrackerWidgetState();
 }
 
+class _HabitSource {
+  final String title;
+  final List<RoutineTemplate> routines;
+  _HabitSource({required this.title, required this.routines});
+}
+
 class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
   Set<String> _completedTodayIds = {};
   ExpenseContext? _lastContext;
+  int _currentRoutineIndex = 0;
 
   @override
   void didChangeDependencies() {
@@ -67,7 +74,6 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final specificRoutineId = widget.def.customProps?['routineId'] as String?;
     final currentContext = DashboardContextScope.of(context);
 
     return StreamBuilder<List<RoutineTemplate>>(
@@ -75,9 +81,62 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
       builder: (context, snapshot) {
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final allRoutines = snapshot.data ?? [];
-        final routines = specificRoutineId != null
-            ? allRoutines.where((r) => r.id == specificRoutineId).toList()
-            : allRoutines;
+
+        final selectedSourceIds = (widget.def.customProps?['selectedSourceIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toSet() ??
+            {};
+        final specificRoutineId = widget.def.customProps?['routineId'] as String?;
+
+        final List<_HabitSource> sources = [];
+
+        if (selectedSourceIds.isNotEmpty) {
+          if (selectedSourceIds.contains('all')) {
+            sources.add(_HabitSource(title: 'Tutte le Routine', routines: allRoutines));
+          }
+          for (final r in allRoutines) {
+            if (selectedSourceIds.contains('routine_${r.id}') || selectedSourceIds.contains(r.id)) {
+              sources.add(_HabitSource(title: r.name, routines: [r]));
+            }
+          }
+        } else if (specificRoutineId != null) {
+          final matched = allRoutines.where((r) => r.id == specificRoutineId).toList();
+          sources.add(_HabitSource(
+            title: matched.isNotEmpty ? matched.first.name : 'Routine',
+            routines: matched,
+          ));
+        } else {
+          if (allRoutines.length > 1) {
+            sources.add(_HabitSource(title: 'Tutte le Routine', routines: allRoutines));
+            for (final r in allRoutines) {
+              sources.add(_HabitSource(title: r.name, routines: [r]));
+            }
+          } else {
+            sources.add(_HabitSource(title: 'Abitudini', routines: allRoutines));
+          }
+        }
+
+        if (sources.isEmpty) {
+          sources.add(_HabitSource(title: 'Abitudini', routines: allRoutines));
+        }
+
+        final safeIndex = _currentRoutineIndex.clamp(0, sources.length - 1);
+        final activeSource = sources[safeIndex];
+        final routines = activeSource.routines;
+
+        void nextRoutine() {
+          if (sources.length <= 1) return;
+          setState(() {
+            _currentRoutineIndex = (_currentRoutineIndex + 1) % sources.length;
+          });
+        }
+
+        void previousRoutine() {
+          if (sources.length <= 1) return;
+          setState(() {
+            _currentRoutineIndex = (_currentRoutineIndex - 1 + sources.length) % sources.length;
+          });
+        }
 
         final size = widget.def.size;
         final isHeight1 = size.mainAxisCellCount <= 1;
@@ -94,19 +153,59 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
           isLoading: isLoading,
           onTap: navigateToRoutines,
           onExpand: navigateToRoutines,
-          child: isHeight1
-              ? _buildMiniBanner(routines)
-              : isWide
-                  ? _buildPanoramicView(routines, navigateToRoutines)
-                  : isHeight3
-                      ? _buildHeight3View(routines, navigateToRoutines)
-                      : _buildCompactView(routines, navigateToRoutines),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity != null) {
+                if (details.primaryVelocity! < -150) {
+                  nextRoutine();
+                } else if (details.primaryVelocity! > 150) {
+                  previousRoutine();
+                }
+              }
+            },
+            child: isHeight1
+                ? _buildMiniBanner(
+                    title: activeSource.title,
+                    routines: routines,
+                    currentIndex: safeIndex,
+                    totalSources: sources.length,
+                  )
+                : isWide
+                    ? _buildPanoramicView(
+                        title: activeSource.title,
+                        routines: routines,
+                        onNavigate: navigateToRoutines,
+                        currentIndex: safeIndex,
+                        totalSources: sources.length,
+                      )
+                    : isHeight3
+                        ? _buildHeight3View(
+                            title: activeSource.title,
+                            routines: routines,
+                            onNavigate: navigateToRoutines,
+                            currentIndex: safeIndex,
+                            totalSources: sources.length,
+                          )
+                        : _buildCompactView(
+                            title: activeSource.title,
+                            routines: routines,
+                            onNavigate: navigateToRoutines,
+                            currentIndex: safeIndex,
+                            totalSources: sources.length,
+                          ),
+          ),
         );
       },
     );
   }
 
-  Widget _buildMiniBanner(List<RoutineTemplate> routines) {
+  Widget _buildMiniBanner({
+    required String title,
+    required List<RoutineTemplate> routines,
+    required int currentIndex,
+    required int totalSources,
+  }) {
     final completedCount = routines.where((r) => _completedTodayIds.contains(r.id)).length;
 
     return Padding(
@@ -126,15 +225,38 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
                 child: const Icon(Icons.loop_rounded, color: Color(0xFF8B5CF6), size: 13),
               ),
               const SizedBox(width: 8),
-              Text(
-                (widget.def.customProps?['title'] as String? ?? 'ROUTINE').toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 110),
+                child: Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (totalSources > 1) ...[
+                const SizedBox(width: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${currentIndex + 1}/$totalSources',
+                    style: const TextStyle(
+                      color: Color(0xFF8B5CF6),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           Container(
@@ -158,7 +280,13 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
     );
   }
 
-  Widget _buildPanoramicView(List<RoutineTemplate> routines, VoidCallback onNavigate) {
+  Widget _buildPanoramicView({
+    required String title,
+    required List<RoutineTemplate> routines,
+    required VoidCallback onNavigate,
+    required int currentIndex,
+    required int totalSources,
+  }) {
     const weekLabels = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
     final todayWeekday = DateTime.now().weekday; // 1 = Monday, 7 = Sunday
     final topRoutines = routines.take(3).toList();
@@ -175,15 +303,38 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
                 children: [
                   const Icon(Icons.loop_rounded, color: Color(0xFF8B5CF6), size: 14),
                   const SizedBox(width: 6),
-                  const Text(
-                    'WEEKLY MATRIX',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 130),
+                    child: Text(
+                      title.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (totalSources > 1) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${currentIndex + 1}/$totalSources',
+                        style: const TextStyle(
+                          color: Color(0xFF8B5CF6),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               Text(
@@ -277,7 +428,13 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
     );
   }
 
-  Widget _buildHeight3View(List<RoutineTemplate> routines, VoidCallback onNavigate) {
+  Widget _buildHeight3View({
+    required String title,
+    required List<RoutineTemplate> routines,
+    required VoidCallback onNavigate,
+    required int currentIndex,
+    required int totalSources,
+  }) {
     final completedCount = routines.where((r) => _completedTodayIds.contains(r.id)).length;
     final total = routines.length;
     final progress = total > 0 ? (completedCount / total).clamp(0.0, 1.0) : 0.0;
@@ -296,15 +453,38 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
                 children: [
                   const Icon(Icons.loop_rounded, color: Color(0xFF8B5CF6), size: 14),
                   const SizedBox(width: 6),
-                  const Text(
-                    'ROUTINE & ABITUDINI',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: Text(
+                      title.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (totalSources > 1) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${currentIndex + 1}/$totalSources',
+                        style: const TextStyle(
+                          color: Color(0xFF8B5CF6),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               Container(
@@ -420,7 +600,13 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
     );
   }
 
-  Widget _buildCompactView(List<RoutineTemplate> routines, VoidCallback onNavigate) {
+  Widget _buildCompactView({
+    required String title,
+    required List<RoutineTemplate> routines,
+    required VoidCallback onNavigate,
+    required int currentIndex,
+    required int totalSources,
+  }) {
     final completedCount = routines.where((r) => _completedTodayIds.contains(r.id)).length;
     final top2 = routines.take(2).toList();
 
@@ -437,15 +623,31 @@ class _HabitTrackerWidgetState extends State<HabitTrackerWidget> {
                 children: [
                   const Icon(Icons.loop_rounded, color: Color(0xFF8B5CF6), size: 13),
                   const SizedBox(width: 6),
-                  const Text(
-                    'ROUTINE',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 80),
+                    child: Text(
+                      title.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (totalSources > 1) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '${currentIndex + 1}/$totalSources',
+                      style: const TextStyle(
+                        color: Color(0xFF8B5CF6),
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ],
               ),
               Container(

@@ -16,12 +16,20 @@ class InvestmentSummaryWidget extends StatefulWidget {
   State<InvestmentSummaryWidget> createState() => _InvestmentSummaryWidgetState();
 }
 
+class _InvestmentSource {
+  final String title;
+  final String? portfolioId;
+  final Color? color;
+  _InvestmentSource({required this.title, this.portfolioId, this.color});
+}
+
 class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
   final _portfolioService = InvestmentPortfolioService();
   final _assetService = InvestmentAssetService();
 
   bool _isLoading = true;
   ExpenseContext? _lastContext;
+  int _currentPortfolioIndex = 0;
 
   @override
   void didChangeDependencies() {
@@ -54,26 +62,69 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
     return AnimatedBuilder(
       animation: Listenable.merge([_portfolioService, _assetService]),
       builder: (context, _) {
+        final selectedSourceIds = (widget.def.customProps?['selectedSourceIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toSet() ??
+            {};
         final targetPortfolioId = widget.def.customProps?['portfolioId'] as String?;
-        final title = widget.def.customProps?['title'] as String? ?? 'PORTAFOGLIO';
+
+        final List<_InvestmentSource> sources = [];
+        final portfolios = _portfolioService.currentPortfolios;
+
+        if (selectedSourceIds.isNotEmpty) {
+          if (selectedSourceIds.contains('all')) {
+            sources.add(_InvestmentSource(title: 'Patrimonio', portfolioId: null));
+          }
+          for (final p in portfolios) {
+            if (selectedSourceIds.contains('portfolio_${p.id}') || selectedSourceIds.contains(p.id)) {
+              sources.add(_InvestmentSource(title: p.name, portfolioId: p.id, color: p.color));
+            }
+          }
+        } else if (targetPortfolioId != null) {
+          final match = portfolios.where((p) => p.id == targetPortfolioId).firstOrNull;
+          sources.add(_InvestmentSource(
+            title: match?.name ?? 'Portafoglio',
+            portfolioId: targetPortfolioId,
+            color: match?.color,
+          ));
+        } else {
+          sources.add(_InvestmentSource(title: 'Patrimonio', portfolioId: null));
+          for (final p in portfolios) {
+            sources.add(_InvestmentSource(title: p.name, portfolioId: p.id, color: p.color));
+          }
+        }
+
+        if (sources.isEmpty) {
+          sources.add(_InvestmentSource(title: 'Patrimonio', portfolioId: null));
+        }
+
+        final safeIndex = _currentPortfolioIndex.clamp(0, sources.length - 1);
+        final activeSource = sources[safeIndex];
+
+        void nextPortfolio() {
+          if (sources.length <= 1) return;
+          setState(() {
+            _currentPortfolioIndex = (_currentPortfolioIndex + 1) % sources.length;
+          });
+        }
+
+        void previousPortfolio() {
+          if (sources.length <= 1) return;
+          setState(() {
+            _currentPortfolioIndex = (_currentPortfolioIndex - 1 + sources.length) % sources.length;
+          });
+        }
 
         double totalValue;
         double unrealizedPnl;
         double roiPercent;
 
-        if (targetPortfolioId != null) {
-          final isPortfolioInContext = _portfolioService.currentPortfolios.any((p) => p.id == targetPortfolioId);
-          if (isPortfolioInContext) {
-            final assets = _assetService.getAssetsForPortfolio(targetPortfolioId);
-            totalValue = assets.fold(0.0, (sum, a) => sum + a.currentValue);
-            final invested = assets.fold(0.0, (sum, a) => sum + a.investedCapital);
-            unrealizedPnl = totalValue - invested;
-            roiPercent = invested > 0 ? (unrealizedPnl / invested) * 100 : 0.0;
-          } else {
-            totalValue = 0.0;
-            unrealizedPnl = 0.0;
-            roiPercent = 0.0;
-          }
+        if (activeSource.portfolioId != null) {
+          final assets = _assetService.getAssetsForPortfolio(activeSource.portfolioId!);
+          totalValue = assets.fold(0.0, (sum, a) => sum + a.currentValue);
+          final invested = assets.fold(0.0, (sum, a) => sum + a.investedCapital);
+          unrealizedPnl = totalValue - invested;
+          roiPercent = invested > 0 ? (unrealizedPnl / invested) * 100 : 0.0;
         } else {
           final contextAssets = _assetService.getAssetsForContext(currentContext);
           totalValue = contextAssets.fold(0.0, (sum, a) => sum + a.currentValue);
@@ -97,47 +148,81 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
           onExpand: () {
             GoRouter.of(context).push('/investments');
           },
-          child: isHeight1
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1).withOpacity(0.18),
-                              shape: BoxShape.circle,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity != null) {
+                if (details.primaryVelocity! < -150) {
+                  nextPortfolio();
+                } else if (details.primaryVelocity! > 150) {
+                  previousPortfolio();
+                }
+              }
+            },
+            child: isHeight1
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: (activeSource.color ?? const Color(0xFF6366F1)).withOpacity(0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.trending_up_rounded,
+                                color: activeSource.color ?? const Color(0xFF818CF8),
+                                size: 13,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.trending_up_rounded,
-                              color: Color(0xFF818CF8),
-                              size: 13,
+                            const SizedBox(width: 8),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 110),
+                              child: Text(
+                                activeSource.title.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.6,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            title.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            currencyFormatter.format(totalValue),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
+                            if (sources.length > 1) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '${safeIndex + 1}/${sources.length}',
+                                  style: TextStyle(
+                                    color: activeSource.color ?? const Color(0xFF818CF8),
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              currencyFormatter.format(totalValue),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -169,7 +254,9 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                       return Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: _buildH3View(
-                          title: title,
+                          title: activeSource.title,
+                          currentIndex: safeIndex,
+                          totalSources: sources.length,
                           totalValue: totalValue,
                           unrealizedPnl: unrealizedPnl,
                           roiPercent: roiPercent,
@@ -212,17 +299,38 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                                                 ),
                                               ),
                                               const SizedBox(width: 6),
-                                              Text(
-                                                title.toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 0.8,
+                                              ConstrainedBox(
+                                                constraints: const BoxConstraints(maxWidth: 110),
+                                                child: Text(
+                                                  activeSource.title.toUpperCase(),
+                                                  style: const TextStyle(
+                                                    color: Colors.white54,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.8,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
                                               ),
+                                              if (sources.length > 1) ...[
+                                                const SizedBox(width: 5),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white.withOpacity(0.08),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    '${safeIndex + 1}/${sources.length}',
+                                                    style: TextStyle(
+                                                      color: activeSource.color ?? const Color(0xFF818CF8),
+                                                      fontSize: 8.5,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ],
                                           ),
                                           const SizedBox(height: 6),
@@ -342,17 +450,31 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                                               ),
                                             ),
                                             const SizedBox(width: 6),
-                                            Text(
-                                              title.toUpperCase(),
-                                              style: const TextStyle(
-                                                color: Colors.white54,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.8,
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(maxWidth: 80),
+                                              child: Text(
+                                                activeSource.title.toUpperCase(),
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 0.8,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
                                             ),
+                                            if (sources.length > 1) ...[
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${safeIndex + 1}/${sources.length}',
+                                                style: TextStyle(
+                                                  color: activeSource.color ?? const Color(0xFF818CF8),
+                                                  fontSize: 8.5,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ),
 
@@ -451,13 +573,16 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                     );
                   },
                 ),
+              ),
+            );
+          },
         );
-      },
-    );
   }
 
   Widget _buildH3View({
     required String title,
+    required int currentIndex,
+    required int totalSources,
     required double totalValue,
     required double unrealizedPnl,
     required double roiPercent,
@@ -489,15 +614,38 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  title.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
+                  child: Text(
+                    title.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (totalSources > 1) ...[
+                  const SizedBox(width: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${currentIndex + 1}/$totalSources',
+                      style: const TextStyle(
+                        color: Color(0xFF818CF8),
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             Container(

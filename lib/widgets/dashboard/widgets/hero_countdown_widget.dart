@@ -21,6 +21,7 @@ class HeroCountdownWidget extends StatefulWidget {
 class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
   Stream<List<TimeScenario>>? _scenarioStream;
   ExpenseContext? _lastContext;
+  int _currentScenarioIndex = 0;
 
   @override
   void didChangeDependencies() {
@@ -32,8 +33,20 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
     }
   }
 
+  double _calculateAdaptiveTitleFontSize(String title, {required bool isCompact}) {
+    final baseSize = isCompact ? 13.5 : 15.0;
+    final minSize = isCompact ? 10.5 : 12.0;
+    if (title.length <= 14) return baseSize;
+    final factor = 14.0 / title.length;
+    return (baseSize * factor).clamp(minSize, baseSize);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedSourceIds = (widget.def.customProps?['selectedSourceIds'] as List<dynamic>?)
+        ?.map((e) => e.toString())
+        .toSet() ??
+        {};
     final customScenarioId = widget.def.customProps?['scenarioId'] as String?;
 
     return StreamBuilder<List<TimeScenario>>(
@@ -43,25 +56,45 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
         final scenarios = snapshot.data ?? [];
         final now = DateTime.now();
 
-        TimeScenario? targetScenario;
+        List<TimeScenario> activeScenarios = [];
 
-        if (customScenarioId != null && customScenarioId.isNotEmpty) {
-          targetScenario = scenarios.where((s) => s.id == customScenarioId).firstOrNull;
-        }
-
-        // If not found or not specified, pick the closest future scenario
-        if (targetScenario == null) {
+        if (selectedSourceIds.isNotEmpty) {
+          activeScenarios = scenarios
+              .where((s) => selectedSourceIds.contains('scenario_${s.id}') || selectedSourceIds.contains(s.id))
+              .toList();
+        } else if (customScenarioId != null && customScenarioId.isNotEmpty) {
+          activeScenarios = scenarios.where((s) => s.id == customScenarioId).toList();
+        } else {
+          // Sort scenarios: upcoming first, then past
           final upcoming = scenarios
               .where((s) => s.startDate.isAfter(now) || (s.endDate != null && s.endDate!.isAfter(now)))
               .toList()
             ..sort((a, b) => a.startDate.compareTo(b.startDate));
+          final past = scenarios
+              .where((s) => s.startDate.isBefore(now) && (s.endDate == null || s.endDate!.isBefore(now)))
+              .toList()
+            ..sort((a, b) => b.startDate.compareTo(a.startDate));
+          activeScenarios = [...upcoming, ...past];
+        }
 
-          if (upcoming.isNotEmpty) {
-            targetScenario = upcoming.first;
-          } else if (scenarios.isNotEmpty) {
-            // Fallback to most recent scenario
-            targetScenario = scenarios.first;
-          }
+        final safeIndex = _currentScenarioIndex.clamp(
+          0,
+          activeScenarios.isNotEmpty ? activeScenarios.length - 1 : 0,
+        );
+        final targetScenario = activeScenarios.isNotEmpty ? activeScenarios[safeIndex] : null;
+
+        void nextScenario() {
+          if (activeScenarios.length <= 1) return;
+          setState(() {
+            _currentScenarioIndex = (_currentScenarioIndex + 1) % activeScenarios.length;
+          });
+        }
+
+        void previousScenario() {
+          if (activeScenarios.length <= 1) return;
+          setState(() {
+            _currentScenarioIndex = (_currentScenarioIndex - 1 + activeScenarios.length) % activeScenarios.length;
+          });
         }
 
         void navigateToScenario() {
@@ -89,7 +122,25 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
           onExpand: navigateToScenario,
           child: targetScenario == null
               ? _buildEmptyState(context)
-              : _buildCountdownContent(context, targetScenario, now),
+              : GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity != null) {
+                      if (details.primaryVelocity! < -150) {
+                        nextScenario();
+                      } else if (details.primaryVelocity! > 150) {
+                        previousScenario();
+                      }
+                    }
+                  },
+                  child: _buildCountdownContent(
+                    context,
+                    targetScenario,
+                    now,
+                    currentIndex: safeIndex,
+                    totalScenarios: activeScenarios.length,
+                  ),
+                ),
         );
       },
     );
@@ -107,7 +158,13 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
     );
   }
 
-  Widget _buildCountdownContent(BuildContext context, TimeScenario scenario, DateTime now) {
+  Widget _buildCountdownContent(
+    BuildContext context,
+    TimeScenario scenario,
+    DateTime now, {
+    required int currentIndex,
+    required int totalScenarios,
+  }) {
     final diff = scenario.startDate.difference(now);
     final days = diff.inDays;
     final hours = diff.inHours % 24;
@@ -146,18 +203,36 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
                 ),
                 const SizedBox(width: 8),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 130),
+                  constraints: const BoxConstraints(maxWidth: 120),
                   child: Text(
                     scenario.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: _calculateAdaptiveTitleFontSize(scenario.title, isCompact: true),
                       fontWeight: FontWeight.bold,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (totalScenarios > 1) ...[
+                  const SizedBox(width: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${currentIndex + 1}/$totalScenarios',
+                      style: TextStyle(
+                        color: color.withOpacity(0.9),
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             Container(
@@ -217,6 +292,24 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
                                 letterSpacing: 0.8,
                               ),
                             ),
+                            if (totalScenarios > 1) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '${currentIndex + 1}/$totalScenarios',
+                                  style: TextStyle(
+                                    color: color.withOpacity(0.9),
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -239,9 +332,9 @@ class _HeroCountdownWidgetState extends State<HeroCountdownWidget> {
                         scenario.title,
                         maxLines: isCompact ? 1 : 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
+                          fontSize: _calculateAdaptiveTitleFontSize(scenario.title, isCompact: isCompact),
                           fontWeight: FontWeight.bold,
                           letterSpacing: -0.2,
                         ),

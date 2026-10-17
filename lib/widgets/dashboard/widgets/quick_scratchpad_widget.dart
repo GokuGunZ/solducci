@@ -47,6 +47,8 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
     HapticFeedback.lightImpact();
     setState(() => _isSaving = true);
 
+    String? savedDocId;
+
     try {
       final currentContext = DashboardContextScope.of(context);
 
@@ -60,6 +62,7 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
           String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
 
           if (currentContext.isView) {
+            if (!mounted) return;
             final choice = await ViewGroupPickerSheet.show(
               context,
               title: 'Note & Asterischi',
@@ -88,6 +91,7 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
           ));
           docId = newDoc.id;
         }
+        savedDocId = docId;
 
         await _spaceService.createAsteriskItem(AsteriskItem(
           id: '',
@@ -134,6 +138,7 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
         );
 
         final createdDoc = await _documentService.createDocument(newDoc);
+        savedDocId = createdDoc.id;
         await _spaceService.saveNoteContent(createdDoc.id, text);
       }
 
@@ -141,21 +146,35 @@ class _QuickScratchpadWidgetState extends State<QuickScratchpadWidget> {
       _focusNode.unfocus();
 
       if (mounted) {
+        final isAsterisk = _target == _ScratchpadTarget.asterisk;
+        final targetRoute = isAsterisk
+            ? '/space/asterisks/$savedDocId'
+            : '/space/notes';
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 Icon(
-                  _target == _ScratchpadTarget.asterisk ? Icons.star_rounded : Icons.sticky_note_2_rounded,
+                  isAsterisk ? Icons.star_rounded : Icons.sticky_note_2_rounded,
                   color: const Color(0xFFF59E0B),
                   size: 18,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  _target == _ScratchpadTarget.asterisk ? 'Asterisco salvato!' : 'Nota salvata!',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                Expanded(
+                  child: Text(
+                    isAsterisk ? 'Asterisco salvato!' : 'Nota salvata!',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
+            ),
+            action: SnackBarAction(
+              label: 'APRI',
+              textColor: const Color(0xFFF59E0B),
+              onPressed: () {
+                GoRouter.of(context).push(targetRoute);
+              },
             ),
             backgroundColor: const Color(0xFF18181B),
             behavior: SnackBarBehavior.floating,

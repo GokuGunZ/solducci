@@ -6,6 +6,7 @@ import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/time_management_service.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
+import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/dashboard/config/bento_config_models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -380,9 +381,10 @@ class BentoWidgetConfigRegistry {
 
     return BentoWidgetConfigData(
       title: 'Configura Burn Rate',
-      description: 'Scegli se calcolare la velocità di spesa su tutte le uscite o isolare una categoria.',
+      description: 'Scegli se calcolare la velocità di spesa su tutte le uscite o quali categorie monitorare (swipe per cambiare categoria).',
       options: options,
       defaultOptionId: 'all',
+      isMultiSelect: true,
     );
   }
 
@@ -405,6 +407,7 @@ class BentoWidgetConfigRegistry {
         const Duration(milliseconds: 1500),
         onTimeout: () => [],
       );
+      final now = DateTime.now();
       for (final s in scenarios) {
         IconData icon = Icons.event_rounded;
         Color color = const Color(0xFFEC4899);
@@ -416,12 +419,23 @@ class BentoWidgetConfigRegistry {
           color = const Color(0xFFFBBF24);
         }
 
+        final diff = s.startDate.difference(now);
+        String preview;
+        if (diff.isNegative) {
+          preview = s.endDate != null && s.endDate!.isAfter(now) ? 'In corso adesso' : 'Concluso';
+        } else if (diff.inDays == 0) {
+          preview = 'Oggi! Mancano poche ore';
+        } else {
+          preview = 'Mancano ${diff.inDays} ${diff.inDays == 1 ? "giorno" : "giorni"}';
+        }
+
         options.add(BentoConfigOption(
           id: 'scenario_${s.id}',
           title: s.title,
           subtitle: '${s.scenarioType.toUpperCase()} • ${s.startDate.day}/${s.startDate.month}/${s.startDate.year}',
           icon: icon,
           color: color,
+          preview: preview,
           props: {'source': 'scenario', 'scenarioId': s.id, 'title': s.title},
         ));
       }
@@ -429,9 +443,10 @@ class BentoWidgetConfigRegistry {
 
     return BentoWidgetConfigData(
       title: 'Configura Countdown',
-      description: 'Scegli verso quale traguardo, viaggio o evento speciale orientare il conto alla rovescia.',
+      description: 'Scegli quali traguardi, viaggi o eventi visualizzare nel widget (swipe per cambiare evento).',
       options: options,
       defaultOptionId: 'auto',
+      isMultiSelect: true,
     );
   }
 
@@ -596,7 +611,19 @@ class BentoWidgetConfigRegistry {
 
     try {
       final portfolios = await InvestmentPortfolioService().fetchPortfolios();
+      await InvestmentAssetService().fetchAllAssets();
+      final assetService = InvestmentAssetService();
+
       for (final p in portfolios) {
+        final assets = assetService.getAssetsForPortfolio(p.id);
+        final totalVal = assets.fold<double>(0.0, (sum, a) => sum + a.currentValue);
+        final invested = assets.fold<double>(0.0, (sum, a) => sum + a.investedCapital);
+        final pnl = totalVal - invested;
+        final pnlPrefix = pnl >= 0 ? '+' : '';
+        final preview = assets.isNotEmpty
+            ? '${assets.length} asset • €${totalVal.toStringAsFixed(0)} ($pnlPrefix€${pnl.toStringAsFixed(0)})'
+            : 'Nessun asset presente';
+
         options.add(BentoConfigOption(
           id: 'portfolio_${p.id}',
           title: p.name,
@@ -606,6 +633,7 @@ class BentoWidgetConfigRegistry {
           icon: Icons.account_balance_rounded,
           color: p.color,
           badge: p.brokerName,
+          preview: preview,
           props: {
             'source': 'portfolio',
             'portfolioId': p.id,
@@ -617,9 +645,10 @@ class BentoWidgetConfigRegistry {
 
     return BentoWidgetConfigData(
       title: 'Configura Portafoglio Investimenti',
-      description: 'Scegli se monitorare il patrimonio complessivo o isolare un singolo conto/broker.',
+      description: 'Scegli se monitorare il patrimonio complessivo o quali conti/broker sfogliare nel widget (swipe per cambiare portafoglio).',
       options: options,
       defaultOptionId: 'all',
+      isMultiSelect: true,
     );
   }
 

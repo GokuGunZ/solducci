@@ -605,15 +605,21 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
     final isPositive = balance >= 0;
     final color = isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444);
     final sign = isPositive ? '+' : '';
+    final formatted = '$sign${formatter.format(balance)}';
 
-    final double fontSize = customFontSize ?? (is1x1 ? 16.0 : (isLarge ? 26.0 : 21.0));
+    double fontSize = customFontSize ?? (is1x1 ? 16.0 : (isLarge ? 26.0 : 21.0));
+    if (formatted.length > 8) {
+      final double factor = 8.5 / formatted.length;
+      final double minAllowed = is1x1 ? 11.5 : (isLarge ? 16.0 : 13.0);
+      fontSize = (fontSize * factor).clamp(minAllowed, fontSize);
+    }
 
     return Stack(
       alignment: Alignment.center,
       children: [
         // Neon Glow
         Text(
-          '$sign${formatter.format(balance)}',
+          formatted,
           style: TextStyle(
             color: color.withOpacity(0.3),
             fontSize: fontSize,
@@ -625,7 +631,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
         ),
         // Sharp Foreground
         Text(
-          '$sign${formatter.format(balance)}',
+          formatted,
           style: TextStyle(
             color: color,
             fontSize: fontSize,
