@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_config.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 class InvestmentSummaryWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -19,20 +19,23 @@ class InvestmentSummaryWidget extends StatefulWidget {
 class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
   final _portfolioService = InvestmentPortfolioService();
   final _assetService = InvestmentAssetService();
-  final _contextManager = ContextManager();
 
   bool _isLoading = true;
+  ExpenseContext? _lastContext;
 
   @override
-  void initState() {
-    super.initState();
-    _fetchData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _fetchData(currentContext);
+    }
   }
 
-  Future<void> _fetchData() async {
-    final context = _contextManager.currentContext;
+  Future<void> _fetchData(ExpenseContext ctx) async {
     try {
-      await _portfolioService.fetchPortfolios(groupId: context.isGroup ? context.groupId : null);
+      await _portfolioService.fetchPortfoliosForContext(ctx);
       await _assetService.fetchAllAssets();
     } catch (_) {}
 
@@ -45,6 +48,7 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final currentContext = DashboardContextScope.of(context);
     final currencyFormatter = NumberFormat.currency(locale: 'it_IT', symbol: '€');
 
     return AnimatedBuilder(
@@ -58,15 +62,24 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
         double roiPercent;
 
         if (targetPortfolioId != null) {
-          final assets = _assetService.getAssetsForPortfolio(targetPortfolioId);
-          totalValue = assets.fold(0.0, (sum, a) => sum + a.currentValue);
-          final invested = assets.fold(0.0, (sum, a) => sum + a.investedCapital);
+          final isPortfolioInContext = _portfolioService.currentPortfolios.any((p) => p.id == targetPortfolioId);
+          if (isPortfolioInContext) {
+            final assets = _assetService.getAssetsForPortfolio(targetPortfolioId);
+            totalValue = assets.fold(0.0, (sum, a) => sum + a.currentValue);
+            final invested = assets.fold(0.0, (sum, a) => sum + a.investedCapital);
+            unrealizedPnl = totalValue - invested;
+            roiPercent = invested > 0 ? (unrealizedPnl / invested) * 100 : 0.0;
+          } else {
+            totalValue = 0.0;
+            unrealizedPnl = 0.0;
+            roiPercent = 0.0;
+          }
+        } else {
+          final contextAssets = _assetService.getAssetsForContext(currentContext);
+          totalValue = contextAssets.fold(0.0, (sum, a) => sum + a.currentValue);
+          final invested = contextAssets.fold(0.0, (sum, a) => sum + a.investedCapital);
           unrealizedPnl = totalValue - invested;
           roiPercent = invested > 0 ? (unrealizedPnl / invested) * 100 : 0.0;
-        } else {
-          totalValue = _portfolioService.getTotalCurrentValue();
-          unrealizedPnl = _portfolioService.getTotalUnrealizedPnl();
-          roiPercent = _portfolioService.getTotalRoiPercent();
         }
 
         final isPositive = unrealizedPnl >= 0;

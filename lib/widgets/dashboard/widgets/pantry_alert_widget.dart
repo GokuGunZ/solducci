@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/space_items.dart';
-import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/features/space/services/space_service.dart';
 import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 class PantryAlertWidget extends StatefulWidget {
   final BentoWidgetDef def;
@@ -21,7 +21,6 @@ class PantryAlertWidget extends StatefulWidget {
 class _PantryAlertWidgetState extends State<PantryAlertWidget> {
   final _documentService = DocumentService();
   final _spaceService = SpaceService();
-  final _contextManager = ContextManager();
 
   bool _isLoading = true;
   String? _documentId;
@@ -29,11 +28,16 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
   List<PantryItem> _lowStockItems = [];
   int _totalItemsCount = 0;
   StreamSubscription? _pantrySub;
+  ExpenseContext? _lastContext;
 
   @override
-  void initState() {
-    super.initState();
-    _initPantry();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _initPantry(currentContext);
+    }
   }
 
   @override
@@ -42,23 +46,34 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
     super.dispose();
   }
 
-  Future<void> _initPantry() async {
+  Future<void> _initPantry(ExpenseContext ctx) async {
+    await _pantrySub?.cancel();
+    _pantrySub = null;
+
     final customDocId = widget.def.customProps?['documentId'] as String?;
-    final context = _contextManager.currentContext;
 
     try {
       if (customDocId != null && customDocId.isNotEmpty) {
-        _documentId = customDocId;
         final doc = await _documentService.getDocumentById(customDocId);
-        if (doc != null) {
+        final belongsToContext = doc != null && (
+          (ctx.isPersonal && doc.groupId == null) ||
+          (ctx.isGroup && doc.groupId == ctx.groupId) ||
+          (ctx.isView && (ctx.groupIds.contains(doc.groupId) || (ctx.includesPersonal && doc.groupId == null)))
+        );
+        if (belongsToContext) {
+          _documentId = customDocId;
           _documentTitle = doc.title;
+        } else {
+          _documentId = null;
         }
       } else {
         // Fetch the first pantry document for current context
-        final docs = await _documentService.getDocumentsForContext(context, 'dispensa');
+        final docs = await _documentService.getDocumentsForContext(ctx, 'dispensa');
         if (docs.isNotEmpty) {
           _documentId = docs.first.id;
           _documentTitle = docs.first.title;
+        } else {
+          _documentId = null;
         }
       }
 
@@ -84,6 +99,8 @@ class _PantryAlertWidgetState extends State<PantryAlertWidget> {
       } else {
         if (mounted) {
           setState(() {
+            _lowStockItems = [];
+            _totalItemsCount = 0;
             _isLoading = false;
           });
         }

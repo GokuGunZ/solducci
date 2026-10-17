@@ -519,7 +519,11 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
           Widget baseContent = Stack(
             children: [
               Positioned.fill(
-                child: DashboardWidgetFactory.buildWidget(context, widgetDef),
+                child: DashboardWidgetFactory.buildWidget(
+                  context,
+                  widgetDef,
+                  tabContext: appContext,
+                ),
               ),
               if (state.isEditing)
                 Positioned.fill(
@@ -749,7 +753,11 @@ class _BentoDashboardViewState extends State<_BentoDashboardView> {
                         child: SizedBox(
                           width: previewWidth,
                           height: previewHeight,
-                          child: DashboardWidgetFactory.buildWidget(context, widgetDef),
+                          child: DashboardWidgetFactory.buildWidget(
+                            context,
+                            widgetDef,
+                            tabContext: appContext,
+                          ),
                         ),
                       ),
                     ),

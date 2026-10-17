@@ -24,9 +24,25 @@ import 'package:solducci/widgets/dashboard/widgets/quick_transfer_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/cashflow_forecast_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/quick_scratchpad_widget.dart';
 
+import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
+
 class DashboardWidgetFactory {
-  /// Maps a widget definition string to its actual Flutter Widget
-  static Widget buildWidget(BuildContext context, BentoWidgetDef def) {
+  /// Maps a widget definition string to its actual Flutter Widget wrapped in [DashboardContextScope]
+  static Widget buildWidget(
+    BuildContext context,
+    BentoWidgetDef def, {
+    ExpenseContext? tabContext,
+  }) {
+    final effectiveContext = tabContext ?? ContextManager().currentContext;
+    final widget = _instantiateWidget(context, def);
+    return DashboardContextScope(
+      tabContext: effectiveContext,
+      child: widget,
+    );
+  }
+
+  static Widget _instantiateWidget(BuildContext context, BentoWidgetDef def) {
     switch (def.type) {
       case 'recurring_movements':
         return RecurringMovementsWidget(def: def);

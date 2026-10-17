@@ -10,6 +10,8 @@ import 'package:solducci/views/category_expenses_page.dart';
 import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Bento Widget "Spese per Categoria": visualizza la ripartizione per categoria con layout adattivi
 class CategoryExpensesWidget extends StatefulWidget {
@@ -27,12 +29,26 @@ class _CategoryExpensesWidgetState extends State<CategoryExpensesWidget> {
   List<CategoryBreakdown> _categories = [];
   double _totalMonthExpense = 0.0;
   StreamSubscription? _sub;
+  ExpenseContext? _lastContext;
 
   @override
   void initState() {
     super.initState();
-    _sub = _expenseService.stream.listen((_) => _calculateCategories());
-    _calculateCategories();
+    _sub = _expenseService.stream.listen((_) {
+      if (_lastContext != null) {
+        _calculateCategories(_lastContext);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _calculateCategories(currentContext);
+    }
   }
 
   @override
@@ -41,8 +57,23 @@ class _CategoryExpensesWidgetState extends State<CategoryExpensesWidget> {
     super.dispose();
   }
 
-  void _calculateCategories() {
-    final expenses = _expenseService.getAllCachedExpenses();
+  void _calculateCategories([ExpenseContext? contextOverride]) {
+    final ctx = contextOverride ?? _lastContext ?? DashboardContextScope.of(context);
+    final allCached = _expenseService.getCached();
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    final expenses = allCached.where((e) {
+      if (ctx.isPersonal) {
+        return e.userId == userId && e.groupId == null;
+      } else if (ctx.isGroup) {
+        return e.groupId == ctx.groupId;
+      } else if (ctx.isView) {
+        return ctx.groupIds.contains(e.groupId) ||
+            (ctx.includesPersonal && e.userId == userId && e.groupId == null);
+      }
+      return false;
+    }).toList();
+
     final now = DateTime.now();
 
     // Filtra per il mese corrente

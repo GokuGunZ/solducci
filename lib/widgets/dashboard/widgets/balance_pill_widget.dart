@@ -11,6 +11,7 @@ import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:intl/intl.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:solducci/widgets/dashboard/swipeable_bento_stack.dart';
 
 class BalancePillWidget extends StatefulWidget {
@@ -28,38 +29,50 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
   List<MapEntry<String, double>> _balancesList = [];
   StreamSubscription? _walletSub;
   StreamSubscription? _expenseSub;
+  ExpenseContext? _lastContext;
 
-  String get _cacheKey => 'balance_${widget.def.id}';
+  String _cacheKey(ExpenseContext ctx) => 'balance_${ctx.contextKey}_${widget.def.id}';
 
   @override
   void initState() {
     super.initState();
-    _loadFromCacheFirst();
-    _loadBalance();
     _walletSub = WalletService().stream.listen((wallets) {
-      final currentContext = ContextManager().currentContext;
-      if (!currentContext.isGroup) {
-        _updateFromWallets(wallets);
+      final currentContext = _lastContext ?? ContextManager().currentContext;
+      if (currentContext.isPersonal) {
+        _updateFromWallets(wallets, currentContext);
       }
     });
     _expenseSub = ExpenseServiceCached().stream.listen((_) {
-      final currentContext = ContextManager().currentContext;
+      final currentContext = _lastContext ?? ContextManager().currentContext;
       if (currentContext.isGroup) {
-        _loadGroupBalance();
+        _loadGroupBalance(currentContext);
+      } else if (currentContext.isView) {
+        _loadViewBalance(currentContext);
       }
     });
   }
 
-  void _loadFromCacheFirst() {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentContext = DashboardContextScope.of(context);
+    if (_lastContext != currentContext) {
+      _lastContext = currentContext;
+      _loadFromCacheFirst(currentContext);
+      _loadBalance(currentContext);
+    }
+  }
+
+  void _loadFromCacheFirst(ExpenseContext ctx) {
     // 0 ms: lettura immediata sincrona da memoria o disco
-    final fast = BentoDataCache.getFastMemorySnapshot(_cacheKey);
+    final fast = BentoDataCache.getFastMemorySnapshot(_cacheKey(ctx));
     if (fast != null && fast['items'] is List) {
       _applyCachedJson(fast);
       return;
     }
 
     // Lettura asincrona disco rapida
-    BentoDataCache.getSnapshot(_cacheKey).then((disk) {
+    BentoDataCache.getSnapshot(_cacheKey(ctx)).then((disk) {
       if (disk != null && disk['items'] is List && mounted && _balancesList.isEmpty) {
         setState(() {
           _applyCachedJson(disk);
@@ -84,7 +97,8 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
   void didUpdateWidget(BalancePillWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.def.customProps != widget.def.customProps) {
-      _loadBalance();
+      final ctx = _lastContext ?? DashboardContextScope.of(context);
+      _loadBalance(ctx);
     }
   }
 
@@ -95,7 +109,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
     super.dispose();
   }
 
-  void _updateFromWallets(List<Wallet> wallets) {
+  void _updateFromWallets(List<Wallet> wallets, ExpenseContext ctx) {
     if (!mounted) return;
     final customProps = widget.def.customProps;
     final specificWalletId = customProps?['walletId'] as String?;
@@ -127,18 +141,17 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       _isStale = false;
     });
 
-    BentoDataCache.saveSnapshot(_cacheKey, {
+    BentoDataCache.saveSnapshot(_cacheKey(ctx), {
       'items': freshBalances.map((e) => {'k': e.key, 'v': e.value}).toList(),
     });
   }
 
-  Future<void> _loadGroupBalance() async {
-    final currentContext = ContextManager().currentContext;
-    if (!currentContext.isGroup || currentContext.groupId == null) return;
+  Future<void> _loadGroupBalance(ExpenseContext ctx) async {
+    if (!ctx.isGroup || ctx.groupId == null) return;
 
     try {
       final balances = await ExpenseServiceCached()
-          .calculateGroupBalance(currentContext.groupId!)
+          .calculateGroupBalance(ctx.groupId!)
           .timeout(const Duration(seconds: 4));
 
       List<MapEntry<String, double>> freshBalances = [];
@@ -155,7 +168,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
           _isStale = false;
         });
 
-        BentoDataCache.saveSnapshot(_cacheKey, {
+        BentoDataCache.saveSnapshot(_cacheKey(ctx), {
           'items': freshBalances.map((e) => {'k': e.key, 'v': e.value}).toList(),
         });
       }
@@ -164,16 +177,50 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
     }
   }
 
-  Future<void> _loadBalance() async {
+  Future<void> _loadViewBalance(ExpenseContext ctx) async {
     try {
-      final currentContext = ContextManager().currentContext;
-      if (currentContext.isGroup && currentContext.groupId != null) {
-        await _loadGroupBalance();
+      final groupIds = ctx.groupIds;
+      final Map<String, double> aggregated = {};
+      for (final gid in groupIds) {
+        final gBalances = await ExpenseServiceCached()
+            .calculateGroupBalance(gid)
+            .timeout(const Duration(seconds: 4));
+        for (final entry in gBalances.entries) {
+          aggregated[entry.key] = (aggregated[entry.key] ?? 0.0) + entry.value;
+        }
+      }
+
+      List<MapEntry<String, double>> freshBalances = aggregated.isNotEmpty
+          ? aggregated.entries.toList()
+          : [const MapEntry('Nessun saldo', 0.0)];
+
+      if (mounted) {
+        setState(() {
+          _balancesList = freshBalances;
+          _isLoading = false;
+          _isStale = false;
+        });
+
+        BentoDataCache.saveSnapshot(_cacheKey(ctx), {
+          'items': freshBalances.map((e) => {'k': e.key, 'v': e.value}).toList(),
+        });
+      }
+    } catch (e) {
+      debugPrint('[BalancePillWidget] Errore fetch view balance: $e');
+    }
+  }
+
+  Future<void> _loadBalance(ExpenseContext ctx) async {
+    try {
+      if (ctx.isGroup && ctx.groupId != null) {
+        await _loadGroupBalance(ctx);
+      } else if (ctx.isView) {
+        await _loadViewBalance(ctx);
       } else {
-        final wallets = WalletService().currentWallets.isNotEmpty
-            ? WalletService().currentWallets
-            : await WalletService().fetchWallets().timeout(const Duration(seconds: 4));
-        _updateFromWallets(wallets);
+        final wallets = await WalletService()
+            .fetchWallets(context: ctx)
+            .timeout(const Duration(seconds: 4));
+        _updateFromWallets(wallets, ctx);
       }
     } catch (e) {
       debugPrint('[BalancePillWidget] Errore o timeout fetch balance: $e');
@@ -193,6 +240,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final currentContext = DashboardContextScope.of(context);
     final size = widget.def.size;
     final is1x1 = size.crossAxisCellCount <= 1 && size.mainAxisCellCount <= 1;
     final is2x1 = size.crossAxisCellCount >= 2 && size.mainAxisCellCount <= 1;
@@ -210,7 +258,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       skeletonType: BentoSkeletonType.metric,
       isLoading: _isLoading && _balancesList.isEmpty,
       isStale: _isStale,
-      onRetry: _loadBalance,
+      onRetry: () => _loadBalance(currentContext),
       onExpand: () {
         GoRouter.of(context).push('/economy/charts', extra: {'heroTag': widget.def.id});
       },
