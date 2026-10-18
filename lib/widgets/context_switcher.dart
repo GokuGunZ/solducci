@@ -7,6 +7,10 @@ import 'package:solducci/models/group.dart';
 import 'package:solducci/widgets/context_chip.dart';
 import 'package:solducci/widgets/create_view_bubble.dart';
 import 'package:solducci/widgets/circular_context_avatar.dart';
+import 'package:solducci/widgets/group_mosaic_avatar.dart';
+import 'package:solducci/utils/app_image_helper.dart';
+import 'package:solducci/service/profile_service_cached.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/models/expense_view.dart';
 
 /// Widget che mostra il contesto corrente (Personal/Gruppo/Vista) e permette di switchare
@@ -606,25 +610,18 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
                           ),
                         ),
                         child: ClipOval(
-                          child: selectedGroup != null && selectedGroup.imageUrl != null && selectedGroup.imageUrl!.isNotEmpty
-                              ? Image.network(
-                                  selectedGroup.imageUrl!,
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (ctx, _, __) => _buildGroupFallbackAvatar(selectedGroup!),
+                          child: selectedGroup != null
+                              ? GroupMosaicAvatar(
+                                  group: selectedGroup,
+                                  radius: 25,
+                                  members: selectedGroup.members,
                                 )
-                              : selectedGroup != null
-                                  ? _buildGroupFallbackAvatar(selectedGroup)
-                                  : selectedView != null
-                                      ? Container(
-                                          color: const Color(0xFF3B82F6).withOpacity(0.2),
-                                          child: const Icon(Icons.view_list_rounded, color: Color(0xFF60A5FA), size: 26),
-                                        )
-                                      : Container(
-                                          color: const Color(0xFFA855F7).withOpacity(0.2),
-                                          child: const Icon(Icons.person_rounded, color: Color(0xFFC084FC), size: 26),
-                                        ),
+                              : selectedView != null
+                                  ? Container(
+                                      color: const Color(0xFF3B82F6).withOpacity(0.2),
+                                      child: const Icon(Icons.view_list_rounded, color: Color(0xFF60A5FA), size: 26),
+                                    )
+                                  : _buildPersonalAvatar(),
                         ),
                       ),
                       if (selectedGroup != null)
@@ -760,19 +757,27 @@ class _ContextPickerModalState extends State<_ContextPickerModal> {
     );
   }
 
-  Widget _buildGroupFallbackAvatar(ExpenseGroup group) {
-    return Container(
-      color: const Color(0xFF10B981).withOpacity(0.2),
-      child: Center(
-        child: Text(
-          group.initials,
-          style: const TextStyle(
-            color: Color(0xFF34D399),
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+  Widget _buildPersonalAvatar() {
+    final user = Supabase.instance.client.auth.currentUser;
+    final avatarUrl = user != null ? ProfileServiceCached().getAvatarUrl(user.id) : null;
+    final imageProvider = AppImageHelper.getImageProvider(avatarUrl);
+
+    if (imageProvider != null) {
+      return Image(
+        image: imageProvider,
+        width: 50,
+        height: 50,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          color: const Color(0xFFA855F7).withOpacity(0.2),
+          child: const Icon(Icons.person_rounded, color: Color(0xFFC084FC), size: 26),
         ),
-      ),
+      );
+    }
+
+    return Container(
+      color: const Color(0xFFA855F7).withOpacity(0.2),
+      child: const Icon(Icons.person_rounded, color: Color(0xFFC084FC), size: 26),
     );
   }
 

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/context_manager.dart';
+import 'package:solducci/utils/app_image_helper.dart';
+import 'package:solducci/widgets/group_mosaic_avatar.dart';
 
 /// Page che mostra i dettagli di un gruppo
 class GroupDetailPage extends StatefulWidget {
@@ -184,61 +186,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   }
 
   Future<void> _updateGroupImage() async {
-    final controller = TextEditingController(text: _group?.imageUrl ?? '');
-    final newUrl = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF18181D),
-        title: const Text('Immagine Gruppo', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Inserisci l\'URL dell\'immagine o avatar per questo gruppo:',
-              style: TextStyle(fontSize: 13, color: Colors.white70),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'https://...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                filled: true,
-                fillColor: const Color(0xFF27272A),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.white38, size: 18),
-                  onPressed: () => controller.clear(),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
-          ),
-          if (_group?.imageUrl != null && _group!.imageUrl!.isNotEmpty)
-            TextButton(
-              onPressed: () => Navigator.pop(context, ''), // Rimuovi immagine
-              child: const Text('Rimuovi', style: TextStyle(color: Colors.redAccent)),
-            ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Salva', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+    final newUrl = await AppImageHelper.showAvatarPickerDialog(
+      context,
+      title: 'Immagine Gruppo',
+      currentUrl: _group?.imageUrl,
     );
 
     if (newUrl != null && mounted && _group != null) {
@@ -256,17 +207,21 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Immagine del gruppo aggiornata!'),
-              backgroundColor: Color(0xFF10B981),
+            SnackBar(
+              content: Text(
+                newUrl.isEmpty
+                    ? 'Immagine del gruppo rimossa'
+                    : 'Immagine del gruppo aggiornata!',
+              ),
+              backgroundColor: const Color(0xFF10B981),
             ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Errore: $e')));
         }
       }
     }
@@ -322,22 +277,12 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                       children: [
                         GestureDetector(
                           onTap: _isAdmin ? _updateGroupImage : null,
-                          child: CircleAvatar(
+                          child: GroupMosaicAvatar(
+                            group: _group!,
                             radius: 44,
-                            backgroundColor: const Color(0xFF10B981).withOpacity(0.2),
-                            backgroundImage: _group!.imageUrl != null && _group!.imageUrl!.isNotEmpty
-                                ? NetworkImage(_group!.imageUrl!)
-                                : null,
-                            child: _group!.imageUrl == null || _group!.imageUrl!.isEmpty
-                                ? Text(
-                                    _group!.initials,
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF34D399),
-                                    ),
-                                  )
-                                : null,
+                            members: _members,
+                            showBorder: true,
+                            borderColor: const Color(0xFF10B981).withOpacity(0.4),
                           ),
                         ),
                         if (_isAdmin)
@@ -345,9 +290,13 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                             onTap: _updateGroupImage,
                             child: Container(
                               padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF10B981),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFF18181D),
+                                  width: 2.5,
+                                ),
                               ),
                               child: const Icon(
                                 Icons.camera_alt_rounded,

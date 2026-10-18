@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/models/group.dart';
+import 'package:solducci/widgets/group_mosaic_avatar.dart';
+import 'package:solducci/utils/app_image_helper.dart';
+import 'package:solducci/service/profile_service_cached.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CircularContextAvatar extends StatelessWidget {
   final ExpenseContext expenseContext;
@@ -26,11 +30,18 @@ class CircularContextAvatar extends StatelessWidget {
   }
 
   Widget _buildPersonalAvatar() {
+    final user = Supabase.instance.client.auth.currentUser;
+    final avatarUrl = user != null ? ProfileServiceCached().getAvatarUrl(user.id) : null;
+    final imageProvider = AppImageHelper.getImageProvider(avatarUrl);
+
     final avatar = CircleAvatar(
       radius: radius,
       backgroundColor: const Color(0xFFA855F7).withOpacity(0.22),
       foregroundColor: const Color(0xFFC084FC),
-      child: Icon(Icons.person_rounded, size: radius * 1.3),
+      backgroundImage: imageProvider,
+      child: imageProvider == null
+          ? Icon(Icons.person_rounded, size: radius * 1.3)
+          : null,
     );
 
     if (!showLabel) return avatar;
@@ -62,24 +73,11 @@ class CircularContextAvatar extends StatelessWidget {
       );
     }
 
-    Widget avatar;
-    if (group.imageUrl != null && group.imageUrl!.isNotEmpty) {
-      avatar = CircleAvatar(
-        radius: r,
-        backgroundImage: NetworkImage(group.imageUrl!),
-        backgroundColor: const Color(0xFF10B981).withOpacity(0.2),
-      );
-    } else {
-      avatar = CircleAvatar(
-        radius: r,
-        backgroundColor: const Color(0xFF10B981).withOpacity(0.22),
-        foregroundColor: const Color(0xFF34D399),
-        child: Text(
-          group.initials,
-          style: TextStyle(fontSize: r * 1.0, fontWeight: FontWeight.bold, color: const Color(0xFF34D399)),
-        ),
-      );
-    }
+    final avatar = GroupMosaicAvatar(
+      group: group,
+      radius: r,
+      members: group.members,
+    );
 
     // Se è un sub-avatar di un cluster o showLabel è falso, restituiamo solo l'avatar
     if (radius != r || !showLabel) {

@@ -8,6 +8,7 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:solducci/features/csv_importer/views/merchant_rules_manager_view.dart';
+import 'package:solducci/utils/app_image_helper.dart';
 
 /// Profile page with user info, settings, and links to additional features
 class ProfilePage extends StatefulWidget {
@@ -122,6 +123,39 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _updateAvatar() async {
+    final newUrl = await AppImageHelper.showAvatarPickerDialog(
+      context,
+      title: 'Foto Profilo',
+      currentUrl: _userProfile?.avatarUrl,
+    );
+
+    if (newUrl != null && mounted) {
+      try {
+        await _profileService.updateAvatarUrl(newUrl.isEmpty ? null : newUrl);
+        await _loadProfileData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                newUrl.isEmpty
+                    ? 'Foto profilo rimossa'
+                    : 'Foto profilo aggiornata con successo!',
+              ),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Errore durante l\'aggiornamento: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
@@ -142,36 +176,48 @@ class _ProfilePageState extends State<ProfilePage> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          // Avatar with initials
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.purple[200],
-                            child: _userProfile?.avatarUrl != null
-                                ? ClipOval(
-                                    child: Image.network(
-                                      _userProfile!.avatarUrl!,
-                                      width: 100,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) => Text(
-                                            _userProfile?.initials ?? '?',
-                                            style: TextStyle(
-                                              fontSize: 40,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.purple[700],
-                                            ),
+                          // Avatar with edit badge
+                          GestureDetector(
+                            onTap: _updateAvatar,
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: const Color(0xFFA855F7).withOpacity(0.2),
+                                  backgroundImage: AppImageHelper.getImageProvider(
+                                    _userProfile?.avatarUrl,
+                                  ),
+                                  child: _userProfile?.avatarUrl == null ||
+                                          _userProfile!.avatarUrl!.trim().isEmpty
+                                      ? Text(
+                                          _userProfile?.initials ?? '?',
+                                          style: const TextStyle(
+                                            fontSize: 40,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFFC084FC),
                                           ),
-                                    ),
-                                  )
-                                : Text(
-                                    _userProfile?.initials ?? '?',
-                                    style: TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.purple[700],
+                                        )
+                                      : null,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFF18181D),
+                                      width: 2.5,
                                     ),
                                   ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 16,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 16),
                           // Nickname with edit button
