@@ -136,6 +136,14 @@ class _UnifiedResourceHubViewState<TDoc extends Document> extends State<UnifiedR
           final foundIdx = typedDocs.indexWhere((d) => d.id == widget.initialDocumentId);
           if (foundIdx != -1) {
             targetIndex = foundIdx + (widget.showAllOption ? 1 : 0);
+          } else {
+            // Se il documento specificato non è presente nel set filtrato (es. link diretto dal widget),
+            // lo recuperiamo esplicitamente per non perdere la selezione.
+            final specificDoc = await _documentService.getDocumentById(widget.initialDocumentId!);
+            if (specificDoc is TDoc) {
+              typedDocs.insert(0, specificDoc);
+              targetIndex = widget.showAllOption ? 1 : 0;
+            }
           }
         }
         final totalCount = typedDocs.length + (widget.showAllOption ? 1 : 0);

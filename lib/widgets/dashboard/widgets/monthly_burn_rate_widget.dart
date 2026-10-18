@@ -4,6 +4,7 @@ import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
@@ -34,7 +35,7 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
             skeletonType: BentoSkeletonType.chart,
             isLoading: true,
             onTap: () {
-              GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
+              AppNavigationCoordinator().navigateToEconomy(context, section: 'cashflow');
             },
             child: const SizedBox.shrink(),
           );
@@ -109,7 +110,7 @@ class _MonthlyBurnRateWidgetState extends State<MonthlyBurnRateWidget> {
               size: widget.def.size,
               isLoading: false,
               onTap: () {
-                GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
+                AppNavigationCoordinator().navigateToEconomy(context, section: 'cashflow');
               },
               child: hasNoExpenses
                   ? BentoEmptyState(

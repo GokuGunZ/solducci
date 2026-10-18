@@ -89,22 +89,7 @@ class _ShoppingQuickListWidgetState extends State<ShoppingQuickListWidget> {
         ctx,
         'shopping_list',
       );
-      List<Document> userDocs = [];
-      try {
-        userDocs = await DocumentService().getDocumentsByType('shopping_list').first.timeout(
-          const Duration(milliseconds: 1500),
-          onTimeout: () => [],
-        );
-      } catch (_) {}
-
-      final Map<String, Document> uniqueDocs = {};
-      for (final d in contextDocs) {
-        uniqueDocs[d.id] = d;
-      }
-      for (final d in userDocs) {
-        uniqueDocs[d.id] = d;
-      }
-      final allDocs = uniqueDocs.values.toList();
+      final allDocs = contextDocs;
 
       final customProps = widget.def.customProps;
       final rawSelected = customProps?['selectedSourceIds'] as List?;

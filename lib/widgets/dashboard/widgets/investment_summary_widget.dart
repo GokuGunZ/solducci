@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/service/investment_asset_service.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
@@ -143,7 +144,7 @@ class _InvestmentSummaryWidgetState extends State<InvestmentSummaryWidget> {
           size: widget.def.size,
           isLoading: _isLoading,
           onTap: () {
-            GoRouter.of(context).push('/investments');
+            AppNavigationCoordinator().navigateToEconomy(context, section: 'investments');
           },
           onExpand: () {
             GoRouter.of(context).push('/investments');

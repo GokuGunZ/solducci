@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/recurring_transaction.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/recurring_transaction_service.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
@@ -113,7 +113,7 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
       heroTag: widget.def.id,
       size: size,
       isLoading: _isLoading,
-      onTap: () => context.push('/economy/recurring'),
+      onTap: () => AppNavigationCoordinator().navigateToEconomy(context, section: 'recurring'),
       child: Padding(
         padding: isHeight1
             ? const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0)
@@ -464,51 +464,63 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
     final icon = CategoryHelpers.getIconForCategory(item.category);
     final color = CategoryHelpers.getColorForCategory(item.category);
 
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 26,
-          height: 26,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.18),
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Icon(icon, size: 13, color: color),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
+        // Top line: Icon + Title + Amount
+        Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.18),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 12, color: color),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
                 item.title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              Text(
-                item.frequency.label,
-                style: const TextStyle(color: Colors.white38, fontSize: 10),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '${item.isIncome ? '+' : '-'}€ ${item.amount.toStringAsFixed(item.amount % 1 == 0 ? 0 : 2)}',
+              style: TextStyle(
+                color: item.isIncome ? AppTheme.success : Colors.white,
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(width: 6),
-        _buildCountdownChip(item),
-        const SizedBox(width: 8),
-        Text(
-          '${item.isIncome ? '+' : '-'}€ ${item.amount.toStringAsFixed(2)}',
-          style: TextStyle(
-            color: item.isIncome ? AppTheme.success : Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
+        const SizedBox(height: 3),
+        // Bottom line: Frequency label + Countdown Chip inline at the right
+        Row(
+          children: [
+            const SizedBox(width: 29), // Aligned with the title start
+            Expanded(
+              child: Text(
+                item.frequency.label,
+                style: const TextStyle(color: Colors.white38, fontSize: 9.5),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            _buildCountdownChip(item),
+          ],
         ),
       ],
     );

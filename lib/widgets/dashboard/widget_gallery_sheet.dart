@@ -177,7 +177,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     ),
     const WidgetMetadata(
       type: 'quick_transfer',
-      name: 'Giroconto Rapido',
+      name: 'Giroconto',
       description: 'Sposta denaro tra i tuoi conti personali con chip one-tap o importi rapidi.',
       category: WidgetCategory.finance,
       icon: Icons.swap_horiz_rounded,

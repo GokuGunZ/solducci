@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/models/wallet_transfer.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/wallet_transfer_service.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 
@@ -153,7 +153,7 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
       heroTag: widget.def.id,
       size: size,
       isLoading: _isLoading,
-      onTap: () => context.push('/economy/wallets'),
+      onTap: () => AppNavigationCoordinator().navigateToEconomy(context, section: 'wallets'),
       child: Padding(
         padding: isHeight1
             ? const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0)
@@ -446,7 +446,7 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'Giroconto Rapido',
+                  'Giroconto',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -500,11 +500,17 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
                         Text(
                           'DA: ${fromWallet.name}',
                           style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          '€ ${fromWallet.currentBalance.toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '€ ${fromWallet.currentBalance.toStringAsFixed(2)}',
+                            maxLines: 1,
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),
@@ -524,11 +530,17 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
                         Text(
                           'A: ${toWallet.name}',
                           style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          '€ ${toWallet.currentBalance.toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '€ ${toWallet.currentBalance.toStringAsFixed(2)}',
+                            maxLines: 1,
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),

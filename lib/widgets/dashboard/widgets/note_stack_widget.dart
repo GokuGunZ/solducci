@@ -994,131 +994,214 @@ class _NoteStackWidgetState extends State<NoteStackWidget> with SingleTickerProv
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                onHorizontalDragUpdate: _isEditingContent ? null : _onHorizontalDragUpdate,
+                onHorizontalDragEnd: _isEditingContent ? null : _onHorizontalDragEnd,
+                onVerticalDragUpdate: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragUpdate,
+                onVerticalDragEnd: (_isEditingContent || _canScrollCurrentNote) ? null : _onVerticalDragEnd,
                 onTap: _isEditingContent ? null : () => _startEditing(activeDoc),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF18181B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _isEditingContent
-                          ? const Color(0xFFF59E0B)
-                          : const Color(0xFFF59E0B).withOpacity(0.25),
-                      width: _isEditingContent ? 1.5 : 1,
+                child: Transform.translate(
+                  offset: Offset(_dragDx, _dragDy),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF18181D),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _isEditingContent
+                            ? const Color(0xFFF59E0B)
+                            : const Color(0xFFF59E0B).withOpacity(0.25),
+                        width: _isEditingContent ? 1.5 : 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header: Title and Action
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              activeDoc.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: _calculateAdaptiveTitleFontSize(activeDoc.title),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          if (_isEditingContent) ...[
-                            if (_isSavingContent)
-                              Container(
-                                width: 6,
-                                height: 6,
-                                margin: const EdgeInsets.only(right: 6),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF59E0B),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            InkWell(
-                              onTap: _exitEditMode,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withOpacity(0.18),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.check, color: Color(0xFF10B981), size: 11),
-                                    SizedBox(width: 2),
-                                    Text('Fatto', style: TextStyle(color: Color(0xFF10B981), fontSize: 9.5, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            InkWell(
-                              onTap: () => _openNoteFullScreen(activeDoc),
-                              borderRadius: BorderRadius.circular(6),
-                              child: const Padding(
-                                padding: EdgeInsets.all(2.0),
-                                child: Icon(Icons.open_in_new_rounded, size: 13, color: Colors.white38),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      // Scrollable Preview or Editable TextField
-                      Expanded(
-                        child: _isEditingContent
-                            ? TextField(
-                                controller: _editController,
-                                focusNode: _editFocusNode,
-                                maxLines: null,
-                                expands: true,
-                                cursorColor: const Color(0xFFF59E0B),
-                                style: const TextStyle(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header: Title and Action
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                activeDoc.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
-                                  height: 1.4,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: _calculateAdaptiveTitleFontSize(activeDoc.title),
                                 ),
-                                decoration: const InputDecoration(
-                                  hintText: 'Scrivi qui i tuoi appunti...',
-                                  hintStyle: TextStyle(color: Colors.white30, fontSize: 12),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                  isDense: true,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            if (_isEditingContent) ...[
+                              if (_isSavingContent)
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.only(right: 6),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFF59E0B),
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
-                                onChanged: (val) => _onInlineContentChanged(val, activeDoc),
-                              )
-                            : RawScrollbar(
-                                thumbColor: const Color(0xFFF59E0B).withOpacity(0.35),
-                                radius: const Radius.circular(3),
-                                thickness: 2.5,
-                                child: SingleChildScrollView(
-                                  physics: const ClampingScrollPhysics(),
-                                  child: Text(
-                                    previewText.isNotEmpty ? previewText : 'Nota vuota... Tocca per scrivere',
-                                    style: TextStyle(
+                              InkWell(
+                                onTap: _exitEditMode,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withOpacity(0.18),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check, color: Color(0xFF10B981), size: 11),
+                                      SizedBox(width: 2),
+                                      Text('Fatto', style: TextStyle(color: Color(0xFF10B981), fontSize: 9.5, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              InkWell(
+                                onTap: () => _openNoteFullScreen(activeDoc),
+                                borderRadius: BorderRadius.circular(6),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(2.0),
+                                  child: Icon(Icons.open_in_new_rounded, size: 13, color: Colors.white38),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // Scrollable Preview or Editable TextField
+                        Expanded(
+                          child: _isEditingContent
+                              ? TextField(
+                                  controller: _editController,
+                                  focusNode: _editFocusNode,
+                                  maxLines: null,
+                                  expands: true,
+                                  cursorColor: const Color(0xFFF59E0B),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    height: 1.4,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Scrivi qui i tuoi appunti...',
+                                    hintStyle: TextStyle(color: Colors.white30, fontSize: 12),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    isDense: true,
+                                  ),
+                                  onChanged: (val) => _onInlineContentChanged(val, activeDoc),
+                                )
+                              : LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final text = previewText.isNotEmpty ? previewText : 'Nota vuota... Tocca per scrivere';
+                                    final textStyle = TextStyle(
                                       color: previewText.isNotEmpty ? Colors.white70 : Colors.white30,
                                       fontStyle: previewText.isNotEmpty ? FontStyle.normal : FontStyle.italic,
                                       fontSize: 11.5,
                                       height: 1.4,
-                                    ),
-                                  ),
+                                    );
+
+                                    final span = TextSpan(text: text, style: textStyle);
+                                    final tp = TextPainter(
+                                      text: span,
+                                      textDirection: TextDirection.ltr,
+                                      maxLines: null,
+                                    )..layout(maxWidth: constraints.maxWidth);
+
+                                    final canScroll = tp.size.height > (constraints.maxHeight + 2);
+                                    if (canScroll != _canScrollCurrentNote) {
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted && canScroll != _canScrollCurrentNote) {
+                                          setState(() {
+                                            _canScrollCurrentNote = canScroll;
+                                          });
+                                        }
+                                      });
+                                    }
+
+                                    if (!canScroll) {
+                                      return Text(text, style: textStyle);
+                                    }
+
+                                    return NotificationListener<ScrollNotification>(
+                                      onNotification: (notification) {
+                                        if (_isEditingContent) return false;
+
+                                        if (notification is ScrollStartNotification) {
+                                          _overscrollDy = 0.0;
+                                        } else if (notification is OverscrollNotification) {
+                                          if (_notes.length <= 1) return false;
+                                          if (notification.overscroll > 0) {
+                                            _overscrollDy += notification.overscroll;
+                                            setState(() {
+                                              _dragDy = -(_overscrollDy * 0.6).clamp(0.0, 100.0);
+                                            });
+                                          } else if (notification.overscroll < 0) {
+                                            _overscrollDy += notification.overscroll;
+                                            setState(() {
+                                              _dragDy = -(_overscrollDy * 0.6).clamp(-100.0, 0.0);
+                                            });
+                                          }
+                                        } else if (notification is ScrollUpdateNotification) {
+                                          if (_overscrollDy != 0.0 && notification.scrollDelta != null) {
+                                            _overscrollDy += notification.scrollDelta!;
+                                            setState(() {
+                                              _dragDy = -(_overscrollDy * 0.6).clamp(-100.0, 100.0);
+                                            });
+                                          }
+                                        } else if (notification is ScrollEndNotification) {
+                                          if (_notes.length > 1) {
+                                            const threshold = 35.0;
+                                            if (_dragDy < -threshold) {
+                                              HapticFeedback.selectionClick();
+                                              _targetIndex = (_currentIndex + 1) % _notes.length;
+                                              _animateDismiss(toUp: true);
+                                            } else if (_dragDy > threshold) {
+                                              HapticFeedback.selectionClick();
+                                              _targetIndex = (_currentIndex - 1 + _notes.length) % _notes.length;
+                                              _animateDismiss(toDown: true);
+                                            } else if (_dragDy != 0.0) {
+                                              _animateBack();
+                                            }
+                                          } else if (_dragDy != 0.0) {
+                                            _animateBack();
+                                          }
+                                          _overscrollDy = 0.0;
+                                        }
+                                        return false;
+                                      },
+                                      child: RawScrollbar(
+                                        controller: _scrollController,
+                                        thumbColor: const Color(0xFFF59E0B).withOpacity(0.35),
+                                        radius: const Radius.circular(3),
+                                        thickness: 2.5,
+                                        child: SingleChildScrollView(
+                                          controller: _scrollController,
+                                          physics: const ClampingScrollPhysics(),
+                                          child: Text(text, style: textStyle),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                              ),
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

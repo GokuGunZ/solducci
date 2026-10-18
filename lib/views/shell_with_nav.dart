@@ -226,48 +226,56 @@ class ShellWithNavState extends State<ShellWithNav> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pages),
-      floatingActionButton: GestureDetector(
-        onPanStart: (details) {
-          _showOmniMenu(context);
-          _dragNotifier.value = details.globalPosition;
-        },
-        onPanUpdate: (details) {
-          _dragNotifier.value = details.globalPosition;
-        },
-        onPanEnd: (details) {
-          _dragNotifier.value = null;
-          _overlayKey.currentState?.executeHoveredAction();
-        },
-        child: FloatingActionButton(
-          key: _fabKey,
-          heroTag: 'shell_main_fab',
-          onPressed: () => _showOmniMenu(context),
-          backgroundColor: const Color(0xFF6366F1),
-          child: const Icon(Icons.add, size: 32, color: Colors.white),
-        )
-        .animate()
-        .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.8), curve: Curves.easeOutQuad)
-        .animate(onPlay: (controller) => controller.repeat(reverse: true))
-        .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.06, 1.06), duration: 2.seconds, curve: Curves.easeInOutSine),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        color: const Color(0xFF09090B),
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        height: 60,
-        padding: EdgeInsets.zero,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(0, Icons.home_filled, 'Feed'),
-            _buildNavItem(1, Icons.account_balance_wallet_rounded, 'Economia'),
-            const SizedBox(width: 48), // Spazio per il FAB centrale (perfettamente bilanciato)
-            _buildNavItem(2, Icons.bolt_rounded, 'Azione'),
-            _buildNavItem(3, Icons.inventory_2_rounded, 'Spazio'),
-          ],
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _selectedIndex != 0) {
+          onItemTapped(0);
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(index: _selectedIndex, children: _pages),
+        floatingActionButton: GestureDetector(
+          onPanStart: (details) {
+            _showOmniMenu(context);
+            _dragNotifier.value = details.globalPosition;
+          },
+          onPanUpdate: (details) {
+            _dragNotifier.value = details.globalPosition;
+          },
+          onPanEnd: (details) {
+            _dragNotifier.value = null;
+            _overlayKey.currentState?.executeHoveredAction();
+          },
+          child: FloatingActionButton(
+            key: _fabKey,
+            heroTag: 'shell_main_fab',
+            onPressed: () => _showOmniMenu(context),
+            backgroundColor: const Color(0xFF6366F1),
+            child: const Icon(Icons.add, size: 32, color: Colors.white),
+          )
+          .animate()
+          .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.8), curve: Curves.easeOutQuad)
+          .animate(onPlay: (controller) => controller.repeat(reverse: true))
+          .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.06, 1.06), duration: 2.seconds, curve: Curves.easeInOutSine),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: BottomAppBar(
+          color: const Color(0xFF09090B),
+          shape: const CircularNotchedRectangle(),
+          notchMargin: 8,
+          height: 60,
+          padding: EdgeInsets.zero,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(0, Icons.home_filled, 'Feed'),
+              _buildNavItem(1, Icons.account_balance_wallet_rounded, 'Economia'),
+              const SizedBox(width: 48), // Spazio per il FAB centrale (perfettamente bilanciato)
+              _buildNavItem(2, Icons.bolt_rounded, 'Azione'),
+              _buildNavItem(3, Icons.inventory_2_rounded, 'Spazio'),
+            ],
+          ),
         ),
       ),
     );

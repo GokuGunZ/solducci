@@ -219,23 +219,7 @@ class BentoWidgetConfigRegistry {
 
     try {
       final contextDocs = await DocumentService().getDocumentsForContext(context, 'shopping_list');
-      List<Document> userDocs = [];
-      try {
-        userDocs = await DocumentService().getDocumentsByType('shopping_list').first.timeout(
-          const Duration(milliseconds: 1500),
-          onTimeout: () => [],
-        );
-      } catch (_) {}
-
-      final Map<String, Document> uniqueDocs = {};
       for (final doc in contextDocs) {
-        uniqueDocs[doc.id] = doc;
-      }
-      for (final doc in userDocs) {
-        uniqueDocs[doc.id] = doc;
-      }
-
-      for (final doc in uniqueDocs.values) {
         String? docPreview;
         try {
           final res = await supabase

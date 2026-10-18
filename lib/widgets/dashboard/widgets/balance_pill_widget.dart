@@ -7,6 +7,7 @@ import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 import 'package:solducci/widgets/dashboard/bento_skeleton.dart';
 import 'package:solducci/widgets/dashboard/cache/bento_data_cache.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/service/context_manager.dart';
@@ -260,7 +261,7 @@ class _BalancePillWidgetState extends State<BalancePillWidget> {
       isStale: _isStale,
       onRetry: () => _loadBalance(currentContext),
       onTap: () {
-        GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
+        AppNavigationCoordinator().navigateToEconomy(context, section: 'wallets');
       },
       child: !hasValidAccounts && !_isLoading
           ? BentoEmptyState(

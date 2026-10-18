@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +8,7 @@ import 'package:solducci/features/csv_importer/views/widgets/category_picker_she
 import 'package:solducci/features/investments/views/investments_hub_view.dart';
 import 'package:solducci/features/wallets/views/wallets_management_view.dart';
 import 'package:solducci/models/expense.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
@@ -33,20 +35,98 @@ class EconomyHubView extends StatefulWidget {
 class _EconomyHubViewState extends State<EconomyHubView> {
   final _contextManager = ContextManager();
   final _expenseService = ExpenseServiceCached();
+  final ScrollController _scrollController = ScrollController();
   String? _selectedWalletId;
   Map<int, double> _cachedBalances = {};
+
+  // GlobalKeys for deep-scroll targets
+  final GlobalKey _heroKey = GlobalKey();
+  final GlobalKey _walletsKey = GlobalKey();
+  final GlobalKey _debtsKey = GlobalKey();
+  final GlobalKey _cashflowKey = GlobalKey();
+  final GlobalKey _investmentsKey = GlobalKey();
+  final GlobalKey _categoriesKey = GlobalKey();
+  final GlobalKey _recurringKey = GlobalKey();
+  final GlobalKey _expensesKey = GlobalKey();
+
+  String? _highlightedSection;
+  Timer? _highlightTimer;
 
   @override
   void initState() {
     super.initState();
     CsvStagingService().init();
     _contextManager.addListener(_onContextChanged);
+    AppNavigationCoordinator().economyTarget.addListener(_onEconomyTargetReceived);
   }
 
   @override
   void dispose() {
     _contextManager.removeListener(_onContextChanged);
+    AppNavigationCoordinator().economyTarget.removeListener(_onEconomyTargetReceived);
+    _highlightTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onEconomyTargetReceived() {
+    final target = AppNavigationCoordinator().economyTarget.value;
+    if (target == null) return;
+
+    GlobalKey? targetKey;
+    switch (target.section) {
+      case 'wallets':
+        targetKey = _contextManager.isGroupContext ? _heroKey : _walletsKey;
+        break;
+      case 'debts':
+        targetKey = _debtsKey;
+        break;
+      case 'categories':
+        targetKey = _categoriesKey;
+        break;
+      case 'recurring':
+        targetKey = _recurringKey;
+        break;
+      case 'cashflow':
+        targetKey = _cashflowKey;
+        break;
+      case 'investments':
+        targetKey = _investmentsKey;
+        break;
+      case 'expenses':
+        targetKey = _expensesKey;
+        break;
+      default:
+        targetKey = _heroKey;
+    }
+
+    setState(() {
+      _highlightedSection = target.section;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (!mounted) return;
+        final currentCtx = targetKey?.currentContext;
+        if (currentCtx != null && currentCtx.mounted) {
+          Scrollable.ensureVisible(
+            currentCtx,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOutCubic,
+            alignment: 0.15,
+          );
+        }
+      });
+    });
+
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (mounted) {
+        setState(() {
+          _highlightedSection = null;
+        });
+      }
+    });
   }
 
   void _onContextChanged() {
@@ -194,62 +274,71 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               ]);
             },
             child: ListView(
+              controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(bottom: 80),
               children: [
               // Banner Movimenti Ricorrenti in Sospeso
-              ValueListenableBuilder<int>(
-                valueListenable: RecurringTransactionService().pendingInboxCountNotifier,
-                builder: (context, pendingCount, _) {
-                  if (pendingCount == 0) return const SizedBox.shrink();
-                  return Container(
-                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.amber.withOpacity(0.35)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.mark_email_unread_rounded, color: Colors.amber, size: 20),
+              KeyedSubtree(
+                key: _recurringKey,
+                child: _NeonSectionWrapper(
+                  isHighlighted: _highlightedSection == 'recurring',
+                  glowColor: Colors.amber,
+                  borderRadius: BorderRadius.circular(20),
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: RecurringTransactionService().pendingInboxCountNotifier,
+                    builder: (context, pendingCount, _) {
+                      if (pendingCount == 0) return const SizedBox.shrink();
+                      return Container(
+                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.amber.withOpacity(0.35)),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$pendingCount ${pendingCount == 1 ? "movimento in scadenza" : "movimenti in scadenza"}',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.2),
+                                shape: BoxShape.circle,
                               ),
-                              const Text(
-                                'Verifica o modifica l\'importo prima di scalare',
-                                style: TextStyle(color: Colors.white70, fontSize: 11),
+                              child: const Icon(Icons.mark_email_unread_rounded, color: Colors.amber, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$pendingCount ${pendingCount == 1 ? "movimento in scadenza" : "movimenti in scadenza"}',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  const Text(
+                                    'Verifica o modifica l\'importo prima di scalare',
+                                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => RecurringInboxSheet.show(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Rivedi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            ),
+                          ],
                         ),
-                        ElevatedButton(
-                          onPressed: () => RecurringInboxSheet.show(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Rivedi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               ),
 
               // Banner Bozza CSV in Sospeso (reattivo)
@@ -311,13 +400,27 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               // HERO CARD PATRIMONIO
               // (Personale: verde classico | Gruppo: risaltato viola con badge 'PERSONALE')
               // ==========================================
-              CashflowHeroCard(isGroupContext: isGroupContext),
+              KeyedSubtree(
+                key: _heroKey,
+                child: _NeonSectionWrapper(
+                  isHighlighted: _highlightedSection == 'hero',
+                  glowColor: const Color(0xFF10B981),
+                  child: CashflowHeroCard(isGroupContext: isGroupContext),
+                ),
+              ),
 
               // ==========================================
               // SEZIONE SPECIFICA PER GRUPPO / VISTA: Debiti & Crediti
               // ==========================================
               if (isGroupContext) ...[
-                const GroupDebtsSection(),
+                KeyedSubtree(
+                  key: _debtsKey,
+                  child: _NeonSectionWrapper(
+                    isHighlighted: _highlightedSection == 'debts',
+                    glowColor: const Color(0xFF8B5CF6),
+                    child: const GroupDebtsSection(),
+                  ),
+                ),
                 const SizedBox(height: 12),
               ],
 
@@ -325,31 +428,43 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               // SEZIONE PORTAFOGLI (Solo in Personale)
               // ==========================================
               if (!isGroupContext) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'I MIEI PORTAFOGLI',
-                        style: TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.bold),
-                      ),
-                      InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (ctx) => const WalletsManagementView()),
-                          );
-                        },
-                        child: const Text('Gestisci', style: TextStyle(color: AppTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
+                KeyedSubtree(
+                  key: _walletsKey,
+                  child: _NeonSectionWrapper(
+                    isHighlighted: _highlightedSection == 'wallets',
+                    glowColor: const Color(0xFF10B981),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'I MIEI PORTAFOGLI',
+                                style: TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.bold),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (ctx) => const WalletsManagementView()),
+                                  );
+                                },
+                                child: const Text('Gestisci', style: TextStyle(color: AppTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        WalletsCarousel(
+                          selectedWalletId: _selectedWalletId,
+                          onWalletSelected: (id) => setState(() => _selectedWalletId = id),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                WalletsCarousel(
-                  selectedWalletId: _selectedWalletId,
-                  onWalletSelected: (id) => setState(() => _selectedWalletId = id),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -358,88 +473,116 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               // GRAFICO FLUSSO SPESE RECENTI
               // (Posizionato sotto i portafogli in Personale, o dopo i debiti in Gruppo)
               // ==========================================
-              RealCashflowTimelineGraph(expenses: expenses),
+              KeyedSubtree(
+                key: _cashflowKey,
+                child: _NeonSectionWrapper(
+                  isHighlighted: _highlightedSection == 'cashflow',
+                  glowColor: const Color(0xFF10B981),
+                  child: RealCashflowTimelineGraph(expenses: expenses),
+                ),
+              ),
               const SizedBox(height: 20),
 
               // ==========================================
               // I MIEI ASSET DI INVESTIMENTO (Solo in Personale)
               // ==========================================
               if (!isGroupContext) ...[
-                const InvestmentsCarousel(),
+                KeyedSubtree(
+                  key: _investmentsKey,
+                  child: _NeonSectionWrapper(
+                    isHighlighted: _highlightedSection == 'investments',
+                    glowColor: const Color(0xFF3B82F6),
+                    child: const InvestmentsCarousel(),
+                  ),
+                ),
                 const SizedBox(height: 20),
               ],
 
               // ==========================================
               // SPESE PER CATEGORIA (Deck esplorabile orizzontale)
               // ==========================================
-              CategoryBreakdownDeck(expenses: expenses),
+              KeyedSubtree(
+                key: _categoriesKey,
+                child: _NeonSectionWrapper(
+                  isHighlighted: _highlightedSection == 'categories',
+                  glowColor: const Color(0xFF10B981),
+                  child: CategoryBreakdownDeck(expenses: expenses),
+                ),
+              ),
               const SizedBox(height: 24),
 
               // ==========================================
               // SEZIONE TRANSAZIONI (Ultime 5 con "Visualizza tutte")
               // ==========================================
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+              KeyedSubtree(
+                key: _expensesKey,
+                child: _NeonSectionWrapper(
+                  isHighlighted: _highlightedSection == 'expenses',
+                  glowColor: isGroupContext ? const Color(0xFFA78BFA) : const Color(0xFF10B981),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          isGroupContext ? 'Transazioni Gruppo' : 'Transazioni',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        if (_selectedWalletId != null) ...[
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: () => setState(() => _selectedWalletId = null),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white10,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Text('Filtro attivo', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                                  SizedBox(width: 4),
-                                  Icon(Icons.close_rounded, size: 12, color: Colors.white70),
-                                ],
-                              ),
+                        Row(
+                          children: [
+                            Text(
+                              isGroupContext ? 'Transazioni Gruppo' : 'Transazioni',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
+                            if (_selectedWalletId != null) ...[
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () => setState(() => _selectedWalletId = null),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white10,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Text('Filtro attivo', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                      SizedBox(width: 4),
+                                      Icon(Icons.close_rounded, size: 12, color: Colors.white70),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        TextButton(
+                          onPressed: () => context.push('/expense_list'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Visualizza tutte',
+                                style: TextStyle(
+                                  color: isGroupContext ? const Color(0xFFA78BFA) : const Color(0xFF10B981),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 12,
+                                color: isGroupContext ? const Color(0xFFA78BFA) : const Color(0xFF10B981),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    TextButton(
-                      onPressed: () => context.push('/expense_list'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Visualizza tutte',
-                            style: TextStyle(
-                              color: isGroupContext ? const Color(0xFFA78BFA) : const Color(0xFF10B981),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 12,
-                            color: isGroupContext ? const Color(0xFFA78BFA) : const Color(0xFF10B981),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -692,6 +835,46 @@ class _EconomyHubViewState extends State<EconomyHubView> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _NeonSectionWrapper extends StatelessWidget {
+  final bool isHighlighted;
+  final Widget child;
+  final Color glowColor;
+  final BorderRadius? borderRadius;
+
+  const _NeonSectionWrapper({
+    required this.isHighlighted,
+    required this.child,
+    this.glowColor = const Color(0xFF10B981),
+    this.borderRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = borderRadius ?? BorderRadius.circular(20);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        border: Border.all(
+          color: isHighlighted ? glowColor : Colors.transparent,
+          width: isHighlighted ? 1.8 : 0.0,
+        ),
+        boxShadow: isHighlighted
+            ? [
+                BoxShadow(
+                  color: glowColor.withOpacity(0.4),
+                  blurRadius: 18,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
+      ),
+      child: child,
     );
   }
 }

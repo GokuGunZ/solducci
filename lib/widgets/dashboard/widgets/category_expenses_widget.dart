@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/dashboard_data.dart';
 import 'package:solducci/models/expense_form.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/views/category_expenses_page.dart';
@@ -129,11 +130,7 @@ class _CategoryExpensesWidgetState extends State<CategoryExpensesWidget> {
       size: size,
       skeletonType: BentoSkeletonType.list,
       isLoading: _isLoading && _categories.isEmpty,
-      onTap: () {
-        if (_categories.isNotEmpty) {
-          _openCategoryDetail(_categories.first.category);
-        }
-      },
+      onTap: () => AppNavigationCoordinator().navigateToEconomy(context, section: 'categories'),
       onRetry: _calculateCategories,
       child: _categories.isEmpty && !_isLoading
           ? BentoEmptyState(
@@ -628,44 +625,56 @@ class _CategoryExpensesWidgetState extends State<CategoryExpensesWidget> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.white.withOpacity(0.06)),
                   ),
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.18),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(icon, color: color, size: 14),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
+                      // Top line: Icon + Category Name + Amount
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(icon, color: color, size: 12),
+                          ),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
                               cat.category.label,
-                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                              style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              '${cat.count} ${cat.count == 1 ? "spesa" : "spese"} • ${cat.percentage.toStringAsFixed(1)}%',
-                              style: TextStyle(color: Colors.white.withOpacity(0.38), fontSize: 10),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '€${cat.total.toStringAsFixed(cat.total % 1 == 0 ? 0 : 2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '€${cat.total.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      const SizedBox(height: 3),
+                      // Bottom line: Subtitle with count and percentage
+                      Row(
+                        children: [
+                          const SizedBox(width: 29),
+                          Expanded(
+                            child: Text(
+                              '${cat.count} ${cat.count == 1 ? "spesa" : "spese"} • ${cat.percentage.toStringAsFixed(1)}%',
+                              style: TextStyle(color: Colors.white.withOpacity(0.38), fontSize: 9.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 2),
-                      const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 16),
                     ],
                   ),
                 ),

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/dashboard_data.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/widgets/dashboard/bento_empty_state.dart';
@@ -142,7 +142,7 @@ class _PeerDebtsWidgetState extends State<PeerDebtsWidget> {
     final is2x1 = widget.def.size.crossAxisCellCount >= 2 && widget.def.size.mainAxisCellCount <= 1;
 
     void navigateToDebts() {
-      GoRouter.of(context).push('/economy', extra: {'heroTag': widget.def.id});
+      AppNavigationCoordinator().navigateToEconomy(context, section: 'debts');
     }
 
     // Se siamo nel contesto personale, il widget non è applicabile

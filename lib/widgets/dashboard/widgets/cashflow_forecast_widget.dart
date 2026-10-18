@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/models/recurring_transaction.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/service/recurring_transaction_service.dart';
 import 'package:solducci/service/wallet_service.dart';
+import 'package:solducci/service/app_navigation_coordinator.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
 
@@ -121,7 +121,7 @@ class _CashflowForecastWidgetState extends State<CashflowForecastWidget> {
       heroTag: widget.def.id,
       size: size,
       isLoading: _isLoading,
-      onTap: () => context.push('/economy/recurring'),
+      onTap: () => AppNavigationCoordinator().navigateToEconomy(context, section: 'recurring'),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: isPanoramic

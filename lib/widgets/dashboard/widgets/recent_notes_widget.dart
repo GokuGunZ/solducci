@@ -31,6 +31,7 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
   NoteFolder _selectedFolder = NoteFolder.all;
   Map<String, String> _previews = {};
   bool _isLoading = true;
+  bool _isFoldersSidebarOpen = true;
   ExpenseContext? _lastContext;
 
   final TextEditingController _quickTitleController = TextEditingController();
@@ -624,101 +625,126 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Colonna 1: Cartelle
-                SizedBox(
-                  width: 135,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'CARTELLE',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                          InkWell(
-                            onTap: _showCreateFolderDialog,
-                            child: const Padding(
-                              padding: EdgeInsets.all(2.0),
-                              child: Icon(Icons.add, color: Color(0xFFF59E0B), size: 14),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: folders.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 2),
-                          itemBuilder: (context, i) {
-                            final folder = folders[i];
-                            final isSelected = folder.effectivePath == _selectedFolder.effectivePath ||
-                                (folder.isSpecialAll && _selectedFolder.isSpecialAll);
-
-                            return InkWell(
-                              onTap: () => setState(() => _selectedFolder = folder),
-                              onLongPress: () => _showFolderOptionsModal(folder),
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFFF59E0B).withOpacity(0.18) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: isSelected ? const Color(0xFFF59E0B).withOpacity(0.4) : Colors.transparent,
-                                    width: 0.8,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      folder.icon,
-                                      size: 13,
-                                      color: isSelected ? const Color(0xFFF59E0B) : Colors.white60,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        folder.name,
+                // Colonna 1: Cartelle (animata/collassabile)
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeInOutCubic,
+                  child: _isFoldersSidebarOpen
+                      ? SizedBox(
+                          width: 135,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        'CARTELLE',
                                         style: TextStyle(
-                                          color: isSelected ? Colors.white : Colors.white70,
-                                          fontSize: 11.5,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          color: Colors.white54,
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.8,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                    if (folder.notesCount > 0)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      InkWell(
+                                        onTap: _showCreateFolderDialog,
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(2.0),
+                                          child: Icon(Icons.add, color: Color(0xFFF59E0B), size: 14),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      InkWell(
+                                        onTap: () => setState(() => _isFoldersSidebarOpen = false),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(2.0),
+                                          child: Icon(Icons.keyboard_double_arrow_left_rounded, color: Colors.white38, size: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Expanded(
+                                child: ListView.separated(
+                                  itemCount: folders.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 2),
+                                  itemBuilder: (context, i) {
+                                    final folder = folders[i];
+                                    final isSelected = folder.effectivePath == _selectedFolder.effectivePath ||
+                                        (folder.isSpecialAll && _selectedFolder.isSpecialAll);
+
+                                    return InkWell(
+                                      onTap: () => setState(() => _selectedFolder = folder),
+                                      onLongPress: () => _showFolderOptionsModal(folder),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.08),
-                                          borderRadius: BorderRadius.circular(6),
+                                          color: isSelected ? const Color(0xFFF59E0B).withOpacity(0.18) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isSelected ? const Color(0xFFF59E0B).withOpacity(0.4) : Colors.transparent,
+                                            width: 0.8,
+                                          ),
                                         ),
-                                        child: Text(
-                                          '${folder.notesCount}',
-                                          style: const TextStyle(color: Colors.white60, fontSize: 9),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              folder.icon,
+                                              size: 13,
+                                              color: isSelected ? const Color(0xFFF59E0B) : Colors.white60,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                folder.name,
+                                                style: TextStyle(
+                                                  color: isSelected ? Colors.white : Colors.white70,
+                                                  fontSize: 11.5,
+                                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (folder.notesCount > 0)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white.withOpacity(0.08),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  '${folder.notesCount}',
+                                                  style: const TextStyle(color: Colors.white60, fontSize: 9),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                  ],
+                                    );
+                                  },
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
 
-                const VerticalDivider(color: Colors.white12, width: 16, thickness: 0.8),
+                if (_isFoldersSidebarOpen)
+                  const VerticalDivider(color: Colors.white12, width: 16, thickness: 0.8),
 
                 // Colonna 2: Note nella cartella selezionata
                 Expanded(
@@ -939,11 +965,53 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white10, width: 0.8),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Row(
         children: [
-          const Icon(Icons.edit_note_rounded, color: Color(0xFFF59E0B), size: 15),
-          const SizedBox(width: 6),
+          // Se la sidebar cartelle è chiusa, l'item della cartella selezionata va in cima qui
+          if (!_isFoldersSidebarOpen) ...[
+            InkWell(
+              onTap: () => setState(() => _isFoldersSidebarOpen = true),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withOpacity(0.4),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_selectedFolder.icon, size: 12, color: const Color(0xFFF59E0B)),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 85),
+                      child: Text(
+                        _selectedFolder.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    const Icon(Icons.menu_open_rounded, size: 12, color: Color(0xFFF59E0B)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ] else ...[
+            const Icon(Icons.edit_note_rounded, color: Color(0xFFF59E0B), size: 15),
+            const SizedBox(width: 6),
+          ],
           Expanded(
             child: TextField(
               controller: _quickTitleController,
@@ -980,6 +1048,10 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
 
     return GestureDetector(
       onTap: () => context.push('/space/notes/${doc.id}'),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        _showNoteOptionsModal(doc);
+      },
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -1033,14 +1105,16 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
                 ],
               ),
             ),
-            GestureDetector(
-              onTap: () => _showNoteOptionsModal(doc),
-              behavior: HitTestBehavior.opaque,
-              child: const Padding(
-                padding: EdgeInsets.all(4.0),
-                child: Icon(Icons.more_vert_rounded, color: Colors.white38, size: 14),
+            // Solo quando la tab cartelle è chiusa mostriamo i tre puntini, per risparmiare spazio quando è aperta
+            if (!_isFoldersSidebarOpen)
+              GestureDetector(
+                onTap: () => _showNoteOptionsModal(doc),
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: Icon(Icons.more_vert_rounded, color: Colors.white38, size: 14),
+                ),
               ),
-            ),
           ],
         ),
       ),
