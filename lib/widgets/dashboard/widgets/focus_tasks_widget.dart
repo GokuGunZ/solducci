@@ -11,6 +11,7 @@ import 'package:solducci/service/task_service.dart';
 import 'package:solducci/service/document_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:solducci/widgets/dashboard/base_list_widget.dart';
 
@@ -92,6 +93,177 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
   }
 
   final Set<String> _completingTaskIds = {};
+  final Set<String> _collapsedTaskIds = {};
+
+  bool _isTaskExpanded(Task task) {
+    if (!task.hasSubtasks) return false;
+    return !_collapsedTaskIds.contains(task.id);
+  }
+
+  void _toggleTaskExpanded(String taskId) {
+    setState(() {
+      if (_collapsedTaskIds.contains(taskId)) {
+        _collapsedTaskIds.remove(taskId);
+      } else {
+        _collapsedTaskIds.add(taskId);
+      }
+    });
+  }
+
+  Future<void> _toggleTask(Task task) async {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _completingTaskIds.add(task.id);
+    });
+
+    try {
+      if (task.status == TaskStatus.completed) {
+        await TaskService().uncompleteTask(task.id);
+      } else {
+        // Complete any incomplete subtasks first to avoid validation errors
+        if (task.subtasks != null && task.subtasks!.isNotEmpty) {
+          final incompleteSubs = task.subtasks!.where((s) => s.status != TaskStatus.completed).toList();
+          for (final sub in incompleteSubs) {
+            setState(() => _completingTaskIds.add(sub.id));
+            try {
+              await TaskService().completeTask(sub.id);
+            } catch (_) {}
+          }
+        }
+        await TaskService().completeTask(task.id);
+      }
+    } catch (e) {
+      debugPrint('Error toggling task completion: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _completingTaskIds.remove(task.id);
+          if (task.subtasks != null) {
+            for (final sub in task.subtasks!) {
+              _completingTaskIds.remove(sub.id);
+            }
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleSubtask(Task subtask, Task parentTask) async {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _completingTaskIds.add(subtask.id);
+    });
+
+    try {
+      if (subtask.status == TaskStatus.completed) {
+        await TaskService().uncompleteTask(subtask.id);
+      } else {
+        await TaskService().completeTask(subtask.id);
+      }
+    } catch (e) {
+      debugPrint('Error toggling subtask completion: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _completingTaskIds.remove(subtask.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _showAddSubtaskDialog(BuildContext context, Task parentTask) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.white12),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.add_task_rounded, color: Color(0xFF818CF8), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Nuovo Sotto-Elemento',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Aggiungi a: ${parentTask.title}',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Nome del sotto-elemento...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.06),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF818CF8)),
+                  ),
+                ),
+                onSubmitted: (val) {
+                  Navigator.of(ctx).pop(val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Aggiungi', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && result.trim().isNotEmpty) {
+      final subTitle = result.trim();
+      try {
+        final newSubtask = Task.create(
+          documentId: parentTask.documentId,
+          parentTaskId: parentTask.id,
+          title: subTitle,
+        );
+        await TaskService().createTask(newSubtask);
+        if (mounted) {
+          setState(() {
+            _collapsedTaskIds.remove(parentTask.id);
+          });
+        }
+      } catch (e) {
+        debugPrint('Error creating subtask: $e');
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -191,12 +363,19 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
     ];
 
     for (final doc in uniqueDocs.values) {
+      final isGroupDoc = doc.groupId != null;
+      final displayTitle = isGroupDoc &&
+              (doc.title.toLowerCase() == 'my tasks' ||
+                  doc.title.toLowerCase() == 'le mie task')
+          ? 'Task di Gruppo'
+          : doc.title;
+
       allSources.add(_TaskFilterSource(
         id: doc.id,
-        title: doc.title,
+        title: displayTitle,
         type: 'document',
-        icon: Icons.checklist_rounded,
-        color: const Color(0xFF6366F1),
+        icon: isGroupDoc ? Icons.group_rounded : Icons.checklist_rounded,
+        color: isGroupDoc ? const Color(0xFF10B981) : const Color(0xFF6366F1),
       ));
     }
 
@@ -242,41 +421,43 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
         final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
         final allTasks = snapshot.data ?? [];
 
-        List<Task> flattenTasks(List<Task> tasks) {
-          List<Task> flat = [];
-          for (var task in tasks) {
-            flat.add(task);
-            if (task.subtasks != null) {
-              flat.addAll(flattenTasks(task.subtasks!));
-            }
-          }
-          return flat;
-        }
-
-        final flatTasks = flattenTasks(allTasks);
+        final currentUserId = Supabase.instance.client.auth.currentUser?.id;
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
 
-        var displayTasks = flatTasks.where((task) {
+        bool isDueTodayOrOverdue(DateTime? date) {
+          if (date == null) return false;
+          final local = date.toLocal();
+          final day = DateTime(local.year, local.month, local.day);
+          return day.isBefore(today) || day.isAtSameMomentAs(today);
+        }
+
+        bool isTaskMatchingFocus(Task task) {
           if (task.status == TaskStatus.completed) return false;
+          // Filter out tasks assigned to someone else
+          if (task.assignedTo != null && currentUserId != null && task.assignedTo != currentUserId) {
+            return false;
+          }
+          final isUrgentOrHigh = task.priority == TaskPriority.urgent || task.priority == TaskPriority.high;
+          final isDue = isDueTodayOrOverdue(task.dueDate);
+          return isUrgentOrHigh || isDue;
+        }
 
+        var displayTasks = allTasks.where((task) {
           if (activeSource.type == 'document') {
-            return task.documentId == activeSource.id;
-          }
-
-          // Default: Focus Oggi (urgent or due today)
-          bool isUrgentOrHigh = task.priority == TaskPriority.urgent || task.priority == TaskPriority.high;
-          bool isDueTodayOrOverdue = false;
-
-          if (task.dueDate != null) {
-            final dueDate = task.dueDate!.toLocal();
-            final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
-            if (dueDay.isBefore(today) || dueDay.isAtSameMomentAs(today)) {
-              isDueTodayOrOverdue = true;
+            if (task.documentId != activeSource.id) return false;
+            // If the root task is completed and all its subtasks (if any) are completed, filter it out
+            if (task.status == TaskStatus.completed) {
+              final hasActiveSub = task.subtasks?.any((s) => s.status != TaskStatus.completed) ?? false;
+              if (!hasActiveSub) return false;
             }
+            return true;
           }
 
-          return isUrgentOrHigh || isDueTodayOrOverdue;
+          // Focus Oggi (urgent or due today)
+          final selfMatches = isTaskMatchingFocus(task);
+          final subMatches = task.subtasks?.any((s) => isTaskMatchingFocus(s)) ?? false;
+          return selfMatches || subMatches;
         }).toList();
 
         displayTasks.sort((a, b) {
@@ -290,7 +471,6 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
           if (b.dueDate != null) return 1;
           return 0;
         });
-
 
         return BaseListWidget<Task>(
           heroTag: widget.def.id,
@@ -386,70 +566,238 @@ class _FocusTasksWidgetState extends State<FocusTasksWidget> {
           ),
           itemBuilder: (context, task, index) {
             final isCompleting = _completingTaskIds.contains(task.id);
+            final isParentCompleted = task.status == TaskStatus.completed;
+            final isDone = isCompleting || isParentCompleted;
+            final hasSubtasks = task.hasSubtasks;
+            final isExpanded = _isTaskExpanded(task);
 
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () async {
-                HapticFeedback.mediumImpact();
-                setState(() {
-                  _completingTaskIds.add(task.id);
-                });
-                try {
-                  await TaskService().completeTask(task.id);
-                } catch (e) {
-                  debugPrint('Error completing task: $e');
-                  if (mounted) {
-                    setState(() {
-                      _completingTaskIds.remove(task.id);
-                    });
-                  }
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isCompleting ? activeSource.color : Colors.transparent,
-                        border: Border.all(
-                          color: isCompleting ? activeSource.color : Colors.white54,
-                          width: 1.5,
+            final subtasks = task.subtasks ?? [];
+            final completedSubCount = subtasks.where((s) => s.status == TaskStatus.completed).length;
+            final totalSubCount = subtasks.length;
+            final allSubsCompleted = totalSubCount > 0 && completedSubCount == totalSubCount;
+
+            final isAssignedToOther = task.assignedTo != null &&
+                currentUserId != null &&
+                task.assignedTo != currentUserId;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      // Checkbox
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _toggleTask(task),
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDone ? activeSource.color : Colors.transparent,
+                            border: Border.all(
+                              color: isDone ? activeSource.color : Colors.white54,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: isDone
+                              ? const Icon(Icons.check, size: 13, color: Colors.black)
+                              : null,
                         ),
                       ),
-                      child: isCompleting
-                          ? const Icon(Icons.check, size: 13, color: Colors.black)
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        task.title,
-                        style: TextStyle(
-                          color: isCompleting ? Colors.white38 : Colors.white,
-                          decoration: isCompleting ? TextDecoration.lineThrough : null,
-                          fontSize: 13,
-                          fontFamily: 'Inter',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (task.priority != null)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: task.priority!.color,
-                          shape: BoxShape.circle,
+                      const SizedBox(width: 8),
+
+                      // Title
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: hasSubtasks ? () => _toggleTaskExpanded(task.id) : () => _toggleTask(task),
+                          child: Text(
+                            task.title,
+                            style: TextStyle(
+                              color: isDone ? Colors.white38 : Colors.white,
+                              decoration: isDone ? TextDecoration.lineThrough : null,
+                              fontSize: 13,
+                              fontWeight: hasSubtasks ? FontWeight.w600 : FontWeight.normal,
+                              fontFamily: 'Inter',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-                  ],
+
+                      // Assigned to someone else indicator
+                      if (isAssignedToOther) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(Icons.person_outline, size: 11, color: Colors.white60),
+                        ),
+                      ],
+
+                      // Priority Dot
+                      if (task.priority != null) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: task.priority!.color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+
+                      // Subtasks Pill / Counter
+                      if (hasSubtasks) ...[
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _toggleTaskExpanded(task.id),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: allSubsCompleted
+                                  ? const Color(0xFF10B981).withOpacity(0.18)
+                                  : activeSource.color.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: allSubsCompleted
+                                    ? const Color(0xFF10B981).withOpacity(0.4)
+                                    : activeSource.color.withOpacity(0.3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '$completedSubCount/$totalSubCount',
+                                  style: TextStyle(
+                                    color: allSubsCompleted ? const Color(0xFF34D399) : activeSource.color,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(
+                                  isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                                  size: 13,
+                                  color: allSubsCompleted ? const Color(0xFF34D399) : activeSource.color,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // Add Subtask button (+)
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _showAddSubtaskDialog(context, task),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.add, size: 13, color: Colors.white54),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+
+                // Subtasks section (if expanded)
+                if (hasSubtasks && isExpanded)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20.0, top: 2.0, bottom: 4.0),
+                    child: Column(
+                      children: subtasks.map((sub) {
+                        final isSubCompleting = _completingTaskIds.contains(sub.id);
+                        final isSubDone = isSubCompleting || sub.status == TaskStatus.completed;
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2.5),
+                          child: Row(
+                            children: [
+                              // Guide line / connector icon
+                              const Icon(
+                                Icons.subdirectory_arrow_right_rounded,
+                                size: 13,
+                                color: Colors.white24,
+                              ),
+                              const SizedBox(width: 6),
+
+                              // Subtask Checkbox
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => _toggleSubtask(sub, task),
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSubDone ? activeSource.color.withOpacity(0.8) : Colors.transparent,
+                                    border: Border.all(
+                                      color: isSubDone ? activeSource.color : Colors.white38,
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: isSubDone
+                                      ? const Icon(Icons.check, size: 10, color: Colors.black)
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+
+                              // Subtask Title
+                              Expanded(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => _toggleSubtask(sub, task),
+                                  child: Text(
+                                    sub.title,
+                                    style: TextStyle(
+                                      color: isSubDone ? Colors.white30 : Colors.white70,
+                                      decoration: isSubDone ? TextDecoration.lineThrough : null,
+                                      fontSize: 12,
+                                      fontFamily: 'Inter',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+
+                              // Subtask priority dot
+                              if (sub.priority != null) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: sub.priority!.color,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
             );
           },
         );

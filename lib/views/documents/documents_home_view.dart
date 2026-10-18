@@ -180,8 +180,8 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
       final doc = TodoDocument.create(
         userId: targetUserId,
         groupId: targetGroupId,
-        title: 'My Tasks',
-        description: 'Default todo list',
+        title: targetGroupId != null ? 'Task di Gruppo' : 'Le mie task',
+        description: targetGroupId != null ? 'Attività condivise del gruppo' : 'Default todo list',
       );
 
       final created = await _documentService.createDocument(doc);
@@ -251,15 +251,17 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: StreamBuilder<List<TodoDocument>>(
-        stream: _documentService.getTodoDocumentsStream(),
+        stream: _documentService
+            .watchDocumentsForContext(ContextManager().currentContext, 'todo')
+            .map((docs) => docs.cast<TodoDocument>()),
         builder: (context, docSnapshot) {
           // Loading
-          if (docSnapshot.connectionState == ConnectionState.waiting) {
+          if (docSnapshot.connectionState == ConnectionState.waiting && _currentDocument == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
           // Error
-          if (docSnapshot.hasError) {
+          if (docSnapshot.hasError && _currentDocument == null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -272,8 +274,13 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
             );
           }
 
-          // No documents
-          final documents = docSnapshot.data ?? [];
+          // Get documents and ensure _currentDocument is included even if cross-context
+          final rawDocuments = docSnapshot.data ?? [];
+          final documents = List<TodoDocument>.from(rawDocuments);
+          if (_currentDocument != null && !documents.any((d) => d.id == _currentDocument!.id)) {
+            documents.insert(0, _currentDocument!);
+          }
+
           if (documents.isEmpty) {
             return _buildWelcomeScreen();
           }
@@ -971,6 +978,7 @@ class _DocumentsHomeViewState extends State<DocumentsHomeView> {
       String? targetUserId = currentContext.isPersonal ? Supabase.instance.client.auth.currentUser?.id : null;
 
       if (currentContext.isView) {
+        if (!mounted) return;
         final choice = await ViewGroupPickerSheet.show(
           context,
           title: 'Nuova Lista',

@@ -185,14 +185,20 @@ class BentoWidgetConfigRegistry {
           }
         } catch (_) {}
 
+        final isGroupDoc = doc.groupId != null;
+        final displayTitle = isGroupDoc && (doc.title.toLowerCase() == 'my tasks' || doc.title.toLowerCase() == 'le mie task')
+            ? 'Task di Gruppo'
+            : doc.title;
+
         options.add(BentoConfigOption(
           id: 'doc_${doc.id}',
-          title: doc.title,
-          subtitle: 'Elenco task',
-          icon: Icons.checklist_rounded,
-          color: const Color(0xFF6366F1),
+          title: displayTitle,
+          subtitle: isGroupDoc ? 'Lista condivisa di gruppo' : 'Elenco task personale',
+          badge: isGroupDoc ? 'Gruppo' : null,
+          icon: isGroupDoc ? Icons.group_rounded : Icons.checklist_rounded,
+          color: isGroupDoc ? const Color(0xFF10B981) : const Color(0xFF6366F1),
           preview: docPreview,
-          props: {'source': 'document', 'documentId': doc.id, 'title': doc.title},
+          props: {'source': 'document', 'documentId': doc.id, 'title': displayTitle},
         ));
       }
     } catch (_) {}
