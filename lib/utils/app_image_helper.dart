@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -45,7 +46,7 @@ class AppImageHelper {
     String title = 'Foto profilo',
     String? currentUrl,
   }) async {
-    return showModalBottomSheet<String>(
+    final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
@@ -118,13 +119,7 @@ class AppImageHelper {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  final pickedUrl = await _pickAndProcessImage(context);
-                  if (pickedUrl != null && context.mounted) {
-                    Navigator.of(context).maybePop(pickedUrl);
-                  }
-                },
+                onTap: () => Navigator.pop(sheetContext, 'gallery'),
               ),
               const SizedBox(height: 8),
               // Option 2: Enter Web URL
@@ -155,13 +150,7 @@ class AppImageHelper {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  final url = await _showUrlInputDialog(context, currentUrl: currentUrl);
-                  if (url != null && context.mounted) {
-                    Navigator.of(context).maybePop(url);
-                  }
-                },
+                onTap: () => Navigator.pop(sheetContext, 'url'),
               ),
               if (hasExisting) ...[
                 const SizedBox(height: 8),
@@ -189,9 +178,7 @@ class AppImageHelper {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  onTap: () {
-                    Navigator.pop(sheetContext, '');
-                  },
+                  onTap: () => Navigator.pop(sheetContext, 'remove'),
                 ),
               ],
             ],
@@ -199,6 +186,38 @@ class AppImageHelper {
         );
       },
     );
+
+    if (!context.mounted) return null;
+
+    if (action == 'gallery') {
+      return await _pickAndProcessImage(context);
+    } else if (action == 'url') {
+      return await _showUrlInputDialog(context, currentUrl: currentUrl);
+    } else if (action == 'remove') {
+      return '';
+    }
+    return null;
+  }
+
+  /// Downscales image to square avatar size (default 280x280) so it's super lightweight (~30-60KB).
+  static Future<Uint8List> _resizeAvatarImage(
+    Uint8List inputBytes, {
+    int targetDimension = 280,
+  }) async {
+    try {
+      final codec = await ui.instantiateImageCodec(
+        inputBytes,
+        targetWidth: targetDimension,
+      );
+      final frame = await codec.getNextFrame();
+      final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        return byteData.buffer.asUint8List();
+      }
+    } catch (e) {
+      debugPrint('Error downscaling avatar image: $e');
+    }
+    return inputBytes;
   }
 
   /// Picks an image file using FilePicker, verifies size, and either uploads to
@@ -235,35 +254,20 @@ class AppImageHelper {
         return null;
       }
 
-      // Check max size (limit to 1.5MB for base64 storage in database)
-      if (bytes.lengthInBytes > 1500 * 1024) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('L\'immagine è troppo pesante. Scegli un file inferiore a 1.5MB.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return null;
-      }
-
-      final ext = file.extension?.toLowerCase() ?? 'png';
-      final mimeType = (ext == 'jpg' || ext == 'jpeg')
-          ? 'image/jpeg'
-          : (ext == 'webp' ? 'image/webp' : 'image/png');
+      // Automatically downscale to avatar resolution (~280x280) to avoid bloat
+      final processedBytes = await _resizeAvatarImage(bytes, targetDimension: 280);
 
       // Attempt Supabase storage upload first if bucket exists
       try {
         final supabase = Supabase.instance.client;
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final safeName = file.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-        final remotePath = 'avatars/${timestamp}_$safeName';
+        final remotePath = 'avatars/${timestamp}_$safeName.png';
 
         await supabase.storage.from('avatars').uploadBinary(
           remotePath,
-          bytes,
-          fileOptions: FileOptions(contentType: mimeType, upsert: true),
+          processedBytes,
+          fileOptions: const FileOptions(contentType: 'image/png', upsert: true),
         );
 
         final publicUrl = supabase.storage.from('avatars').getPublicUrl(remotePath);
@@ -274,9 +278,9 @@ class AppImageHelper {
         debugPrint('Supabase storage upload bypassed/failed: $storageError. Using data URI fallback.');
       }
 
-      // Fallback: direct base64 data URI
-      final base64String = base64Encode(bytes);
-      return 'data:$mimeType;base64,$base64String';
+      // Fallback: direct base64 data URI with lightweight processed bytes
+      final base64String = base64Encode(processedBytes);
+      return 'data:image/png;base64,$base64String';
     } catch (e) {
       debugPrint('Error picking avatar image: $e');
       if (context.mounted) {
