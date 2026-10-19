@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:solducci/features/csv_importer/views/merchant_rules_manager_view.dart';
 import 'package:solducci/utils/app_image_helper.dart';
+import 'package:solducci/widgets/common/app_image_viewer.dart';
 
 /// Profile page with user info, settings, and links to additional features
 class ProfilePage extends StatefulWidget {
@@ -176,13 +177,26 @@ class _ProfilePageState extends State<ProfilePage> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          // Avatar with edit badge
-                          GestureDetector(
-                            onTap: _updateAvatar,
-                            child: Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                CircleAvatar(
+                          // Avatar with edit badge & fullscreen view
+                          Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  if (_userProfile?.avatarUrl != null &&
+                                      _userProfile!.avatarUrl!.trim().isNotEmpty) {
+                                    AppImageViewer.show(
+                                      context,
+                                      imageUrl: _userProfile!.avatarUrl!,
+                                      title: _userProfile?.nickname ?? 'Il tuo profilo',
+                                      subtitle: 'Foto profilo',
+                                      onEdit: _updateAvatar,
+                                    );
+                                  } else {
+                                    _updateAvatar();
+                                  }
+                                },
+                                child: CircleAvatar(
                                   radius: 50,
                                   backgroundColor: const Color(0xFFA855F7).withOpacity(0.2),
                                   backgroundImage: AppImageHelper.getImageProvider(
@@ -200,7 +214,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                         )
                                       : null,
                                 ),
-                                Container(
+                              ),
+                              GestureDetector(
+                                onTap: _updateAvatar,
+                                child: Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF10B981),
@@ -216,8 +233,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                     color: Colors.black,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           // Nickname with edit button

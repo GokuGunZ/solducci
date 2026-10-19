@@ -686,7 +686,15 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
                                         (folder.isSpecialAll && _selectedFolder.isSpecialAll);
 
                                     return InkWell(
-                                      onTap: () => setState(() => _selectedFolder = folder),
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        setState(() {
+                                          _selectedFolder = folder;
+                                          if (widget.def.size.crossAxisCellCount <= 2) {
+                                            _isFoldersSidebarOpen = false;
+                                          }
+                                        });
+                                      },
                                       onLongPress: () => _showFolderOptionsModal(folder),
                                       borderRadius: BorderRadius.circular(8),
                                       child: Container(
@@ -855,14 +863,7 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.white12),
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add, size: 12, color: Color(0xFFF59E0B)),
-                            SizedBox(width: 3),
-                            Text('Cartella', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 10, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                        child: const Icon(Icons.create_new_folder_outlined, size: 14, color: Color(0xFFF59E0B)),
                       ),
                     );
                   }
@@ -936,20 +937,14 @@ class _RecentNotesWidgetState extends State<RecentNotesWidget> {
           children: [
             InkWell(
               onTap: _showCreateFolderDialog,
+              borderRadius: BorderRadius.circular(6),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.06),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.create_new_folder_outlined, color: Color(0xFFF59E0B), size: 12),
-                    SizedBox(width: 3),
-                    Text('+ Cartella', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 9.5, fontWeight: FontWeight.bold)),
-                  ],
-                ),
+                child: const Icon(Icons.create_new_folder_outlined, color: Color(0xFFF59E0B), size: 13),
               ),
             ),
           ],

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:solducci/service/context_manager.dart';
 
+import 'package:solducci/utils/app_image_helper.dart';
+
 /// Page per creare un nuovo gruppo
 class CreateGroupPage extends StatefulWidget {
   const CreateGroupPage({super.key});
@@ -16,6 +18,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  String? _imageUrl;
   bool _isLoading = false;
 
   @override
@@ -23,6 +26,19 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickGroupImage() async {
+    final url = await AppImageHelper.showAvatarPickerDialog(
+      context,
+      title: 'Immagine Gruppo',
+      currentUrl: _imageUrl,
+    );
+    if (url != null && mounted) {
+      setState(() {
+        _imageUrl = url.isEmpty ? null : url;
+      });
+    }
   }
 
   Future<void> _createGroup() async {
@@ -39,6 +55,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
+        imageUrl: _imageUrl,
       );
 
       if (group != null && mounted) {
@@ -87,20 +104,77 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Header icon
+            // Header interactive avatar picker
             Center(
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.group_add,
-                  size: 50,
-                  color: Colors.green,
-                ),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: _pickGroupImage,
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF10B981).withOpacity(0.4),
+                              width: 2,
+                            ),
+                            image: _imageUrl != null
+                                ? DecorationImage(
+                                    image: AppImageHelper.getImageProvider(_imageUrl)!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: _imageUrl == null
+                              ? const Icon(
+                                  Icons.group_add,
+                                  size: 46,
+                                  color: Colors.green,
+                                )
+                              : null,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF18181D),
+                              width: 2.5,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _pickGroupImage,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      _imageUrl == null ? 'Aggiungi foto del gruppo' : 'Modifica foto del gruppo',
+                      style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 

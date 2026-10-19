@@ -28,9 +28,15 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
   bool _isLoading = true;
   bool _isTransferring = false;
 
-  int _fromIndex = 0;
-  int _toIndex = 1;
+  int _wallet1Index = 0; // Left wallet
+  int _wallet2Index = 1; // Right wallet
+  double _arrowTurns = 0.0;
   double _selectedAmount = 50.0;
+  double? _customAmount;
+
+  bool get _isReversed => (_arrowTurns % 1.0) != 0.0;
+  Wallet get _fromWallet => _isReversed ? _wallets[_wallet2Index] : _wallets[_wallet1Index];
+  Wallet get _toWallet => _isReversed ? _wallets[_wallet1Index] : _wallets[_wallet2Index];
 
   @override
   void initState() {
@@ -66,9 +72,9 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
 
   void _ensureValidIndices() {
     if (_wallets.length >= 2) {
-      if (_fromIndex >= _wallets.length) _fromIndex = 0;
-      if (_toIndex >= _wallets.length || _toIndex == _fromIndex) {
-        _toIndex = (_fromIndex + 1) % _wallets.length;
+      if (_wallet1Index >= _wallets.length) _wallet1Index = 0;
+      if (_wallet2Index >= _wallets.length || _wallet2Index == _wallet1Index) {
+        _wallet2Index = (_wallet1Index + 1) % _wallets.length;
       }
     }
   }
@@ -76,17 +82,311 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
   void _swapWallets() {
     HapticFeedback.selectionClick();
     setState(() {
-      final temp = _fromIndex;
-      _fromIndex = _toIndex;
-      _toIndex = temp;
+      _arrowTurns += 0.5;
     });
+  }
+
+  void _selectWallet({required bool isLeft}) {
+    HapticFeedback.selectionClick();
+    if (_wallets.length < 2) return;
+
+    final targetIndex = isLeft ? _wallet1Index : _wallet2Index;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.65,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: const BoxDecoration(
+            color: Color(0xFF18181D),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(
+              top: BorderSide(color: Colors.white12, width: 1),
+              left: BorderSide(color: Colors.white12, width: 1),
+              right: BorderSide(color: Colors.white12, width: 1),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isLeft ? 'Seleziona conto di sinistra' : 'Seleziona conto di destra',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _wallets.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, idx) {
+                      final wallet = _wallets[idx];
+                      final isCurrent = idx == targetIndex;
+                      final isOther = isLeft ? (idx == _wallet2Index) : (idx == _wallet1Index);
+
+                      return InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            if (isOther) {
+                              // If they tap the one currently in the other slot, swap positions
+                              final temp = _wallet1Index;
+                              _wallet1Index = _wallet2Index;
+                              _wallet2Index = temp;
+                            } else {
+                              if (isLeft) {
+                                _wallet1Index = idx;
+                              } else {
+                                _wallet2Index = idx;
+                              }
+                            }
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isCurrent
+                                ? const Color(0xFF06B6D4).withOpacity(0.15)
+                                : const Color(0xFF27272A).withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isCurrent ? const Color(0xFF06B6D4) : Colors.white.withOpacity(0.06),
+                              width: isCurrent ? 1.4 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: wallet.color.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(wallet.type.icon, size: 18, color: wallet.color),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      wallet.name,
+                                      style: TextStyle(
+                                        color: isCurrent ? Colors.white : Colors.white.withOpacity(0.9),
+                                        fontSize: 14,
+                                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '€ ${wallet.currentBalance.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        color: isCurrent ? const Color(0xFF22D3EE) : Colors.white60,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isCurrent)
+                                const Icon(Icons.check_circle_rounded, color: Color(0xFF06B6D4), size: 20)
+                              else if (isOther)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'Inverti',
+                                    style: TextStyle(color: Colors.white54, fontSize: 11),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCustomAmountDialog() {
+    HapticFeedback.selectionClick();
+    final controller = TextEditingController(
+      text: _customAmount != null ? (_customAmount! % 1 == 0 ? _customAmount!.toInt().toString() : _customAmount!.toStringAsFixed(2)) : '',
+    );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF18181D),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border(
+                top: BorderSide(color: Colors.white12, width: 1),
+                left: BorderSide(color: Colors.white12, width: 1),
+                right: BorderSide(color: Colors.white12, width: 1),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Importo personalizzato',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Inserisci la cifra da trasferire',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 18),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    decoration: InputDecoration(
+                      prefixText: '€ ',
+                      prefixStyle: const TextStyle(
+                        color: Color(0xFF22D3EE),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      hintText: '0',
+                      hintStyle: const TextStyle(color: Colors.white24),
+                      filled: true,
+                      fillColor: const Color(0xFF27272A).withOpacity(0.6),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Colors.white12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFF06B6D4), width: 1.6),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final val = double.tryParse(controller.text.replaceAll(',', '.').trim());
+                        if (val != null && val > 0) {
+                          HapticFeedback.lightImpact();
+                          setState(() {
+                            _customAmount = val;
+                            _selectedAmount = val;
+                          });
+                          Navigator.pop(ctx);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF06B6D4),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Conferma importo',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _executeTransfer(double amount) async {
     if (_wallets.length < 2 || _isTransferring) return;
 
-    final fromWallet = _wallets[_fromIndex];
-    final toWallet = _wallets[_toIndex];
+    final fromWallet = _fromWallet;
+    final toWallet = _toWallet;
 
     HapticFeedback.lightImpact();
     setState(() => _isTransferring = true);
@@ -99,12 +399,13 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
         toWalletId: toWallet.id,
         amount: amount,
         date: DateTime.now(),
-        notes: 'Giroconto Rapido Bento',
+        notes: 'Giroconto Bento',
       );
 
       await _transferService.createTransfer(newTrf);
 
       if (mounted) {
+        final amountText = amount % 1 == 0 ? amount.toInt().toString() : amount.toStringAsFixed(2);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -113,13 +414,13 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Spostati € ${amount.toStringAsFixed(0)} da ${fromWallet.name} a ${toWallet.name}',
+                    'Spostati € $amountText da ${fromWallet.name} a ${toWallet.name}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
             ),
-            backgroundColor: const Color(0xFF18181B),
+            backgroundColor: const Color(0xFF18181D),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -193,8 +494,8 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
 
   // Taglia 2x1 (Altezza 1, Mini-Banner Azione Puntiforme)
   Widget _buildMiniBanner() {
-    final fromWallet = _wallets[_fromIndex];
-    final toWallet = _wallets[_toIndex];
+    final fromWallet = _fromWallet;
+    final toWallet = _toWallet;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -202,13 +503,22 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF06B6D4).withOpacity(0.18),
-                shape: BoxShape.circle,
+            InkWell(
+              onTap: _swapWallets,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF06B6D4).withOpacity(0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: AnimatedRotation(
+                  turns: _arrowTurns,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeInOutCubic,
+                  child: const Icon(Icons.arrow_forward_rounded, size: 13, color: Color(0xFF22D3EE)),
+                ),
               ),
-              child: const Icon(Icons.swap_horiz_rounded, size: 13, color: Color(0xFF22D3EE)),
             ),
             const SizedBox(width: 8),
             Text(
@@ -240,7 +550,7 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
                     child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF22D3EE)),
                   )
                 : Text(
-                    'Sposta €${_selectedAmount.toStringAsFixed(0)}',
+                    'Sposta €${_selectedAmount % 1 == 0 ? _selectedAmount.toInt() : _selectedAmount.toStringAsFixed(1)}',
                     style: const TextStyle(
                       color: Color(0xFF22D3EE),
                       fontSize: 10,
@@ -255,8 +565,9 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
 
   // Taglia 2x2 (Altezza 2, Bottone Arricchito con Contorno Attivo)
   Widget _buildCompactView() {
-    final fromWallet = _wallets[_fromIndex];
-    final toWallet = _wallets[_toIndex];
+    final walletA = _wallets[_wallet1Index];
+    final walletB = _wallets[_wallet2Index];
+    final isSourceA = !_isReversed;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,47 +575,22 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
       children: [
         // Header
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF06B6D4).withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.swap_horiz_rounded, size: 14, color: Color(0xFF22D3EE)),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'Giroconto',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF06B6D4).withOpacity(0.18),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.swap_horiz_rounded, size: 14, color: Color(0xFF22D3EE)),
             ),
-            InkWell(
-              onTap: _swapWallets,
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.sync_alt_rounded, size: 11, color: Colors.white60),
-                    SizedBox(width: 3),
-                    Text('Inverti', style: TextStyle(color: Colors.white60, fontSize: 9.5)),
-                  ],
-                ),
+            const SizedBox(width: 6),
+            const Text(
+              'Giroconto',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -312,7 +598,7 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
 
         // Accounts overview
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: const Color(0xFF27272A).withOpacity(0.5),
             borderRadius: BorderRadius.circular(8),
@@ -321,37 +607,97 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Left wallet
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      fromWallet.name,
-                      style: const TextStyle(color: Colors.white70, fontSize: 10.5, fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
+                child: InkWell(
+                  onTap: () => _selectWallet(isLeft: true),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          walletA.name,
+                          style: TextStyle(
+                            color: isSourceA ? Colors.white : Colors.white70,
+                            fontSize: 10.5,
+                            fontWeight: isSourceA ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          '€ ${walletA.currentBalance.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: isSourceA ? const Color(0xFF22D3EE) : Colors.white,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '€ ${fromWallet.currentBalance.toStringAsFixed(0)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF22D3EE)),
+
+              // Interactive rotating arrow button
+              InkWell(
+                onTap: _swapWallets,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06B6D4).withOpacity(0.18),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF06B6D4).withOpacity(0.4),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: AnimatedRotation(
+                    turns: _arrowTurns,
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeInOutCubic,
+                    child: const Icon(Icons.arrow_forward_rounded, size: 13, color: Color(0xFF22D3EE)),
+                  ),
+                ),
+              ),
+
+              // Right wallet
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      toWallet.name,
-                      style: const TextStyle(color: Colors.white70, fontSize: 10.5, fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
+                child: InkWell(
+                  onTap: () => _selectWallet(isLeft: false),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          walletB.name,
+                          style: TextStyle(
+                            color: !isSourceA ? Colors.white : Colors.white70,
+                            fontSize: 10.5,
+                            fontWeight: !isSourceA ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          '€ ${walletB.currentBalance.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: !isSourceA ? const Color(0xFF22D3EE) : Colors.white,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '€ ${toWallet.currentBalance.toStringAsFixed(0)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -420,59 +766,33 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
     );
   }
 
-  // Taglia 2x3 (Altezza 3, Due Livelli a Confronto)
+  // Taglia 2x3 (Altezza 3)
   Widget _buildExpandedView() {
-    final fromWallet = _wallets[_fromIndex];
-    final toWallet = _wallets[_toIndex];
-    final total = fromWallet.currentBalance + toWallet.currentBalance;
-    final shareA = total > 0 ? (fromWallet.currentBalance / total).clamp(0.0, 1.0) : 0.5;
+    final walletA = _wallets[_wallet1Index];
+    final walletB = _wallets[_wallet2Index];
+    final isSourceA = !_isReversed;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF06B6D4).withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF22D3EE)),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Giroconto',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF06B6D4).withOpacity(0.18),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF22D3EE)),
             ),
-            InkWell(
-              onTap: _swapWallets,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.sync_alt_rounded, size: 12, color: Colors.white70),
-                    SizedBox(width: 4),
-                    Text('Inverti', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                  ],
-                ),
+            const SizedBox(width: 8),
+            const Text(
+              'Giroconto',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -480,88 +800,142 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
 
         const SizedBox(height: 10),
 
-        // Livello 1: Conti & Bilanciamento Liquidità
+        // Conti overview (senza Da/A e senza barra colorata per ottimizzare lo spazio)
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: const Color(0xFF27272A).withOpacity(0.55),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.white.withOpacity(0.06)),
           ),
-          child: Column(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
+              // Wallet A (Sinistra)
+              Expanded(
+                child: InkWell(
+                  onTap: () => _selectWallet(isLeft: true),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'DA: ${fromWallet.name}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                walletA.name,
+                                style: TextStyle(
+                                  color: isSourceA ? Colors.white : Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: isSourceA ? FontWeight.w600 : FontWeight.w500,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.arrow_drop_down_rounded, size: 14, color: Colors.white38),
+                          ],
                         ),
+                        const SizedBox(height: 2),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            '€ ${fromWallet.currentBalance.toStringAsFixed(2)}',
+                            '€ ${walletA.currentBalance.toStringAsFixed(2)}',
                             maxLines: 1,
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: isSourceA ? const Color(0xFF22D3EE) : Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF06B6D4).withOpacity(0.15),
-                      shape: BoxShape.circle,
+                ),
+              ),
+
+              // Bottone interattivo freccia che ruota su se stesso
+              InkWell(
+                onTap: _swapWallets,
+                borderRadius: BorderRadius.circular(20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06B6D4).withOpacity(0.18),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF06B6D4).withOpacity(0.4),
+                      width: 1,
                     ),
-                    child: const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF22D3EE)),
                   ),
-                  Expanded(
+                  child: AnimatedRotation(
+                    turns: _arrowTurns,
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeInOutCubic,
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 15,
+                      color: Color(0xFF22D3EE),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Wallet B (Destra)
+              Expanded(
+                child: InkWell(
+                  onTap: () => _selectWallet(isLeft: false),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          'A: ${toWallet.name}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            const Icon(Icons.arrow_drop_down_rounded, size: 14, color: Colors.white38),
+                            const SizedBox(width: 2),
+                            Flexible(
+                              child: Text(
+                                walletB.name,
+                                style: TextStyle(
+                                  color: !isSourceA ? Colors.white : Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: !isSourceA ? FontWeight.w600 : FontWeight.w500,
+                                ),
+                                maxLines: 2,
+                                textAlign: TextAlign.end,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 2),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
                           child: Text(
-                            '€ ${toWallet.currentBalance.toStringAsFixed(2)}',
+                            '€ ${walletB.currentBalance.toStringAsFixed(2)}',
                             maxLines: 1,
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: !isSourceA ? const Color(0xFF22D3EE) : Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Split bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: (shareA * 100).toInt(),
-                      child: Container(height: 4, color: const Color(0xFF06B6D4)),
-                    ),
-                    Expanded(
-                      flex: ((1 - shareA) * 100).toInt(),
-                      child: Container(height: 4, color: const Color(0xFF8B5CF6)),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -570,46 +944,50 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
 
         const SizedBox(height: 10),
 
-        // Livello 2: Selettore importo + Bottone di trasferimento
+        // Selettore importo: 10, 25, 50 + chip "__" personalizzabile
         Row(
-          children: [10.0, 25.0, 50.0, 100.0].map((amt) {
-            final isSel = _selectedAmount == amt;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2.5),
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _selectedAmount = amt);
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSel ? const Color(0xFF06B6D4).withOpacity(0.25) : Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSel ? const Color(0xFF06B6D4) : Colors.white12,
-                        width: isSel ? 1.4 : 0.8,
+          children: [
+            ...[10.0, 25.0, 50.0].map((amt) {
+              final isSel = _selectedAmount == amt;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedAmount = amt);
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSel ? const Color(0xFF06B6D4).withOpacity(0.25) : Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSel ? const Color(0xFF06B6D4) : Colors.white12,
+                          width: isSel ? 1.4 : 0.8,
+                        ),
                       ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '€${amt.toInt()}',
-                      style: TextStyle(
-                        color: isSel ? const Color(0xFF22D3EE) : Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '€${amt.toInt()}',
+                        style: TextStyle(
+                          color: isSel ? const Color(0xFF22D3EE) : Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }),
+            _buildCustomAmountChip(),
+          ],
         ),
 
         const Spacer(),
+        const SizedBox(height: 8),
 
         // Action button
         GestureDetector(
@@ -645,7 +1023,7 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
                       const Icon(Icons.swap_horiz_rounded, size: 16, color: Colors.black),
                       const SizedBox(width: 6),
                       Text(
-                        'Trasferisci € ${_selectedAmount.toStringAsFixed(0)}',
+                        'Trasferisci € ${_selectedAmount % 1 == 0 ? _selectedAmount.toInt() : _selectedAmount.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Colors.black,
                           fontSize: 12.5,
@@ -657,6 +1035,52 @@ class _QuickTransferWidgetState extends State<QuickTransferWidget> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCustomAmountChip() {
+    final isCustomSel = _selectedAmount == _customAmount && _customAmount != null;
+    final customLabel = _customAmount != null
+        ? '€${_customAmount! % 1 == 0 ? _customAmount!.toInt() : _customAmount!.toStringAsFixed(1)}'
+        : '__';
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2.5),
+        child: InkWell(
+          onTap: () {
+            if (_customAmount == null || isCustomSel) {
+              _showCustomAmountDialog();
+            } else {
+              HapticFeedback.selectionClick();
+              setState(() => _selectedAmount = _customAmount!);
+            }
+          },
+          onLongPress: _showCustomAmountDialog,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: isCustomSel ? const Color(0xFF06B6D4).withOpacity(0.25) : Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isCustomSel ? const Color(0xFF06B6D4) : Colors.white12,
+                width: isCustomSel ? 1.4 : 0.8,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              customLabel,
+              style: TextStyle(
+                color: isCustomSel ? const Color(0xFF22D3EE) : (_customAmount != null ? Colors.white70 : Colors.white38),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: _customAmount == null ? 1.5 : 0,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

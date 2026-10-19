@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:solducci/widgets/common/avatar_crop_preview_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Helper for avatar and image operations across Solducci.
@@ -11,6 +13,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Supports:
 /// - Parsing both HTTP/HTTPS network URLs and base64 data URIs (MemoryImage)
 /// - Picking images via FilePicker (works on mobile, web, and desktop)
+/// - Interactive crop, zoom, pan, and preview before saving
+/// - Automatic downscaling and compression to optimal avatar size (~280x280, <50KB)
 /// - Uploading to Supabase Storage with graceful fallback to base64 data URI
 /// - Modern modal sheet for choosing between gallery, web URL, or removing image
 class AppImageHelper {
@@ -39,7 +43,7 @@ class AppImageHelper {
     return NetworkImage(trimmed);
   }
 
-  /// Displays the avatar picker sheet/dialog.
+  /// Displays the avatar picker sheet/dialog with preview & crop capabilities.
   /// Returns the new image URL (or data URI), '' to remove, or null if cancelled.
   static Future<String?> showAvatarPickerDialog(
     BuildContext context, {
@@ -113,7 +117,7 @@ class AppImageHelper {
                   ),
                 ),
                 subtitle: const Text(
-                  'Carica un\'immagine dal dispositivo',
+                  'Carica, ritaglia e ridimensiona un\'immagine',
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 shape: RoundedRectangleBorder(
@@ -190,9 +194,9 @@ class AppImageHelper {
     if (!context.mounted) return null;
 
     if (action == 'gallery') {
-      return await _pickAndProcessImage(context);
+      return await _pickAndProcessImage(context, title: title);
     } else if (action == 'url') {
-      return await _showUrlInputDialog(context, currentUrl: currentUrl);
+      return await _showUrlInputDialog(context, title: title, currentUrl: currentUrl);
     } else if (action == 'remove') {
       return '';
     }
@@ -220,9 +224,43 @@ class AppImageHelper {
     return inputBytes;
   }
 
-  /// Picks an image file using FilePicker, verifies size, and either uploads to
-  /// Supabase Storage or falls back to an encoded base64 data URI.
-  static Future<String?> _pickAndProcessImage(BuildContext context) async {
+  /// Uploads processed image bytes to Supabase storage or converts to base64 data URI.
+  static Future<String?> _saveAvatarBytes(Uint8List bytes, {String nameHint = 'avatar'}) async {
+    // Ensure it's cleanly resized
+    final processedBytes = await _resizeAvatarImage(bytes, targetDimension: 280);
+
+    // Attempt Supabase storage upload first if bucket exists
+    try {
+      final supabase = Supabase.instance.client;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final safeName = nameHint.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final remotePath = 'avatars/${timestamp}_$safeName.png';
+
+      await supabase.storage.from('avatars').uploadBinary(
+        remotePath,
+        processedBytes,
+        fileOptions: const FileOptions(contentType: 'image/png', upsert: true),
+      );
+
+      final publicUrl = supabase.storage.from('avatars').getPublicUrl(remotePath);
+      if (publicUrl.isNotEmpty) {
+        return publicUrl;
+      }
+    } catch (storageError) {
+      debugPrint('Supabase storage upload bypassed/failed: $storageError. Using data URI fallback.');
+    }
+
+    // Fallback: direct base64 data URI with lightweight processed bytes
+    final base64String = base64Encode(processedBytes);
+    return 'data:image/png;base64,$base64String';
+  }
+
+  /// Picks an image file using FilePicker, launches the crop & preview dialog,
+  /// and saves the resulting image to storage/data URI.
+  static Future<String?> _pickAndProcessImage(
+    BuildContext context, {
+    String title = 'Ritaglia foto profilo',
+  }) async {
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.image,
@@ -235,17 +273,17 @@ class AppImageHelper {
       }
 
       final file = result.files.single;
-      Uint8List? bytes = file.bytes;
+      Uint8List? rawBytes = file.bytes;
       final filePath = file.path;
 
-      if (bytes == null && filePath != null && !kIsWeb) {
+      if (rawBytes == null && filePath != null && !kIsWeb) {
         final localFile = File(filePath);
         if (localFile.existsSync()) {
-          bytes = localFile.readAsBytesSync();
+          rawBytes = localFile.readAsBytesSync();
         }
       }
 
-      if (bytes == null || bytes.isEmpty) {
+      if (rawBytes == null || rawBytes.isEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Impossibile leggere il file selezionato')),
@@ -254,33 +292,21 @@ class AppImageHelper {
         return null;
       }
 
-      // Automatically downscale to avatar resolution (~280x280) to avoid bloat
-      final processedBytes = await _resizeAvatarImage(bytes, targetDimension: 280);
+      if (!context.mounted) return null;
 
-      // Attempt Supabase storage upload first if bucket exists
-      try {
-        final supabase = Supabase.instance.client;
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final safeName = file.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-        final remotePath = 'avatars/${timestamp}_$safeName.png';
+      // Launch Interactive Crop & Preview modal
+      final croppedBytes = await AvatarCropPreviewDialog.show(
+        context,
+        imageBytes: rawBytes,
+        title: title,
+      );
 
-        await supabase.storage.from('avatars').uploadBinary(
-          remotePath,
-          processedBytes,
-          fileOptions: const FileOptions(contentType: 'image/png', upsert: true),
-        );
-
-        final publicUrl = supabase.storage.from('avatars').getPublicUrl(remotePath);
-        if (publicUrl.isNotEmpty) {
-          return publicUrl;
-        }
-      } catch (storageError) {
-        debugPrint('Supabase storage upload bypassed/failed: $storageError. Using data URI fallback.');
+      if (croppedBytes == null) {
+        // User cancelled crop
+        return null;
       }
 
-      // Fallback: direct base64 data URI with lightweight processed bytes
-      final base64String = base64Encode(processedBytes);
-      return 'data:image/png;base64,$base64String';
+      return await _saveAvatarBytes(croppedBytes, nameHint: file.name);
     } catch (e) {
       debugPrint('Error picking avatar image: $e');
       if (context.mounted) {
@@ -292,14 +318,15 @@ class AppImageHelper {
     }
   }
 
-  /// Dialog to enter an image URL directly
+  /// Dialog to enter an image URL directly with crop & preview support
   static Future<String?> _showUrlInputDialog(
     BuildContext context, {
+    String title = 'Ritaglia foto',
     String? currentUrl,
   }) async {
     final controller = TextEditingController(text: currentUrl ?? '');
 
-    return showDialog<String>(
+    final url = await showDialog<String>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: const Color(0xFF18181D),
@@ -352,12 +379,40 @@ class AppImageHelper {
               foregroundColor: Colors.black,
             ),
             child: const Text(
-              'Conferma',
+              'Avanti',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
       ),
     );
+
+    if (url == null || url.trim().isEmpty || !context.mounted) {
+      return null;
+    }
+
+    // Try downloading the URL to allow the user to crop & preview it!
+    try {
+      final response = await http.get(Uri.parse(url.trim())).timeout(
+        const Duration(seconds: 8),
+      );
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty && context.mounted) {
+        final croppedBytes = await AvatarCropPreviewDialog.show(
+          context,
+          imageBytes: response.bodyBytes,
+          title: title,
+        );
+
+        if (croppedBytes != null) {
+          return await _saveAvatarBytes(croppedBytes, nameHint: 'url_avatar');
+        }
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Could not download image from URL for cropping ($e), fallback to raw URL');
+    }
+
+    // If download/crop failed or was bypassed, return raw URL
+    return url.trim();
   }
 }

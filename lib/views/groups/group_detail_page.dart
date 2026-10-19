@@ -5,6 +5,7 @@ import 'package:solducci/models/group.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/utils/app_image_helper.dart';
+import 'package:solducci/widgets/common/app_image_viewer.dart';
 import 'package:solducci/widgets/group_mosaic_avatar.dart';
 
 /// Page che mostra i dettagli di un gruppo
@@ -276,7 +277,19 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                       alignment: Alignment.bottomRight,
                       children: [
                         GestureDetector(
-                          onTap: _isAdmin ? _updateGroupImage : null,
+                          onTap: () {
+                            if (_group?.imageUrl != null && _group!.imageUrl!.trim().isNotEmpty) {
+                              AppImageViewer.show(
+                                context,
+                                imageUrl: _group!.imageUrl!,
+                                title: _group!.name,
+                                subtitle: 'Immagine del gruppo',
+                                onEdit: _isAdmin ? _updateGroupImage : null,
+                              );
+                            } else if (_isAdmin) {
+                              _updateGroupImage();
+                            }
+                          },
                           child: GroupMosaicAvatar(
                             group: _group!,
                             radius: 44,
@@ -339,14 +352,27 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                 elevation: 2,
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.purple[200],
-                    child: Text(
-                      (member.nickname ?? 'U')[0].toUpperCase(),
-                      style: TextStyle(
-                        color: Colors.purple[700],
-                        fontWeight: FontWeight.bold,
-                      ),
+                  leading: GestureDetector(
+                    onTap: member.avatarUrl != null && member.avatarUrl!.isNotEmpty
+                        ? () => AppImageViewer.show(
+                            context,
+                            imageUrl: member.avatarUrl!,
+                            title: member.nickname ?? 'Membro',
+                            subtitle: member.role == GroupRole.admin ? 'Amministratore' : 'Membro',
+                          )
+                        : null,
+                    child: CircleAvatar(
+                      backgroundColor: Colors.purple.withOpacity(0.2),
+                      backgroundImage: AppImageHelper.getImageProvider(member.avatarUrl),
+                      child: member.avatarUrl == null || member.avatarUrl!.isEmpty
+                          ? Text(
+                              (member.nickname ?? 'U')[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Color(0xFFC084FC),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
                   title: Text(member.nickname ?? 'Unknown'),

@@ -85,6 +85,7 @@ class GroupService {
   Future<ExpenseGroup?> createGroup({
     required String name,
     String? description,
+    String? imageUrl,
   }) async {
     try {
       final userId = _supabase.auth.currentUser?.id;
@@ -92,14 +93,17 @@ class GroupService {
         throw Exception('No authenticated user');
       }
 
+      final insertData = {
+        'name': name,
+        'description': description,
+        'created_by': userId,
+        if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+      };
+
       // Insert group
       final groupResponse = await _supabase
           .from('groups')
-          .insert({
-            'name': name,
-            'description': description,
-            'created_by': userId,
-          })
+          .insert(insertData)
           .select()
           .single();
 

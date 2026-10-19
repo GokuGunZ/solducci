@@ -179,13 +179,35 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
             ],
           ],
         ),
-        Text(
-          '€ ${monthlyExpenses.toStringAsFixed(0)}/m',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '€ ${monthlyExpenses.toStringAsFixed(0)}/m',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 6),
+            InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                RecurringFormSheet.show(context);
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.35)),
+                ),
+                child: const Icon(Icons.add_rounded, size: 12, color: Color(0xFFA78BFA)),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -255,13 +277,35 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
                 ],
               ],
             ),
-            Text(
-              '€ ${monthlyExpenses.toStringAsFixed(0)}/m',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '€ ${monthlyExpenses.toStringAsFixed(0)}/m',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    RecurringFormSheet.show(context);
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.35)),
+                    ),
+                    child: const Icon(Icons.add_rounded, size: 13, color: Color(0xFFA78BFA)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -347,35 +391,56 @@ class _RecurringMovementsWidgetState extends State<RecurringMovementsWidget> {
                 ),
               ],
             ),
-            if (pendingCount > 0)
-              GestureDetector(
-                onTap: () => RecurringInboxSheet.show(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppTheme.warning.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.warning.withOpacity(0.4)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.inbox_rounded, size: 12, color: AppTheme.warning),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$pendingCount da confermare',
-                        style: const TextStyle(
-                          color: AppTheme.warning,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (pendingCount > 0) ...[
+                  GestureDetector(
+                    onTap: () => RecurringInboxSheet.show(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warning.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.warning.withOpacity(0.4)),
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.inbox_rounded, size: 12, color: AppTheme.warning),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$pendingCount da confermare',
+                            style: const TextStyle(
+                              color: AppTheme.warning,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    RecurringFormSheet.show(context);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.35)),
+                    ),
+                    child: const Icon(Icons.add_rounded, size: 16, color: Color(0xFFA78BFA)),
                   ),
                 ),
-              )
-            else
-              const Icon(Icons.chevron_right_rounded, size: 18, color: Colors.white38),
+              ],
+            ),
           ],
         ),
 

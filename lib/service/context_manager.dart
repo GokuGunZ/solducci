@@ -306,11 +306,13 @@ class ContextManager extends ChangeNotifier {
   Future<ExpenseGroup?> createAndSwitchToGroup({
     required String name,
     String? description,
+    String? imageUrl,
   }) async {
     try {
       final group = await _groupService.createGroup(
         name: name,
         description: description,
+        imageUrl: imageUrl,
       );
 
       if (group != null) {
