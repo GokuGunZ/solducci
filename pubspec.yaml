@@ -1,7 +1,7 @@
 name: solducci
 description: "Empower your finance tracking with solducci."
 publish_to: "none"
-version: 1.04.00+1
+version: 1.05.00+1
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -55,6 +55,7 @@ dev_dependencies:
 
   # Testing
   mockito: ^5.4.4
+  mocktail: ^1.0.4
   build_runner: ^2.4.13
   hive_generator: ^2.0.1
   bloc_test: ^9.1.7
