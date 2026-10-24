@@ -7,6 +7,8 @@ import 'package:solducci/features/life_os/domain/repositories/repositories.dart'
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
+import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -52,14 +54,32 @@ class _LifeOsCaptureWidgetState extends State<LifeOsCaptureWidget> {
 
     try {
       final repository = getIt<LifeEntityRepository>();
-      String? userId;
+      final currentContext = DashboardContextScope.of(context);
+
+      String? targetGroupId = currentContext.groupId;
+      String? targetUserId;
       try {
-        userId = Supabase.instance.client.auth.currentUser?.id;
+        targetUserId = Supabase.instance.client.auth.currentUser?.id;
       } catch (_) {}
+
+      if (currentContext.isView) {
+        if (!mounted) return;
+        final choice = await ViewGroupPickerSheet.show(
+          context,
+          title: 'Life OS',
+          subtitle: 'Scegli in quale contesto salvare questo seme',
+        );
+        if (choice == null) {
+          setState(() => _isSaving = false);
+          return;
+        }
+        targetGroupId = choice.groupId;
+      }
 
       final newSeed = LifeEntity(
         id: _uuid.v4(),
-        userId: userId,
+        userId: targetUserId,
+        groupId: targetGroupId,
         title: text,
         semanticRole: SemanticRole.seed,
         lifecycleState: LifecycleState.active,

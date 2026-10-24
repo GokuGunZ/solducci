@@ -29,6 +29,12 @@ class _LifeOsPinnedEntityWidgetState extends State<LifeOsPinnedEntityWidget> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadEntity();
+  }
+
+  @override
   void didUpdateWidget(covariant LifeOsPinnedEntityWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.def.customProps?['entity_id'] != widget.def.customProps?['entity_id']) {

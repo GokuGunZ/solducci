@@ -53,13 +53,18 @@ class LifeEntityMapper {
     final currentModeStr = lifeOsMeta['current_mode'] as String?;
     final lastActivityStr = lifeOsMeta['last_meaningful_activity_at'] as String?;
 
+    // Parse properties with deterministic deduplication policy (last-write-wins by semantic key)
     final propertiesRaw = lifeOsMeta['properties'] as List?;
-    final properties = propertiesRaw != null
-        ? propertiesRaw
-            .whereType<Map>()
-            .map((p) => EntityProperty.fromJson(Map<String, dynamic>.from(p)))
-            .toList()
-        : const <EntityProperty>[];
+    final Map<String, EntityProperty> dedupedProperties = {};
+    if (propertiesRaw != null) {
+      for (final item in propertiesRaw.whereType<Map>()) {
+        final prop = EntityProperty.fromJson(Map<String, dynamic>.from(item));
+        if (prop.key.isNotEmpty) {
+          dedupedProperties[prop.key] = prop;
+        }
+      }
+    }
+    final properties = dedupedProperties.values.toList();
 
     final blocksRaw = lifeOsMeta['blocks'] as List?;
     final blocks = blocksRaw != null

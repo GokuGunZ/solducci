@@ -147,10 +147,56 @@ class EntityProperty extends Equatable {
 
 ---
 
-## 5. Rappresentazione e Storage Pragmatico
+## 5. Rappresentazione Canonica & Storage Pragmatico
 
 In conformità al principio di **Minimum Commitment Architecture**:
-- Le proprietà sono memorizzate in `documents.metadata['properties']` come lista JSONB;
-- `LifeEntity` espone la lista pura `List<EntityProperty> properties`;
-- `LifeEntityMapper` gestisce la conversione bidirezionale mantenendo compatibilità totale con entità che non hanno ancora alcuna proprietà (`properties: []`);
+- **Namespace Canonico Normalizzato:** Le proprietà e i blocchi evolutivi sono memorizzati rigorosamente sotto il namespace dell'applicazione:
+  ```json
+  metadata['life_os']['properties'] = [
+    {
+      "key": "goal",
+      "label": "Obiettivo",
+      "value": "Autenticazione conforme GDPR",
+      "type": "text"
+    }
+  ]
+  metadata['life_os']['blocks'] = [
+    {
+      "id": "uuid-v4",
+      "content": "Verificare retention policy",
+      "position": 0,
+      "created_at": "2026-10-24T22:30:00.000Z"
+    }
+  ]
+  ```
+- **Codec dei Valori (Tipi Canonici JSON):**
+  - `text` $\rightarrow$ JSON string
+  - `url` $\rightarrow$ JSON string
+  - `date` $\rightarrow$ ISO-8601 string (`DateTime.toIso8601String()`)
+  - `number` $\rightarrow$ JSON number (`num`)
+- **Deduplicazione Semantica & Gestione Chiavi:**
+  - `one entity + one semantic key → at most one active property with that key`.
+  - `upsertProperty(property)` aggiorna la proprietà se `key` è già presente, altrimenti la inserisce in coda.
+  - *Deduplication Policy nel Mapper:* Se il payload JSON contiene accidentalmente record duplicati con la stessa chiave, si applica deterministicamente la policy **Last-Write-Wins**.
+- **Retrocompatibilità:** `LifeEntityMapper` gestisce la conversione bidirezionale mantenendo compatibilità totale con entità che non hanno ancora alcuna proprietà (`properties: []`);
 - Zero alterazioni dello schema SQL e zero migrazioni database necessarie per supportare le proprietà progressive.
+
+---
+
+## 6. Strategia di Persistenza Blocchi & Revisit Triggers
+
+La persistenza dei blocchi sequenziali all'interno di `metadata['life_os']['blocks']` è una deliberata strategia v0.1 ottimizzata per volumi ridotti e contesti a singolo autore prevalente (*predominantly single-writer entity evolution*).
+
+> **Chiarimento Concorrenza:** La serializzazione atomica su metadata JSONB non garantisce assenza di race condition in presenza di scrittori concorrenti simultanei su nodi diversi.
+
+### Revisit Triggers per Storage Dedicato
+La creazione di una tabella relazionale dedicata (es. `entity_blocks`) sarà valutata qualora emerga uno o più dei seguenti bisogni reali:
+1. **Concurrent editing:** Scritture collaborative contemporanee frequenti sullo stesso documento.
+2. **High block volume:** Accumulo di decine/centinaia di blocchi per entità con impatto sul payload.
+3. **Independent block queries:** Ricerca full-text o filtraggio per singoli blocchi senza caricare l'entità intera.
+4. **Block-level relations:** Necessità di creare archi `entity_relations` che puntano a un singolo blocco e non all'intera entità.
+5. **Block-specific lifecycle:** Stati di completamento, archiviazione o assegnazione specifici per singolo blocco.
+6. **Collaborative ordering:** Algoritmi CRDT o riordino multi-utente distribuito.
+7. **Multiple rich block types:** Blocchi multimediali complessi (immagini, checklist interattive, snippet audio).
+
+La transizione a uno storage dedicato futuro non richiederà alterazioni al contratto del domain model puro `EntityBlock`.

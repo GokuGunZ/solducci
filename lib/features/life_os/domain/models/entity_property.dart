@@ -32,22 +32,51 @@ class EntityProperty extends Equatable {
     );
   }
 
+  /// Returns the canonical JSON representation according to PropertyType (INT-D016):
+  /// text   → JSON string
+  /// url    → JSON string
+  /// date   → ISO-8601 string
+  /// number → JSON number
+  dynamic get canonicalJsonValue {
+    switch (type) {
+      case PropertyType.number:
+        return num.tryParse(value) ?? value;
+      case PropertyType.date:
+        final parsed = DateTime.tryParse(value);
+        return parsed != null ? parsed.toIso8601String() : value;
+      case PropertyType.text:
+      case PropertyType.url:
+        return value;
+    }
+  }
+
   Map<String, dynamic> toJson() => {
-        'key': key,
+        'key': key.trim(),
         'label': label,
-        'value': value,
+        'value': canonicalJsonValue,
         'type': type.name,
       };
 
   factory EntityProperty.fromJson(Map<String, dynamic> json) {
+    final type = PropertyType.values.firstWhere(
+      (t) => t.name == json['type'],
+      orElse: () => PropertyType.text,
+    );
+    final rawVal = json['value'];
+    String valStr = '';
+    if (rawVal != null) {
+      if (type == PropertyType.date && rawVal is String) {
+        valStr = DateTime.tryParse(rawVal)?.toIso8601String() ?? rawVal;
+      } else {
+        valStr = rawVal.toString();
+      }
+    }
+
     return EntityProperty(
-      key: json['key'] as String? ?? '',
+      key: (json['key'] as String? ?? '').trim(),
       label: json['label'] as String? ?? '',
-      value: json['value']?.toString() ?? '',
-      type: PropertyType.values.firstWhere(
-        (t) => t.name == json['type'],
-        orElse: () => PropertyType.text,
-      ),
+      value: valStr,
+      type: type,
     );
   }
 

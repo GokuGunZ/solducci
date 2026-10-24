@@ -145,15 +145,15 @@ Nessun livello inferiore può essere usato come sostituto narrativo di quello su
 ---
 
 ### INT-D015: Vitrine "View = Edit" and Inline Evolvable Body
-* **Status:** Established (Step 3 Design)
-* **Decision:** L'Entity Vitrine unifica lettura e modifica ("The entity is always readable and always editable"). Il titolo è modificabile inline con autowrap tipografico; i controlli semantici (Natura, Modalità, Focus) sono chip compatti posti direttamente sotto il titolo (surface = compact, decision sheet = explanatory); il contenuto dell'entità appare immediatamente dopo; i nuovi pensieri vengono aggiunti tramite una bottom floating composer bar che appende blocchi sequenziali (`EntityBlock`).
-* **Rationale:** Elimina la separazione visiva artificiale tra visualizzazione e form CRUD, trasformando l'Entity in un documento vivo e accogliente.
+* **Status:** Established (Step 3 / 3.1 Design)
+* **Decision:** L'Entity Vitrine unifica lettura e modifica ("The entity is always readable and always editable"). Il titolo è modificabile inline con autowrap tipografico senza troncamento; i controlli semantici (Natura, Modalità, Focus) sono chip compatti posti direttamente sotto il titolo (surface = compact, decision sheet = explanatory); la descrizione e le proprietà sono modificabili inline; i blocchi sequenziali (`EntityBlock`) sono modificabili in-place tramite doppio tocco o menu contestuale (easy to edit intentionally, hard to edit accidentally); i nuovi pensieri vengono aggiunti tramite la bottom floating composer bar. La persistenza dei blocchi in `metadata['life_os']['blocks']` è la strategia deliberata v0.1 per scenari prevalentemente a singolo autore. Uno storage relazionale dedicato sarà rivalutato in caso di scritture concorrenti, alti volumi o relazioni a livello di singolo blocco.
+* **Rationale:** Elimina la separazione visiva artificiale tra visualizzazione e form CRUD, trasformando l'Entity in un documento vivo e accogliente senza vincoli burocratici.
 * **Related:** INT-D007, INT-D012.
 
 ---
 
-### INT-D016: Progressive Properties & Role Property Packs
-* **Status:** Established (Step 3 Specification)
-* **Decision:** Le proprietà di un'entità sono opzionali, progressive e memorizzate in `metadata['properties']`. Il cambio di `SemanticRole` non distrugge alcuna proprietà esistente (Invariante di Conservazione). I pacchetti per ruolo (`RolePropertyPacks`) suggeriscono proprietà euristiche (es. Obiettivo, Prossimo Passo per Progetto; Metodo, Cadenza per Pratica) e riutilizzano le proprietà esistenti per chiave semantica senza duplicati.
-* **Rationale:** Consente all'entità di arricchirsi solo quando necessario, senza subire la tirannia di schemi o form burocratici.
+### INT-D016: Progressive Properties, Namespace Normalization & Canonical Codec
+* **Status:** Established (Step 3 / 3.1 Specification)
+* **Decision:** Le proprietà di un'entità sono opzionali, progressive e memorizzate rigorosamente sotto `metadata['life_os']['properties']`. I tipi canonici JSON sono: `text`/`url` → JSON string, `date` → ISO-8601 string, `number` → JSON number. L'identità semantica è determinata da `key`: un'entità possiede al massimo una proprietà per chiave (`upsertProperty` aggiorna la proprietà se presente, altrimenti la aggiunge). In caso di payload con chiavi duplicate accidentali, il mapper applica deterministicamente la policy Last-Write-Wins. Il cambio di `SemanticRole` preserva tutte le proprietà esistenti (Invariante di Conservazione); i `RolePropertyPacks` offrono suggerimenti euristiche senza alcuna imposizione o alterazione distruttiva.
+* **Rationale:** Consente all'entità di arricchirsi solo quando necessario, senza subire la tirannia di schemi o form burocratici e mantenendo contratti serializzati univoci.
 * **Related:** INT-D002, INT-D007.

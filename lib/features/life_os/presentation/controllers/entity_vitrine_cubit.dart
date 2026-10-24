@@ -337,19 +337,7 @@ class EntityVitrineCubit extends Cubit<EntityVitrineState> {
 
     emit(state.copyWith(isSaving: true, errorMessage: () => null));
 
-    final existingIndex = current.properties.indexWhere((p) => p.key == property.key);
-    final List<EntityProperty> newProperties = List.from(current.properties);
-
-    if (existingIndex >= 0) {
-      newProperties[existingIndex] = property;
-    } else {
-      newProperties.add(property);
-    }
-
-    final updated = current.copyWith(
-      properties: newProperties,
-      updatedAt: DateTime.now(),
-    );
+    final updated = current.upsertProperty(property);
 
     try {
       final saved = await _entityRepository.updateEntity(updated);
@@ -372,11 +360,7 @@ class EntityVitrineCubit extends Cubit<EntityVitrineState> {
     final current = state.entity;
     if (current == null) return false;
 
-    final newProperties = current.properties.where((p) => p.key != key).toList();
-    final updated = current.copyWith(
-      properties: newProperties,
-      updatedAt: DateTime.now(),
-    );
+    final updated = current.removeProperty(key);
 
     try {
       final saved = await _entityRepository.updateEntity(updated);

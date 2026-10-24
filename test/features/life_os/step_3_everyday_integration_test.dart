@@ -6,6 +6,7 @@ import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
 import 'package:solducci/features/life_os/presentation/views/entity_vitrine_view.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_capture_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_recent_seeds_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_active_entities_widget.dart';
@@ -240,6 +241,75 @@ void main() {
       expect(updatedEntity.properties.first.value, equals('Pannelli verticali bifacciali'));
     });
 
+    test('2b. upsertProperty on LifeEntity enforces at most one active property per key', () {
+      final initial = LifeEntity(
+        id: 'e-upsert',
+        title: 'Upsert Test',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final withGoal = initial.upsertProperty(
+        const EntityProperty(key: 'goal', label: 'Goal', value: 'First Goal'),
+      );
+      expect(withGoal.properties.length, equals(1));
+      expect(withGoal.properties.first.value, equals('First Goal'));
+
+      final updatedGoal = withGoal.upsertProperty(
+        const EntityProperty(key: 'goal', label: 'Goal', value: 'Updated Goal'),
+      );
+      expect(updatedGoal.properties.length, equals(1), reason: 'Upsert must update existing key');
+      expect(updatedGoal.properties.first.value, equals('Updated Goal'));
+    });
+
+    test('2c. Canonical PropertyType Codec serializes numbers as JSON numbers and dates as ISO-8601', () {
+      const numProp = EntityProperty(
+        key: 'duration',
+        label: 'Durata',
+        value: '42.5',
+        type: PropertyType.number,
+      );
+      final numJson = numProp.toJson();
+      expect(numJson['value'], isA<num>());
+      expect(numJson['value'], equals(42.5));
+
+      const dateProp = EntityProperty(
+        key: 'target_date',
+        label: 'Target',
+        value: '2026-12-31T18:00:00.000Z',
+        type: PropertyType.date,
+      );
+      final dateJson = dateProp.toJson();
+      expect(dateJson['value'], isA<String>());
+      expect(dateJson['value'], equals('2026-12-31T18:00:00.000Z'));
+    });
+
+    test('2d. LifeEntityMapper handles accidental duplicate keys with Last-Write-Wins deduplication', () {
+      final rawMetadata = {
+        'life_os': {
+          'version': 1,
+          'semantic_role': 'project',
+          'lifecycle_state': 'active',
+          'properties': [
+            {'key': 'goal', 'label': 'Obiettivo', 'value': 'Vecchio Obiettivo', 'type': 'text'},
+            {'key': 'goal', 'label': 'Obiettivo', 'value': 'Nuovo Obiettivo Vincente', 'type': 'text'},
+          ],
+        }
+      };
+
+      final entity = LifeEntityMapper.fromMap(
+        id: 'dup-1',
+        title: 'Duplicate Test',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        metadata: rawMetadata,
+      );
+
+      expect(entity.properties.length, equals(1), reason: 'Mapper must deduplicate keys');
+      expect(entity.properties.first.value, equals('Nuovo Obiettivo Vincente'),
+          reason: 'Last-write-wins policy must prevail');
+    });
+
     test('3. Role Property Packs provides non-prescriptive template suggestions', () {
       final projectSuggestions = RolePropertyPacks.getSuggestionsForRole(SemanticRole.project);
       expect(projectSuggestions.map((t) => t.key), containsAll(['goal', 'next_step', 'deadline']));
@@ -328,11 +398,14 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: LifeOsCaptureWidget(
-              def: BentoWidgetDef(
-                id: 'w_cap',
-                type: 'life_os_capture',
-                size: const BentoWidgetSize(2, 1),
+            body: DashboardContextScope(
+              tabContext: ExpenseContext.personal(),
+              child: LifeOsCaptureWidget(
+                def: BentoWidgetDef(
+                  id: 'w_cap',
+                  type: 'life_os_capture',
+                  size: const BentoWidgetSize(2, 1),
+                ),
               ),
             ),
           ),
@@ -505,6 +578,64 @@ void main() {
       final saved = await mockEntityRepo.getEntityById('vitrine-test');
       expect(saved?.blocks.length, equals(1));
       expect(saved?.blocks.first.content, equals('Nuovo pensiero annotato dal vivo'));
+    });
+
+    testWidgets('Existing content block can be edited inline in place without modal forms (View = Edit)', (tester) async {
+      final entity = LifeEntity(
+        id: 'vitrine-edit-block',
+        title: 'Entità con Blocco',
+        semanticRole: SemanticRole.project,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        blocks: [
+          EntityBlock(
+            id: 'b-edit',
+            content: 'Testo iniziale del blocco',
+            position: 0,
+            createdAt: DateTime.now(),
+          ),
+        ],
+      );
+
+      await mockEntityRepo.createEntity(entity);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EntityVitrineView(
+            entityId: 'vitrine-edit-block',
+            initialEntity: entity,
+            showContextSwitcher: false,
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Testo iniziale del blocco'), findsOneWidget);
+
+      // Open menu on block and select edit
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Modifica blocco'));
+      await tester.pumpAndSettle();
+
+      // Enter updated content in the inline editor
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Testo iniziale del blocco'),
+        'Testo corretto dal vivo',
+      );
+
+      // Save inline
+      await tester.tap(find.text('Salva'));
+      await tester.pumpAndSettle();
+
+      // Verify updated content visible
+      expect(find.text('Testo corretto dal vivo'), findsOneWidget);
+
+      // Verify in repository
+      final updated = await mockEntityRepo.getEntityById('vitrine-edit-block');
+      expect(updated?.blocks.first.content, equals('Testo corretto dal vivo'));
     });
   });
 }

@@ -70,6 +70,32 @@ class LifeEntity extends Equatable {
   bool get isActive => lifecycleState == LifecycleState.active;
   bool get isPaused => lifecycleState == LifecycleState.paused;
 
+  /// Upserts a property by its semantic key (INT-D016).
+  /// Reuses and updates the existing property if key matches; appends if new.
+  /// Guarantees: one entity + one semantic key → at most one active property.
+  LifeEntity upsertProperty(EntityProperty property) {
+    final cleanKey = property.key.trim();
+    if (cleanKey.isEmpty) return this;
+
+    final existingIndex = properties.indexWhere((p) => p.key == cleanKey);
+    final List<EntityProperty> updated = List.from(properties);
+
+    if (existingIndex >= 0) {
+      updated[existingIndex] = property;
+    } else {
+      updated.add(property);
+    }
+
+    return copyWith(properties: updated, updatedAt: DateTime.now());
+  }
+
+  /// Removes a property by its semantic key.
+  LifeEntity removeProperty(String key) {
+    final cleanKey = key.trim();
+    final updated = properties.where((p) => p.key != cleanKey).toList();
+    return copyWith(properties: updated, updatedAt: DateTime.now());
+  }
+
   LifeEntity copyWith({
     String? id,
     String? userId,

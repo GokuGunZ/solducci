@@ -5,6 +5,7 @@ import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 /// Bento Recent Seeds Widget (INT-D014)
 /// Displays latest unpromoted seeds resting in the Living Core.
@@ -22,14 +23,24 @@ class _LifeOsRecentSeedsWidgetState extends State<LifeOsRecentSeedsWidget> {
   List<LifeEntity> _seeds = [];
   bool _isLoading = true;
   String? _error;
+  ExpenseContext? _lastContext;
 
   @override
-  void initState() {
-    super.initState();
-    _loadSeeds();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    try {
+      final currentContext = DashboardContextScope.of(context);
+      if (_lastContext != currentContext) {
+        _lastContext = currentContext;
+        _loadSeeds(currentContext);
+      }
+    } catch (_) {
+      if (_lastContext == null) _loadSeeds();
+    }
   }
 
-  Future<void> _loadSeeds() async {
+  Future<void> _loadSeeds([ExpenseContext? ctx]) async {
+    final effectiveContext = ctx ?? _lastContext;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -37,7 +48,10 @@ class _LifeOsRecentSeedsWidgetState extends State<LifeOsRecentSeedsWidget> {
 
     try {
       final repository = getIt<LifeEntityRepository>();
-      final all = await repository.getEntities();
+      final all = await repository.getEntities(
+        groupId: effectiveContext?.isPersonal == true ? null : effectiveContext?.groupId,
+        isPersonal: effectiveContext?.isPersonal ?? false,
+      );
       final seeds = all.where((e) => e.isSeed && !e.isArchived).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
