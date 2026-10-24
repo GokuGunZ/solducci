@@ -12,11 +12,13 @@ import 'package:solducci/widgets/solducci_app_bar.dart';
 class EntityVitrineView extends StatelessWidget {
   final String entityId;
   final LifeEntity? initialEntity;
+  final bool showContextSwitcher;
 
   const EntityVitrineView({
     super.key,
     required this.entityId,
     this.initialEntity,
+    this.showContextSwitcher = true,
   });
 
   @override
@@ -29,13 +31,15 @@ class EntityVitrineView extends StatelessWidget {
         overlayRepository: getIt<UserEntityOverlayRepository>(),
         initialEntity: initialEntity,
       )..load(),
-      child: const _EntityVitrineContent(),
+      child: _EntityVitrineContent(showContextSwitcher: showContextSwitcher),
     );
   }
 }
 
 class _EntityVitrineContent extends StatefulWidget {
-  const _EntityVitrineContent();
+  final bool showContextSwitcher;
+
+  const _EntityVitrineContent({this.showContextSwitcher = true});
 
   @override
   State<_EntityVitrineContent> createState() => _EntityVitrineContentState();
@@ -72,44 +76,122 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
     });
   }
 
-  HumanIntention _mapEntityToIntention(LifeEntity entity) {
-    if (entity.isSeed) return HumanIntention.keepAsSeed;
-    if (entity.isProject) return HumanIntention.treatAsProject;
-    if (entity.isPractice) return HumanIntention.cultivatePractice;
-    if (entity.isConcept) return HumanIntention.organizeKnowledge;
-    return HumanIntention.explore;
+  String _roleTitle(SemanticRole role) {
+    switch (role) {
+      case SemanticRole.seed:
+        return 'Seme grezzo a riposo';
+      case SemanticRole.project:
+        return 'Progetto';
+      case SemanticRole.practice:
+        return 'Pratica continua';
+      case SemanticRole.concept:
+        return 'Conoscenza & Memoria';
+      case SemanticRole.idea:
+        return 'Idea in maturazione';
+    }
   }
 
-  String _intentionTitle(LifeEntity entity) {
-    if (entity.isSeed) return 'Seme grezzo a riposo';
-    if (entity.isProject) return 'Progetto in esecuzione';
-    if (entity.isPractice) return 'Pratica continuativa';
-    if (entity.isConcept) return 'Memoria & Conoscenza';
-    return 'Esplorazione aperta';
+  String _roleSubtitle(SemanticRole role) {
+    switch (role) {
+      case SemanticRole.seed:
+        return 'Nessun impegno o struttura. Pronto a germogliare quando serve.';
+      case SemanticRole.project:
+        return 'Iniziativa orientata al raggiungimento di un traguardo chiaro.';
+      case SemanticRole.practice:
+        return 'Disciplina o routine in cui conta la costanza, non una scadenza.';
+      case SemanticRole.concept:
+        return 'Modello mentale o riferimento informativo da consultare nel tempo.';
+      case SemanticRole.idea:
+        return 'Spunto aperto in fase di studio e formulazione iniziale.';
+    }
   }
 
-  String _intentionSubtitle(LifeEntity entity) {
-    if (entity.isSeed) {
-      return 'Nessun impegno o modalità assegnata. Pronto a germogliare quando serve.';
+  Color _roleColor(SemanticRole role) {
+    switch (role) {
+      case SemanticRole.project:
+        return const Color(0xFF6366F1);
+      case SemanticRole.practice:
+        return const Color(0xFF10B981);
+      case SemanticRole.concept:
+        return const Color(0xFF3B82F6);
+      case SemanticRole.idea:
+        return const Color(0xFFF59E0B);
+      case SemanticRole.seed:
+        return Colors.white54;
     }
-    if (entity.isProject) {
-      return 'Orientato al risultato. Le azioni convergono verso un traguardo.';
-    }
-    if (entity.isPractice) {
-      return 'Allenamento ricorrente. L\'enfasi è sulla costanza, non su una scadenza.';
-    }
-    if (entity.isConcept) {
-      return 'Riferimento informativo o modello mentale da consultare nel tempo.';
-    }
-    return 'Sviluppo libero del pensiero.';
   }
 
-  Color _intentionColor(LifeEntity entity) {
-    if (entity.isProject) return const Color(0xFF6366F1);
-    if (entity.isPractice) return const Color(0xFF10B981);
-    if (entity.isConcept) return const Color(0xFF3B82F6);
-    if (entity.isIdea) return const Color(0xFFF59E0B);
-    return Colors.white54;
+  IconData _roleIcon(SemanticRole role) {
+    switch (role) {
+      case SemanticRole.project:
+        return Icons.rocket_launch_rounded;
+      case SemanticRole.practice:
+        return Icons.repeat_rounded;
+      case SemanticRole.concept:
+        return Icons.menu_book_rounded;
+      case SemanticRole.idea:
+        return Icons.lightbulb_outline_rounded;
+      case SemanticRole.seed:
+        return Icons.eco_outlined;
+    }
+  }
+
+  String _modeTitle(OperationMode? mode) {
+    if (mode == null) return 'Nessuna modalità (A riposo)';
+    switch (mode) {
+      case OperationMode.exploration:
+        return 'In Esplorazione';
+      case OperationMode.execution:
+        return 'In Lavorazione (Esecuzione)';
+      case OperationMode.practice:
+        return 'In Pratica';
+      case OperationMode.reflection:
+        return 'In Riflessione';
+    }
+  }
+
+  String _modeSubtitle(OperationMode? mode) {
+    if (mode == null) {
+      return 'L\'entità non assorbe attenzione attiva in questo momento.';
+    }
+    switch (mode) {
+      case OperationMode.exploration:
+        return 'Ricerca aperta, sperimentazione, studio o raccolta spunti.';
+      case OperationMode.execution:
+        return 'Azione diretta e focalizzata per completare e rilasciare.';
+      case OperationMode.practice:
+        return 'Esercizio, routine quotidiana o allenamento di abilità.';
+      case OperationMode.reflection:
+        return 'Revisione retrospettiva, valutazione o sintesi del quadro.';
+    }
+  }
+
+  Color _modeColor(OperationMode? mode) {
+    if (mode == null) return Colors.white38;
+    switch (mode) {
+      case OperationMode.exploration:
+        return const Color(0xFFF59E0B);
+      case OperationMode.execution:
+        return const Color(0xFF6366F1);
+      case OperationMode.practice:
+        return const Color(0xFF10B981);
+      case OperationMode.reflection:
+        return const Color(0xFF3B82F6);
+    }
+  }
+
+  IconData _modeIcon(OperationMode? mode) {
+    if (mode == null) return Icons.pause_circle_outline_rounded;
+    switch (mode) {
+      case OperationMode.exploration:
+        return Icons.search_rounded;
+      case OperationMode.execution:
+        return Icons.bolt_rounded;
+      case OperationMode.practice:
+        return Icons.fitness_center_rounded;
+      case OperationMode.reflection:
+        return Icons.self_improvement_rounded;
+    }
   }
 
   @override
@@ -149,7 +231,10 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
         if (entity == null) {
           return Scaffold(
             backgroundColor: const Color(0xFF09090B),
-            appBar: const SolducciAppBar(titleText: 'Entità'),
+            appBar: SolducciAppBar(
+              showContextSwitcher: widget.showContextSwitcher,
+              titleText: 'Entità',
+            ),
             body: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -173,12 +258,14 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
           _descController.text = entity.description ?? '';
         }
 
-        final intColor = _intentionColor(entity);
+        final rColor = _roleColor(entity.semanticRole);
+        final mColor = _modeColor(entity.currentMode);
         final isInWeeklyRail = state.overlay?.isInWeeklyRail ?? false;
 
         return Scaffold(
           backgroundColor: const Color(0xFF09090B),
           appBar: SolducciAppBar(
+            showContextSwitcher: widget.showContextSwitcher,
             title: Text(
               entity.title,
               style: const TextStyle(
@@ -291,77 +378,69 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
               ),
               const SizedBox(height: 20),
 
-              // 2. Human Intention Section (Amendment C)
+              // 2. Semantic Nature Card (SemanticRole)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Cosa vuoi farne?',
+                    'Che natura ha?',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.2,
                     ),
                   ),
                   TextButton.icon(
                     icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                    label: const Text('Cambia'),
+                    label: const Text('Cambia natura'),
                     style: TextButton.styleFrom(
                       foregroundColor: AppTheme.primary,
                       visualDensity: VisualDensity.compact,
                     ),
                     onPressed: () {
-                      HumanIntentionActionSheet.show(
+                      HumanRoleActionSheet.show(
                         context,
-                        currentIntention: _mapEntityToIntention(entity),
-                        onSelectIntention: (intention) {
-                          context.read<EntityVitrineCubit>().applyIntention(intention);
+                        currentRole: entity.semanticRole,
+                        onSelectRole: (role) {
+                          context.read<EntityVitrineCubit>().setRole(role);
                         },
                       );
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               InkWell(
                 onTap: () {
-                  HumanIntentionActionSheet.show(
+                  HumanRoleActionSheet.show(
                     context,
-                    currentIntention: _mapEntityToIntention(entity),
-                    onSelectIntention: (intention) {
-                      context.read<EntityVitrineCubit>().applyIntention(intention);
+                    currentRole: entity.semanticRole,
+                    onSelectRole: (role) {
+                      context.read<EntityVitrineCubit>().setRole(role);
                     },
                   );
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: const Color(0xFF18181B),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: intColor.withOpacity(0.35)),
+                    border: Border.all(color: rColor.withOpacity(0.35)),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: intColor.withOpacity(0.15),
+                          color: rColor.withOpacity(0.15),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          entity.isProject
-                              ? Icons.rocket_launch_rounded
-                              : entity.isPractice
-                                  ? Icons.repeat_rounded
-                                  : entity.isConcept
-                                      ? Icons.menu_book_rounded
-                                      : entity.isIdea
-                                          ? Icons.search_rounded
-                                          : Icons.eco_outlined,
-                          color: intColor,
-                          size: 22,
+                          _roleIcon(entity.semanticRole),
+                          color: rColor,
+                          size: 20,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -370,16 +449,109 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _intentionTitle(entity),
+                              _roleTitle(entity.semanticRole),
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 15,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              _intentionSubtitle(entity),
+                              _roleSubtitle(entity.semanticRole),
+                              style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 3. Operational Mode Card (Current Mode)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Come la stai affrontando?',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                    label: const Text('Cambia modalità'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: mColor,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: () {
+                      HumanModeActionSheet.show(
+                        context,
+                        currentMode: entity.currentMode,
+                        onSelectMode: (mode) {
+                          context.read<EntityVitrineCubit>().setMode(mode);
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: () {
+                  HumanModeActionSheet.show(
+                    context,
+                    currentMode: entity.currentMode,
+                    onSelectMode: (mode) {
+                      context.read<EntityVitrineCubit>().setMode(mode);
+                    },
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF18181B),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: mColor.withOpacity(0.35)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: mColor.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _modeIcon(entity.currentMode),
+                          color: mColor,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _modeTitle(entity.currentMode),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _modeSubtitle(entity.currentMode),
                               style: const TextStyle(color: Colors.white54, fontSize: 12),
                             ),
                           ],
@@ -392,7 +564,7 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
               ),
               const SizedBox(height: 20),
 
-              // 3. Weekly Rail Commitment (Amendment B)
+              // 4. Weekly Rail Commitment (Amendment B)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -436,7 +608,7 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
               ),
               const SizedBox(height: 24),
 
-              // 4. Subtle System Metadata (Discreet, secondary)
+              // 5. Subtle System Metadata (Discreet, secondary)
               Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
@@ -468,7 +640,7 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
               ),
               const SizedBox(height: 24),
 
-              // 5. Destructive / Archive Actions
+              // 6. Destructive / Archive Actions
               Center(
                 child: TextButton.icon(
                   onPressed: () async {

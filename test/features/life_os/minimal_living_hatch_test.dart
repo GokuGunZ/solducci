@@ -255,8 +255,8 @@ void main() {
       await cubit.close();
     });
 
-    testWidgets('3. Progressive differentiation in Vitrine (Amendment C: human intentions)', (tester) async {
-      // Seed 1: "Studiare meglio F2L" -> practice
+    testWidgets('3. Progressive differentiation in Vitrine (Step 2.1: strict Role / Mode decoupling)', (tester) async {
+      // Seed 1: "Studiare meglio F2L" -> practice, mode remains null until set
       final seed1 = await entityRepo.createEntity(LifeEntity(
         id: 'ent-f2l',
         title: 'Studiare meglio F2L',
@@ -272,13 +272,18 @@ void main() {
         initialEntity: seed1,
       );
 
-      // Apply intention: Cultivate Practice
-      final ok1 = await cubit.applyIntention(HumanIntention.cultivatePractice);
+      // "Coltivalo come pratica" -> sets semanticRole = practice, currentMode remains null
+      final ok1 = await cubit.setRole(SemanticRole.practice);
       expect(ok1, isTrue);
       expect(cubit.state.entity!.semanticRole, equals(SemanticRole.practice));
+      expect(cubit.state.entity!.currentMode, isNull, reason: 'Changing role must not force an operational mode');
+
+      // Now set mode independently: in practice
+      final okMode1 = await cubit.setMode(OperationMode.practice);
+      expect(okMode1, isTrue);
       expect(cubit.state.entity!.currentMode, equals(OperationMode.practice));
 
-      // Seed 2: "Capire auth GDPR per Solducci" -> project
+      // Seed 2: "Capire auth GDPR per Solducci" -> project, mode remains null until set
       final seed2 = await entityRepo.createEntity(LifeEntity(
         id: 'ent-gdpr',
         title: 'Capire auth GDPR per Solducci',
@@ -294,11 +299,11 @@ void main() {
         initialEntity: seed2,
       );
 
-      // Apply intention: Treat as Project
-      final ok2 = await cubit2.applyIntention(HumanIntention.treatAsProject);
+      // "Trattalo come progetto" -> sets semanticRole = project, currentMode remains null
+      final ok2 = await cubit2.setRole(SemanticRole.project);
       expect(ok2, isTrue);
       expect(cubit2.state.entity!.semanticRole, equals(SemanticRole.project));
-      expect(cubit2.state.entity!.currentMode, equals(OperationMode.execution));
+      expect(cubit2.state.entity!.currentMode, isNull, reason: 'Changing role must not force execution mode');
 
       // Seed 3: "Approfondire agrivoltaico" -> explore
       final seed3 = await entityRepo.createEntity(LifeEntity(
@@ -316,10 +321,10 @@ void main() {
         initialEntity: seed3,
       );
 
-      // Apply intention: Explore
+      // "Esplora" -> sets currentMode = exploration, semanticRole remains seed!
       final ok3 = await cubit3.applyIntention(HumanIntention.explore);
       expect(ok3, isTrue);
-      expect(cubit3.state.entity!.semanticRole, equals(SemanticRole.idea));
+      expect(cubit3.state.entity!.semanticRole, equals(SemanticRole.seed), reason: 'Esplora must not force changing seed to idea');
       expect(cubit3.state.entity!.currentMode, equals(OperationMode.exploration));
 
       // Clean up cubits

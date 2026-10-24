@@ -131,7 +131,7 @@ class RecentSeedsSection extends StatelessWidget {
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                             if (seed.description != null && seed.description!.isNotEmpty) ...[

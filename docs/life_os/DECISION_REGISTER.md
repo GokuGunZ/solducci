@@ -101,3 +101,19 @@
 * **Decision:** La policy v0.1 definisce come fonti canoniche di attività significativa esclusivamente: 1) `LifeSession` registrata, 2) `Task` completato / progresso operativo. `last_meaningful_activity_at` è una cache materializzata aggiornata al salvataggio e ricalcolabile in ogni momento tramite auto-healing dalle fonti canoniche.
 * **Rationale:** Prestazioni O(1) in lettura sulla dashboard preservando la purezza del dato canonico.
 * **Related:** DP03, DP11, INT-D002.
+
+---
+
+### INT-D011: Repository Error Contract Canon (Direct Return with Exception Propagation)
+* **Status:** Established (Step 2.1 Re-alignment)
+* **Decision:** In conformità ai repository esistenti di Solducci (`TaskRepository`, `DocumentService`, `GroupService`), i repository LifeOS adottano il contratto canonico di ritorno diretto (`Future<T>` / `Future<T?>`) propagando le eccezioni di rete e database. I presentation controller (Cubit / Bloc) gestiscono `try-catch` traducendo gli errori in stati UI espliciti e veritieri (Amendment B), con retry immediato. `OperationResult<T>` è mantenuto come wrapper di utilità per composizioni funzionali ma non è imposto alle interfacce repository.
+* **Rationale:** Elimina discrepanze architetturali e preserva la coerenza con il resto dell'applicazione.
+* **Related:** INT-D006, INT-D008.
+
+---
+
+### INT-D012: Strict Orthogonality between Semantic Role and Current Mode
+* **Status:** Established (Step 2.1 Rule)
+* **Decision:** `SemanticRole` (cosa rappresenta l'entità: seed, project, practice, concept, idea) e `OperationMode` (come la si sta affrontando: null, exploration, execution, practice, reflection) sono rigidamente ortogonali. Nessuna azione umana ("Trattalo come progetto", "Coltivalo come pratica", "Esplora") può mutare implicitamente l'altra dimensione.
+* **Rationale:** Previene assunzioni indebite (es. progetto = esecuzione forzata, o esplora = idea forzata) e rispetta il fatto che una cattura può essere esplorata rimanendo seme, o lavorata rimanendo progetto.
+* **Related:** INT-D007, DP02.

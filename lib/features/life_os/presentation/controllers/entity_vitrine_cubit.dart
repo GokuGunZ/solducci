@@ -77,63 +77,24 @@ class EntityVitrineCubit extends Cubit<EntityVitrineState> {
     }
   }
 
-  /// Applies human intention to the entity (Amendment C: hide ontology behind human intentions)
-  Future<bool> applyIntention(HumanIntention intention) async {
+  /// Sets the semantic role, leaving currentMode strictly untouched (Step 2.1 Rule)
+  Future<bool> setRole(SemanticRole role) async {
     final current = state.entity;
     if (current == null) return false;
 
     emit(state.copyWith(isSaving: true, errorMessage: () => null));
 
-    LifeEntity updated;
-    switch (intention) {
-      case HumanIntention.explore:
-        // Explores without rigid commitment
-        updated = current.copyWith(
-          semanticRole: current.isSeed ? SemanticRole.idea : current.semanticRole,
-          currentMode: () => OperationMode.exploration,
-          updatedAt: DateTime.now(),
-        );
-        break;
-      case HumanIntention.treatAsProject:
-        // Converts to active project in execution mode
-        updated = current.copyWith(
-          semanticRole: SemanticRole.project,
-          currentMode: () => OperationMode.execution,
-          updatedAt: DateTime.now(),
-        );
-        break;
-      case HumanIntention.cultivatePractice:
-        // Converts to practice
-        updated = current.copyWith(
-          semanticRole: SemanticRole.practice,
-          currentMode: () => OperationMode.practice,
-          updatedAt: DateTime.now(),
-        );
-        break;
-      case HumanIntention.organizeKnowledge:
-        // Converts to knowledge / concept
-        updated = current.copyWith(
-          semanticRole: SemanticRole.concept,
-          currentMode: () => OperationMode.reflection,
-          updatedAt: DateTime.now(),
-        );
-        break;
-      case HumanIntention.keepAsSeed:
-        // Reverts back to raw seed without mode
-        updated = current.copyWith(
-          semanticRole: SemanticRole.seed,
-          currentMode: () => null,
-          updatedAt: DateTime.now(),
-        );
-        break;
-    }
+    final updated = current.copyWith(
+      semanticRole: role,
+      updatedAt: DateTime.now(),
+    );
 
     try {
       final saved = await _entityRepository.updateEntity(updated);
       emit(state.copyWith(
         isSaving: false,
         entity: saved,
-        successMessage: () => 'Intenzione applicata con successo.',
+        successMessage: () => 'Natura aggiornata.',
       ));
       return true;
     } catch (e) {
@@ -142,6 +103,58 @@ class EntityVitrineCubit extends Cubit<EntityVitrineState> {
         errorMessage: () => 'Impossibile aggiornare: connessione assente o errore di rete.',
       ));
       return false;
+    }
+  }
+
+  /// Sets the current operational mode, leaving semanticRole strictly untouched (Step 2.1 Rule)
+  Future<bool> setMode(OperationMode? mode) async {
+    final current = state.entity;
+    if (current == null) return false;
+
+    emit(state.copyWith(isSaving: true, errorMessage: () => null));
+
+    final updated = current.copyWith(
+      currentMode: () => mode,
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      final saved = await _entityRepository.updateEntity(updated);
+      emit(state.copyWith(
+        isSaving: false,
+        entity: saved,
+        successMessage: () => mode == null
+            ? 'Modalità rimossa (a riposo).'
+            : 'Modalità operativa aggiornata.',
+      ));
+      return true;
+    } catch (e) {
+      emit(state.copyWith(
+        isSaving: false,
+        errorMessage: () => 'Impossibile aggiornare: connessione assente o errore di rete.',
+      ));
+      return false;
+    }
+  }
+
+  /// Human intention adapter respecting strict Role / Mode orthogonality (Step 2.1)
+  Future<bool> applyIntention(HumanIntention intention) async {
+    switch (intention) {
+      case HumanIntention.explore:
+        // "Esplora" sets currentMode to exploration WITHOUT altering semanticRole
+        return setMode(OperationMode.exploration);
+      case HumanIntention.treatAsProject:
+        // "Trattalo come progetto" sets semanticRole to project WITHOUT forcing mode
+        return setRole(SemanticRole.project);
+      case HumanIntention.cultivatePractice:
+        // "Coltivalo come pratica" sets semanticRole to practice WITHOUT forcing mode
+        return setRole(SemanticRole.practice);
+      case HumanIntention.organizeKnowledge:
+        // "Organizzalo come conoscenza" sets semanticRole to concept WITHOUT forcing mode
+        return setRole(SemanticRole.concept);
+      case HumanIntention.keepAsSeed:
+        // "Lascialo come seme" sets semanticRole to seed WITHOUT forcing mode
+        return setRole(SemanticRole.seed);
     }
   }
 
