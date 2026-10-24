@@ -58,10 +58,10 @@ Directory: [`lib/features/life_os/domain/models/`](file:///C:/Users/Aless/Docume
 
 - [`enums.dart`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/features/life_os/domain/models/enums.dart):
   - `SemanticRole`: `seed`, `idea`, `project`, `practice`, `concept`.
-  - `LifecycleState`: `seed`, `active`, `paused`, `completed`, `archived`, `dropped`.
-  - `OperationMode?`: `exploration`, `execution`, `maintenance`, `rethinking`, `harvesting` (nullable, no default).
+  - `LifecycleState`: `active`, `paused`, `completed`, `archived`. (Note: `seed` is strictly a `SemanticRole`, never a lifecycle state. Raw captures are `semanticRole = seed`, `lifecycleState = active`, `currentMode = null`).
+  - `OperationMode?`: `exploration`, `execution`, `practice`, `reflection` (nullable, no default; Amendment A).
   - `TargetType`: `entity`, `task`, `expense`, `time_scenario`.
-  - `RelationType`: `parent_child`, `depends_on`, `related_to`, `derived_from`, `inspired_by`, `supports`.
+  - `RelationType`: `requires`, `influences`, `part_of`, `context_for`, `funded_by`, `relates_to`.
   - `ContextStatus`: `active`, `paused`, `blocked`, `archived`.
   - `CommitmentWeight`: `low`, `medium`, `high`, `vital`.
 - [`typed_reference.dart`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/features/life_os/domain/models/typed_reference.dart):
@@ -147,7 +147,7 @@ Directory: [`lib/features/life_os/data/mappers/`](file:///C:/Users/Aless/Documen
 
 ## 3. Verification & Test Results
 
-### 3.1 Unit Test Suite
+### 3.1 Unit & Integration Test Suites
 
 Executed via `flutter test test/features/life_os`:
 
@@ -161,12 +161,23 @@ Executed via `flutter test test/features/life_os`:
 00:00 +5: LifeEntity Domain Invariants Semantic role and lifecycle are independent dimensions
 00:00 +6: LifeEntity Domain Invariants State transition validation obeys lifecycle rules
 00:00 +7: LifeEntity Domain Invariants UserEntityOverlay maintains single source of truth for user state (Amendment B)
-00:01 +8: LifeEntityMapper Tests Absent metadata falls back to clean domain defaults
-00:01 +9: LifeEntityMapper Tests Namespaced metadata parsed correctly and isolated from customMetadata
-00:01 +10: LifeEntityMapper Tests Round-trip preserves all fields faithfully
-00:02 +11: EntityRelation & Session Mappers EntityRelation round-trip with contextStatus blocker
-00:02 +12: EntityRelation & Session Mappers LifeSession round-trip with related entities and metrics
-00:02 +13: All tests passed!
+00:02 +8: 1. Personal Entity Isolation Contract User A can access and relate to their personal entity
+00:02 +9: 1. Personal Entity Isolation Contract User B cannot read User A personal entity
+00:02 +10: 1. Personal Entity Isolation Contract User B cannot create a relation towards User A personal entity knowing UUID
+00:02 +11: 2. Shared Entity Multi-User Contract Authorized group members (Alice & Bob) can read shared entity
+00:02 +12: 2. Shared Entity Multi-User Contract Non-member (Charlie) cannot read or link to shared entity
+00:02 +13: 3. Personal Overlay Strict Isolation (Amendment B) Alice & Bob have independent overlays on same shared entity
+00:02 +14: 4. LifeSession Intimate Privacy Author session remains strictly private even when entity is shared
+00:02 +15: 5. Typed Reference Integrity & Target Discrimination (Amendment C) Valid authorized targets succeed
+00:02 +16: 5. Typed Reference Integrity & Target Discrimination (Amendment C) Nonexistent target is rejected
+00:02 +17: 5. Typed Reference Integrity & Target Discrimination (Amendment C) Deleting target task cleans up relation with target_type discrimination
+00:02 +18: 6. Meaningful Activity Derivation & Invariant (Amendment D) Meaningful activity derived from sessions and tasks, ignoring cosmetic edits
+00:03 +19: LifeEntityMapper Tests Absent metadata falls back to clean domain defaults
+00:03 +20: LifeEntityMapper Tests Namespaced metadata parsed correctly and isolated from customMetadata
+00:03 +21: LifeEntityMapper Tests Round-trip preserves all fields faithfully
+00:03 +22: EntityRelation & Session Mappers EntityRelation round-trip with contextStatus blocker
+00:03 +23: EntityRelation & Session Mappers LifeSession round-trip with related entities and metrics
+00:03 +24: All tests passed!
 ```
 
 ### 3.2 Static Analysis
@@ -175,8 +186,20 @@ Executed via `flutter analyze lib/features/life_os test/features/life_os`:
 
 ```text
 Analyzing 2 items...                                            
-No issues found! (ran in 2.2s)
+No issues found! (ran in 3.4s)
 ```
+
+### 3.3 Integration Validation & Levels of Evidence
+
+In strict accordance with the principle that every claim must reflect the actual level of empirical evidence achieved:
+
+| Evidence Level | Status | Verified Scope & Evidence |
+| :--- | :--- | :--- |
+| **Unit Tested** | **PROVEN (13 tests)** | All domain invariants, factory guarantees, capability calculations (tension, inactivity, actionable), and mapper metadata isolation (`metadata['life_os']`). |
+| **Integration Tested (Contracts & Multi-User)** | **PROVEN (11 tests)** | Verified via [`test/features/life_os/integration_validation_test.dart`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/test/features/life_os/integration_validation_test.dart):<br>• Personal Entity read/write access strictly isolated to owner.<br>• Non-members cannot read or link to shared group entities.<br>• User overlays strictly isolated per-user on shared entities (Amendment B).<br>• `LifeSession` reflections strictly author-private even on shared entities.<br>• `TypedReference` polymorphic targets validated and cascading cleanup discriminated by `target_type` (Amendment C).<br>• Meaningful activity derived from real sessions/tasks and impervious to cosmetic updates (Amendment D). |
+| **RLS Tested** | **PROVEN IN CONTRACT SUITE / PENDING DB EXECUTION** | Security predicates and RLS query policies mirrored exactly from SQL migration into simulation suite; direct remote Postgres RLS enforcement requires executing migration in remote Supabase. |
+| **DB Integration Tested** | **PENDING REMOTE DDL PUSH** | Migration script [`20261025_create_life_os_core_schema.sql`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/supabase/migrations/20261025_create_life_os_core_schema.sql) is syntactically validated and aligned with existing project constraints. Local Docker is not available on host environment; remote database migration deployment requires executing via Supabase SQL Editor or CI pipeline. |
+| **Device Tested** | **NOT YET TESTED** | Device/emulator testing deferred to UI slice implementation (Step 2). |
 
 ---
 
