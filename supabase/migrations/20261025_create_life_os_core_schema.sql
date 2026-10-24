@@ -24,13 +24,15 @@ COMMENT ON COLUMN documents.document_type IS
 -- ============================================================================
 -- 2. TABLE: entity_relations
 -- Description: Directed semantic connections from LifeEntity to any supported target
+-- Note: target_id is TEXT because targets are polymorphic:
+--       documents, tasks, time_scenarios have UUID ids, while expenses have BIGINT ids.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS entity_relations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   source_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
   source_type TEXT NOT NULL DEFAULT 'entity' CHECK (source_type = 'entity'),
-  target_id UUID NOT NULL,
+  target_id TEXT NOT NULL,
   target_type TEXT NOT NULL CHECK (target_type IN ('entity', 'task', 'expense', 'time_scenario')),
   relation_type TEXT NOT NULL CHECK (relation_type IN ('requires', 'influences', 'part_of', 'context_for', 'funded_by', 'relates_to')),
   context_status TEXT CHECK (context_status IS NULL OR context_status IN ('blocker', 'active', 'resolved', 'reference')),
@@ -40,6 +42,20 @@ CREATE TABLE IF NOT EXISTS entity_relations (
   -- Unique constraint: prevent duplicate edges of the same type between source and target
   CONSTRAINT uq_entity_relation_edge UNIQUE (source_id, target_id, target_type, relation_type)
 );
+
+-- Ensure target_id is TEXT if table was previously created with UUID
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'entity_relations' 
+      AND column_name = 'target_id' 
+      AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE entity_relations ALTER COLUMN target_id TYPE TEXT USING target_id::text;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_entity_relations_source 
   ON entity_relations(source_id, source_type);
@@ -110,7 +126,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   DELETE FROM entity_relations
   WHERE target_type = 'entity'
-    AND target_id = OLD.id;
+    AND target_id = OLD.id::text;
   RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -121,7 +137,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   DELETE FROM entity_relations
   WHERE target_type = 'task'
-    AND target_id = OLD.id;
+    AND target_id = OLD.id::text;
   RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -132,7 +148,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   DELETE FROM entity_relations
   WHERE target_type = 'expense'
-    AND target_id = OLD.id;
+    AND target_id = OLD.id::text;
   RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -143,7 +159,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   DELETE FROM entity_relations
   WHERE target_type = 'time_scenario'
-    AND target_id = OLD.id;
+    AND target_id = OLD.id::text;
   RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -210,30 +226,30 @@ CREATE POLICY entity_relations_insert_policy ON entity_relations
         AND (d.user_id = auth.uid() OR (d.group_id IS NOT NULL AND public.is_group_member(d.group_id)))
     )
     AND (
-      -- Target validation by type:
+      -- Target validation by type (with polymorphic id casting to text):
       (target_type = 'entity' AND EXISTS (
         SELECT 1 FROM documents td
-        WHERE td.id = target_id
+        WHERE td.id::text = target_id
           AND (td.user_id = auth.uid() OR (td.group_id IS NOT NULL AND public.is_group_member(td.group_id)))
       ))
       OR
       (target_type = 'task' AND EXISTS (
         SELECT 1 FROM tasks t
         JOIN documents td ON t.document_id = td.id
-        WHERE t.id = target_id
+        WHERE t.id::text = target_id
           AND (td.user_id = auth.uid() OR (td.group_id IS NOT NULL AND public.is_group_member(td.group_id)))
       ))
       OR
       (target_type = 'expense' AND EXISTS (
         SELECT 1 FROM expenses e
-        WHERE e.id = target_id
+        WHERE e.id::text = target_id
           AND (e.user_id = auth.uid()::text OR (e.group_id IS NOT NULL AND public.is_group_member(e.group_id)))
       ))
       OR
       (target_type = 'time_scenario' AND EXISTS (
         SELECT 1 FROM time_scenarios ts
         JOIN documents td ON ts.document_id = td.id
-        WHERE ts.id = target_id
+        WHERE ts.id::text = target_id
           AND (td.user_id = auth.uid() OR (td.group_id IS NOT NULL AND public.is_group_member(td.group_id)))
       ))
     )
