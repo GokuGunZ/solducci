@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:solducci/features/life_os/domain/models/entity_block.dart';
+import 'package:solducci/features/life_os/domain/models/entity_property.dart';
 import 'package:solducci/features/life_os/domain/models/enums.dart';
 
 /// Pure Domain Model for an entity in Life OS.
@@ -29,6 +31,12 @@ class LifeEntity extends Equatable {
   /// Computed from sessions and task completion (Amendment D).
   final DateTime? lastMeaningfulActivityAt;
 
+  /// Progressive properties (INT-D016). Preserved across role changes.
+  final List<EntityProperty> properties;
+
+  /// Living, sequential content blocks added over time (INT-D015).
+  final List<EntityBlock> blocks;
+
   /// Any extensible custom properties.
   final Map<String, dynamic> customMetadata;
 
@@ -44,6 +52,8 @@ class LifeEntity extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.lastMeaningfulActivityAt,
+    this.properties = const [],
+    this.blocks = const [],
     this.customMetadata = const {},
   });
 
@@ -72,6 +82,8 @@ class LifeEntity extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? Function()? lastMeaningfulActivityAt,
+    List<EntityProperty>? properties,
+    List<EntityBlock>? blocks,
     Map<String, dynamic>? customMetadata,
   }) {
     return LifeEntity(
@@ -88,6 +100,8 @@ class LifeEntity extends Equatable {
       lastMeaningfulActivityAt: lastMeaningfulActivityAt != null
           ? lastMeaningfulActivityAt()
           : this.lastMeaningfulActivityAt,
+      properties: properties ?? this.properties,
+      blocks: blocks ?? this.blocks,
       customMetadata: customMetadata ?? this.customMetadata,
     );
   }
@@ -105,6 +119,8 @@ class LifeEntity extends Equatable {
         createdAt,
         updatedAt,
         lastMeaningfulActivityAt,
+        properties,
+        blocks,
         customMetadata,
       ];
 }

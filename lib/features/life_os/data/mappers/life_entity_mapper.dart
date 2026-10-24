@@ -53,6 +53,22 @@ class LifeEntityMapper {
     final currentModeStr = lifeOsMeta['current_mode'] as String?;
     final lastActivityStr = lifeOsMeta['last_meaningful_activity_at'] as String?;
 
+    final propertiesRaw = lifeOsMeta['properties'] as List?;
+    final properties = propertiesRaw != null
+        ? propertiesRaw
+            .whereType<Map>()
+            .map((p) => EntityProperty.fromJson(Map<String, dynamic>.from(p)))
+            .toList()
+        : const <EntityProperty>[];
+
+    final blocksRaw = lifeOsMeta['blocks'] as List?;
+    final blocks = blocksRaw != null
+        ? blocksRaw
+            .whereType<Map>()
+            .map((b) => EntityBlock.fromJson(Map<String, dynamic>.from(b)))
+            .toList()
+        : const <EntityBlock>[];
+
     // Parse custom metadata excluding the namespaced block
     final customMeta = Map<String, dynamic>.from(meta)..remove(namespace);
 
@@ -70,6 +86,8 @@ class LifeEntityMapper {
       lastMeaningfulActivityAt: lastActivityStr != null 
           ? DateTime.tryParse(lastActivityStr) 
           : null,
+      properties: properties,
+      blocks: blocks,
       customMetadata: customMeta,
     );
   }
@@ -85,6 +103,8 @@ class LifeEntityMapper {
       'lifecycle_state': entity.lifecycleState.value,
       'current_mode': entity.currentMode?.value,
       'last_meaningful_activity_at': entity.lastMeaningfulActivityAt?.toIso8601String(),
+      'properties': entity.properties.map((p) => p.toJson()).toList(),
+      'blocks': entity.blocks.map((b) => b.toJson()).toList(),
     };
 
     return LifeEntityDocument(

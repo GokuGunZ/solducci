@@ -133,3 +133,27 @@ human report             → subjective/lived-use evidence
 Nessun livello inferiore può essere usato come sostituto narrativo di quello superiore. Quando l'evidenza richiesta non è disponibile, l'agente deve marcare il livello come `PENDING` o `WAITING FOR EXTERNAL ACTION`, descrivere ciò che è necessario e fermarsi.
 * **Rationale:** Previene false attestazioni, proiezioni narrative o simulazioni non verificate di stati soggettivi ed empirici.
 * **Related:** INT-D001, INT-D006.
+
+---
+
+### INT-D014: Bento Projection Policy for LifeOS Capabilities
+* **Status:** Established (Step 3 Rule)
+* **Decision:** Ogni nuova capability LifeOS deve essere valutata esplicitamente anche per una possibile Bento projection quando possiede valore ambientale, glanceable o quick-action all'interno della dashboard di Solducci. Questo non significa che ogni capability debba produrre un widget, ma che la Feed di Solducci è una superficie di primo livello per l'interazione con LifeOS.
+* **Rationale:** Porta LifeOS nella routine quotidiana dell'utente senza costringerlo a navigare esplicitamente in sezioni isolate.
+* **Related:** DP01, INT-D001.
+
+---
+
+### INT-D015: Vitrine "View = Edit" and Inline Evolvable Body
+* **Status:** Established (Step 3 Design)
+* **Decision:** L'Entity Vitrine unifica lettura e modifica ("The entity is always readable and always editable"). Il titolo è modificabile inline con autowrap tipografico; i controlli semantici (Natura, Modalità, Focus) sono chip compatti posti direttamente sotto il titolo (surface = compact, decision sheet = explanatory); il contenuto dell'entità appare immediatamente dopo; i nuovi pensieri vengono aggiunti tramite una bottom floating composer bar che appende blocchi sequenziali (`EntityBlock`).
+* **Rationale:** Elimina la separazione visiva artificiale tra visualizzazione e form CRUD, trasformando l'Entity in un documento vivo e accogliente.
+* **Related:** INT-D007, INT-D012.
+
+---
+
+### INT-D016: Progressive Properties & Role Property Packs
+* **Status:** Established (Step 3 Specification)
+* **Decision:** Le proprietà di un'entità sono opzionali, progressive e memorizzate in `metadata['properties']`. Il cambio di `SemanticRole` non distrugge alcuna proprietà esistente (Invariante di Conservazione). I pacchetti per ruolo (`RolePropertyPacks`) suggeriscono proprietà euristiche (es. Obiettivo, Prossimo Passo per Progetto; Metodo, Cadenza per Pratica) e riutilizzano le proprietà esistenti per chiave semantica senza duplicati.
+* **Rationale:** Consente all'entità di arricchirsi solo quando necessario, senza subire la tirannia di schemi o form burocratici.
+* **Related:** INT-D002, INT-D007.

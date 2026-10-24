@@ -141,6 +141,14 @@ class BentoWidgetPreviewFactory {
         return _buildAsterisksPreview(size, color);
       case 'recurring_movements':
         return _buildRecurringMovementsPreview(size, color);
+      case 'life_os_capture':
+        return _buildLifeOsCapturePreview(size, color);
+      case 'life_os_recent_seeds':
+        return _buildLifeOsSeedsPreview(size, color);
+      case 'life_os_active_entities':
+        return _buildLifeOsActivePreview(size, color);
+      case 'life_os_pinned_entity':
+        return _buildLifeOsPinnedPreview(size, color);
       default:
         return _buildGenericPreview(type, size, color);
     }
@@ -176,7 +184,7 @@ class BentoWidgetPreviewFactory {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
-            '+2.450,80 €',
+            '+2.450,80 â‚¬',
             style: TextStyle(
               color: color,
               fontSize: is1x1 ? 15 : 19,
@@ -197,7 +205,7 @@ class BentoWidgetPreviewFactory {
               ),
               const SizedBox(width: 4),
               const Text(
-                'Liquidità attiva',
+                'LiquiditÃ  attiva',
                 style: TextStyle(color: Colors.white38, fontSize: 9),
               ),
             ],
@@ -229,7 +237,7 @@ class BentoWidgetPreviewFactory {
                 ],
               ),
               const Text(
-                '€ 240/m',
+                'â‚¬ 240/m',
                 style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ],
@@ -253,7 +261,7 @@ class BentoWidgetPreviewFactory {
                 child: const Text('tra 3gg', style: TextStyle(color: Colors.white70, fontSize: 8)),
               ),
               const SizedBox(width: 4),
-              const Text('€ 17,99', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+              const Text('â‚¬ 17,99', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
             ],
           ),
         ],
@@ -299,15 +307,15 @@ class BentoWidgetPreviewFactory {
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Uscite: € 320/m', style: TextStyle(color: Colors.white70, fontSize: 8.5)),
-              Text('+€ 1.850/m', style: TextStyle(color: Color(0xFF10B981), fontSize: 8.5, fontWeight: FontWeight.bold)),
+              Text('Uscite: â‚¬ 320/m', style: TextStyle(color: Colors.white70, fontSize: 8.5)),
+              Text('+â‚¬ 1.850/m', style: TextStyle(color: Color(0xFF10B981), fontSize: 8.5, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
         const SizedBox(height: 6),
-        _buildPreviewRecurringRow('Affitto Casa', 'tra 2gg', '-€ 650,00', const Color(0xFF3B82F6)),
+        _buildPreviewRecurringRow('Affitto Casa', 'tra 2gg', '-â‚¬ 650,00', const Color(0xFF3B82F6)),
         const SizedBox(height: 4),
-        _buildPreviewRecurringRow('Spotify Duo', 'tra 5gg', '-€ 14,99', const Color(0xFF10B981)),
+        _buildPreviewRecurringRow('Spotify Duo', 'tra 5gg', '-â‚¬ 14,99', const Color(0xFF10B981)),
       ],
     );
   }
@@ -357,7 +365,7 @@ class BentoWidgetPreviewFactory {
             Icon(Icons.local_fire_department_rounded, size: 16, color: color),
             const SizedBox(height: 2),
             const Text(
-              '640 €',
+              '640 â‚¬',
               style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
             ),
             Text(
@@ -396,7 +404,7 @@ class BentoWidgetPreviewFactory {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: const Text(
-            '640,00 €',
+            '640,00 â‚¬',
             style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
           ),
         ),
@@ -484,7 +492,7 @@ class BentoWidgetPreviewFactory {
           ),
           alignment: Alignment.centerRight,
           child: const Text(
-            '12,50 €',
+            '12,50 â‚¬',
             style: TextStyle(
               color: Color(0xFF818CF8),
               fontSize: 13,
@@ -508,7 +516,7 @@ class BentoWidgetPreviewFactory {
                       _buildMiniKeypadRow(['1', '2', '3']),
                       _buildMiniKeypadRow(['4', '5', '6']),
                       _buildMiniKeypadRow(['7', '8', '9']),
-                      _buildMiniKeypadRow(['.', '0', '⌫']),
+                      _buildMiniKeypadRow(['.', '0', 'âŒ«']),
                     ],
                   ),
                 ),
@@ -587,7 +595,7 @@ class BentoWidgetPreviewFactory {
             const Text('PORTAFOGLIO', style: TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
             const Text(
-              '14.320 €',
+              '14.320 â‚¬',
               style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 2),
@@ -628,7 +636,7 @@ class BentoWidgetPreviewFactory {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: const Text(
-            '14.320,50 €',
+            '14.320,50 â‚¬',
             style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
           ),
         ),
@@ -732,7 +740,7 @@ class BentoWidgetPreviewFactory {
           children: [
             Icon(Icons.repeat_rounded, size: 16, color: color),
             const SizedBox(height: 2),
-            const Text('🔥 14 gg', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+            const Text('ðŸ”¥ 14 gg', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
             const SizedBox(height: 1),
             const Text('Allenamento', style: TextStyle(color: Colors.white70, fontSize: 8.5), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
@@ -751,7 +759,7 @@ class BentoWidgetPreviewFactory {
             const SizedBox(width: 4),
             const Text('ABITUDINI', style: TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.bold)),
             const Spacer(),
-            const Text('🔥 14 gg', style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+            const Text('ðŸ”¥ 14 gg', style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 5),
@@ -797,7 +805,7 @@ class BentoWidgetPreviewFactory {
             Text('-12', style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
             Text('GIORNI', style: TextStyle(color: color.withOpacity(0.8), fontSize: 7, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
-            const Text('Giappone ✈️', style: TextStyle(color: Colors.white70, fontSize: 8.5, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const Text('Giappone âœˆï¸', style: TextStyle(color: Colors.white70, fontSize: 8.5, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       );
@@ -828,7 +836,7 @@ class BentoWidgetPreviewFactory {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('✈️ Viaggio in Giappone', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text('âœˆï¸ Viaggio in Giappone', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2),
               Text('24 Ottobre 2026', style: TextStyle(color: Colors.white38, fontSize: 9.5), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
@@ -939,7 +947,7 @@ class BentoWidgetPreviewFactory {
         const SizedBox(height: 6),
         _buildMiniShoppingItem('Latte d\'avena', 'x2'),
         const SizedBox(height: 3),
-        _buildMiniShoppingItem('Caffè espresso', '1 conf.'),
+        _buildMiniShoppingItem('CaffÃ¨ espresso', '1 conf.'),
       ],
     );
   }
@@ -1140,7 +1148,7 @@ class BentoWidgetPreviewFactory {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        '1/3 ▾',
+                        '1/3 â–¾',
                         style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -1153,7 +1161,7 @@ class BentoWidgetPreviewFactory {
                 ),
                 const SizedBox(height: 5),
                 const Text(
-                  '• Comprare regalo festa\n• Revisione preventivo\n• Prenotare treno',
+                  'â€¢ Comprare regalo festa\nâ€¢ Revisione preventivo\nâ€¢ Prenotare treno',
                   style: TextStyle(color: Colors.white70, fontSize: 8.5, height: 1.3),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -1307,6 +1315,125 @@ class BentoWidgetPreviewFactory {
         const Text('## Specifiche', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 1),
         const Text('Architettura modulare...', style: TextStyle(color: Colors.white38, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
+      ],
+    );
+  }
+
+  // --- Life OS Previews (INT-D014) ---
+
+  static Widget _buildLifeOsCapturePreview(BentoWidgetSize size, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.bolt_rounded, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text('CATTURA RAPIDA', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: 22,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Row(
+            children: [
+              const Text('Cattura un seme...', style: TextStyle(color: Colors.white30, fontSize: 8)),
+              const Spacer(),
+              Icon(Icons.arrow_upward_rounded, size: 10, color: color),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Widget _buildLifeOsSeedsPreview(BentoWidgetSize size, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.eco_rounded, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text('SEMI RECENTI', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            Icon(Icons.circle, size: 4, color: color),
+            const SizedBox(width: 4),
+            const Expanded(child: Text('Comprare filo di rame', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Icon(Icons.circle, size: 4, color: color),
+            const SizedBox(width: 4),
+            const Expanded(child: Text('Studiare meglio F2L', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static Widget _buildLifeOsActivePreview(BentoWidgetSize size, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text('ENTITÀ ATTIVE', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            const Icon(Icons.rocket_launch_rounded, size: 10, color: Color(0xFF6366F1)),
+            const SizedBox(width: 4),
+            const Expanded(child: Text('Auth GDPR Solducci', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            const Icon(Icons.repeat_rounded, size: 10, color: Color(0xFF10B981)),
+            const SizedBox(width: 4),
+            const Expanded(child: Text('Stretching serale', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static Widget _buildLifeOsPinnedPreview(BentoWidgetSize size, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.push_pin_rounded, size: 11, color: color),
+            const SizedBox(width: 4),
+            Text('IN EVIDENZA', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text('LifeOS Core', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), maxLines: 1),
+        const SizedBox(height: 2),
+        const Text('Esecuzione · Progetto', style: TextStyle(color: Colors.white38, fontSize: 8), maxLines: 1),
       ],
     );
   }

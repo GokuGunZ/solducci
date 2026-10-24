@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'entity_vitrine_state.dart';
 
 class EntityVitrineCubit extends Cubit<EntityVitrineState> {
@@ -10,6 +11,7 @@ class EntityVitrineCubit extends Cubit<EntityVitrineState> {
   final UserEntityOverlayRepository _overlayRepository;
   final String entityId;
   final String? _injectedUserId;
+  final _uuid = const Uuid();
 
   EntityVitrineCubit({
     required this.entityId,
@@ -229,6 +231,160 @@ class EntityVitrineCubit extends Cubit<EntityVitrineState> {
       emit(state.copyWith(
         isSaving: false,
         errorMessage: () => 'Impossibile aggiornare Weekly Rail: verifica la connessione.',
+      ));
+      return false;
+    }
+  }
+
+  /// Appends a new living content block to the entity (INT-D015)
+  Future<bool> addBlock(String content) async {
+    final current = state.entity;
+    if (current == null) return false;
+
+    final cleanText = content.trim();
+    if (cleanText.isEmpty) return false;
+
+    emit(state.copyWith(isSaving: true, errorMessage: () => null));
+
+    final newBlock = EntityBlock(
+      id: _uuid.v4(),
+      content: cleanText,
+      position: current.blocks.length,
+      createdAt: DateTime.now(),
+    );
+
+    final updated = current.copyWith(
+      blocks: [...current.blocks, newBlock],
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      final saved = await _entityRepository.updateEntity(updated);
+      emit(state.copyWith(
+        isSaving: false,
+        entity: saved,
+      ));
+      return true;
+    } catch (e) {
+      emit(state.copyWith(
+        isSaving: false,
+        errorMessage: () => 'Impossibile aggiungere pensiero: verifica la connessione.',
+      ));
+      return false;
+    }
+  }
+
+  /// Updates the text of an existing content block
+  Future<bool> updateBlock(String blockId, String content) async {
+    final current = state.entity;
+    if (current == null) return false;
+
+    final cleanText = content.trim();
+    if (cleanText.isEmpty) return deleteBlock(blockId);
+
+    final updatedBlocks = current.blocks.map((b) {
+      if (b.id == blockId) {
+        return b.copyWith(content: cleanText, updatedAt: DateTime.now());
+      }
+      return b;
+    }).toList();
+
+    final updated = current.copyWith(
+      blocks: updatedBlocks,
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      final saved = await _entityRepository.updateEntity(updated);
+      emit(state.copyWith(entity: saved));
+      return true;
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: () => 'Impossibile aggiornare il blocco.',
+      ));
+      return false;
+    }
+  }
+
+  /// Deletes a content block
+  Future<bool> deleteBlock(String blockId) async {
+    final current = state.entity;
+    if (current == null) return false;
+
+    final updatedBlocks = current.blocks.where((b) => b.id != blockId).toList();
+    final updated = current.copyWith(
+      blocks: updatedBlocks,
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      final saved = await _entityRepository.updateEntity(updated);
+      emit(state.copyWith(entity: saved));
+      return true;
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: () => 'Impossibile eliminare il blocco.',
+      ));
+      return false;
+    }
+  }
+
+  /// Adds or updates a progressive property (INT-D016)
+  /// Reuses existing key if present; preserves all other properties.
+  Future<bool> addOrUpdateProperty(EntityProperty property) async {
+    final current = state.entity;
+    if (current == null) return false;
+
+    emit(state.copyWith(isSaving: true, errorMessage: () => null));
+
+    final existingIndex = current.properties.indexWhere((p) => p.key == property.key);
+    final List<EntityProperty> newProperties = List.from(current.properties);
+
+    if (existingIndex >= 0) {
+      newProperties[existingIndex] = property;
+    } else {
+      newProperties.add(property);
+    }
+
+    final updated = current.copyWith(
+      properties: newProperties,
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      final saved = await _entityRepository.updateEntity(updated);
+      emit(state.copyWith(
+        isSaving: false,
+        entity: saved,
+      ));
+      return true;
+    } catch (e) {
+      emit(state.copyWith(
+        isSaving: false,
+        errorMessage: () => 'Impossibile salvare la proprietà.',
+      ));
+      return false;
+    }
+  }
+
+  /// Removes a progressive property by key
+  Future<bool> removeProperty(String key) async {
+    final current = state.entity;
+    if (current == null) return false;
+
+    final newProperties = current.properties.where((p) => p.key != key).toList();
+    final updated = current.copyWith(
+      properties: newProperties,
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      final saved = await _entityRepository.updateEntity(updated);
+      emit(state.copyWith(entity: saved));
+      return true;
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: () => 'Impossibile rimuovere la proprietà.',
       ));
       return false;
     }
