@@ -16,6 +16,8 @@ import 'package:solducci/domain/repositories/task_tag_repository.dart';
 import 'package:solducci/data/repositories/supabase_task_repository.dart';
 import 'package:solducci/data/repositories/supabase_task_completion_repository.dart';
 import 'package:solducci/data/repositories/supabase_task_tag_repository.dart';
+import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
+import 'package:solducci/features/life_os/data/repositories/repositories.dart';
 
 /// Global service locator instance
 final getIt = GetIt.instance;
@@ -46,6 +48,22 @@ Future<void> setupServiceLocator() async {
   );
   getIt.registerLazySingleton<TaskTagRepository>(
     () => SupabaseTaskTagRepository(),
+  );
+
+  // Life OS Repositories
+  getIt.registerLazySingleton<LifeEntityRepository>(
+    () => SupabaseLifeEntityRepository(),
+  );
+  getIt.registerLazySingleton<EntityRelationRepository>(
+    () => SupabaseEntityRelationRepository(),
+  );
+  getIt.registerLazySingleton<LifeSessionRepository>(
+    () => SupabaseLifeSessionRepository(
+      entityRepository: getIt<LifeEntityRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<UserEntityOverlayRepository>(
+    () => SupabaseUserOverlayRepository(),
   );
 
   // Specialized Task Services

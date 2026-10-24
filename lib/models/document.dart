@@ -129,6 +129,8 @@ abstract class Document with DirectContextBound {
         return ShoppingListDocument.fromMap(map);
       case 'time_scenario':
         return TimeScenarioDocument.fromMap(map);
+      case 'life_entity':
+        return LifeEntityDocument.fromMap(map);
       case 'generic_list':
         // Future implementation
         throw UnimplementedError('GenericListDocument not yet implemented');
@@ -494,6 +496,56 @@ class TimeScenarioDocument extends Document {
       description: description,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+    );
+  }
+}
+
+/// Life OS Entity document - persistence DTO for LifeEntity.
+/// Encapsulates storage in the polymorphic documents table while keeping
+/// the domain layer [LifeEntity] pure and decoupled.
+class LifeEntityDocument extends Document {
+  LifeEntityDocument({
+    required super.id,
+    super.userId,
+    super.groupId,
+    required super.title,
+    super.description,
+    required super.createdAt,
+    required super.updatedAt,
+    super.metadata,
+  }) : super(documentType: 'life_entity');
+
+  factory LifeEntityDocument.fromMap(Map<String, dynamic> map) {
+    return LifeEntityDocument(
+      id: map['id'] as String,
+      userId: map['user_id'] as String?,
+      groupId: map['group_id'] as String?,
+      title: map['title'] as String,
+      description: map['description'] as String?,
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: DateTime.parse(map['updated_at'] as String),
+      metadata: map['metadata'] != null
+          ? Map<String, dynamic>.from(map['metadata'] as Map)
+          : {},
+    );
+  }
+
+  factory LifeEntityDocument.create({
+    required String? userId,
+    String? groupId,
+    required String title,
+    String? description,
+    Map<String, dynamic>? metadata,
+  }) {
+    return LifeEntityDocument(
+      id: '',
+      userId: userId,
+      groupId: groupId,
+      title: title,
+      description: description,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      metadata: metadata ?? {},
     );
   }
 }

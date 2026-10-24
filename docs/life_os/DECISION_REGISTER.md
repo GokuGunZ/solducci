@@ -15,6 +15,10 @@
 | **INT-D004** | Primary Entity + Related Entities for `LifeSession` | **Established** | Domain / Experience |
 | **INT-D005** | Polymorphic References in `entity_relations` | **Established** | Storage / Relazioni |
 | **INT-D006** | Decoupled Policy from Signal Evaluation Mechanism | **Established** | Interaction / Mirror |
+| **INT-D007** | `currentMode` Has No Semantic Default (`null` is Valid) | **Established** | Domain / Ontologia |
+| **INT-D008** | Single Source of Truth for User-Specific State | **Established** | Architecture / Overlay |
+| **INT-D009** | Enforced Target Integrity for `entity_relations` | **Established** | Storage / Integrity |
+| **INT-D010** | Meaningful Activity Policy v0.1 (Derived Cache) | **Established** | Domain / Experience |
 
 ---
 
@@ -65,3 +69,35 @@
 * **Decision:** I segnali dello specchio (`InactivitySignal`, `MaturitySignal`, `DistillationDebtSignal`) sono valutati tramite un motore deterministico disaccoppiato da configurazioni di policy (soglie numeriche di giorni o conteggi note), e supportano il congedo temporaneo (`snooze/dismiss`).
 * **Rationale:** Soglie numeriche come 14 giorni sono ipotesi di policy, non verità di dominio. Devono poter essere modificate senza migrazioni database.
 * **Related:** DP01, DP19, SR09, SR11.
+
+---
+
+### INT-D007: `currentMode` Has No Semantic Default (`null` is Valid)
+* **Status:** Established (Amendment A)
+* **Decision:** `currentMode` è opzionale (`OperationMode? currentMode`). Una cattura grezza (`seed`) non riceve `mode = exploration` arbitrariamente. L'assenza di struttura è una struttura valida (`DP04`).
+* **Rationale:** Non assegnare strutture premature a ciò che è solo una nota rapida (es. "comprare filo di rame").
+* **Related:** DP04, DP05, INT-D003.
+
+---
+
+### INT-D008: Single Source of Truth for User-Specific State
+* **Status:** Established (Amendment B)
+* **Decision:** Qualsiasi stato classificato come `USER-SPECIFIC` (`is_in_weekly_rail`, `commitment_weight`, `snoozed_signals`, personal notes) risiede esclusivamente in `user_entity_overlays`, sia che l'entità sia personale sia che sia condivisa in un gruppo. L'overlay è creato in modalità lazy (nessuna riga finché l'utente non salva preferenze personali).
+* **Rationale:** Unica fonte di verità senza biforcazioni (shared entity vs personal entity). Due utenti possono condividere un progetto senza che le loro pianificazioni settimanali collidano.
+* **Related:** DP06, DP15, INT-D002.
+
+---
+
+### INT-D009: Enforced Target Integrity for `entity_relations`
+* **Status:** Established (Amendment C)
+* **Decision:** `source_id` mantiene una FK reale su `documents(id)`. I target supportati in v0.1 sono limitati a `'entity'`, `'task'`, `'expense'`, `'time_scenario'`. L'integrità all'eliminazione è garantita da trigger PostgreSQL discriminati per `target_type`. L'autorizzazione è garantita da RLS: l'utente non può creare relazioni verso oggetti a cui non ha accesso.
+* **Rationale:** Previene riferimenti orfani e violazioni di sicurezza senza imporre un motore di grafi universale.
+* **Related:** DP08, INT-D005.
+
+---
+
+### INT-D010: Meaningful Activity Policy v0.1 (Derived Cache)
+* **Status:** Established (Amendment D)
+* **Decision:** La policy v0.1 definisce come fonti canoniche di attività significativa esclusivamente: 1) `LifeSession` registrata, 2) `Task` completato / progresso operativo. `last_meaningful_activity_at` è una cache materializzata aggiornata al salvataggio e ricalcolabile in ogni momento tramite auto-healing dalle fonti canoniche.
+* **Rationale:** Prestazioni O(1) in lettura sulla dashboard preservando la purezza del dato canonico.
+* **Related:** DP03, DP11, INT-D002.
