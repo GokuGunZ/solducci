@@ -117,3 +117,19 @@
 * **Decision:** `SemanticRole` (cosa rappresenta l'entità: seed, project, practice, concept, idea) e `OperationMode` (come la si sta affrontando: null, exploration, execution, practice, reflection) sono rigidamente ortogonali. Nessuna azione umana ("Trattalo come progetto", "Coltivalo come pratica", "Esplora") può mutare implicitamente l'altra dimensione.
 * **Rationale:** Previene assunzioni indebite (es. progetto = esecuzione forzata, o esplora = idea forzata) e rispetta il fatto che una cattura può essere esplorata rimanendo seme, o lavorata rimanendo progetto.
 * **Related:** INT-D007, DP02.
+
+---
+
+### INT-D013: Evidence Authority Boundary
+* **Status:** Established (Step 2.1 Meta-Rule)
+* **Decision:** Un livello di evidenza può essere promosso solo da un attore o strumento capace di osservare direttamente quel fenomeno.
+```text
+compiler                 → build evidence
+unit test                → isolated behavior evidence
+DB integration test      → database behavior evidence
+physical device/emulator → device behavior evidence
+human report             → subjective/lived-use evidence
+```
+Nessun livello inferiore può essere usato come sostituto narrativo di quello superiore. Quando l'evidenza richiesta non è disponibile, l'agente deve marcare il livello come `PENDING` o `WAITING FOR EXTERNAL ACTION`, descrivere ciò che è necessario e fermarsi.
+* **Rationale:** Previene false attestazioni, proiezioni narrative o simulazioni non verificate di stati soggettivi ed empirici.
+* **Related:** INT-D001, INT-D006.
