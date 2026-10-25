@@ -1,4 +1,4 @@
-# LifeOS Step 3.1 — Integrity & Device Gate Report
+# LifeOS Step 3.1 — Final Integrity Report & External Validation Handoff
 
 **Date:** 2026-10-25  
 **Worktree:** `C:\Users\Aless\Documents\Projects\LIFE_OS` (`LIFE_OS` branch)  
@@ -6,90 +6,134 @@
 
 ---
 
-## 1. Executive Summary & Epistemic Boundary (INT-D013)
+## 1. Epistemic Boundary Matrix (INT-D013)
 
-Step 3.1 consolidates the architectural and functional contracts introduced by the **Everyday Integration & Evolvable Entity** milestone (Step 3). In strict compliance with the **Epistemic Authority Boundary (INT-D013)**, this report distinguishes strictly between compiler/domain proven facts and runtime/device observations requiring physical or external agency.
+In strict accordance with the **Epistemic Authority Boundary (INT-D013)**, this report establishes a sharp separation between facts proven by the compiler/test harness and items requiring external observation:
 
-| Layer / Capability | Verification Status | Epistemic Evidence |
-| :--- | :--- | :--- |
-| **Namespace Normalization** (`metadata['life_os']`) | **PROVEN** | Automated unit & mapper round-trip tests (`mapper_test.dart`, `step_3_everyday_integration_test.dart`) |
-| **Property Codec & Identity (Upsert / Deduplication)** | **PROVEN** | Automated domain invariant tests (`step_3_everyday_integration_test.dart`) |
-| **Role Change Property Non-Destruction** | **PROVEN** | Automated domain invariant test (`step_3_everyday_integration_test.dart`) |
-| **Sequential Blocks Document Persistence** | **PROVEN (v0.1 Single-Writer Scope)** | Verified via mapper serialization; explicit concurrency caveats & triggers recorded |
-| **View = Edit (In-Place Block Editing)** | **PROVEN** | Automated widget interaction test (`step_3_everyday_integration_test.dart`) |
-| **Bento Context Scope & Isolation** | **PROVEN** | Automated widget test consuming `DashboardContextScope` with personal/group routing |
-| **Android Debug Package Generation** | **BUILD VERIFIED** | `flutter build apk --debug` exit code 0 |
-| **Physical Device UX / Ergonomics** | **PENDING (Waiting Human Action)** | Requires installation on physical Android device |
-| **Real PostgreSQL / Supabase Integration** | **PENDING (Waiting External DB)** | Schema migration prepared; awaiting real PostgreSQL execution |
-
----
-
-## 2. Integrity Hardening Details
-
-### 2.1 Metadata Namespace Canonical Normalization
-- **Canonical Contract:** All LifeOS domain fields stored in Supabase `entities.metadata` are nested strictly under the top-level namespace key `'life_os'`:
-  - `metadata['life_os']['properties']` $\rightarrow$ list of serialized properties
-  - `metadata['life_os']['blocks']` $\rightarrow$ list of serialized body blocks
-  - `metadata['life_os']['semantic_role']`, `lifecycle_state`, `current_mode`, `is_pinned`
-- **Reconciliation:** All divergences in `LIFE_OS_PROGRESSIVE_PROPERTIES_DESIGN.md` and `DECISION_REGISTER.md` (INT-D016) have been corrected to reflect the canonical contract.
-
-### 2.2 Canonical Property Codec & Key Deduplication
-- **JSON Serialization Standards:**
-  - `PropertyType.text` $\rightarrow$ string (`"..."`)
-  - `PropertyType.url` $\rightarrow$ string (`"https://..."`)
-  - `PropertyType.date` $\rightarrow$ ISO-8601 string (`"YYYY-MM-DD"`)
-  - `PropertyType.number` $\rightarrow$ JSON number (`num`, e.g. `42` or `3.14`), parsed back defensively from `num` or `String` in UI.
-- **Property Identity & Upsert:**
-  - Invariant: *One entity + one semantic key $\rightarrow$ at most one active property with that key.*
-  - Added [`LifeEntity.upsertProperty(EntityProperty)`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/features/life_os/domain/models/life_entity.dart) and [`LifeEntity.removeProperty(String)`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/features/life_os/domain/models/life_entity.dart) to domain models.
-  - Added deterministic **Last-Write-Wins** deduplication in [`LifeEntityMapper.fromRow`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/features/life_os/data/mappers/life_entity_mapper.dart) so accidental duplicate keys in incoming JSON payloads are cleanly collapsed to a single property.
-
-### 2.3 Non-Prescriptive Role Packs
-- Changing an entity's `semanticRole` (e.g. from `project` to `concept` or `seed`) **never** deletes or mutates existing properties. Role Property Packs serve purely as suggestion templates in the UI picker without imposing strict ontological validation rules.
-
-### 2.4 Blocks Persistence: Scope & Explicit Revisit Triggers
-- **Current Strategy (v0.1):** Single-writer JSON document serialization inside `metadata['life_os']['blocks']`. This eliminates migration overhead for Step 3, perfectly serving personal sequential thoughts and low-volume append operations.
-- **Correction:** We withdraw and repudiate any previous claim of "zero race conditions". In multi-device or concurrent editing scenarios, document-level overwrites will result in Last-Write-Wins lost updates.
-- **Formal Revisit Triggers for Dedicated Table Storage:**
-  1. *Concurrent Multi-Device / Multi-User Editing:* Simultaneous edits from multiple clients requiring CRDTs, OT, or row-level locking.
-  2. *High Volume / Large Block History:* Entities accumulating >50 blocks, where reading and writing the entire array degrades payload latency.
-  3. *Independent Block Queries & Search:* Need for PostgreSQL full-text search indexing on block content or vector embeddings per block.
-  4. *Inter-Block Relations:* When individual blocks need to reference external tasks, documents, or other entities.
-  5. *Rich / Binary Block Types:* Audio notes, attachments, or media requiring independent upload states and lifecycles.
-
-### 2.5 In-Place Block Editing (View = Edit Completed)
-- Existing blocks in the entity vitrine body ([`_LivingBlockCard`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/features/life_os/presentation/views/entity_vitrine_view.dart)) are no longer read-only or dependent on modal dialogs.
-- **Interaction:**
-  - Double-tap or selecting "Modifica blocco" from the card menu transitions the block into inline editing mode.
-  - Provides inline text field with direct Save (check icon) and Cancel (close icon) actions.
-  - Guarded against accidental loss: empty submissions retain original content; cancel discards uncommitted keystrokes.
-
-### 2.6 Bento Context Correctness
-- Verified that all four LifeOS Bento widgets ([`LifeOsCaptureWidget`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/widgets/dashboard/widgets/life_os/life_os_capture_widget.dart), [`LifeOsRecentSeedsWidget`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/widgets/dashboard/widgets/life_os/life_os_recent_seeds_widget.dart), [`LifeOsActiveEntitiesWidget`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/widgets/dashboard/widgets/life_os/life_os_active_entities_widget.dart), [`LifeOsPinnedEntityWidget`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/widgets/dashboard/widgets/life_os/life_os_pinned_entity_widget.dart)) strictly query through [`DashboardContextScope.of(context)`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/lib/widgets/dashboard/context/dashboard_context_scope.dart) and fall back gracefully to `ContextManager().currentContext`.
-- Captures from `UniversalCaptureWidget` route to personal context or trigger `ViewGroupPickerSheet` when placed in an aggregated view.
+```text
+Android build / package:          BUILD VERIFIED
+Domain models & invariants:       PROVEN (Automated Tests)
+Mapper roundtrip & JSON codec:    PROVEN (Automated Tests)
+View = Edit interactions:         PROVEN (Automated Widget Tests)
+Bento context isolation:          PROVEN (Automated Widget Tests)
+Real PostgreSQL / Supabase DB:    PENDING (Waiting External Execution)
+Real PostgreSQL RLS execution:    PENDING (Waiting External Execution)
+Physical device install:          PENDING (Waiting Human Action)
+Physical device UX & ergonomics:  PENDING (Waiting Human Action)
+Lived use & psychological impact: PENDING (Waiting Human Lived Experience)
+```
 
 ---
 
-## 3. Automated Test Suite Results
+## 2. Integrity Audits & Resolutions
 
-Full test suite under `test/features/life_os` executed with **44 / 44 tests passing**:
-- `capabilities_test.dart` (4 tests) — Pass
-- `domain_invariants_test.dart` (4 tests) — Pass
-- `integration_validation_test.dart` (10 tests) — Pass
-- `mapper_test.dart` (5 tests) — Pass
-- `minimal_living_hatch_test.dart` (9 tests) — Pass
-- `step_3_everyday_integration_test.dart` (12 unit + 2 widget tests) — Pass
+### 2.1 Persistence Terminology & Adapter Canon
+- **Persistence Storage:** The canonical persistence adapter for `LifeEntity` remains the existing PostgreSQL table `documents` (referencing `INT-D002`).
+- **Metadata Namespace:** No separate `entities` table or schema is introduced. All LifeOS domain fields are stored strictly under the canonical namespace:
+  ```text
+  documents.metadata['life_os']['properties']
+  documents.metadata['life_os']['blocks']
+  documents.metadata['life_os']['semantic_role']
+  documents.metadata['life_os']['lifecycle_state']
+  documents.metadata['life_os']['current_mode']
+  ```
+- Previous loose references to `entities.metadata` in report drafts have been corrected to `documents.metadata['life_os']...`.
+
+### 2.2 Audit of `is_pinned` against INT-D008
+- **Audit Result:** `LifeEntity` and `documents.metadata['life_os']` do **NOT** contain an `is_pinned` field. An earlier draft mistakenly listed it alongside semantic role and mode.
+- **Architectural Boundary (INT-D008):**
+  - **Bento Widget Pinning (BENTO-SPECIFIC):** Tracked in `BentoWidgetDef.customProps['entity_id']`. Determines which entity a specific Bento tile projects on a specific user's feed.
+  - **Personal Focus (USER-SPECIFIC):** Tracked in `UserEntityOverlay.isInWeeklyRail`. Allows individual users to star or focus an entity without colliding with other group members on shared entities.
+  - **Shared Entity Core:** Retains zero pinning state, guaranteeing multi-user isolation.
+
+### 2.3 Property Codec & Type-Safe Representation (INT-D016)
+- **Model Representation:** `EntityProperty` now holds an `Object value` (not a constrained string), providing genuine type safety without class hierarchy overhead.
+  - `PropertyType.text`   $\rightarrow$ `String`
+  - `PropertyType.url`    $\rightarrow$ `String`
+  - `PropertyType.date`   $\rightarrow$ ISO-8601 `String` (with `asDate` accessor returning `DateTime?`)
+  - `PropertyType.number` $\rightarrow$ `num` (int / double, with `asNumber` accessor returning `num?`)
+  - `displayValue`        $\rightarrow$ `String` representation for UI display and text controllers.
+- **Serialization & Deserialization:**
+  - `canonicalJsonValue` serializes `number` to a raw JSON `num` and `date` to an ISO-8601 string.
+  - `EntityProperty.fromJson` defensively handles typed inputs and malformed values (e.g. non-numeric strings safely default to `0`, malformed dates fall back to string representations without crashing, unknown types safely fall back to `PropertyType.text`).
+- **Property Identity & Deduplication:**
+  - `LifeEntity.upsertProperty(EntityProperty)` enforces *at most one active property per semantic key*.
+  - `LifeEntityMapper` applies deterministic *Last-Write-Wins* deduplication when deserializing rows with duplicate keys.
+  - Changing `semanticRole` non-destructively preserves all existing properties.
+
+### 2.4 Complete View = Edit Verification
+All primary entity vitrine surfaces operate under the "View = Edit" paradigm without modal CRUD forms:
+1. **Title:** Direct inline editing via `TextField`, automatically committed on submit or blur.
+2. **Description:** Inline tap-to-edit multiline `TextField`, automatically committed on submit or blur.
+3. **Existing Blocks:** Editable in-place within `_LivingBlockCard` on double-tap or via menu action "Modifica blocco", with explicit Save (✓) and Cancel (✕) controls.
+4. **Existing Properties:** Each property renders as `_PropertyItemRow` with an inline editable textfield committed on blur/submit, and a delete button. Lightweight dialogs enable adding suggested role pack templates or custom properties (`+ Aggiungi`).
+5. **Semantic Controls:** Compact chips (`[ Natura ] [ Modalità ] [ Focus ]`) directly beneath the title opening human-intention bottom sheets (`HumanRoleActionSheet`, `HumanModeActionSheet`, `toggleWeeklyRail`).
+
+### 2.5 Block Storage Concurrency & Revisit Triggers
+- **Current Strategy (v0.1):** Single-writer JSON document serialization in `documents.metadata['life_os']['blocks']`.
+- **Concurrency Caveat:** In multi-writer or concurrent device environments, document-level saves will incur Last-Write-Wins updates.
+- **Revisit Triggers for Dedicated Table Storage:**
+  - `>50 blocks` is an informal heuristic, NOT a rigid architectural threshold.
+  - The true decision triggers are concrete operational evidence:
+    1. *Payload Growth & Latency:* Noticeable slowdown in document transfer size or serialization cost.
+    2. *Concurrent Writers:* Multiple users or active devices editing the same entity simultaneously.
+    3. *Independent Queries:* Requirement for full-text search (FTS), vector search, or partial block updates.
+    4. *Block Identity & Relations:* Need to link external tasks, expenses, or sub-entities directly to a specific block ID.
+    5. *Rich Lifecycle:* Audio notes, attachments, or rich media requiring independent upload and processing states.
 
 ---
 
-## 4. Required Action for Human User
+## 3. Automated Test Breakdown & Verification
 
-1. **Physical Device Installation:**
-   - Install `build/app/outputs/flutter-apk/app-debug.apk` on a physical Android handset via ADB:
-     ```bash
-     adb install -r build/app/outputs/flutter-apk/app-debug.apk
-     ```
-2. **Lived-Use Evaluation Points:**
-   - **Bento Feed:** Add `Universal Capture` and `Recent Seeds` to your dashboard. Test quick thumb capture directly from feed.
-   - **Inline Vitrine:** Open any entity, edit the title directly, add a quick thought using the floating composer, double-tap an existing block to edit it inline.
-   - **Progressive Properties:** Add a custom property (e.g. Scadenza, Link, o Numero) without feeling overwhelmed by an ontological schema. Change role and verify property preservation.
+Full test suite under `test/features/life_os` executed with **45 / 45 tests passing**:
+
+```text
+| Test Suite File                       | Tests Executed | Result |
+| :------------------------------------ | :------------: | :----: |
+| capabilities_test.dart                |       4        |  PASS  |
+| domain_invariants_test.dart           |       4        |  PASS  |
+| integration_validation_test.dart      |      11        |  PASS  |
+| mapper_test.dart                      |       5        |  PASS  |
+| minimal_living_hatch_test.dart        |       6        |  PASS  |
+| step_3_everyday_integration_test.dart |      15        |  PASS  |
+| TOTAL                                 |      45        |  PASS  |
+```
+
+*Note on breakdown:* `step_3_everyday_integration_test.dart` contains 9 unit tests (including test `2e` for canonical codec roundtrip & malformed input) + 6 widget tests (universal capture, recent seeds, active entities, pinned entity, inline vitrine, inline block editing).
+
+### Static Analysis
+```text
+flutter analyze lib/features/life_os lib/widgets/dashboard test/features/life_os
+No issues found! (0 warnings, 0 errors)
+```
+
+---
+
+## 4. External Validation Handoff
+
+### Artifact Paths
+- **Android Debug APK:** [`C:\Users\Aless\Documents\Projects\LIFE_OS\build\app\outputs\flutter-apk\app-debug.apk`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/build/app/outputs/flutter-apk/app-debug.apk)
+- **Supabase Core Migration:** [`C:\Users\Aless\Documents\Projects\LIFE_OS\supabase\migrations\20261023000001_life_os_core.sql`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/supabase/migrations/20261023000001_life_os_core.sql)
+
+### Supabase Dev Setup Steps (For Real DB & RLS Testing)
+1. Open your Supabase Project Dashboard $\rightarrow$ **SQL Editor**.
+2. Run the migration script `20261023000001_life_os_core.sql`.
+   - *Note on UUID casting:* Ensure that any previous queries joining `documents.user_id` cast explicitly to `uuid` (`auth.uid() = user_id::uuid` or `user_id = auth.uid()::text`), as established in migration fix INT-D009.
+3. Verify table `user_entity_overlays` and trigger `trg_sync_meaningful_activity` are active.
+
+### Physical Device Checklist (Human Lived-Use)
+1. **Sideload APK:**
+   ```bash
+   adb install -r build/app/outputs/flutter-apk/app-debug.apk
+   ```
+2. **Dashboard Bento Widgets:**
+   - Add `Universal Capture` and `Recent Seeds` to your Bento feed.
+   - Type a raw thought directly in the capture box and press enter. Verify the seed appears immediately in Recent Seeds without opening LifeOS Center.
+3. **Vitrine View = Edit:**
+   - Tap any entity to open its Vitrine.
+   - Tap the title or description to edit inline.
+   - Tap `+ Aggiungi` or a suggested chip under `PROPRIETÀ` to add a property (e.g. Scadenza, Link, o Numero) and verify inline editing in `_PropertyItemRow`.
+   - Add thoughts via the floating composer bar at the bottom.
+   - Double-tap an existing block card to edit its content inline, then tap the checkmark to save.
+4. **Role Preservation:**
+   - Tap the Natura chip (`[ Natura: Seme/Progetto/... ]`), select a new role from the human action sheet, and verify that all existing properties and body blocks remain completely intact.

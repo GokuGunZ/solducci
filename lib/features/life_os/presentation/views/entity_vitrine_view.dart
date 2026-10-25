@@ -380,57 +380,75 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
                   ),
 
                   // --- Progressive Properties Section (INT-D016) ---
-                  if (entity.properties.isNotEmpty || suggestedTemplates.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text(
-                      'PROPRIETÀ',
-                      style: TextStyle(
-                        color: Colors.white38,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.1,
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'PROPRIETÀ',
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Active Properties List
-                    ...entity.properties.map((prop) {
-                      return _PropertyItemRow(
-                        property: prop,
-                        onChanged: (newVal) {
-                          context.read<EntityVitrineCubit>().addOrUpdateProperty(
-                                prop.copyWith(value: newVal),
-                              );
-                        },
-                        onDelete: () {
-                          context.read<EntityVitrineCubit>().removeProperty(prop.key);
-                        },
-                      );
-                    }),
-
-                    // Suggested Role Property Packs
-                    if (suggestedTemplates.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: suggestedTemplates.map((template) {
-                          return ActionChip(
-                            avatar: const Icon(Icons.add_rounded, size: 14, color: AppTheme.primary),
-                            label: Text(
-                              template.label,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                            backgroundColor: const Color(0xFF18181B),
-                            side: BorderSide(color: Colors.white.withOpacity(0.08)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            onPressed: () {
-                              _showAddPropertyDialog(context, template);
-                            },
-                          );
-                        }).toList(),
+                      GestureDetector(
+                        onTap: () => _showAddCustomPropertyDialog(context),
+                        child: const Text(
+                          '+ Aggiungi',
+                          style: TextStyle(
+                            color: AppTheme.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Active Properties List
+                  ...entity.properties.map((prop) {
+                    return _PropertyItemRow(
+                      property: prop,
+                      onChanged: (newVal) {
+                        Object parsedVal = newVal;
+                        if (prop.type == PropertyType.number) {
+                          parsedVal = num.tryParse(newVal) ?? 0;
+                        }
+                        context.read<EntityVitrineCubit>().addOrUpdateProperty(
+                              prop.copyWith(value: parsedVal),
+                            );
+                      },
+                      onDelete: () {
+                        context.read<EntityVitrineCubit>().removeProperty(prop.key);
+                      },
+                    );
+                  }),
+
+                  // Suggested Role Property Packs
+                  if (suggestedTemplates.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: suggestedTemplates.map((template) {
+                        return ActionChip(
+                          avatar: const Icon(Icons.add_rounded, size: 14, color: AppTheme.primary),
+                          label: Text(
+                            template.label,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                          backgroundColor: const Color(0xFF18181B),
+                          side: BorderSide(color: Colors.white.withOpacity(0.08)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          onPressed: () {
+                            _showAddPropertyDialog(context, template);
+                          },
+                        );
+                      }).toList(),
+                    ),
                   ],
 
                   // --- Living Evolvable Content Blocks (INT-D015) ---
@@ -619,11 +637,15 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
               onPressed: () {
                 final val = textController.text.trim();
                 if (val.isNotEmpty) {
+                  Object parsedVal = val;
+                  if (template.defaultType == PropertyType.number) {
+                    parsedVal = num.tryParse(val) ?? 0;
+                  }
                   context.read<EntityVitrineCubit>().addOrUpdateProperty(
                         EntityProperty(
                           key: template.key,
                           label: template.label,
-                          value: val,
+                          value: parsedVal,
                           type: template.defaultType,
                         ),
                       );
@@ -633,6 +655,109 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
               child: const Text('Aggiungi', style: TextStyle(color: Colors.white)),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showAddCustomPropertyDialog(BuildContext context) {
+    final keyController = TextEditingController();
+    final valController = TextEditingController();
+    PropertyType selectedType = PropertyType.text;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1A1A20),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              title: const Text(
+                'Nuova Proprietà',
+                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: keyController,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: const InputDecoration(
+                      hintText: 'Nome (es. Budget, Link, Scadenza)',
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                      border: UnderlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: valController,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: const InputDecoration(
+                      hintText: 'Valore iniziale',
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                      border: UnderlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Text('Tipo: ', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      const SizedBox(width: 8),
+                      DropdownButton<PropertyType>(
+                        value: selectedType,
+                        dropdownColor: const Color(0xFF27272A),
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        underline: const SizedBox(),
+                        items: PropertyType.values.map((t) {
+                          return DropdownMenuItem(
+                            value: t,
+                            child: Text(t.name),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => selectedType = val);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Annulla', style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+                  onPressed: () {
+                    final label = keyController.text.trim();
+                    final rawVal = valController.text.trim();
+                    if (label.isNotEmpty && rawVal.isNotEmpty) {
+                      final key = label.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+                      Object parsedVal = rawVal;
+                      if (selectedType == PropertyType.number) {
+                        parsedVal = num.tryParse(rawVal) ?? 0;
+                      }
+                      context.read<EntityVitrineCubit>().addOrUpdateProperty(
+                            EntityProperty(
+                              key: key,
+                              label: label,
+                              value: parsedVal,
+                              type: selectedType,
+                            ),
+                          );
+                    }
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Aggiungi', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -713,7 +838,7 @@ class _PropertyItemRowState extends State<_PropertyItemRow> {
   @override
   void initState() {
     super.initState();
-    _valController = TextEditingController(text: widget.property.value);
+    _valController = TextEditingController(text: widget.property.displayValue);
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus) {
         widget.onChanged(_valController.text.trim());
@@ -724,8 +849,8 @@ class _PropertyItemRowState extends State<_PropertyItemRow> {
   @override
   void didUpdateWidget(covariant _PropertyItemRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.property.value != widget.property.value && !_focusNode.hasFocus) {
-      _valController.text = widget.property.value;
+    if (oldWidget.property.displayValue != widget.property.displayValue && !_focusNode.hasFocus) {
+      _valController.text = widget.property.displayValue;
     }
   }
 

@@ -116,7 +116,7 @@ enum PropertyType { text, date, number, url }
 class EntityProperty extends Equatable {
   final String key;
   final String label;
-  final String value;
+  final Object value;
   final PropertyType type;
 
   const EntityProperty({
@@ -126,18 +126,43 @@ class EntityProperty extends Equatable {
     this.type = PropertyType.text,
   });
 
+  /// Accesso type-safe per proprietà numeriche
+  num? get asNumber => value is num ? value as num : num.tryParse(value.toString());
+
+  /// Accesso type-safe per proprietà data
+  DateTime? get asDate => value is DateTime ? value as DateTime : DateTime.tryParse(value.toString());
+
+  /// Rappresentazione stringa per display ed editing testuale
+  String get displayValue => value.toString();
+
+  /// Canonical JSON encoding (INT-D016):
+  /// text   → JSON string
+  /// url    → JSON string
+  /// date   → ISO-8601 string
+  /// number → JSON number
+  dynamic get canonicalJsonValue {
+    switch (type) {
+      case PropertyType.number:
+        return asNumber ?? 0;
+      case PropertyType.date:
+        final d = asDate;
+        return d != null ? d.toIso8601String() : value.toString();
+      case PropertyType.text:
+      case PropertyType.url:
+        return value.toString();
+    }
+  }
+
   Map<String, dynamic> toJson() => {
-    'key': key,
+    'key': key.trim(),
     'label': label,
-    'value': value,
+    'value': canonicalJsonValue,
     'type': type.name,
   };
 
-  factory EntityProperty.fromJson(Map<String, dynamic> json) => EntityProperty(
-    key: json['key'] as String,
-    label: json['label'] as String,
-    value: json['value']?.toString() ?? '',
-    type: PropertyType.values.byName(json['type'] as String? ?? 'text'),
+  factory EntityProperty.fromJson(Map<String, dynamic> json) { ... }
+}
+```
   );
 
   @override

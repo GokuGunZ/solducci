@@ -8,7 +8,7 @@ enum PropertyType { text, date, number, url }
 class EntityProperty extends Equatable {
   final String key;
   final String label;
-  final String value;
+  final Object value;
   final PropertyType type;
 
   const EntityProperty({
@@ -18,10 +18,25 @@ class EntityProperty extends Equatable {
     this.type = PropertyType.text,
   });
 
+  /// Returns typed value as [num] if [type] is [PropertyType.number], null if unparseable.
+  num? get asNumber {
+    if (value is num) return value as num;
+    return num.tryParse(value.toString());
+  }
+
+  /// Returns typed value as [DateTime] if [type] is [PropertyType.date], null if unparseable.
+  DateTime? get asDate {
+    if (value is DateTime) return value as DateTime;
+    return DateTime.tryParse(value.toString());
+  }
+
+  /// String value representation for display / text editing.
+  String get displayValue => value.toString();
+
   EntityProperty copyWith({
     String? key,
     String? label,
-    String? value,
+    Object? value,
     PropertyType? type,
   }) {
     return EntityProperty(
@@ -40,13 +55,13 @@ class EntityProperty extends Equatable {
   dynamic get canonicalJsonValue {
     switch (type) {
       case PropertyType.number:
-        return num.tryParse(value) ?? value;
+        return asNumber ?? 0;
       case PropertyType.date:
-        final parsed = DateTime.tryParse(value);
-        return parsed != null ? parsed.toIso8601String() : value;
+        final d = asDate;
+        return d != null ? d.toIso8601String() : value.toString();
       case PropertyType.text:
       case PropertyType.url:
-        return value;
+        return value.toString();
     }
   }
 
@@ -63,19 +78,37 @@ class EntityProperty extends Equatable {
       orElse: () => PropertyType.text,
     );
     final rawVal = json['value'];
-    String valStr = '';
-    if (rawVal != null) {
-      if (type == PropertyType.date && rawVal is String) {
-        valStr = DateTime.tryParse(rawVal)?.toIso8601String() ?? rawVal;
-      } else {
-        valStr = rawVal.toString();
-      }
+    Object typedVal;
+    switch (type) {
+      case PropertyType.number:
+        if (rawVal is num) {
+          typedVal = rawVal;
+        } else if (rawVal != null) {
+          typedVal = num.tryParse(rawVal.toString()) ?? 0;
+        } else {
+          typedVal = 0;
+        }
+        break;
+      case PropertyType.date:
+        if (rawVal is String) {
+          final parsed = DateTime.tryParse(rawVal);
+          typedVal = parsed != null ? parsed.toIso8601String() : rawVal;
+        } else if (rawVal is DateTime) {
+          typedVal = rawVal.toIso8601String();
+        } else {
+          typedVal = '';
+        }
+        break;
+      case PropertyType.text:
+      case PropertyType.url:
+        typedVal = rawVal?.toString() ?? '';
+        break;
     }
 
     return EntityProperty(
       key: (json['key'] as String? ?? '').trim(),
       label: json['label'] as String? ?? '',
-      value: valStr,
+      value: typedVal,
       type: type,
     );
   }

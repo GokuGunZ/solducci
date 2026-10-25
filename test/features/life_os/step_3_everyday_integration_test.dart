@@ -310,6 +310,100 @@ void main() {
           reason: 'Last-write-wins policy must prevail');
     });
 
+    test('2e. EntityProperty JSON round-trip for text, date, number, url, and malformed input', () {
+      // 1. Text round-trip
+      const textProp = EntityProperty(
+        key: 'summary',
+        label: 'Sommario',
+        value: 'Testo esplicativo puro',
+        type: PropertyType.text,
+      );
+      final textRoundTrip = EntityProperty.fromJson(textProp.toJson());
+      expect(textRoundTrip.key, equals('summary'));
+      expect(textRoundTrip.value, equals('Testo esplicativo puro'));
+      expect(textRoundTrip.type, equals(PropertyType.text));
+      expect(textRoundTrip.displayValue, equals('Testo esplicativo puro'));
+
+      // 2. URL round-trip
+      const urlProp = EntityProperty(
+        key: 'doc_url',
+        label: 'Link',
+        value: 'https://lifeos.solducci.app/docs',
+        type: PropertyType.url,
+      );
+      final urlRoundTrip = EntityProperty.fromJson(urlProp.toJson());
+      expect(urlRoundTrip.key, equals('doc_url'));
+      expect(urlRoundTrip.value, equals('https://lifeos.solducci.app/docs'));
+      expect(urlRoundTrip.type, equals(PropertyType.url));
+
+      // 3. Date round-trip
+      const dateProp = EntityProperty(
+        key: 'deadline',
+        label: 'Scadenza',
+        value: '2026-11-15T00:00:00.000',
+        type: PropertyType.date,
+      );
+      final dateRoundTrip = EntityProperty.fromJson(dateProp.toJson());
+      expect(dateRoundTrip.key, equals('deadline'));
+      expect(dateRoundTrip.asDate, isNotNull);
+      expect(dateRoundTrip.asDate!.year, equals(2026));
+      expect(dateRoundTrip.asDate!.month, equals(11));
+      expect(dateRoundTrip.type, equals(PropertyType.date));
+
+      // 4. Number round-trip
+      const numProp = EntityProperty(
+        key: 'budget',
+        label: 'Budget',
+        value: 1250.75,
+        type: PropertyType.number,
+      );
+      final numJson = numProp.toJson();
+      expect(numJson['value'], isA<num>());
+      expect(numJson['value'], equals(1250.75));
+      final numRoundTrip = EntityProperty.fromJson(numJson);
+      expect(numRoundTrip.key, equals('budget'));
+      expect(numRoundTrip.value, isA<num>());
+      expect(numRoundTrip.value, equals(1250.75));
+      expect(numRoundTrip.asNumber, equals(1250.75));
+      expect(numRoundTrip.type, equals(PropertyType.number));
+
+      // 5. Malformed inputs handling
+      final malformedNum = EntityProperty.fromJson({
+        'key': 'bad_num',
+        'label': 'Bad Number',
+        'type': 'number',
+        'value': 'not-a-valid-num',
+      });
+      expect(malformedNum.value, equals(0));
+      expect(malformedNum.asNumber, equals(0));
+
+      final nullNum = EntityProperty.fromJson({
+        'key': 'null_num',
+        'label': 'Null Num',
+        'type': 'number',
+        'value': null,
+      });
+      expect(nullNum.value, equals(0));
+
+      final malformedDate = EntityProperty.fromJson({
+        'key': 'bad_date',
+        'label': 'Bad Date',
+        'type': 'date',
+        'value': 'invalid-date-format',
+      });
+      expect(malformedDate.value, equals('invalid-date-format'));
+      expect(malformedDate.asDate, isNull);
+
+      final unknownType = EntityProperty.fromJson({
+        'key': 'unknown',
+        'label': 'Unknown',
+        'type': 'non_existent_type',
+        'value': 'some-value',
+      });
+      expect(unknownType.type, equals(PropertyType.text));
+      expect(unknownType.value, equals('some-value'));
+    });
+
     test('3. Role Property Packs provides non-prescriptive template suggestions', () {
       final projectSuggestions = RolePropertyPacks.getSuggestionsForRole(SemanticRole.project);
       expect(projectSuggestions.map((t) => t.key), containsAll(['goal', 'next_step', 'deadline']));
