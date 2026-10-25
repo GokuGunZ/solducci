@@ -28,11 +28,15 @@ class MockLifeEntityRepository implements LifeEntityRepository {
   @override
   Future<List<LifeEntity>> getEntities({
     String? groupId,
+    List<String>? groupIds,
     bool isPersonal = false,
     SemanticRole? role,
     LifecycleState? lifecycle,
   }) async {
     return _store.values.where((e) {
+      if (isPersonal && e.groupId != null) return false;
+      if (groupIds != null && (e.groupId == null || !groupIds.contains(e.groupId))) return false;
+      if (groupId != null && e.groupId != groupId) return false;
       if (role != null && e.semanticRole != role) return false;
       if (lifecycle != null && e.lifecycleState != lifecycle) return false;
       return true;

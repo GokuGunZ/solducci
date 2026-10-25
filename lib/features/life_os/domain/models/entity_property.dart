@@ -131,6 +131,23 @@ class PropertyTemplate extends Equatable {
     this.defaultType = PropertyType.text,
   });
 
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'label': label,
+        'placeholder': placeholder,
+        'type': defaultType.name,
+      };
+
+  factory PropertyTemplate.fromJson(Map<String, dynamic> json) => PropertyTemplate(
+        key: json['key'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        placeholder: json['placeholder'] as String? ?? '',
+        defaultType: PropertyType.values.firstWhere(
+          (t) => t.name == json['type'],
+          orElse: () => PropertyType.text,
+        ),
+      );
+
   @override
   List<Object?> get props => [key, label, placeholder, defaultType];
 }

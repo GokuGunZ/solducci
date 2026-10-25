@@ -6,6 +6,8 @@ import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
 import 'package:solducci/features/life_os/domain/services/user_property_pack_service.dart';
 import 'package:solducci/models/dashboard_config.dart';
+import 'package:solducci/models/group.dart';
+import 'package:solducci/models/expense_view.dart';
 import 'package:solducci/widgets/dashboard/config/bento_widget_config_registry.dart';
 import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_capture_widget.dart';
@@ -27,11 +29,15 @@ class MockLifeEntityRepo implements LifeEntityRepository {
   @override
   Future<List<LifeEntity>> getEntities({
     String? groupId,
+    List<String>? groupIds,
     bool isPersonal = false,
     SemanticRole? role,
     LifecycleState? lifecycle,
   }) async {
     return _store.values.where((e) {
+      if (isPersonal && e.groupId != null) return false;
+      if (groupIds != null && (e.groupId == null || !groupIds.contains(e.groupId))) return false;
+      if (groupId != null && e.groupId != groupId) return false;
       if (role != null && e.semanticRole != role) return false;
       if (lifecycle != null && e.lifecycleState != lifecycle) return false;
       return true;
@@ -134,7 +140,7 @@ void main() {
     getIt.registerSingleton<UserEntityOverlayRepository>(mockOverlayRepo);
   });
 
-  group('1. UserPropertyPackService Invariants', () {
+  group('1. UserPropertyPackService Invariants & Cross-User Isolation', () {
     test('Loads default suggestions when no user customization exists', () async {
       final projectTemplates = await packService.getTemplatesForRole(SemanticRole.project);
       final projectKeys = projectTemplates.map((t) => t.key).toList();
@@ -184,6 +190,53 @@ void main() {
       final restoredKeys = restored.map((t) => t.key).toList();
       expect(restoredKeys, contains('goal'));
       expect(restoredKeys, isNot(contains('custom_only')));
+    });
+
+    test('User A customization != User B customization (cross-device/user isolation)', () async {
+      const userA = 'user_uuid_alice';
+      const userB = 'user_uuid_bob';
+
+      // Alice customizes Project pack
+      final aliceCustom = [
+        const PropertyTemplate(
+          key: 'alice_kpi',
+          label: 'Alice KPI',
+          placeholder: 'Target personale',
+          defaultType: PropertyType.text,
+        ),
+      ];
+      await packService.saveTemplatesForRole(SemanticRole.project, aliceCustom, userId: userA);
+
+      // Bob loads Project pack - must receive pristine system defaults, NOT Alice's customization
+      final bobTemplates = await packService.getTemplatesForRole(SemanticRole.project, userId: userB);
+      expect(bobTemplates.any((t) => t.key == 'alice_kpi'), isFalse);
+      expect(bobTemplates.map((t) => t.key), contains('goal'));
+
+      // Bob customizes his own pack
+      final bobCustom = [
+        const PropertyTemplate(
+          key: 'bob_budget',
+          label: 'Bob Budget',
+          placeholder: 'Budget Bob',
+          defaultType: PropertyType.number,
+        ),
+      ];
+      await packService.saveTemplatesForRole(SemanticRole.project, bobCustom, userId: userB);
+
+      // Verify Alice still has Alice's pack
+      final aliceFresh = await packService.getTemplatesForRole(SemanticRole.project, userId: userA);
+      expect(aliceFresh.any((t) => t.key == 'alice_kpi'), isTrue);
+      expect(aliceFresh.any((t) => t.key == 'bob_budget'), isFalse);
+
+      // Simulate Logout / Account Switch: clearMemoryCache clears active memory
+      packService.clearMemoryCache();
+
+      // After account switch, loading Alice's pack reloads Alice's isolated local projection
+      final aliceReloaded = await packService.getTemplatesForRole(SemanticRole.project, userId: userA);
+      expect(aliceReloaded.any((t) => t.key == 'alice_kpi'), isTrue);
+
+      final bobReloaded = await packService.getTemplatesForRole(SemanticRole.project, userId: userB);
+      expect(bobReloaded.any((t) => t.key == 'bob_budget'), isTrue);
     });
   });
 
@@ -372,7 +425,7 @@ void main() {
     });
   });
 
-  group('4. LifeOsPinnedEntityWidget Dimension Semantics & Config', () {
+  group('4. LifeOsPinnedEntityWidget Dimension Semantics & Context Protection', () {
     testWidgets('Unconfigured pinned entity renders clear Call to Action', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -408,12 +461,15 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: LifeOsPinnedEntityWidget(
-              def: BentoWidgetDef(
-                id: 'pin_2x1',
-                type: 'life_os_pinned_entity',
-                size: const BentoWidgetSize(2, 1),
-                customProps: const {'entity_id': 'pin_e1'},
+            body: DashboardContextScope(
+              tabContext: ExpenseContext.personal(),
+              child: LifeOsPinnedEntityWidget(
+                def: BentoWidgetDef(
+                  id: 'pin_2x1',
+                  type: 'life_os_pinned_entity',
+                  size: const BentoWidgetSize(2, 1),
+                  customProps: const {'entity_id': 'pin_e1'},
+                ),
               ),
             ),
           ),
@@ -449,12 +505,15 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: LifeOsPinnedEntityWidget(
-              def: BentoWidgetDef(
-                id: 'pin_4x2',
-                type: 'life_os_pinned_entity',
-                size: const BentoWidgetSize(4, 2),
-                customProps: const {'entity_id': 'pin_e2'},
+            body: DashboardContextScope(
+              tabContext: ExpenseContext.personal(),
+              child: LifeOsPinnedEntityWidget(
+                def: BentoWidgetDef(
+                  id: 'pin_4x2',
+                  type: 'life_os_pinned_entity',
+                  size: const BentoWidgetSize(4, 2),
+                  customProps: const {'entity_id': 'pin_e2'},
+                ),
               ),
             ),
           ),
@@ -470,9 +529,193 @@ void main() {
       expect(find.text('CONTENUTI & PROPRIETÀ'), findsOneWidget);
       expect(find.text('Primo pensiero su Kafka e CDC'), findsOneWidget);
     });
+
+    testWidgets('Context Switch Protection: Pinned entity from Group A displays out-of-context in Group B', (tester) async {
+      const groupAId = 'grp_alpha';
+      const groupBId = 'grp_beta';
+
+      final groupAEntity = await mockEntityRepo.createEntity(
+        LifeEntity(
+          id: 'grp_a_entity',
+          groupId: groupAId,
+          title: 'Strategia Gruppo Alpha',
+          semanticRole: SemanticRole.project,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final groupA = ExpenseGroup(
+        id: groupAId,
+        name: 'Gruppo Alpha',
+        createdBy: 'user_1',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final groupB = ExpenseGroup(
+        id: groupBId,
+        name: 'Gruppo Beta',
+        createdBy: 'user_1',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // 1. Mount in Group A context - entity is visible
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DashboardContextScope(
+              tabContext: ExpenseContext.group(groupA),
+              child: LifeOsPinnedEntityWidget(
+                def: BentoWidgetDef(
+                  id: 'pin_ctx',
+                  type: 'life_os_pinned_entity',
+                  size: const BentoWidgetSize(2, 2),
+                  customProps: {'entity_id': groupAEntity.id},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Strategia Gruppo Alpha'), findsOneWidget);
+      expect(find.text('Entità fuori dal contesto'), findsNothing);
+
+      // 2. Switch tab to Group B context - entity is out of context
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DashboardContextScope(
+              tabContext: ExpenseContext.group(groupB),
+              child: LifeOsPinnedEntityWidget(
+                def: BentoWidgetDef(
+                  id: 'pin_ctx',
+                  type: 'life_os_pinned_entity',
+                  size: const BentoWidgetSize(2, 2),
+                  customProps: {'entity_id': groupAEntity.id},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Strategia Gruppo Alpha'), findsNothing);
+      expect(find.text('Entità fuori dal contesto'), findsOneWidget);
+
+      // 3. Switch back to Group A context - entity is restored
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DashboardContextScope(
+              tabContext: ExpenseContext.group(groupA),
+              child: LifeOsPinnedEntityWidget(
+                def: BentoWidgetDef(
+                  id: 'pin_ctx',
+                  type: 'life_os_pinned_entity',
+                  size: const BentoWidgetSize(2, 2),
+                  customProps: {'entity_id': groupAEntity.id},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Strategia Gruppo Alpha'), findsOneWidget);
+      expect(find.text('Entità fuori dal contesto'), findsNothing);
+    });
   });
 
-  group('5. BentoWidgetConfigRegistry Pinned Entity Configuration', () {
+  group('5. Bento Context Source & Configuration Audit', () {
+    test('Personal, Group, and Aggregated View context filtering in Bento Config Registry', () async {
+      // 1. Personal entity
+      final personalEntity = await mockEntityRepo.createEntity(
+        LifeEntity(
+          id: 'ent_personal',
+          title: 'Diario Personale',
+          semanticRole: SemanticRole.idea,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      // 2. Group 1 entity
+      final group1Entity = await mockEntityRepo.createEntity(
+        LifeEntity(
+          id: 'ent_g1',
+          groupId: 'g1',
+          title: 'Progetto Squadra 1',
+          semanticRole: SemanticRole.project,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      // 3. Group 2 entity
+      final group2Entity = await mockEntityRepo.createEntity(
+        LifeEntity(
+          id: 'ent_g2',
+          groupId: 'g2',
+          title: 'Progetto Squadra 2',
+          semanticRole: SemanticRole.project,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      // Group 1 object
+      final g1 = ExpenseGroup(
+        id: 'g1',
+        name: 'G1',
+        createdBy: 'u1',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Aggregated View object spanning g1 and g2
+      final aggregatedView = ExpenseView(
+        id: 'view_1',
+        name: 'Progetti Cumulativi',
+        groupIds: ['g1', 'g2'],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Test Personal context config: shows only personal entity
+      final personalConfig = await BentoWidgetConfigRegistry.getConfigForWidget(
+        type: 'life_os_pinned_entity',
+      );
+      final personalIds = personalConfig.options.map((o) => o.id).toList();
+      expect(personalIds, contains(personalEntity.id));
+      expect(personalIds, isNot(contains(group1Entity.id)));
+      expect(personalIds, isNot(contains(group2Entity.id)));
+
+      // Test Group 1 context
+      final groupContext = ExpenseContext.group(g1);
+      final g1Entities = await mockEntityRepo.getEntities(
+        groupId: groupContext.groupId,
+        isPersonal: groupContext.isPersonal,
+      );
+      expect(g1Entities.map((e) => e.id), contains(group1Entity.id));
+      expect(g1Entities.map((e) => e.id), isNot(contains(personalEntity.id)));
+      expect(g1Entities.map((e) => e.id), isNot(contains(group2Entity.id)));
+
+      // Test Aggregated View context: shows both g1 and g2 entities
+      final viewContext = ExpenseContext.view(aggregatedView);
+      final viewEntities = await mockEntityRepo.getEntities(
+        groupIds: viewContext.view?.groupIds,
+        isPersonal: viewContext.isPersonal,
+      );
+      expect(viewEntities.map((e) => e.id), containsAll([group1Entity.id, group2Entity.id]));
+      expect(viewEntities.map((e) => e.id), isNot(contains(personalEntity.id)));
+    });
+
     test('Context-aware options sort Weekly Rail entities first under focus section', () async {
       final e1 = await mockEntityRepo.createEntity(
         LifeEntity(

@@ -4,6 +4,7 @@ abstract class LifeEntityRepository {
   /// Fetch all entities matching context criteria
   Future<List<LifeEntity>> getEntities({
     String? groupId,
+    List<String>? groupIds,
     bool isPersonal = false,
     SemanticRole? role,
     LifecycleState? lifecycle,

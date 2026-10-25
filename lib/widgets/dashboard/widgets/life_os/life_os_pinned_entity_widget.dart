@@ -6,6 +6,7 @@ import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
+import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
 
 /// Bento Pinned Entity Widget (INT-D014 / Step 3.2 Refactor)
 /// Highlights a specific LifeEntity on the feed with quick vitrine access.
@@ -26,28 +27,45 @@ class _LifeOsPinnedEntityWidgetState extends State<LifeOsPinnedEntityWidget> {
   LifeEntity? _entity;
   bool _isLoading = true;
   String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadEntity();
-  }
+  ExpenseContext? _lastContext;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadEntity();
+    try {
+      final currentContext = DashboardContextScope.of(context);
+      if (_lastContext != currentContext) {
+        _lastContext = currentContext;
+        _loadEntity(currentContext);
+      }
+    } catch (_) {
+      if (_lastContext == null) _loadEntity();
+    }
   }
 
   @override
   void didUpdateWidget(covariant LifeOsPinnedEntityWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.def.customProps?['entity_id'] != widget.def.customProps?['entity_id']) {
-      _loadEntity();
+      _loadEntity(_lastContext);
     }
   }
 
-  Future<void> _loadEntity() async {
+  bool _isEntityInContext(LifeEntity entity, ExpenseContext? ctx) {
+    if (ctx == null) return true;
+    if (ctx.isPersonal) {
+      return entity.groupId == null;
+    }
+    if (ctx.isView && ctx.view != null) {
+      return ctx.view!.groupIds.contains(entity.groupId);
+    }
+    if (ctx.groupId != null) {
+      return entity.groupId == ctx.groupId;
+    }
+    return true;
+  }
+
+  Future<void> _loadEntity([ExpenseContext? ctx]) async {
     final entityId = widget.def.customProps?['entity_id'] as String?;
     if (entityId == null || entityId.isEmpty) {
       setState(() {
@@ -133,21 +151,42 @@ class _LifeOsPinnedEntityWidgetState extends State<LifeOsPinnedEntityWidget> {
     final is2x1 = size.crossAxisCellCount == 2 && size.mainAxisCellCount == 1;
     final is4x2 = size.crossAxisCellCount == 4 && size.mainAxisCellCount == 2;
 
+    final isOutOfContext = entity != null && !_isEntityInContext(entity, _lastContext);
+
     return BentoWidgetContainer(
       size: size,
       isLoading: _isLoading,
       hasError: _error != null,
-      onRetry: _loadEntity,
-      onTap: entity != null
+      onRetry: () => _loadEntity(_lastContext),
+      onTap: entity != null && !isOutOfContext
           ? () => context.push('/life_os/entity/${entity.id}', extra: entity)
           : () => context.push('/life_os'),
       child: entity == null
           ? _buildEmptyState()
-          : is2x1
-              ? _build2x1MiniBanner(entity)
-              : is4x2
-                  ? _build4x2AsymmetricSplit(entity)
-                  : _build2x2Card(entity),
+          : isOutOfContext
+              ? _buildOutOfContextState()
+              : is2x1
+                  ? _build2x1MiniBanner(entity)
+                  : is4x2
+                      ? _build4x2AsymmetricSplit(entity)
+                      : _build2x2Card(entity),
+    );
+  }
+
+  Widget _buildOutOfContextState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.layers_clear_outlined, size: 18, color: Colors.white30),
+          SizedBox(height: 6),
+          Text(
+            'Entità fuori dal contesto',
+            style: TextStyle(color: Colors.white38, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 

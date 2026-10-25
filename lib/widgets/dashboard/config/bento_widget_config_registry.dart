@@ -692,9 +692,10 @@ class BentoWidgetConfigRegistry {
       final repository = getIt<LifeEntityRepository>();
       final overlayRepo = getIt<UserEntityOverlayRepository>();
 
-      // Fetch accessible entities for the current context
+      // Fetch accessible entities for the current context (personal, group, or aggregated view)
       final entities = await repository.getEntities(
-        groupId: context.groupId,
+        groupId: context.isPersonal ? null : (context.isView ? null : context.groupId),
+        groupIds: context.isView ? context.view?.groupIds : null,
         isPersonal: context.isPersonal,
       );
       final active = entities.where((e) => !e.isArchived).toList();

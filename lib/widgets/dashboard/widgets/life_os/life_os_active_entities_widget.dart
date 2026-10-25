@@ -52,7 +52,8 @@ class _LifeOsActiveEntitiesWidgetState extends State<LifeOsActiveEntitiesWidget>
     try {
       final repository = getIt<LifeEntityRepository>();
       final all = await repository.getEntities(
-        groupId: effectiveContext?.isPersonal == true ? null : effectiveContext?.groupId,
+        groupId: effectiveContext?.isPersonal == true ? null : (effectiveContext?.isView == true ? null : effectiveContext?.groupId),
+        groupIds: effectiveContext?.isView == true ? effectiveContext?.view?.groupIds : null,
         isPersonal: effectiveContext?.isPersonal ?? false,
       );
 

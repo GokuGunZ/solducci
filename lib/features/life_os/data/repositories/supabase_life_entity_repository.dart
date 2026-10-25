@@ -14,6 +14,7 @@ class SupabaseLifeEntityRepository implements LifeEntityRepository {
   @override
   Future<List<LifeEntity>> getEntities({
     String? groupId,
+    List<String>? groupIds,
     bool isPersonal = false,
     SemanticRole? role,
     LifecycleState? lifecycle,
@@ -26,6 +27,8 @@ class SupabaseLifeEntityRepository implements LifeEntityRepository {
 
       if (isPersonal) {
         query = query.isFilter('group_id', null);
+      } else if (groupIds != null && groupIds.isNotEmpty) {
+        query = query.inFilter('group_id', groupIds);
       } else if (groupId != null) {
         query = query.eq('group_id', groupId);
       }

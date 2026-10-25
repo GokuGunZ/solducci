@@ -53,7 +53,8 @@ class _LifeOsRecentSeedsWidgetState extends State<LifeOsRecentSeedsWidget> {
     try {
       final repository = getIt<LifeEntityRepository>();
       final entities = await repository.getEntities(
-        groupId: effectiveContext?.isPersonal == true ? null : effectiveContext?.groupId,
+        groupId: effectiveContext?.isPersonal == true ? null : (effectiveContext?.isView == true ? null : effectiveContext?.groupId),
+        groupIds: effectiveContext?.isView == true ? effectiveContext?.view?.groupIds : null,
         isPersonal: effectiveContext?.isPersonal ?? false,
       );
 
