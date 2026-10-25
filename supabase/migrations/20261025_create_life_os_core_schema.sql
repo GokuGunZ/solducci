@@ -205,6 +205,7 @@ ALTER TABLE user_entity_overlays ENABLE ROW LEVEL SECURITY;
 -- ----------------------------------------------------------------------------
 
 -- SELECT: User can read relations if they have read access to the source document
+DROP POLICY IF EXISTS entity_relations_select_policy ON entity_relations;
 CREATE POLICY entity_relations_select_policy ON entity_relations
   FOR SELECT
   USING (
@@ -216,6 +217,7 @@ CREATE POLICY entity_relations_select_policy ON entity_relations
   );
 
 -- INSERT: User must own the relation row, have write access to source, AND read access to target
+DROP POLICY IF EXISTS entity_relations_insert_policy ON entity_relations;
 CREATE POLICY entity_relations_insert_policy ON entity_relations
   FOR INSERT
   WITH CHECK (
@@ -243,7 +245,7 @@ CREATE POLICY entity_relations_insert_policy ON entity_relations
       (target_type = 'expense' AND EXISTS (
         SELECT 1 FROM expenses e
         WHERE e.id::text = target_id
-          AND (e.user_id = auth.uid()::text OR (e.group_id IS NOT NULL AND public.is_group_member(e.group_id)))
+          AND (e.user_id::text = auth.uid()::text OR (e.group_id IS NOT NULL AND public.is_group_member(e.group_id)))
       ))
       OR
       (target_type = 'time_scenario' AND EXISTS (
@@ -256,6 +258,7 @@ CREATE POLICY entity_relations_insert_policy ON entity_relations
   );
 
 -- UPDATE: User can update relations they created on accessible source documents
+DROP POLICY IF EXISTS entity_relations_update_policy ON entity_relations;
 CREATE POLICY entity_relations_update_policy ON entity_relations
   FOR UPDATE
   USING (
@@ -271,6 +274,7 @@ CREATE POLICY entity_relations_update_policy ON entity_relations
   );
 
 -- DELETE: User can delete relations they created, or group admins on source document
+DROP POLICY IF EXISTS entity_relations_delete_policy ON entity_relations;
 CREATE POLICY entity_relations_delete_policy ON entity_relations
   FOR DELETE
   USING (
@@ -288,10 +292,12 @@ CREATE POLICY entity_relations_delete_policy ON entity_relations
 -- to the session author (user_id = auth.uid()), even if primary_entity is shared.
 -- ----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS life_sessions_select_policy ON life_sessions;
 CREATE POLICY life_sessions_select_policy ON life_sessions
   FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS life_sessions_insert_policy ON life_sessions;
 CREATE POLICY life_sessions_insert_policy ON life_sessions
   FOR INSERT
   WITH CHECK (
@@ -303,11 +309,13 @@ CREATE POLICY life_sessions_insert_policy ON life_sessions
     )
   );
 
+DROP POLICY IF EXISTS life_sessions_update_policy ON life_sessions;
 CREATE POLICY life_sessions_update_policy ON life_sessions
   FOR UPDATE
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS life_sessions_delete_policy ON life_sessions;
 CREATE POLICY life_sessions_delete_policy ON life_sessions
   FOR DELETE
   USING (user_id = auth.uid());
@@ -317,10 +325,12 @@ CREATE POLICY life_sessions_delete_policy ON life_sessions
 -- Strictly user-owned: Each user sees and modifies only their own personal overlay.
 -- ----------------------------------------------------------------------------
 
+DROP POLICY IF EXISTS user_entity_overlays_select_policy ON user_entity_overlays;
 CREATE POLICY user_entity_overlays_select_policy ON user_entity_overlays
   FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS user_entity_overlays_insert_policy ON user_entity_overlays;
 CREATE POLICY user_entity_overlays_insert_policy ON user_entity_overlays
   FOR INSERT
   WITH CHECK (
@@ -332,11 +342,13 @@ CREATE POLICY user_entity_overlays_insert_policy ON user_entity_overlays
     )
   );
 
+DROP POLICY IF EXISTS user_entity_overlays_update_policy ON user_entity_overlays;
 CREATE POLICY user_entity_overlays_update_policy ON user_entity_overlays
   FOR UPDATE
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS user_entity_overlays_delete_policy ON user_entity_overlays;
 CREATE POLICY user_entity_overlays_delete_policy ON user_entity_overlays
   FOR DELETE
   USING (user_id = auth.uid());
