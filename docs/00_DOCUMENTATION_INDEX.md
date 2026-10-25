@@ -227,6 +227,8 @@ These documents were created during development and provide historical context:
 - [API Documentation](./05_API_DATA_FLOW.md#contextmanager-api) - ContextManager API
 
 ### Analytics & Dashboard
+- [WIDGET_DESIGN_PHILOSOPHY_AND_DIMENSIONS.md](./WIDGET_DESIGN_PHILOSOPHY_AND_DIMENSIONS.md) - **Master Guide**: Bento widget design philosophy, dimensional scale (H1-H4), progressive disclosure & ideation framework
+- [DASHBOARD_REDESIGN.md](./DASHBOARD_REDESIGN.md) - Bento dashboard architecture and specifications
 - [Feature Guide](./03_FEATURE_GUIDE.md#analytics--dashboard) - Dashboard features
 - [Product Overview](./01_PRODUCT_OVERVIEW.md#core-features) - Analytics overview
 
