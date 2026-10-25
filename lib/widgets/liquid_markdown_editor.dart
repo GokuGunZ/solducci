@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:solducci/core/markdown/widgets/advanced_markdown_viewer.dart';
 
 class LiquidMarkdownEditor extends StatefulWidget {
   final String initialText;
@@ -414,32 +415,18 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
                       maxHeight: MediaQuery.of(context).size.height * 0.6,
                     ),
                     child: SingleChildScrollView(
-                      child: MarkdownBody(
-                        data: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
-                        selectable: false,
-                        styleSheet: MarkdownStyleSheet(
-                          p: TextStyle(color: const Color(0xFFE0E0E0), fontSize: widget.markdownFontSize, height: 1.5),
-                          h1: TextStyle(color: Colors.white, fontSize: widget.markdownFontSize + 9, fontWeight: FontWeight.bold, height: 1.2),
-                          h2: TextStyle(color: Colors.white, fontSize: widget.markdownFontSize + 5, fontWeight: FontWeight.bold, height: 1.2),
-                          h3: TextStyle(color: Colors.white, fontSize: widget.markdownFontSize + 3, fontWeight: FontWeight.bold, height: 1.2),
-                          h4: TextStyle(color: Colors.white, fontSize: widget.markdownFontSize + 1, fontWeight: FontWeight.bold, height: 1.2),
-                          h5: TextStyle(color: Colors.white, fontSize: widget.markdownFontSize, fontWeight: FontWeight.bold, height: 1.2),
-                          h6: TextStyle(color: Colors.white, fontSize: widget.markdownFontSize - 2, fontWeight: FontWeight.bold, height: 1.2),
-                          em: const TextStyle(fontStyle: FontStyle.italic),
-                          strong: const TextStyle(fontWeight: FontWeight.bold),
-                          blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
-                          blockquoteDecoration: BoxDecoration(
-                            border: const Border(left: BorderSide(color: Color(0xFF6366F1), width: 4)),
-                            color: const Color(0xFF6366F1).withOpacity(0.1),
-                          ),
-                          code: TextStyle(color: const Color(0xFF10B981), backgroundColor: Colors.transparent, fontFamily: 'monospace', fontSize: widget.markdownFontSize - 1),
-                          codeblockDecoration: BoxDecoration(
-                            color: Colors.black45,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          listBullet: const TextStyle(color: Color(0xFF6366F1)),
-                          checkbox: const TextStyle(color: Color(0xFF6366F1)),
-                        ),
+                      child: AdvancedMarkdownViewer(
+                        markdown: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
+                        shrinkWrap: true,
+                        physics: const ClampingScrollPhysics(),
+                        onMarkdownChanged: (newText) {
+                          setState(() {
+                            _textController.text = newText;
+                            _lastSavedText = newText;
+                          });
+                          widget.onTextChanged?.call(newText);
+                          widget.onSave?.call();
+                        },
                       ),
                     ),
                   ),
