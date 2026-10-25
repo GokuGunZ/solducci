@@ -19,7 +19,10 @@ class BentoWidgetConfigRegistry {
     required String type,
     Map<String, dynamic>? currentProps,
   }) async {
-    final currentContext = ContextManager().currentContext;
+    ExpenseContext currentContext = ExpenseContext.personal();
+    try {
+      currentContext = ContextManager().currentContext;
+    } catch (_) {}
 
     switch (type) {
       case 'balance':
@@ -59,7 +62,7 @@ class BentoWidgetConfigRegistry {
         return _buildRecentMarkdownConfig(currentContext);
 
       case 'life_os_pinned_entity':
-        return _buildLifeOsPinnedConfig();
+        return _buildLifeOsPinnedConfig(currentContext);
 
       default:
         return const BentoWidgetConfigData(
@@ -683,23 +686,54 @@ class BentoWidgetConfigRegistry {
     );
   }
 
-  // --- 12. Life OS Pinned Entity (INT-D014) ---
-  static Future<BentoWidgetConfigData> _buildLifeOsPinnedConfig() async {
+  // --- 12. Life OS Pinned Entity (INT-D014 / Step 3.2 Refactor) ---
+  static Future<BentoWidgetConfigData> _buildLifeOsPinnedConfig(ExpenseContext context) async {
     try {
       final repository = getIt<LifeEntityRepository>();
-      final entities = await repository.getEntities();
+      final overlayRepo = getIt<UserEntityOverlayRepository>();
+
+      // Fetch accessible entities for the current context
+      final entities = await repository.getEntities(
+        groupId: context.groupId,
+        isPersonal: context.isPersonal,
+      );
       final active = entities.where((e) => !e.isArchived).toList();
 
-      final options = active.map((entity) {
-        return BentoConfigOption(
+      // Fetch weekly rail overlays to prioritize "NEL TUO FOCUS" as suggested first section
+      List<String> railEntityIds = [];
+      try {
+        final railOverlays = await overlayRepo.getWeeklyRailOverlays();
+        railEntityIds = railOverlays.map((o) => o.entityId).toList();
+      } catch (_) {}
+
+      final railEntities = active.where((e) => railEntityIds.contains(e.id)).toList();
+      final otherEntities = active.where((e) => !railEntityIds.contains(e.id)).toList();
+
+      final options = <BentoConfigOption>[];
+
+      // 1. Weekly rail suggestions (first section)
+      for (final entity in railEntities) {
+        options.add(BentoConfigOption(
+          id: entity.id,
+          title: entity.title,
+          subtitle: '★ NEL TUO FOCUS • ${entity.semanticRole.value.toUpperCase()}',
+          icon: Icons.star_rounded,
+          color: const Color(0xFFF59E0B),
+          props: {'entity_id': entity.id, 'title': entity.title},
+        ));
+      }
+
+      // 2. All other accessible entities in current context
+      for (final entity in otherEntities) {
+        options.add(BentoConfigOption(
           id: entity.id,
           title: entity.title,
           subtitle: entity.isSeed ? 'Seme grezzo' : entity.semanticRole.value.toUpperCase(),
-          icon: entity.isSeed ? Icons.eco_rounded : Icons.auto_awesome_rounded,
-          color: const Color(0xFFF59E0B),
+          icon: entity.isSeed ? Icons.eco_rounded : Icons.all_inclusive_rounded,
+          color: entity.isSeed ? const Color(0xFF10B981) : const Color(0xFF6366F1),
           props: {'entity_id': entity.id, 'title': entity.title},
-        );
-      }).toList();
+        ));
+      }
 
       return BentoWidgetConfigData(
         title: 'Fissa Entità Life OS',

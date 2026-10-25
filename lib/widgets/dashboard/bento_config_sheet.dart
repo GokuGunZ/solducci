@@ -90,6 +90,7 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
         // Determina l'opzione inizialmente selezionata
         String? initialSelectedId;
         if (widget.initialProps != null) {
+          final currentEntityId = widget.initialProps!['entity_id'] as String?;
           final currentSource = widget.initialProps!['source'] as String?;
           final currentWalletId = widget.initialProps!['walletId'] as int?;
           final currentDocId = widget.initialProps!['documentId'] as int?;
@@ -97,7 +98,9 @@ class _BentoConfigSheetState extends State<BentoConfigSheet> {
           final currentScenarioId = widget.initialProps!['scenarioId'] as int?;
           final currentCategory = widget.initialProps!['category'] as String?;
 
-          if (currentWalletId != null) {
+          if (currentEntityId != null) {
+            initialSelectedId = currentEntityId;
+          } else if (currentWalletId != null) {
             initialSelectedId = 'wallet_$currentWalletId';
           } else if (currentDocId != null) {
             initialSelectedId = 'doc_$currentDocId';

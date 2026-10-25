@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
 import 'package:solducci/features/life_os/presentation/controllers/life_os_center_cubit.dart';
@@ -69,6 +70,11 @@ class _LifeOsCenterContent extends StatelessWidget {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Personalizza Nature e Proprietà',
+            icon: const Icon(Icons.tune_rounded, color: Colors.white70),
+            onPressed: () => context.push('/life_os/customize'),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
             onPressed: () => context.read<LifeOsCenterCubit>().loadEntities(),

@@ -7,7 +7,7 @@ import 'package:uuid/uuid.dart';
 
 enum WidgetCategory {
   all('Tutti', Icons.grid_view_rounded, Color(0xFF6366F1)),
-  lifeOs('Life OS', Icons.auto_awesome_rounded, Color(0xFF8B5CF6)),
+  lifeOs('Life OS', Icons.all_inclusive_rounded, Color(0xFF8B5CF6)),
   finance('Finanze', Icons.account_balance_wallet_rounded, Color(0xFF10B981)),
   time('Tempo & Focus', Icons.timer_rounded, Color(0xFF6366F1)),
   notes('Note & Idee', Icons.sticky_note_2_rounded, Color(0xFFF59E0B)),

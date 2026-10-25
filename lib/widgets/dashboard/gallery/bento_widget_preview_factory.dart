@@ -1319,35 +1319,63 @@ class BentoWidgetPreviewFactory {
     );
   }
 
-  // --- Life OS Previews (INT-D014) ---
+  // --- Life OS Previews (INT-D014 / Step 3.2 Dimension-Aware) ---
 
   static Widget _buildLifeOsCapturePreview(BentoWidgetSize size, Color color) {
+    final isH1 = size.mainAxisCellCount == 1;
+    if (isH1) {
+      // 2x1 / 4x1: Pure single row composer
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.all_inclusive_rounded, size: 12, color: Color(0xFF8B5CF6)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                size.crossAxisCellCount >= 4 ? 'Cattura un pensiero...' : 'Scrivi qualcosa...',
+                style: const TextStyle(color: Colors.white38, fontSize: 8.5),
+                maxLines: 1,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withOpacity(0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_upward_rounded, size: 9, color: Color(0xFF8B5CF6)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 2x2: Dominant composer with header
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Row(
           children: [
-            Icon(Icons.bolt_rounded, size: 12, color: color),
+            const Icon(Icons.all_inclusive_rounded, size: 11, color: Color(0xFF8B5CF6)),
             const SizedBox(width: 4),
             Text('CATTURA RAPIDA', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 6),
         Container(
-          height: 22,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          height: 36,
+          padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            border: Border.all(color: Colors.white.withOpacity(0.06)),
           ),
-          child: Row(
-            children: [
-              const Text('Cattura un seme...', style: TextStyle(color: Colors.white30, fontSize: 8)),
-              const Spacer(),
-              Icon(Icons.arrow_upward_rounded, size: 10, color: color),
-            ],
+          child: const Align(
+            alignment: Alignment.topLeft,
+            child: Text('Cattura un pensiero o intuizione...', style: TextStyle(color: Colors.white30, fontSize: 8)),
           ),
         ),
       ],
@@ -1355,63 +1383,178 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildLifeOsSeedsPreview(BentoWidgetSize size, Color color) {
+    final is2x1 = size.crossAxisCellCount == 2 && size.mainAxisCellCount == 1;
+    final is4x2 = size.crossAxisCellCount == 4 && size.mainAxisCellCount == 2;
+
+    if (is2x1) {
+      // 2x1: Single horizontal row
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          children: [
+            Icon(Icons.eco_rounded, size: 12, color: color),
+            const SizedBox(width: 5),
+            const Expanded(
+              child: Text('Comprare filo di rame', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w500), maxLines: 1),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(4)),
+              child: Text('4', style: TextStyle(color: color, fontSize: 7.5, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (is4x2) {
+      // 4x2: Asymmetric split (35% left / 65% right)
+      return Row(
+        children: [
+          Expanded(
+            flex: 35,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('SEMI', style: TextStyle(color: color, fontSize: 7, fontWeight: FontWeight.bold)),
+                  const Text('4', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('a riposo', style: TextStyle(color: Colors.white38, fontSize: 6.5)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 65,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('ULTIME CATTURE', style: TextStyle(color: Colors.white30, fontSize: 6.5, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 3),
+                const Text('• Comprare filo di rame', style: TextStyle(color: Colors.white, fontSize: 8), maxLines: 1),
+                const SizedBox(height: 2),
+                const Text('• Studiare meglio F2L', style: TextStyle(color: Colors.white70, fontSize: 8), maxLines: 1),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // 2x2: Compact list
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Row(
           children: [
-            Icon(Icons.eco_rounded, size: 12, color: color),
+            Icon(Icons.eco_rounded, size: 11, color: color),
             const SizedBox(width: 4),
             Text('SEMI RECENTI', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            Text('4', style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 5),
-        Row(
-          children: [
-            Icon(Icons.circle, size: 4, color: color),
-            const SizedBox(width: 4),
-            const Expanded(child: Text('Comprare filo di rame', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Row(
-          children: [
-            Icon(Icons.circle, size: 4, color: color),
-            const SizedBox(width: 4),
-            const Expanded(child: Text('Studiare meglio F2L', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
-          ],
-        ),
+        const Text('• Comprare filo rame', style: TextStyle(color: Colors.white, fontSize: 8), maxLines: 1),
+        const SizedBox(height: 2),
+        const Text('• Studiare F2L', style: TextStyle(color: Colors.white70, fontSize: 8), maxLines: 1),
       ],
     );
   }
 
   static Widget _buildLifeOsActivePreview(BentoWidgetSize size, Color color) {
+    final is4x2 = size.crossAxisCellCount == 4 && size.mainAxisCellCount == 2;
+
+    if (is4x2) {
+      // 4x2: Asymmetric split
+      return Row(
+        children: [
+          Expanded(
+            flex: 35,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('ATTIVE', style: TextStyle(color: Color(0xFF6366F1), fontSize: 7, fontWeight: FontWeight.bold)),
+                  const Text('3', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('2 prog · 1 prat', style: TextStyle(color: Colors.white38, fontSize: 6.5)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 65,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('IN CORSO', style: TextStyle(color: Colors.white30, fontSize: 6.5, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 3),
+                const Row(
+                  children: [
+                    Icon(Icons.rocket_launch_rounded, size: 9, color: Color(0xFF6366F1)),
+                    SizedBox(width: 4),
+                    Expanded(child: Text('Auth GDPR Solducci', style: TextStyle(color: Colors.white, fontSize: 8), maxLines: 1)),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                const Row(
+                  children: [
+                    Icon(Icons.repeat_rounded, size: 9, color: Color(0xFF10B981)),
+                    SizedBox(width: 4),
+                    Expanded(child: Text('Stretching serale', style: TextStyle(color: Colors.white70, fontSize: 8), maxLines: 1)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // 2x2: Top active entities
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Row(
           children: [
-            Icon(Icons.auto_awesome_rounded, size: 12, color: color),
+            const Icon(Icons.all_inclusive_rounded, size: 11, color: Color(0xFF6366F1)),
             const SizedBox(width: 4),
             Text('ENTITÀ ATTIVE', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 5),
-        Row(
+        const Row(
           children: [
-            const Icon(Icons.rocket_launch_rounded, size: 10, color: Color(0xFF6366F1)),
-            const SizedBox(width: 4),
-            const Expanded(child: Text('Auth GDPR Solducci', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
+            Icon(Icons.rocket_launch_rounded, size: 9, color: Color(0xFF6366F1)),
+            SizedBox(width: 4),
+            Expanded(child: Text('Auth GDPR', style: TextStyle(color: Colors.white, fontSize: 8), maxLines: 1)),
           ],
         ),
         const SizedBox(height: 3),
-        Row(
+        const Row(
           children: [
-            const Icon(Icons.repeat_rounded, size: 10, color: Color(0xFF10B981)),
-            const SizedBox(width: 4),
-            const Expanded(child: Text('Stretching serale', style: TextStyle(color: Colors.white, fontSize: 9), maxLines: 1)),
+            Icon(Icons.repeat_rounded, size: 9, color: Color(0xFF10B981)),
+            SizedBox(width: 4),
+            Expanded(child: Text('Stretching', style: TextStyle(color: Colors.white70, fontSize: 8), maxLines: 1)),
           ],
         ),
       ],
@@ -1419,21 +1562,97 @@ class BentoWidgetPreviewFactory {
   }
 
   static Widget _buildLifeOsPinnedPreview(BentoWidgetSize size, Color color) {
+    final is2x1 = size.crossAxisCellCount == 2 && size.mainAxisCellCount == 1;
+    final is4x2 = size.crossAxisCellCount == 4 && size.mainAxisCellCount == 2;
+
+    if (is2x1) {
+      // 2x1: Mini banner row
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          children: [
+            Icon(Icons.push_pin_rounded, size: 10, color: color),
+            const SizedBox(width: 4),
+            const Icon(Icons.rocket_launch_rounded, size: 10, color: Color(0xFF6366F1)),
+            const SizedBox(width: 5),
+            const Expanded(
+              child: Text('LifeOS Core', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold), maxLines: 1),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+              decoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+              child: const Text('PROG', style: TextStyle(color: Color(0xFF6366F1), fontSize: 7, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (is4x2) {
+      // 4x2: Asymmetric split
+      return Row(
+        children: [
+          Expanded(
+            flex: 35,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.push_pin_rounded, size: 9, color: color),
+                      const SizedBox(width: 3),
+                      const Text('PROGETTO', style: TextStyle(color: Color(0xFF6366F1), fontSize: 6.5, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  const Text('LifeOS Core', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), maxLines: 1),
+                  const SizedBox(height: 2),
+                  const Text('Apri Vitrine →', style: TextStyle(color: Color(0xFF6366F1), fontSize: 6.5, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 65,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('ULTIMA NOTA', style: TextStyle(color: Colors.white30, fontSize: 6.5, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                const Text('Rifinitura architettura Bento e code integrity.', style: TextStyle(color: Colors.white70, fontSize: 7.5), maxLines: 2),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // 2x2: Regular card
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Row(
           children: [
-            Icon(Icons.push_pin_rounded, size: 11, color: color),
+            Icon(Icons.push_pin_rounded, size: 10, color: color),
             const SizedBox(width: 4),
-            Text('IN EVIDENZA', style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.bold)),
+            Text('IN EVIDENZA', style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 4),
-        const Text('LifeOS Core', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), maxLines: 1),
+        const Text('LifeOS Core', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1),
         const SizedBox(height: 2),
-        const Text('Esecuzione · Progetto', style: TextStyle(color: Colors.white38, fontSize: 8), maxLines: 1),
+        const Text('Progetto · Ultimo appunto aggiunto...', style: TextStyle(color: Colors.white38, fontSize: 7.5), maxLines: 1),
       ],
     );
   }

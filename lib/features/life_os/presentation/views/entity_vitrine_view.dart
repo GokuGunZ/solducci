@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
+import 'package:solducci/features/life_os/domain/services/user_property_pack_service.dart';
 import 'package:solducci/features/life_os/presentation/controllers/entity_vitrine_cubit.dart';
 import 'package:solducci/features/life_os/presentation/controllers/entity_vitrine_state.dart';
 import 'package:solducci/features/life_os/presentation/widgets/human_intention_action_sheet.dart';
@@ -275,9 +276,18 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
         }
 
         final isInWeeklyRail = state.overlay?.isInWeeklyRail ?? false;
-        final suggestedTemplates = RolePropertyPacks.getSuggestionsForRole(entity.semanticRole)
+        final templateList = getIt.isRegistered<UserPropertyPackService>()
+            ? getIt<UserPropertyPackService>().getCachedTemplatesForRole(entity.semanticRole)
+            : RolePropertyPacks.getSuggestionsForRole(entity.semanticRole);
+        final suggestedTemplates = templateList
             .where((t) => !entity.properties.any((p) => p.key == t.key))
             .toList();
+
+        final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+        final safeBottom = MediaQuery.paddingOf(context).bottom;
+        // Avoid double inset compensation: Scaffold(resizeToAvoidBottomInset: true)
+        // already lifts body above keyboard. We anchor 8px above keyboard when open.
+        final composerBottom = bottomInset > 0 ? 8.0 : (safeBottom > 0 ? safeBottom + 4.0 : 16.0);
 
         return Scaffold(
           backgroundColor: const Color(0xFF09090B),
@@ -548,11 +558,11 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
                 ],
               ),
 
-              // 2. Bottom Floating Composer Bar (INT-D015)
+              // 2. Bottom Floating Composer Bar (INT-D015 / Step 3.2 Refactor)
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+                bottom: composerBottom,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
@@ -575,6 +585,7 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
                         child: TextField(
                           controller: _composerController,
                           focusNode: _composerFocusNode,
+                          autofocus: false,
                           minLines: 1,
                           maxLines: 4,
                           style: const TextStyle(color: Colors.white, fontSize: 14),
@@ -606,6 +617,7 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
   }
 
   void _showAddPropertyDialog(BuildContext context, PropertyTemplate template) {
+    final cubit = context.read<EntityVitrineCubit>();
     final textController = TextEditingController();
     showDialog(
       context: context,
@@ -641,14 +653,14 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
                   if (template.defaultType == PropertyType.number) {
                     parsedVal = num.tryParse(val) ?? 0;
                   }
-                  context.read<EntityVitrineCubit>().addOrUpdateProperty(
-                        EntityProperty(
-                          key: template.key,
-                          label: template.label,
-                          value: parsedVal,
-                          type: template.defaultType,
-                        ),
-                      );
+                  cubit.addOrUpdateProperty(
+                    EntityProperty(
+                      key: template.key,
+                      label: template.label,
+                      value: parsedVal,
+                      type: template.defaultType,
+                    ),
+                  );
                 }
                 Navigator.pop(dialogContext);
               },
@@ -661,6 +673,7 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
   }
 
   void _showAddCustomPropertyDialog(BuildContext context) {
+    final cubit = context.read<EntityVitrineCubit>();
     final keyController = TextEditingController();
     final valController = TextEditingController();
     PropertyType selectedType = PropertyType.text;
@@ -669,7 +682,7 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (builderContext, setDialogState) {
             return AlertDialog(
               backgroundColor: const Color(0xFF1A1A20),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -737,19 +750,21 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
                     final label = keyController.text.trim();
                     final rawVal = valController.text.trim();
                     if (label.isNotEmpty && rawVal.isNotEmpty) {
-                      final key = label.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+                      String key = label.toLowerCase().trim().replaceAll(RegExp(r'\s+'), '_').replaceAll(RegExp(r'[^a-z0-9_]'), '');
+                      if (key.isEmpty) key = 'prop_${DateTime.now().millisecondsSinceEpoch}';
+
                       Object parsedVal = rawVal;
                       if (selectedType == PropertyType.number) {
                         parsedVal = num.tryParse(rawVal) ?? 0;
                       }
-                      context.read<EntityVitrineCubit>().addOrUpdateProperty(
-                            EntityProperty(
-                              key: key,
-                              label: label,
-                              value: parsedVal,
-                              type: selectedType,
-                            ),
-                          );
+                      cubit.addOrUpdateProperty(
+                        EntityProperty(
+                          key: key,
+                          label: label,
+                          value: parsedVal,
+                          type: selectedType,
+                        ),
+                      );
                     }
                     Navigator.pop(dialogContext);
                   },

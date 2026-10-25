@@ -506,7 +506,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Cattura Rapida'), findsOneWidget);
+      expect(find.byIcon(Icons.all_inclusive_rounded), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'Pensiero al volo');
