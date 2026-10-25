@@ -1,7 +1,7 @@
 name: solducci
 description: "Empower your finance tracking with solducci."
 publish_to: "none"
-version: 1.06.00+1
+version: 1.06.01+1
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
