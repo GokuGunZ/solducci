@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solducci/core/context/context_bound.dart';
+import 'package:solducci/core/markdown/models/document_markdown_config.dart';
 
 /// Abstract base class for all document types (polymorphic design)
 /// This enables extensibility for future document types like shopping lists,
@@ -70,6 +71,13 @@ abstract class Document with DirectContextBound {
     } else {
       metadata.remove('icon');
     }
+  }
+
+  /// Advanced Markdown configuration stored in metadata JSONB
+  DocumentMarkdownConfig get markdownConfig => DocumentMarkdownConfig.fromMetadata(metadata);
+
+  void setMarkdownConfig(DocumentMarkdownConfig config) {
+    metadata = config.applyToMetadata(metadata);
   }
 
   /// Convert document to map for Supabase

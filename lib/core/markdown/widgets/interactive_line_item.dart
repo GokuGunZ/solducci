@@ -68,23 +68,64 @@ class InteractiveLineItem extends StatelessWidget {
             ),
 
             // Discrete Data-Binding Synchronized Indicator
-            if (isDataBound)
-              Tooltip(
-                message: 'Collegato e sincronizzato con fonte dati',
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF10B981), // Emerald green
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ),
+            if (isDataBound || element.syncState != LineSyncState.none)
+              _buildSyncIndicator(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSyncIndicator() {
+    Color color;
+    String message;
+    IconData? icon;
+
+    switch (element.syncState) {
+      case LineSyncState.synced:
+      case LineSyncState.certain:
+      case LineSyncState.probable:
+        color = const Color(0xFF10B981);
+        message = 'Sincronizzato con fonte dati';
+        break;
+      case LineSyncState.pending:
+        color = const Color(0xFFF59E0B);
+        message = 'Modifiche in attesa di sincronizzazione';
+        break;
+      case LineSyncState.ambiguous:
+        color = const Color(0xFFF97316);
+        message = 'Associazione ambigua: sincronizzazione sospesa per sicurezza';
+        icon = Icons.help_outline;
+        break;
+      case LineSyncState.conflict:
+        color = const Color(0xFFEF4444);
+        message = 'Conflitto di sincronizzazione con la fonte dati';
+        icon = Icons.warning_amber_rounded;
+        break;
+      case LineSyncState.unlinked:
+        color = const Color(0xFF9CA3AF);
+        message = 'Elemento scollegato dalla fonte dati';
+        break;
+      case LineSyncState.none:
+        color = const Color(0xFF10B981);
+        message = 'Collegato e sincronizzato con fonte dati';
+        break;
+    }
+
+    return Tooltip(
+      message: message,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8.0),
+        child: icon != null
+            ? Icon(icon, size: 12, color: color)
+            : Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
       ),
     );
   }

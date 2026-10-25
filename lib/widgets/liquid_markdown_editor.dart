@@ -3,8 +3,8 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:solducci/core/markdown/widgets/advanced_markdown_viewer.dart';
+import 'package:solducci/models/document.dart';
 
 class LiquidMarkdownEditor extends StatefulWidget {
   final String initialText;
@@ -20,6 +20,7 @@ class LiquidMarkdownEditor extends StatefulWidget {
   final int depth;
   final int limit;
   final double maxWidth;
+  final Document? document;
 
   const LiquidMarkdownEditor({
     super.key,
@@ -36,6 +37,7 @@ class LiquidMarkdownEditor extends StatefulWidget {
     this.depth = 0,
     this.limit = 0,
     this.maxWidth = 340.0,
+    this.document,
   });
 
   @override
@@ -416,6 +418,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
                     ),
                     child: SingleChildScrollView(
                       child: AdvancedMarkdownViewer(
+                        document: widget.document,
                         markdown: _textController.text.isEmpty ? '*Tocca e tira per scrivere un appunto...*' : _textController.text,
                         shrinkWrap: true,
                         physics: const ClampingScrollPhysics(),

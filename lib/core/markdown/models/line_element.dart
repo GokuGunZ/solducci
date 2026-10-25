@@ -17,6 +17,18 @@ enum ModifierCondition {
   whenChecked,
 }
 
+/// Synchronization and reconciliation state for a bound line element.
+enum LineSyncState {
+  none,
+  pending,
+  synced,
+  certain,
+  probable,
+  ambiguous,
+  conflict,
+  unlinked,
+}
+
 /// Visual modifier applied to a line without altering the Markdown source.
 class LineModifierStyle {
   final bool strikethrough;
@@ -203,6 +215,7 @@ class LineMarkerRule {
 class LineElement {
   final String id;
   final int lineIndex;
+  final int lineCount;
   final LineMarkerType markerType;
   final String markerRaw;
   final int indentLevel;
@@ -210,10 +223,13 @@ class LineElement {
   final String textContent;
   final String rawSourceLine;
   final int headerLevel; // 1 to 6 if header
+  final LineSyncState syncState;
+  final String? boundEntityId;
 
   const LineElement({
     required this.id,
     required this.lineIndex,
+    this.lineCount = 1,
     required this.markerType,
     required this.markerRaw,
     required this.indentLevel,
@@ -221,11 +237,14 @@ class LineElement {
     required this.textContent,
     required this.rawSourceLine,
     this.headerLevel = 0,
+    this.syncState = LineSyncState.none,
+    this.boundEntityId,
   });
 
   LineElement copyWith({
     String? id,
     int? lineIndex,
+    int? lineCount,
     LineMarkerType? markerType,
     String? markerRaw,
     int? indentLevel,
@@ -233,10 +252,13 @@ class LineElement {
     String? textContent,
     String? rawSourceLine,
     int? headerLevel,
+    LineSyncState? syncState,
+    String? boundEntityId,
   }) {
     return LineElement(
       id: id ?? this.id,
       lineIndex: lineIndex ?? this.lineIndex,
+      lineCount: lineCount ?? this.lineCount,
       markerType: markerType ?? this.markerType,
       markerRaw: markerRaw ?? this.markerRaw,
       indentLevel: indentLevel ?? this.indentLevel,
@@ -244,6 +266,8 @@ class LineElement {
       textContent: textContent ?? this.textContent,
       rawSourceLine: rawSourceLine ?? this.rawSourceLine,
       headerLevel: headerLevel ?? this.headerLevel,
+      syncState: syncState ?? this.syncState,
+      boundEntityId: boundEntityId ?? this.boundEntityId,
     );
   }
 }
