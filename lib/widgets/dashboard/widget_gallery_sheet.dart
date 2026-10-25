@@ -190,13 +190,13 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     const WidgetMetadata(
       type: 'cashflow_forecast',
       name: 'Cashflow 7 Giorni',
-      description: 'Previsione di liquiditÃ  a 7 giorni con timeline scadenze, entrate e uscite.',
+      description: 'Previsione di liquiditÃƒÂ  a 7 giorni con timeline scadenze, entrate e uscite.',
       category: WidgetCategory.finance,
       icon: Icons.trending_up_rounded,
       color: Color(0xFF38BDF8),
       defaultSize: BentoWidgetSize(2, 3),
       allowedSizes: [BentoWidgetSize(2, 3), BentoWidgetSize(4, 2)],
-      keywords: ['cashflow', 'previsione', 'liquiditÃ ', 'futuro', 'scadenze', '7 giorni'],
+      keywords: ['cashflow', 'previsione', 'liquiditÃƒÂ ', 'futuro', 'scadenze', '7 giorni'],
     ),
 
     // Tempo & Focus
@@ -214,13 +214,13 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     const WidgetMetadata(
       type: 'focus_tasks',
       name: 'Focus Task',
-      description: 'Le tue prioritÃ  del giorno con caselle di completamento e riga di inserimento rapido.',
+      description: 'Le tue prioritÃƒÂ  del giorno con caselle di completamento e riga di inserimento rapido.',
       category: WidgetCategory.time,
       icon: Icons.check_circle_outline_rounded,
       color: Color(0xFF6366F1),
       defaultSize: BentoWidgetSize(2, 4),
       allowedSizes: [BentoWidgetSize(2, 4), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 4)],
-      keywords: ['task', 'todo', 'attivitÃ ', 'completare', 'focus', 'obiettivi'],
+      keywords: ['task', 'todo', 'attivitÃƒÂ ', 'completare', 'focus', 'obiettivi'],
     ),
     const WidgetMetadata(
       type: 'habit_tracker',
@@ -286,7 +286,6 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       category: WidgetCategory.notes,
       icon: Icons.article_rounded,
       color: Color(0xFF6366F1),
-      badge: 'Bento 3D',
       defaultSize: BentoWidgetSize(2, 2),
       allowedSizes: [
         BentoWidgetSize(2, 2),
@@ -368,8 +367,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     ),
     const WidgetMetadata(
       type: 'life_os_active_entities',
-      name: 'Entità Attive Life OS',
-      description: 'Panoramica delle entità in lavorazione, progetti o elementi nel Weekly Rail.',
+      name: 'EntitÃ  Attive Life OS',
+      description: 'Panoramica delle entitÃ  in lavorazione, progetti o elementi nel Weekly Rail.',
       category: WidgetCategory.lifeOs,
       icon: Icons.auto_awesome_rounded,
       color: Color(0xFF6366F1),
@@ -379,8 +378,8 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     ),
     const WidgetMetadata(
       type: 'life_os_pinned_entity',
-      name: 'Entità in Evidenza',
-      description: 'Fissa una specifica entità sulla dashboard con titolo, natura, stato e accesso diretto.',
+      name: 'EntitÃ  in Evidenza',
+      description: 'Fissa una specifica entitÃ  sulla dashboard con titolo, natura, stato e accesso diretto.',
       category: WidgetCategory.lifeOs,
       icon: Icons.push_pin_rounded,
       color: Color(0xFFF59E0B),
@@ -801,7 +800,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'â€¢ tocca per cambiare',
+                                    'Ã¢â‚¬Â¢ tocca per cambiare',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.25),
                                       fontSize: 9,

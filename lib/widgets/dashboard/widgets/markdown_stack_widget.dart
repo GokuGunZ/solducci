@@ -198,7 +198,7 @@ class _MarkdownStackWidgetState extends State<MarkdownStackWidget> with SingleTi
 
   Future<void> _importNewFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['md', 'txt'],
       );
