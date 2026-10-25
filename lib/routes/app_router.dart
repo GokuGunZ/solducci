@@ -209,6 +209,13 @@ class AppRouter {
         path: '/space/infinite_canvas',
         builder: (context, state) => const InfiniteCanvasView(),
       ),
+      GoRoute(
+        path: '/space/markdown_inbox',
+        builder: (context, state) => const InfiniteCanvasView(
+          initialRootId: 'inbox_markdown_root',
+          customTitle: 'Inbox File MD',
+        ),
+      ),
       
       // Tasks (Direct access to DocumentsHomeView)
       GoRoute(

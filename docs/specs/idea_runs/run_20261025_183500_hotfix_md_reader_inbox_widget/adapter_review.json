@@ -1,0 +1,20 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "MAJOR",
+      "description": "Il widget Quick View replica NoteStackWidget con swipe X/Y. Nei documenti Markdown lunghi, lo scroll verticale compete con il gesto di swipe Y.",
+      "recommendation": "Disaccoppiare l'interazione: swipe X per sfogliare le card, swipe Y consentito solo in overscroll a inizio pagina."
+    },
+    {
+      "severity": "MINOR",
+      "description": "Duplicare infinite_canvas_view.dart (1705 righe) per l'Inbox MD creerebbe elevato debito tecnico.",
+      "recommendation": "Parametrizzare InfiniteCanvasView con rootNodeIdOverride anziché clonare il componente."
+    },
+    {
+      "severity": "INFO",
+      "description": "Il vincolo dell'utente richiede validazione su telefono fisico su branch test prima del rilascio.",
+      "recommendation": "Impostare un gate bloccante HUMAN_DECISION dopo il push su origin/test prima del merge di rilascio."
+    }
+  ]
+}

@@ -19,6 +19,9 @@ class LiquidMarkdownEditor extends StatefulWidget {
   final int depth;
   final int limit;
   final double maxWidth;
+  final bool defaultExpanded;
+  final bool? isExpanded;
+  final bool readOnlyLock;
 
   const LiquidMarkdownEditor({
     super.key,
@@ -35,6 +38,9 @@ class LiquidMarkdownEditor extends StatefulWidget {
     this.depth = 0,
     this.limit = 0,
     this.maxWidth = 340.0,
+    this.defaultExpanded = true,
+    this.isExpanded,
+    this.readOnlyLock = false,
   });
 
   @override
@@ -256,6 +262,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
   }
 
   void _onPanStart(DragStartDetails details) {
+    if (widget.readOnlyLock) return;
     _controller.stop();
     setState(() {
       _dragY = details.localPosition.dy;
@@ -264,6 +271,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
+    if (widget.readOnlyLock) return;
     setState(() {
       _dragExtent += details.delta.dx;
       if (_dragExtent > 0) _dragExtent = 0;
@@ -284,6 +292,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
   }
 
   void _onPanEnd(DragEndDetails details) {
+    if (widget.readOnlyLock) return;
     double velocity = details.velocity.pixelsPerSecond.dx;
     double target = 0.0;
 
@@ -310,6 +319,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
   Widget build(BuildContext context) {
     final double leftPadding = widget.depth == 0 ? 0.0 : 0.0;
     final double rightPadding = widget.depth == 0 ? 0.0 : 6.0;
+    final bool showBody = (widget.isExpanded ?? widget.defaultExpanded) || widget.limit > 0 || _isEditing;
     
     final Widget editorContent = Container(
       width: double.infinity,
@@ -350,7 +360,7 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
                 const Icon(Icons.edit_note, color: Colors.transparent, size: 16),
               ],
             ),
-            if (widget.limit > 0 || _isEditing) ...[
+            if (showBody) ...[
               const SizedBox(height: 12),
               TextField(
                 controller: _textController,
@@ -404,10 +414,16 @@ class _LiquidMarkdownEditorState extends State<LiquidMarkdownEditor> with Ticker
                     ),
                     Icon(Icons.arrow_back_ios, color: Colors.white.withOpacity(0.1), size: 16),
                     const SizedBox(width: 6),
-                    Icon(Icons.edit_note, color: Colors.white.withOpacity(0.1), size: 16),
+                    if (!widget.readOnlyLock)
+                      GestureDetector(
+                        onTap: () => _updateHeightState(!_isEditing),
+                        child: Icon(Icons.edit_note, color: Colors.white.withOpacity(0.35), size: 18),
+                      )
+                    else
+                      Icon(Icons.lock_outline_rounded, color: Colors.white.withOpacity(0.2), size: 14),
                   ],
                 ),
-                if (widget.limit > 0 || _isEditing) ...[
+                if (showBody) ...[
                   const SizedBox(height: 12),
                   ConstrainedBox(
                     constraints: BoxConstraints(

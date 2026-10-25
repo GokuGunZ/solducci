@@ -1,0 +1,40 @@
+{
+  "run_id": "run_20261025_183500_hotfix_md_reader_inbox_widget",
+  "timestamp": "2026-10-25T18:35:00+01:00",
+  "mode": "SPEC_ONLY",
+  "input": {
+    "encoding": "UTF-8",
+    "sha256": "a4c45190d0918f0b4852eca4f6b52d3b9713fb3f6bcb76cd6df8134c0f03720c",
+    "length_bytes": 957
+  },
+  "repository": {
+    "path": "C:/Users/Aless/Documents/Projects/Solducci",
+    "head_sha": "6b1b04ec1358bedc7d5bb6aefd6710a5c2d58672",
+    "branch": "new_design",
+    "remote_test_branch": "origin/test"
+  },
+  "adapter_execution": {
+    "engine_path": "C:/AI/DevelopmentEngine",
+    "adapter_script": "devengine/antigravity_adapter.py",
+    "backend_used": "agy_cli",
+    "review_task_id": "cffb1965-f911-4a1a-b173-c04e23daea48/task-132",
+    "review_verdict": "APPROVED"
+  },
+  "artifacts": [
+    "01_ORIGINAL_INTENT.md",
+    "02_REPOSITORY_REALITY.md",
+    "03_PRODUCT_BEHAVIOR_SPEC.md",
+    "04_DOMAIN_AND_DATA_MODEL.md",
+    "05_ARCHITECTURE_DECISION.md",
+    "06_UX_INTERACTION_SPEC.md",
+    "07_IMPLEMENTATION_ROADMAP.md",
+    "08_INDEPENDENT_REVIEW.md",
+    "09_READINESS_ASSESSMENT.md",
+    "adapter_decision.json",
+    "adapter_review.json",
+    "adapter_correction.json",
+    "manifest.json"
+  ],
+  "readiness": "READY_FOR_BUILDER",
+  "workflow_gate": "HUMAN_DECISION (Validazione fisica su device tramite branch test prima del rilascio)"
+}

@@ -59,6 +59,7 @@ class BentoWidgetConfigRegistry {
         return _buildInvestmentSummaryConfig();
 
       case 'recent_markdown':
+      case 'markdown_stack':
         return _buildRecentMarkdownConfig(currentContext);
 
       case 'life_os_pinned_entity':

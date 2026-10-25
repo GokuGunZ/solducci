@@ -137,6 +137,8 @@ class BentoWidgetPreviewFactory {
         return _buildRecentNotesPreview(size, color);
       case 'recent_markdown':
         return _buildMarkdownPreview(size, color);
+      case 'markdown_stack':
+        return _buildNoteStackPreview(size, const Color(0xFF6366F1));
       case 'unresolved_asterisks':
         return _buildAsterisksPreview(size, color);
       case 'recurring_movements':

@@ -280,6 +280,23 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       keywords: ['markdown', 'md', 'documenti', 'file'],
     ),
     const WidgetMetadata(
+      type: 'markdown_stack',
+      name: 'MD Quick Stack 3D',
+      description: 'Visualizzatore rapido dell\'inbox dei file MD sfogliabile a swipe con anteprima markdown 3D.',
+      category: WidgetCategory.notes,
+      icon: Icons.article_rounded,
+      color: Color(0xFF6366F1),
+      badge: 'Bento 3D',
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [
+        BentoWidgetSize(2, 2),
+        BentoWidgetSize(2, 3),
+        BentoWidgetSize(2, 4),
+        BentoWidgetSize(4, 2),
+      ],
+      keywords: ['markdown', 'md', 'file', 'inbox', 'swipe', 'pila', '3d', 'lettore'],
+    ),
+    const WidgetMetadata(
       type: 'quick_scratchpad',
       name: 'Appunto al Volo',
       description: 'Cattura rapida di pensieri, promemoria ed asterischi direttamente dalla Home.',

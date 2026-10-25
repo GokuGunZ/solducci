@@ -12,6 +12,7 @@ import 'package:solducci/widgets/dashboard/widgets/habit_tracker_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/unresolved_asterisks_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/shopping_quick_list_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/recent_markdown_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/markdown_stack_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/hero_countdown_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/pantry_alert_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/investment_summary_widget.dart';
@@ -78,6 +79,9 @@ class DashboardWidgetFactory {
       case 'recent_markdown':
         return RecentMarkdownWidget(def: def);
 
+      case 'markdown_stack':
+        return MarkdownStackWidget(def: def);
+
       case 'hero_countdown':
         return HeroCountdownWidget(def: def);
 
@@ -139,6 +143,7 @@ class DashboardWidgetFactory {
       BentoWidgetDef(id: 'w_shp', type: 'shopping_quick_list', size: const BentoWidgetSize(1, 2)),
       BentoWidgetDef(id: 'w_hab', type: 'habit_tracker', size: const BentoWidgetSize(2, 1)),
       BentoWidgetDef(id: 'w_rmd', type: 'recent_markdown', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_mds', type: 'markdown_stack', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_nst', type: 'note_stack', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_not', type: 'recent_notes', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_deb', type: 'peer_debts', size: const BentoWidgetSize(2, 2)),
@@ -190,6 +195,8 @@ class DashboardWidgetFactory {
         return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2)];
       case 'recent_markdown':
         return [const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
+      case 'markdown_stack':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(4, 2)];
       case 'note_stack':
         return [const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
       case 'peer_debts':
