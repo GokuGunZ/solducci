@@ -113,11 +113,11 @@ No issues found! (0 warnings, 0 errors)
 
 ### Artifact Paths
 - **Android Debug APK:** [`C:\Users\Aless\Documents\Projects\LIFE_OS\build\app\outputs\flutter-apk\app-debug.apk`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/build/app/outputs/flutter-apk/app-debug.apk)
-- **Supabase Core Migration:** [`C:\Users\Aless\Documents\Projects\LIFE_OS\supabase\migrations\20261023000001_life_os_core.sql`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/supabase/migrations/20261023000001_life_os_core.sql)
+- **Supabase Core Migration:** [`C:\Users\Aless\Documents\Projects\LIFE_OS\supabase\migrations\20261025_create_life_os_core_schema.sql`](file:///C:/Users/Aless/Documents/Projects/LIFE_OS/supabase/migrations/20261025_create_life_os_core_schema.sql)
 
 ### Supabase Dev Setup Steps (For Real DB & RLS Testing)
 1. Open your Supabase Project Dashboard $\rightarrow$ **SQL Editor**.
-2. Run the migration script `20261023000001_life_os_core.sql`.
+2. Run the migration script `20261025_create_life_os_core_schema.sql`.
    - *Note on UUID casting:* Ensure that any previous queries joining `documents.user_id` cast explicitly to `uuid` (`auth.uid() = user_id::uuid` or `user_id = auth.uid()::text`), as established in migration fix INT-D009.
 3. Verify table `user_entity_overlays` and trigger `trg_sync_meaningful_activity` are active.
 
