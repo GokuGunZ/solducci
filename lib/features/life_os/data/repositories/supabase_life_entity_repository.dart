@@ -99,7 +99,9 @@ class SupabaseLifeEntityRepository implements LifeEntityRepository {
   Future<LifeEntity> createEntity(LifeEntity entity) async {
     try {
       final map = LifeEntityMapper.toSupabaseMap(entity);
-      map.remove('id'); // Let DB generate UUID if empty
+      if (entity.id.isEmpty) {
+        map.remove('id'); // Let DB generate UUID if empty
+      }
 
       final response = await _supabase
           .from('documents')

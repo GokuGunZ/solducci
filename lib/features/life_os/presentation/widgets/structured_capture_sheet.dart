@@ -130,10 +130,9 @@ class _StructuredCaptureSheetState extends State<StructuredCaptureSheet> {
       // 2. Create child sub-ideas and link via 'part_of' relations
       for (int i = 0; i < _subIdeas.length; i++) {
         final childText = _subIdeas[i];
-        final childId = _uuid.v4();
 
         final childEntity = LifeEntity(
-          id: childId,
+          id: _uuid.v4(),
           userId: targetUserId,
           title: childText,
           semanticRole: SemanticRole.seed,
@@ -142,14 +141,14 @@ class _StructuredCaptureSheetState extends State<StructuredCaptureSheet> {
           updatedAt: now.add(Duration(milliseconds: (i + 1) * 10)),
         );
 
-        await entityRepo.createEntity(childEntity);
+        final createdChild = await entityRepo.createEntity(childEntity);
 
         final relation = EntityRelation(
           id: _uuid.v4(),
           userId: targetUserId,
-          sourceId: childId,
+          sourceId: createdChild.id,
           targetType: TargetType.entity,
-          targetId: rootId,
+          targetId: createdRoot.id,
           relationType: RelationType.partOf,
           metadata: {'order_index': i},
           createdAt: now.add(Duration(milliseconds: (i + 1) * 10)),

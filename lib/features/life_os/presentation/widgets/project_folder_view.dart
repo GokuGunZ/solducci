@@ -165,12 +165,12 @@ class _ProjectFolderViewState extends State<ProjectFolderView> {
       updatedAt: now,
     );
 
-    await _entityRepo.createEntity(child);
+    final createdChild = await _entityRepo.createEntity(child);
 
     final relation = EntityRelation(
       id: _uuid.v4(),
       userId: userId,
-      sourceId: childId,
+      sourceId: createdChild.id,
       targetType: TargetType.entity,
       targetId: parentId,
       relationType: RelationType.partOf,
