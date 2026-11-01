@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:solducci/features/life_os/presentation/widgets/structured_capture_sheet.dart';
 import 'package:solducci/theme/app_theme.dart';
 
 class UniversalCaptureBar extends StatefulWidget {
   final ValueChanged<String> onCapture;
+  final ValueChanged<String>? onStructuredCapture;
   final bool isCapturing;
   final String? errorMessage;
   final VoidCallback? onRetry;
@@ -11,6 +14,7 @@ class UniversalCaptureBar extends StatefulWidget {
   const UniversalCaptureBar({
     super.key,
     required this.onCapture,
+    this.onStructuredCapture,
     this.isCapturing = false,
     this.errorMessage,
     this.onRetry,
@@ -38,6 +42,36 @@ class _UniversalCaptureBarState extends State<UniversalCaptureBar> {
     HapticFeedback.mediumImpact();
     widget.onCapture(text);
     _controller.clear();
+  }
+
+  Future<void> _handleLongPress() async {
+    final text = _controller.text.trim();
+    HapticFeedback.mediumImpact();
+    if (widget.onStructuredCapture != null) {
+      widget.onStructuredCapture!(text);
+      _controller.clear();
+      return;
+    }
+
+    final created = await StructuredCaptureSheet.show(
+      context,
+      initialTitle: text.isNotEmpty ? text : null,
+    );
+
+    if (created != null && mounted) {
+      _controller.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Progetto "${created.title}" creato!'),
+          backgroundColor: const Color(0xFF27272A),
+          action: SnackBarAction(
+            label: 'Apri',
+            textColor: AppTheme.primary,
+            onPressed: () => context.push('/life_os/entity/${created.id}'),
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -115,11 +149,17 @@ class _UniversalCaptureBarState extends State<UniversalCaptureBar> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
                     )
-                  : IconButton(
-                      icon: const Icon(Icons.arrow_upward_rounded, color: AppTheme.primary, size: 22),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: _submit,
+                  : Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _submit,
+                        onLongPress: _handleLongPress,
+                        borderRadius: BorderRadius.circular(20),
+                        child: const Padding(
+                          padding: EdgeInsets.all(6),
+                          child: Icon(Icons.arrow_upward_rounded, color: AppTheme.primary, size: 22),
+                        ),
+                      ),
                     ),
             ],
           ),

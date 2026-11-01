@@ -5,6 +5,7 @@ import 'package:solducci/core/di/service_locator.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
+import 'package:solducci/features/life_os/presentation/widgets/structured_capture_sheet.dart';
 import 'package:solducci/models/dashboard_config.dart';
 import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/dashboard/bento_widget_container.dart';
@@ -118,6 +119,28 @@ class _LifeOsCaptureWidgetState extends State<LifeOsCaptureWidget> {
     }
   }
 
+
+  Future<void> _handleStructuredCapture() async {
+    final text = _textController.text.trim();
+    HapticFeedback.mediumImpact();
+    final created = await StructuredCaptureSheet.show(
+      context,
+      initialTitle: text.isNotEmpty ? text : null,
+    );
+    if (created != null && mounted) {
+      _textController.clear();
+      setState(() {
+        _statusBanner = '✓ Progetto creato';
+      });
+      _bannerTimer?.cancel();
+      _bannerTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted && _statusBanner != null) {
+          setState(() => _statusBanner = null);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = widget.def.size;
@@ -193,6 +216,7 @@ class _LifeOsCaptureWidgetState extends State<LifeOsCaptureWidget> {
           else
             GestureDetector(
               onTap: _submitCapture,
+              onLongPress: _handleStructuredCapture,
               behavior: HitTestBehavior.opaque,
               child: Container(
                 width: 28,
@@ -292,6 +316,7 @@ class _LifeOsCaptureWidgetState extends State<LifeOsCaptureWidget> {
             children: [
               GestureDetector(
                 onTap: _submitCapture,
+                onLongPress: _handleStructuredCapture,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(

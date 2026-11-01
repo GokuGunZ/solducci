@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:solducci/core/di/service_locator.dart';
@@ -9,6 +10,11 @@ import 'package:solducci/features/life_os/presentation/controllers/entity_vitrin
 import 'package:solducci/features/life_os/presentation/widgets/human_intention_action_sheet.dart';
 import 'package:solducci/theme/app_theme.dart';
 import 'package:solducci/widgets/solducci_app_bar.dart';
+import 'package:solducci/features/life_os/presentation/widgets/project_dashboard_view.dart';
+import 'package:solducci/features/life_os/presentation/widgets/project_folder_view.dart';
+import 'package:solducci/features/life_os/presentation/widgets/graph/project_graph_view.dart';
+import 'package:solducci/features/life_os/presentation/widgets/project_discovery_sheet.dart';
+
 
 class EntityVitrineView extends StatelessWidget {
   final String entityId;
@@ -46,7 +52,12 @@ class _EntityVitrineContent extends StatefulWidget {
   State<_EntityVitrineContent> createState() => _EntityVitrineContentState();
 }
 
+
+enum ProjectTabMode { panoramica, cartelle, grafo }
+
 class _EntityVitrineContentState extends State<_EntityVitrineContent> {
+  ProjectTabMode _projectTabMode = ProjectTabMode.panoramica;
+
   late TextEditingController _titleController;
   late TextEditingController _descController;
   late TextEditingController _composerController;
@@ -293,9 +304,26 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
           backgroundColor: const Color(0xFF09090B),
           appBar: SolducciAppBar(
             showContextSwitcher: widget.showContextSwitcher,
-            titleText: 'Vitrine',
+            titleText: entity.semanticRole == SemanticRole.project ? 'Progetto' : 'Vitrine',
+            actions: [
+              if (entity.semanticRole == SemanticRole.project)
+                IconButton(
+                  tooltip: 'Guida Progetti',
+                  icon: const Icon(Icons.help_outline_rounded, color: Colors.white70),
+                  onPressed: () => ProjectDiscoverySheet.show(context),
+                ),
+            ],
           ),
-          body: Stack(
+          body: entity.semanticRole == SemanticRole.project
+              ? Column(
+                  children: [
+                    _buildProjectTabSelector(),
+                    Expanded(
+                      child: _buildProjectTabContent(entity),
+                    ),
+                  ],
+                )
+              : Stack(
             children: [
               // 1. Scrollable Living Entity Surface
               ListView(
@@ -777,9 +805,81 @@ class _EntityVitrineContentState extends State<_EntityVitrineContent> {
       },
     );
   }
+
+  Widget _buildProjectTabSelector() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          _buildTabItem('Panoramica', ProjectTabMode.panoramica, Icons.dashboard_outlined),
+          _buildTabItem('Cartelle', ProjectTabMode.cartelle, Icons.folder_outlined),
+          _buildTabItem('Grafo', ProjectTabMode.grafo, Icons.hub_outlined),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabItem(String label, ProjectTabMode mode, IconData icon) {
+    final isSelected = _projectTabMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _projectTabMode = mode);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF27272A) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: isSelected ? Border.all(color: AppTheme.primary.withOpacity(0.5)) : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15, color: isSelected ? AppTheme.primary : Colors.white60),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white60,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectTabContent(LifeEntity entity) {
+    switch (_projectTabMode) {
+      case ProjectTabMode.panoramica:
+        return ProjectDashboardView(
+          rootProject: entity,
+          onSwitchToFolders: () => setState(() => _projectTabMode = ProjectTabMode.cartelle),
+          onSwitchToGraph: () => setState(() => _projectTabMode = ProjectTabMode.grafo),
+          onAddThought: (text) => context.read<EntityVitrineCubit>().addBlock(text),
+          onUpdateThought: (blockId, text) => context.read<EntityVitrineCubit>().updateBlock(blockId, text),
+          onDeleteThought: (blockId) => context.read<EntityVitrineCubit>().deleteBlock(blockId),
+        );
+      case ProjectTabMode.cartelle:
+        return ProjectFolderView(rootProject: entity);
+      case ProjectTabMode.grafo:
+        return ProjectGraphView(rootProject: entity);
+    }
+  }
 }
 
-/// Compact Semantic Chip (surface = compact, decision sheet = explanatory)
 class _CompactSemanticChip extends StatelessWidget {
   final IconData icon;
   final String label;
