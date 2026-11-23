@@ -1,0 +1,20 @@
+{
+  "run_id": "run_20261123_045201_dynamic_capture_bar_and_chained_seed_overlay",
+  "corrections": [
+    {
+      "finding_id": "FINDING-01",
+      "status": "RESOLVED",
+      "action_taken": "Specificato l'uso di controller listener con TextPainter per il calcolo delle righe fuori dal metodo build."
+    },
+    {
+      "finding_id": "FINDING-02",
+      "status": "RESOLVED",
+      "action_taken": "Vincolato l'overlay alla gerarchia in-page con FocusNode condiviso, prevenendo il dismiss della tastiera."
+    },
+    {
+      "finding_id": "FINDING-03",
+      "status": "RESOLVED",
+      "action_taken": "Vincolata la sequenza di salvataggio all'invariante di v1.06.05: prima documents, poi entity_relations."
+    }
+  ]
+}

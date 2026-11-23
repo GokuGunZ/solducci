@@ -8,15 +8,18 @@ import 'life_os_center_state.dart';
 
 class LifeOsCenterCubit extends Cubit<LifeOsCenterState> {
   final LifeEntityRepository _entityRepository;
+  final EntityRelationRepository? _relationRepository;
   final ContextManager? _contextManager;
   final String? _injectedUserId;
   final _uuid = const Uuid();
 
   LifeOsCenterCubit({
     required LifeEntityRepository entityRepository,
+    EntityRelationRepository? relationRepository,
     ContextManager? contextManager,
     String? currentUserId,
   })  : _entityRepository = entityRepository,
+        _relationRepository = relationRepository,
         _contextManager = contextManager ?? _tryGetContextManager(),
         _injectedUserId = currentUserId,
         super(const LifeOsCenterState()) {
@@ -89,8 +92,22 @@ class LifeOsCenterCubit extends Cubit<LifeOsCenterState> {
 
   /// Captures a raw thought as a Seed entity (Amendment A: currentMode = null)
   Future<bool> captureSeed(String title, {String? description}) async {
+    final result = await captureSeedWithMentions(title, const [], description: description);
+    return result != null;
+  }
+
+  /// Captures a seed entity and persists any associated @mentions via entity_relations.
+  Future<LifeEntity?> captureSeedWithMentions(
+    String title,
+    List<SeedMention> mentions, {
+    String? description,
+  }) async {
     final cleanTitle = title.trim();
-    if (cleanTitle.isEmpty) return false;
+    if (cleanTitle.isEmpty && mentions.isEmpty) return null;
+
+    final actualTitle = cleanTitle.isNotEmpty
+        ? cleanTitle
+        : 'Seme collegato a ${mentions.map((m) => m.entityTitle).join(', ')}';
 
     emit(state.copyWith(
       isCapturing: true,
@@ -107,17 +124,39 @@ class LifeOsCenterCubit extends Cubit<LifeOsCenterState> {
       id: _uuid.v4(),
       userId: currentUserId,
       groupId: groupId,
-      title: cleanTitle,
+      title: actualTitle,
       description: description?.trim().isEmpty == true ? null : description?.trim(),
       semanticRole: SemanticRole.seed,
       lifecycleState: LifecycleState.active,
-      currentMode: null, // Amendment A: absence of mode is valid domain structure
+      currentMode: null,
       createdAt: now,
       updatedAt: now,
     );
 
     try {
+      // 1. Commit new seed document first (PostgreSQL RLS safe)
       final createdEntity = await _entityRepository.createEntity(newSeed);
+
+      // 2. Persist any relations for mentions
+      if (_relationRepository != null && mentions.isNotEmpty) {
+        for (final mention in mentions) {
+          final rel = EntityRelation(
+            id: _uuid.v4(),
+            userId: currentUserId ?? '',
+            sourceId: createdEntity.id,
+            targetType: TargetType.entity,
+            targetId: mention.entityId,
+            relationType: mention.relationType,
+            createdAt: now,
+          );
+          try {
+            await _relationRepository.createRelation(rel);
+          } catch (_) {
+            // Non-blocking relation persistence
+          }
+        }
+      }
+
       final updatedSeeds = [createdEntity, ...state.seeds];
       emit(state.copyWith(
         isCapturing: false,
@@ -125,15 +164,31 @@ class LifeOsCenterCubit extends Cubit<LifeOsCenterState> {
         captureError: () => null,
         lastFailedCaptureTitle: () => null,
       ));
-      return true;
+      return createdEntity;
     } catch (e) {
-      // Truthful error handling (Amendment B: no fake offline sync queue)
       emit(state.copyWith(
         isCapturing: false,
         captureError: () => 'Impossibile salvare: connessione assente o errore di rete.',
-        lastFailedCaptureTitle: () => cleanTitle,
+        lastFailedCaptureTitle: () => actualTitle,
       ));
-      return false;
+      return null;
+    }
+  }
+
+  /// Updates an existing seed in state when edited via the chained overlay.
+  void onSeedUpdated(LifeEntity updated) {
+    final idx = state.seeds.indexWhere((s) => s.id == updated.id);
+    if (idx != -1) {
+      final updatedSeeds = List<LifeEntity>.from(state.seeds);
+      updatedSeeds[idx] = updated;
+      emit(state.copyWith(seeds: updatedSeeds));
+    }
+  }
+
+  /// Adds a newly created chained seed directly to the state list.
+  void onSeedAdded(LifeEntity newSeed) {
+    if (!state.seeds.any((s) => s.id == newSeed.id)) {
+      emit(state.copyWith(seeds: [newSeed, ...state.seeds]));
     }
   }
 

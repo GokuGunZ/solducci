@@ -1,0 +1,28 @@
+{
+  "decision": "Adottare l'architettura DynamicCaptureBar con spatial morphing 1-line ↔ multi-line, recettore di menzioni '@' con defaulting posizionale (leading = part_of, mid-text = relates_to), e ChainedCaptureOverlay in-page per la raccolta di catene di semi interconnessi senza interruzioni di tastiera e a zero migrazioni di database.",
+  "proposed_actions": [
+    {
+      "action": "Eseguire analisi e stesura specifiche in modalità SPEC_ONLY per il redesign della capture bar e overlay catena semi",
+      "permission": "ALLOW",
+      "target_worktree": "C:\\Users\\Aless\\Documents\\Projects\\Solducci"
+    },
+    {
+      "action": "Implementazione Milestone 1-5 nel ciclo di build approvato",
+      "permission": "REQUIRE_PERMISSION",
+      "target_worktree": "C:\\Users\\Aless\\Documents\\Projects\\Solducci"
+    }
+  ],
+  "claims": [
+    "La tabella entity_relations supporta nativamente le relazioni part_of e relates_to senza modifiche allo schema PostgreSQL.",
+    "L'uso di un in-page stack per ChainedCaptureOverlay evita il dismiss della tastiera software mantenendo un'esperienza utente fluida.",
+    "La separazione spaziale su due livelli in stato multilinea garantisce massima area di digitazione e spazio dedicato ai chip di tag."
+  ],
+  "alternatives": [
+    "Uso di standard ModalBottomSheet - scartato per problemi di keyboard stuttering e animazioni incoerenti.",
+    "Tag parsing retroattivo solo sul server - scartato perché l'utente deve poter verificare e commutare la relazione prima dell'invio."
+  ],
+  "limitations": [
+    "La misura del testo tramite TextPainter richiede di considerare font size e padding esatti del tema per evitare transizioni premature.",
+    "Schermi eccezionalmente piccoli (< 340dp width) potrebbero richiedere abbreviazione del testo 'Raccogli seme'."
+  ]
+}

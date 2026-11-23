@@ -7,3 +7,4 @@ export 'typed_reference.dart';
 export 'operation_result.dart';
 export 'entity_property.dart';
 export 'entity_block.dart';
+export 'seed_mention.dart';
