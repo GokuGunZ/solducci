@@ -1,0 +1,15 @@
+{
+  "decision": "Decisione confermata ed emendata con le raccomandazioni del Reviewer: adozione di NeverScrollableScrollPhysics con sfumatura elegante per il corpo del Bento Widget per eliminare conflitti gestuali, e modellazione della cartella Inbox MD come nodo convenzionale compatibile con CanvasLocalRepository e Supabase sync.",
+  "review_responses": [
+    {
+      "finding_index": 0,
+      "action_taken": "ACCEPTED_AND_MODIFIED",
+      "justification": "Definito 'Inbox Markdown' come nodo standard CanvasNode di tipo 'folder' persistito tramite CanvasLocalRepository, salvaguardando la root utente e garantendo piena compatibilità offline e online."
+    },
+    {
+      "finding_index": 1,
+      "action_taken": "ACCEPTED_AND_MODIFIED",
+      "justification": "Applicato 'physics: const NeverScrollableScrollPhysics()' con fade sfumato inferiore nell'anteprima rapida del Bento Widget, riservando lo scroll completo al tap che apre StandaloneMarkdownPage."
+    }
+  ]
+}

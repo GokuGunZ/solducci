@@ -84,6 +84,11 @@ class ShellWithNavState extends State<ShellWithNav> {
       case 0: // Feed
         return [
           ConstellationAction(
+            label: 'LifeOS',
+            icon: Icons.all_inclusive_rounded,
+            onTap: () => context.push('/life_os'),
+          ),
+          ConstellationAction(
             label: 'Gruppi',
             icon: Icons.group,
             onTap: () => context.push('/groups/management'),

@@ -1,0 +1,47 @@
+{
+  "decision": "Hotfix profondo per lettore Markdown, visualizzatore Inbox Canvas parametrizzato, Bento Stack Widget per Dashboard e pipeline di rilascio con staging test.",
+  "proposed_actions": [
+    {
+      "action": "Deep fix LiquidMarkdownEditor rendendo il corpo visibile di default (isExpanded: true) e svincolando da limit > 0",
+      "permission": "ALLOW",
+      "target_worktree": ".worktrees/hotfix-md-reader"
+    },
+    {
+      "action": "Aggiunta di MarkdownSettingsService e MarkdownViewerSettingsSheet per il controllo utente",
+      "permission": "ALLOW",
+      "target_worktree": ".worktrees/hotfix-md-reader"
+    },
+    {
+      "action": "Aggiunta tile File Markdown in SpaceHomeView e navigatore MarkdownInboxCanvasView parametrizzato su InfiniteCanvasView",
+      "permission": "ALLOW",
+      "target_worktree": ".worktrees/hotfix-md-reader"
+    },
+    {
+      "action": "Creazione del Bento Widget MarkdownStackWidget con architettura a carte swipeable 3D derivata da NoteStackWidget",
+      "permission": "ALLOW",
+      "target_worktree": ".worktrees/hotfix-md-reader"
+    },
+    {
+      "action": "Push su branch remoto test per testing fisico su smartphone dell'utente",
+      "permission": "REQUIRE_PERMISSION",
+      "target_worktree": ".worktrees/hotfix-md-reader"
+    },
+    {
+      "action": "Merge finale e rilascio hotfix previa approvazione esplicita dell'utente",
+      "permission": "REQUIRE_APPROVAL",
+      "target_worktree": ".worktrees/hotfix-md-reader"
+    }
+  ],
+  "claims": [
+    "Il bug del lettore è causato da if (widget.limit > 0 || _isEditing) in LiquidMarkdownEditor con default limit = 0",
+    "InfiniteCanvasView possiede già il supporto nativo per visualizzazione e importazione di CanvasNode di tipo markdown",
+    "NoteStackWidget fornisce la matematica e le animazioni fisiche riutilizzabili per lo stack di documenti markdown"
+  ],
+  "alternatives": [
+    "Patch superficiale limit = 999 senza impostazioni utente",
+    "Clonazione completa di 1700 righe di infinite_canvas_view.dart"
+  ],
+  "limitations": [
+    "Il test su telefono fisico richiede la compilazione APK e l'installazione manuale da parte dell'utente"
+  ]
+}

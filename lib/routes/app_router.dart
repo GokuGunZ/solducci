@@ -55,6 +55,10 @@ import 'package:solducci/views/standalone_markdown_page.dart';
 import 'package:solducci/features/investments/views/investments_hub_view.dart';
 import 'package:solducci/views/hubs/economy_hub_view.dart';
 import 'package:solducci/features/wallets/views/wallets_management_view.dart';
+import 'package:solducci/features/life_os/domain/models/models.dart';
+import 'package:solducci/features/life_os/presentation/views/life_os_center_view.dart';
+import 'package:solducci/features/life_os/presentation/views/entity_vitrine_view.dart';
+import 'package:solducci/features/life_os/presentation/views/customize_life_os_view.dart';
 
 /// Global router configuration for the app
 /// Handles authentication state and navigation
@@ -204,6 +208,13 @@ class AppRouter {
       GoRoute(
         path: '/space/infinite_canvas',
         builder: (context, state) => const InfiniteCanvasView(),
+      ),
+      GoRoute(
+        path: '/space/markdown_inbox',
+        builder: (context, state) => const InfiniteCanvasView(
+          initialRootId: 'inbox_markdown_root',
+          customTitle: 'Inbox File MD',
+        ),
       ),
       
       // Tasks (Direct access to DocumentsHomeView)
@@ -415,6 +426,24 @@ class AppRouter {
       GoRoute(
         path: '/invites/pending',
         builder: (context, state) => const PendingInvitesPage(),
+      ),
+
+      // LifeOS Routes (Living Core Step 2 & 3.2)
+      GoRoute(
+        path: '/life_os',
+        builder: (context, state) => const LifeOsCenterView(),
+      ),
+      GoRoute(
+        path: '/life_os/customize',
+        builder: (context, state) => const CustomizeLifeOsView(),
+      ),
+      GoRoute(
+        path: '/life_os/entity/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final initial = state.extra as LifeEntity?;
+          return EntityVitrineView(entityId: id, initialEntity: initial);
+        },
       ),
     ],
   );

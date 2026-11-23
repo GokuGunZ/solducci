@@ -12,6 +12,7 @@ import 'package:solducci/widgets/dashboard/widgets/habit_tracker_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/unresolved_asterisks_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/shopping_quick_list_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/recent_markdown_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/markdown_stack_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/hero_countdown_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/pantry_alert_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/investment_summary_widget.dart';
@@ -23,6 +24,10 @@ import 'package:solducci/widgets/dashboard/widgets/recurring_movements_widget.da
 import 'package:solducci/widgets/dashboard/widgets/quick_transfer_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/cashflow_forecast_widget.dart';
 import 'package:solducci/widgets/dashboard/widgets/quick_scratchpad_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_capture_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_recent_seeds_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_active_entities_widget.dart';
+import 'package:solducci/widgets/dashboard/widgets/life_os/life_os_pinned_entity_widget.dart';
 
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/widgets/dashboard/context/dashboard_context_scope.dart';
@@ -74,6 +79,9 @@ class DashboardWidgetFactory {
       case 'recent_markdown':
         return RecentMarkdownWidget(def: def);
 
+      case 'markdown_stack':
+        return MarkdownStackWidget(def: def);
+
       case 'hero_countdown':
         return HeroCountdownWidget(def: def);
 
@@ -103,6 +111,18 @@ class DashboardWidgetFactory {
 
       case 'quick_scratchpad':
         return QuickScratchpadWidget(def: def);
+
+      case 'life_os_capture':
+        return LifeOsCaptureWidget(def: def);
+
+      case 'life_os_recent_seeds':
+        return LifeOsRecentSeedsWidget(def: def);
+
+      case 'life_os_active_entities':
+        return LifeOsActiveEntitiesWidget(def: def);
+
+      case 'life_os_pinned_entity':
+        return LifeOsPinnedEntityWidget(def: def);
         
       default:
         return _MockWidget(title: 'Unknown: ${def.type}', color: Colors.grey);
@@ -123,11 +143,16 @@ class DashboardWidgetFactory {
       BentoWidgetDef(id: 'w_shp', type: 'shopping_quick_list', size: const BentoWidgetSize(1, 2)),
       BentoWidgetDef(id: 'w_hab', type: 'habit_tracker', size: const BentoWidgetSize(2, 1)),
       BentoWidgetDef(id: 'w_rmd', type: 'recent_markdown', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_mds', type: 'markdown_stack', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_nst', type: 'note_stack', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_not', type: 'recent_notes', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_deb', type: 'peer_debts', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_cat', type: 'category_expenses', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_rec', type: 'recurring_movements', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_los_cap', type: 'life_os_capture', size: const BentoWidgetSize(2, 1)),
+      BentoWidgetDef(id: 'w_los_rec', type: 'life_os_recent_seeds', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_los_act', type: 'life_os_active_entities', size: const BentoWidgetSize(2, 2)),
+      BentoWidgetDef(id: 'w_los_pin', type: 'life_os_pinned_entity', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_trf', type: 'quick_transfer', size: const BentoWidgetSize(2, 2)),
       BentoWidgetDef(id: 'w_csf', type: 'cashflow_forecast', size: const BentoWidgetSize(2, 3)),
       BentoWidgetDef(id: 'w_pad', type: 'quick_scratchpad', size: const BentoWidgetSize(2, 2)),
@@ -170,6 +195,8 @@ class DashboardWidgetFactory {
         return [const BentoWidgetSize(2, 1), const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(4, 2)];
       case 'recent_markdown':
         return [const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(2, 2), const BentoWidgetSize(3, 2)];
+      case 'markdown_stack':
+        return [const BentoWidgetSize(2, 2), const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(4, 2)];
       case 'note_stack':
         return [const BentoWidgetSize(2, 3), const BentoWidgetSize(2, 4), const BentoWidgetSize(2, 2), const BentoWidgetSize(4, 2)];
       case 'peer_debts':

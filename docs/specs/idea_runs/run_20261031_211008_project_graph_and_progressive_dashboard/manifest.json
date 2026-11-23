@@ -1,0 +1,63 @@
+{
+  "run_id": "run_20261031_211008_project_graph_and_progressive_dashboard",
+  "created_at": "2026-10-31T21:10:08+01:00",
+  "completed_at": "2026-10-31T20:24:27.335224+00:00",
+  "git_branch": "release/v1.06.01",
+  "git_sha": "33abda0d847c19096c19c81dfa6a5fdccb9559eb",
+  "mode": "SPEC_ONLY",
+  "verdict": "READY_FOR_BUILDER",
+  "artifacts": {
+    "01_ORIGINAL_INTENT.md": {
+      "sha256": "6055d3acefdac1a0429d3e5b6d59b4dba036bda238f2ed0fd99b60bee95e0890",
+      "size_bytes": 10110
+    },
+    "02_REPOSITORY_REALITY.md": {
+      "sha256": "e04c9c0ab46dcabccb5d813796fba913c77dd004c7e830e4c2241e0ee1dc9a57",
+      "size_bytes": 13278
+    },
+    "03_PRODUCT_BEHAVIOR_SPEC.md": {
+      "sha256": "e58748a28d1b0d31ac0494d5915a3669c0297932a3576cfc5f226ff77cf0949f",
+      "size_bytes": 12917
+    },
+    "04_DOMAIN_AND_DATA_MODEL.md": {
+      "sha256": "f734438759fd78e06deb5fc71b167b9742146eab097482550b4669bc15e720c1",
+      "size_bytes": 9615
+    },
+    "05_ARCHITECTURE_DECISION.md": {
+      "sha256": "254a5596959101bac37c3677f6e072e562accac1a12532de3a320e13d674c637",
+      "size_bytes": 5779
+    },
+    "06_UX_INTERACTION_SPEC.md": {
+      "sha256": "294ff64172e0c9c7a0b44881a288634c8e372feb24c6f7edd3037c421543665a",
+      "size_bytes": 11029
+    },
+    "07_IMPLEMENTATION_ROADMAP.md": {
+      "sha256": "17549eb040473d2d5b9c5da975c4ebae2ebd8a183535d984f4211394cb71abee",
+      "size_bytes": 6618
+    },
+    "08_INDEPENDENT_REVIEW.md": {
+      "sha256": "0743de7b10d886338e90467948243536ff415d23f7f7b6f1566548d3259d543f",
+      "size_bytes": 4323
+    },
+    "09_READINESS_ASSESSMENT.md": {
+      "sha256": "f7b3d132e299d3c5c792f436d75f9461745816ca11f1ed92eca17f0704925869",
+      "size_bytes": 3593
+    },
+    "adapter_correction.json": {
+      "sha256": "2f9c14897ad9b8072a4b821cb1f5d61100f968a60226101afeb09b4998e51fc1",
+      "size_bytes": 1067
+    },
+    "adapter_decision.json": {
+      "sha256": "ba1c94e5076365a84e35c76feea98f7c290241dc4ab21d2f0dee347e056337b6",
+      "size_bytes": 2079
+    },
+    "adapter_review.json": {
+      "sha256": "75f623362b760ea131d6f68e43d3aeda89c1e2639cfcd97fac3f1db2528fad4e",
+      "size_bytes": 1083
+    },
+    "raw_input.txt": {
+      "sha256": "7fecf2b2ae4698c0c82a64993ffeb820addc59aabe67dd9bec17746ea9141fce",
+      "size_bytes": 3848
+    }
+  }
+}

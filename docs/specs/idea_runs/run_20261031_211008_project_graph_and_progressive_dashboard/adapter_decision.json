@@ -1,0 +1,29 @@
+{
+  "decision": "Adottare l'architettura Project Graph con Native Flutter CustomPainter, client-side in-memory DAG traversal, e progressive dashboard context (ProjectScopeContext) per Solducci LifeOS v1.06.01, garantendo zero migrazioni di database e compatibilità totale con l'infrastruttura esistente.",
+  "proposed_actions": [
+    {
+      "action": "Eseguire analisi e stesura specifiche in modalità SPEC_ONLY per il Project Graph, Folder View e Progressive Dashboard",
+      "permission": "ALLOW",
+      "target_worktree": "C:\\Users\\Aless\\Documents\\Projects\\Solducci"
+    },
+    {
+      "action": "Implementazione Milestone 1-5 in un successivo ciclo di build approvato",
+      "permission": "REQUIRE_PERMISSION",
+      "target_worktree": "C:\\Users\\Aless\\Documents\\Projects\\Solducci"
+    }
+  ],
+  "claims": [
+    "La tabella entity_relations con relation_type 'part_of' e target_type polimorfico supporta già nativamente la gerarchia del progetto senza modifiche allo schema PostgreSQL.",
+    "La navigazione in-memory di DAG con 10-150 nodi in Dart ha una complessità trascurabile (< 1ms) ed è perfettamente resiliente offline.",
+    "L'uso di CustomPainter nativo Flutter con GestureDetector dedicato garantisce 60/120 FPS ed evita dipendenze terze instabili per l'ego-graph."
+  ],
+  "alternatives": [
+    "Uso di librerie esterne Flutter per grafi (GraphView) - scartata per rigidità nelle gesture e rischio incompatibilità con le versioni future di Flutter.",
+    "Query ricorsive PostgreSQL CTE sul backend - scartate perché rompono la piena fruibilità offline e aggiungono roundtrip di rete non necessari.",
+    "Layout di dashboard statico con placeholder vuoti - scartato per l'eccessivo carico cognitivo su progetti appena nati."
+  ],
+  "limitations": [
+    "La discriminazione tra pan del canvas e swipe orizzontale su nodo richiede un'attenta gestione della gesture arena con soglie di dead-zone.",
+    "Grafi eccezionalmente grandi (> 500 nodi in un singolo progetto) potrebbero richiedere virtualizzazione o paginazione dell'ego-graph."
+  ]
+}

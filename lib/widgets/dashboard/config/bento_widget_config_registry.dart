@@ -9,6 +9,8 @@ import 'package:solducci/service/investment_portfolio_service.dart';
 import 'package:solducci/service/investment_asset_service.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/widgets/dashboard/config/bento_config_models.dart';
+import 'package:solducci/core/di/service_locator.dart';
+import 'package:solducci/features/life_os/domain/repositories/repositories.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Registro asincrono che carica e costruisce le opzioni di configurazione per ogni widget
@@ -17,7 +19,10 @@ class BentoWidgetConfigRegistry {
     required String type,
     Map<String, dynamic>? currentProps,
   }) async {
-    final currentContext = ContextManager().currentContext;
+    ExpenseContext currentContext = ExpenseContext.personal();
+    try {
+      currentContext = ContextManager().currentContext;
+    } catch (_) {}
 
     switch (type) {
       case 'balance':
@@ -54,12 +59,16 @@ class BentoWidgetConfigRegistry {
         return _buildInvestmentSummaryConfig();
 
       case 'recent_markdown':
+      case 'markdown_stack':
         return _buildRecentMarkdownConfig(currentContext);
+
+      case 'life_os_pinned_entity':
+        return _buildLifeOsPinnedConfig(currentContext);
 
       default:
         return const BentoWidgetConfigData(
           title: 'Configura Widget',
-          description: 'Personalizza il titolo e le proprietà di questo tile.',
+          description: 'Personalizza il titolo e le proprietÃ  di questo tile.',
           options: [],
         );
     }
@@ -97,7 +106,7 @@ class BentoWidgetConfigRegistry {
         options.add(BentoConfigOption(
           id: 'wallet_${w.id}',
           title: w.name,
-          subtitle: '${w.currentBalance.toStringAsFixed(2)} € • Conto Singolo',
+          subtitle: '${w.currentBalance.toStringAsFixed(2)} â‚¬ â€¢ Conto Singolo',
           icon: w.type.icon,
           color: w.color,
           props: {'source': 'wallet', 'walletId': w.id, 'title': w.name},
@@ -107,7 +116,7 @@ class BentoWidgetConfigRegistry {
 
     return BentoWidgetConfigData(
       title: 'Configura Bilancio',
-      description: 'Scegli se mostrare la liquidità totale, il saldo comune o un conto specifico.',
+      description: 'Scegli se mostrare la liquiditÃ  totale, il saldo comune o un conto specifico.',
       options: options,
       defaultOptionId: 'all',
     );
@@ -134,14 +143,14 @@ class BentoWidgetConfigRegistry {
         final titles = urgentTasks.map((t) => t['title'] as String).join(', ');
         focusPreview = '$count task: $titles';
       } else {
-        focusPreview = 'Tutte le attività in pari 🎉';
+        focusPreview = 'Tutte le attivitÃ  in pari ðŸŽ‰';
       }
     } catch (_) {}
 
     options.add(BentoConfigOption(
       id: 'focus_today',
       title: 'Focus Oggi & Urgenti',
-      subtitle: 'Attività in scadenza oggi o contrassegnate con priorità alta',
+      subtitle: 'AttivitÃ  in scadenza oggi o contrassegnate con prioritÃ  alta',
       icon: Icons.bolt_rounded,
       color: const Color(0xFFF59E0B),
       badge: 'Consigliato',
@@ -279,7 +288,7 @@ class BentoWidgetConfigRegistry {
             final contents = items.map((t) => t['content'] as String).join(', ');
             preview = '${items.length}+ aperti: $contents';
           } else {
-            preview = 'Tutti risolti 🎉';
+            preview = 'Tutti risolti ðŸŽ‰';
           }
         } catch (_) {}
 
@@ -371,7 +380,7 @@ class BentoWidgetConfigRegistry {
 
     return BentoWidgetConfigData(
       title: 'Configura Burn Rate',
-      description: 'Scegli se calcolare la velocità di spesa su tutte le uscite o quali categorie monitorare (swipe per cambiare categoria).',
+      description: 'Scegli se calcolare la velocitÃ  di spesa su tutte le uscite o quali categorie monitorare (swipe per cambiare categoria).',
       options: options,
       defaultOptionId: 'all',
       isMultiSelect: true,
@@ -384,7 +393,7 @@ class BentoWidgetConfigRegistry {
       const BentoConfigOption(
         id: 'auto',
         title: 'Prossimo Evento in Arrivo (Automatico)',
-        subtitle: 'Aggancia automaticamente la data o viaggio più vicino nel tempo',
+        subtitle: 'Aggancia automaticamente la data o viaggio piÃ¹ vicino nel tempo',
         icon: Icons.auto_awesome_rounded,
         color: Color(0xFFEC4899),
         badge: 'Smart Auto',
@@ -422,7 +431,7 @@ class BentoWidgetConfigRegistry {
         options.add(BentoConfigOption(
           id: 'scenario_${s.id}',
           title: s.title,
-          subtitle: '${s.scenarioType.toUpperCase()} • ${s.startDate.day}/${s.startDate.month}/${s.startDate.year}',
+          subtitle: '${s.scenarioType.toUpperCase()} â€¢ ${s.startDate.day}/${s.startDate.month}/${s.startDate.year}',
           icon: icon,
           color: color,
           preview: preview,
@@ -611,14 +620,14 @@ class BentoWidgetConfigRegistry {
         final pnl = totalVal - invested;
         final pnlPrefix = pnl >= 0 ? '+' : '';
         final preview = assets.isNotEmpty
-            ? '${assets.length} asset • €${totalVal.toStringAsFixed(0)} ($pnlPrefix€${pnl.toStringAsFixed(0)})'
+            ? '${assets.length} asset â€¢ â‚¬${totalVal.toStringAsFixed(0)} ($pnlPrefixâ‚¬${pnl.toStringAsFixed(0)})'
             : 'Nessun asset presente';
 
         options.add(BentoConfigOption(
           id: 'portfolio_${p.id}',
           title: p.name,
           subtitle: p.brokerName != null && p.brokerName!.isNotEmpty
-              ? '${p.brokerName} • Conto Singolo'
+              ? '${p.brokerName} â€¢ Conto Singolo'
               : 'Portafoglio Singolo',
           icon: Icons.account_balance_rounded,
           color: p.color,
@@ -676,5 +685,69 @@ class BentoWidgetConfigRegistry {
       options: options,
       defaultOptionId: 'all',
     );
+  }
+
+  // --- 12. Life OS Pinned Entity (INT-D014 / Step 3.2 Refactor) ---
+  static Future<BentoWidgetConfigData> _buildLifeOsPinnedConfig(ExpenseContext context) async {
+    try {
+      final repository = getIt<LifeEntityRepository>();
+      final overlayRepo = getIt<UserEntityOverlayRepository>();
+
+      // Fetch accessible entities for the current context (personal, group, or aggregated view)
+      final entities = await repository.getEntities(
+        groupId: context.isPersonal ? null : (context.isView ? null : context.groupId),
+        groupIds: context.isView ? context.view?.groupIds : null,
+        isPersonal: context.isPersonal,
+      );
+      final active = entities.where((e) => !e.isArchived).toList();
+
+      // Fetch weekly rail overlays to prioritize "NEL TUO FOCUS" as suggested first section
+      List<String> railEntityIds = [];
+      try {
+        final railOverlays = await overlayRepo.getWeeklyRailOverlays();
+        railEntityIds = railOverlays.map((o) => o.entityId).toList();
+      } catch (_) {}
+
+      final railEntities = active.where((e) => railEntityIds.contains(e.id)).toList();
+      final otherEntities = active.where((e) => !railEntityIds.contains(e.id)).toList();
+
+      final options = <BentoConfigOption>[];
+
+      // 1. Weekly rail suggestions (first section)
+      for (final entity in railEntities) {
+        options.add(BentoConfigOption(
+          id: entity.id,
+          title: entity.title,
+          subtitle: '★ NEL TUO FOCUS • ${entity.semanticRole.value.toUpperCase()}',
+          icon: Icons.star_rounded,
+          color: const Color(0xFFF59E0B),
+          props: {'entity_id': entity.id, 'title': entity.title},
+        ));
+      }
+
+      // 2. All other accessible entities in current context
+      for (final entity in otherEntities) {
+        options.add(BentoConfigOption(
+          id: entity.id,
+          title: entity.title,
+          subtitle: entity.isSeed ? 'Seme grezzo' : entity.semanticRole.value.toUpperCase(),
+          icon: entity.isSeed ? Icons.eco_rounded : Icons.all_inclusive_rounded,
+          color: entity.isSeed ? const Color(0xFF10B981) : const Color(0xFF6366F1),
+          props: {'entity_id': entity.id, 'title': entity.title},
+        ));
+      }
+
+      return BentoWidgetConfigData(
+        title: 'Fissa Entità Life OS',
+        description: 'Scegli quale entità mostrare in evidenza in questo widget.',
+        options: options,
+      );
+    } catch (_) {
+      return const BentoWidgetConfigData(
+        title: 'Fissa Entità Life OS',
+        description: 'Nessuna entità disponibile al momento.',
+        options: [],
+      );
+    }
   }
 }

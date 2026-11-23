@@ -49,7 +49,17 @@ class SpaceHomeView extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
         physics: const BouncingScrollPhysics(),
         children: [
-          _buildSectionHeader('Pensieri & Attività'),
+          _buildSpaceTile(
+            context,
+            title: 'LifeOS Center',
+            subtitle: 'Centro operativo, cattura rapida e orientamento',
+            icon: Icons.all_inclusive_rounded,
+            color: const Color(0xFF6366F1),
+            route: '/life_os',
+            heroTag: 'hero_space_life_os',
+          ),
+          const SizedBox(height: 18),
+          _buildSectionHeader('Pensieri & AttivitÃƒÂ '),
           _buildSpaceTile(
             context,
             title: 'Note e Appunti',
@@ -62,7 +72,7 @@ class SpaceHomeView extends StatelessWidget {
           const SizedBox(height: 10),
           _buildSpaceTile(
             context,
-            title: 'Task e Attività',
+            title: 'Task e AttivitÃƒÂ ',
             subtitle: 'To-do list e cose da fare',
             icon: Icons.checklist_rounded,
             color: const Color(0xFF6366F1),
@@ -112,6 +122,16 @@ class SpaceHomeView extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           _buildSectionHeader('Laboratorio & Visuale'),
+          _buildSpaceTile(
+            context,
+            title: 'File Markdown',
+            subtitle: 'Inbox e navigatore file MD',
+            icon: Icons.article_rounded,
+            color: const Color(0xFF6366F1),
+            route: '/space/markdown_inbox',
+            heroTag: 'hero_space_markdown_inbox',
+          ),
+          const SizedBox(height: 10),
           _buildSpaceTile(
             context,
             title: 'Infinite Canvas (Alpha)',

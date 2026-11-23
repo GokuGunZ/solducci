@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 enum WidgetCategory {
   all('Tutti', Icons.grid_view_rounded, Color(0xFF6366F1)),
+  lifeOs('Life OS', Icons.all_inclusive_rounded, Color(0xFF8B5CF6)),
   finance('Finanze', Icons.account_balance_wallet_rounded, Color(0xFF10B981)),
   time('Tempo & Focus', Icons.timer_rounded, Color(0xFF6366F1)),
   notes('Note & Idee', Icons.sticky_note_2_rounded, Color(0xFFF59E0B)),
@@ -189,13 +190,13 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     const WidgetMetadata(
       type: 'cashflow_forecast',
       name: 'Cashflow 7 Giorni',
-      description: 'Previsione di liquidità a 7 giorni con timeline scadenze, entrate e uscite.',
+      description: 'Previsione di liquiditÃƒÂ  a 7 giorni con timeline scadenze, entrate e uscite.',
       category: WidgetCategory.finance,
       icon: Icons.trending_up_rounded,
       color: Color(0xFF38BDF8),
       defaultSize: BentoWidgetSize(2, 3),
       allowedSizes: [BentoWidgetSize(2, 3), BentoWidgetSize(4, 2)],
-      keywords: ['cashflow', 'previsione', 'liquidità', 'futuro', 'scadenze', '7 giorni'],
+      keywords: ['cashflow', 'previsione', 'liquiditÃƒÂ ', 'futuro', 'scadenze', '7 giorni'],
     ),
 
     // Tempo & Focus
@@ -213,13 +214,13 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
     const WidgetMetadata(
       type: 'focus_tasks',
       name: 'Focus Task',
-      description: 'Le tue priorità del giorno con caselle di completamento e riga di inserimento rapido.',
+      description: 'Le tue prioritÃƒÂ  del giorno con caselle di completamento e riga di inserimento rapido.',
       category: WidgetCategory.time,
       icon: Icons.check_circle_outline_rounded,
       color: Color(0xFF6366F1),
       defaultSize: BentoWidgetSize(2, 4),
       allowedSizes: [BentoWidgetSize(2, 4), BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 4)],
-      keywords: ['task', 'todo', 'attività', 'completare', 'focus', 'obiettivi'],
+      keywords: ['task', 'todo', 'attivitÃƒÂ ', 'completare', 'focus', 'obiettivi'],
     ),
     const WidgetMetadata(
       type: 'habit_tracker',
@@ -279,6 +280,22 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       keywords: ['markdown', 'md', 'documenti', 'file'],
     ),
     const WidgetMetadata(
+      type: 'markdown_stack',
+      name: 'MD Quick Stack 3D',
+      description: 'Visualizzatore rapido dell\'inbox dei file MD sfogliabile a swipe con anteprima markdown 3D.',
+      category: WidgetCategory.notes,
+      icon: Icons.article_rounded,
+      color: Color(0xFF6366F1),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [
+        BentoWidgetSize(2, 2),
+        BentoWidgetSize(2, 3),
+        BentoWidgetSize(2, 4),
+        BentoWidgetSize(4, 2),
+      ],
+      keywords: ['markdown', 'md', 'file', 'inbox', 'swipe', 'pila', '3d', 'lettore'],
+    ),
+    const WidgetMetadata(
       type: 'quick_scratchpad',
       name: 'Appunto al Volo',
       description: 'Cattura rapida di pensieri, promemoria ed asterischi direttamente dalla Home.',
@@ -323,6 +340,52 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
       defaultSize: BentoWidgetSize(2, 2),
       allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(2, 3), BentoWidgetSize(3, 2), BentoWidgetSize(3, 3), BentoWidgetSize(2, 4)],
       keywords: ['asterischi', 'dubbi', 'ricordare', 'punti', 'discussione'],
+    ),
+
+    // --- Life OS Widgets (INT-D014) ---
+    const WidgetMetadata(
+      type: 'life_os_capture',
+      name: 'Cattura Rapida Life OS',
+      description: 'Cattura istantaneamente un pensiero grezzo come seme senza attrito o categorizzazione.',
+      category: WidgetCategory.lifeOs,
+      icon: Icons.bolt_rounded,
+      color: Color(0xFF8B5CF6),
+      defaultSize: BentoWidgetSize(2, 1),
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(4, 1), BentoWidgetSize(2, 2)],
+      keywords: ['life os', 'cattura', 'seme', 'pensiero', 'idea', 'rapido', 'input'],
+    ),
+    const WidgetMetadata(
+      type: 'life_os_recent_seeds',
+      name: 'Semi Recenti',
+      description: 'Visualizza le ultime catture grezze a riposo pronte per essere maturate o esplorate.',
+      category: WidgetCategory.lifeOs,
+      icon: Icons.eco_rounded,
+      color: Color(0xFF10B981),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
+      keywords: ['life os', 'semi', 'recenti', 'grezzo', 'vitrine', 'catture'],
+    ),
+    const WidgetMetadata(
+      type: 'life_os_active_entities',
+      name: 'EntitÃ  Attive Life OS',
+      description: 'Panoramica delle entitÃ  in lavorazione, progetti o elementi nel Weekly Rail.',
+      category: WidgetCategory.lifeOs,
+      icon: Icons.auto_awesome_rounded,
+      color: Color(0xFF6366F1),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
+      keywords: ['life os', 'attive', 'progetti', 'pratiche', 'weekly rail', 'focus'],
+    ),
+    const WidgetMetadata(
+      type: 'life_os_pinned_entity',
+      name: 'EntitÃ  in Evidenza',
+      description: 'Fissa una specifica entitÃ  sulla dashboard con titolo, natura, stato e accesso diretto.',
+      category: WidgetCategory.lifeOs,
+      icon: Icons.push_pin_rounded,
+      color: Color(0xFFF59E0B),
+      defaultSize: BentoWidgetSize(2, 2),
+      allowedSizes: [BentoWidgetSize(2, 1), BentoWidgetSize(2, 2), BentoWidgetSize(4, 2)],
+      keywords: ['life os', 'fissata', 'evidenza', 'progetto', 'focus', 'pin'],
     ),
   ];
 
@@ -737,7 +800,7 @@ class _WidgetGallerySheetState extends State<WidgetGallerySheet> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    '• tocca per cambiare',
+                                    'Ã¢â‚¬Â¢ tocca per cambiare',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.25),
                                       fontSize: 9,

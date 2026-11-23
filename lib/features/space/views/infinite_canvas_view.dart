@@ -21,8 +21,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class InfiniteCanvasView extends StatefulWidget {
   final String? groupId;
   final String? userId;
+  final String? initialRootId;
+  final String? customTitle;
 
-  const InfiniteCanvasView({super.key, this.groupId, this.userId});
+  const InfiniteCanvasView({
+    super.key,
+    this.groupId,
+    this.userId,
+    this.initialRootId,
+    this.customTitle,
+  });
 
   @override
   State<InfiniteCanvasView> createState() => _InfiniteCanvasViewState();
@@ -62,7 +70,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
   Future<void> _initCanvas() async {
     await CanvasSyncService().initialize();
     
-    // Esegui la Cache Eviction policy (pulisci payload più vecchi di 90 giorni)
+    // Esegui la Cache Eviction policy (pulisci payload piÃ¹ vecchi di 90 giorni)
     await CanvasLocalRepository().clearEvictedPayloads();
     
     String? gId = widget.groupId;
@@ -78,10 +86,23 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     }
     
     _controller = CanvasTreeController(groupId: gId, userId: uId);
+    if (widget.initialRootId != null) {
+      _controller.currentCanvasRootId = widget.initialRootId;
+    }
     _controller.addListener(_onTreeUpdated);
     
     // Start sync and wait for initial skeleton fetch
     await CanvasSyncService().startSync();
+    
+    if (widget.initialRootId != null) {
+      if (mounted) {
+        setState(() {
+          _showWizard = false;
+          _isInitialized = true;
+        });
+      }
+      return;
+    }
     
     // Check if user has onboarded
     final hasOnboarded = await FeatureOnboardingService().hasOnboarded('infinite_canvas');
@@ -353,7 +374,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E2C),
         title: const Text('Conferma Eliminazione', style: TextStyle(color: Colors.white)),
-        content: Text('Vuoi davvero eliminare ${_selectedNodeIds.length} elementi?\nQuesta azione non è reversibile.', style: const TextStyle(color: Colors.white70)),
+        content: Text('Vuoi davvero eliminare ${_selectedNodeIds.length} elementi?\nQuesta azione non Ã¨ reversibile.', style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -780,7 +801,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
                       },
                     ),
                     const Divider(color: Colors.white10, height: 32),
-                    const Text('Mostra voci di menù', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    const Text('Mostra voci di menÃ¹', style: TextStyle(color: Colors.white70, fontSize: 14)),
                     SwitchListTile(
                       title: const Text('Bookmarks', style: TextStyle(color: Colors.white)),
                       value: _controller.showBookmarksMenu,
@@ -948,8 +969,8 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
           presentationTitle: 'Il tuo Spazio Mentale Infinito',
           presentationSubtitle: 'Appunti liquidi, gerarchie infinite, zero limiti.\nDai forma al tuo pensiero.',
           presentationImageAssetPath: 'assets/images/onboarding/canvas_boilerplate_preview.jpg',
-          infoModalTitle: 'Cos\'è l\'Infinite Canvas?',
-          infoModalContent: 'L\'Infinite Canvas è uno spazio di lavoro 3D non lineare. Puoi creare cartelle e note annidate all\'infinito. Il Boilerplate crea un set di note iniziali che ti fungeranno da tutorial pratico direttamente sul canvas.',
+          infoModalTitle: 'Cos\'Ã¨ l\'Infinite Canvas?',
+          infoModalContent: 'L\'Infinite Canvas Ã¨ uno spazio di lavoro 3D non lineare. Puoi creare cartelle e note annidate all\'infinito. Il Boilerplate crea un set di note iniziali che ti fungeranno da tutorial pratico direttamente sul canvas.',
           options: [
             const OnboardingOption(
               id: 'boilerplate',
@@ -981,12 +1002,12 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
     }
 
     return PopScope(
-      canPop: _controller.currentCanvasRootId == null,
+      canPop: _controller.currentCanvasRootId == widget.initialRootId,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         
         final currentRootId = _controller.currentCanvasRootId;
-        if (currentRootId != null) {
+        if (currentRootId != null && currentRootId != widget.initialRootId) {
           final currentNode = _controller.getNode(currentRootId);
           _controller.jumpToFolder(currentNode?.parentId);
         }
@@ -996,7 +1017,7 @@ class _InfiniteCanvasViewState extends State<InfiniteCanvasView> {
       appBar: SolducciAppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Infinite Canvas', style: TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),
+        title: Text(widget.customTitle ?? 'Infinite Canvas', style: const TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold)),
         actions: [
           Row(
             mainAxisSize: MainAxisSize.min,
