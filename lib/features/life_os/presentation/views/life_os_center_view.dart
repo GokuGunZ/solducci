@@ -197,31 +197,23 @@ class _LifeOsCenterContentState extends State<_LifeOsCenterContent> {
             width: 10,
             height: 10,
             decoration: BoxDecoration(
-              color: state.isHealthy ? AppTheme.success : AppTheme.error,
+              color: state.isLoading
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF10B981),
               shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  state.orientationSummary,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  '${state.seedCount} semi da coltivare • ${state.activeEntityCount} entità in corso',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.45),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+            child: Text(
+              state.isLoading
+                  ? 'Sincronizzazione in corso...'
+                  : '${state.seedCount} ${state.seedCount == 1 ? "Seme" : "Semi"} in attesa · ${state.activeEntityCount} ${state.activeEntityCount == 1 ? "Attiva" : "Attive"}',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

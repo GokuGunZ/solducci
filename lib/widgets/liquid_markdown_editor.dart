@@ -23,6 +23,7 @@ class LiquidMarkdownEditor extends StatefulWidget {
   final bool defaultExpanded;
   final bool? isExpanded;
   final bool readOnlyLock;
+  final Document? document;
 
   const LiquidMarkdownEditor({
     super.key,
@@ -42,6 +43,7 @@ class LiquidMarkdownEditor extends StatefulWidget {
     this.defaultExpanded = true,
     this.isExpanded,
     this.readOnlyLock = false,
+    this.document,
   });
 
   @override
