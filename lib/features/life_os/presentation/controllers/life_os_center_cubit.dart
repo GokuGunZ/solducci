@@ -137,7 +137,10 @@ class LifeOsCenterCubit extends Cubit<LifeOsCenterState> {
       // 1. Commit new seed document first (PostgreSQL RLS safe)
       final createdEntity = await _entityRepository.createEntity(newSeed);
 
-      // 2. Persist any relations for mentions
+      // 2. Persist any relations for mentions and sync parent living blocks
+      List<LifeEntity> updatedActiveEntities = state.activeEntities;
+      List<LifeEntity> updatedSeeds = [createdEntity, ...state.seeds];
+
       if (_relationRepository != null && mentions.isNotEmpty) {
         for (final mention in mentions) {
           final rel = EntityRelation(
@@ -154,13 +157,48 @@ class LifeOsCenterCubit extends Cubit<LifeOsCenterState> {
           } catch (_) {
             // Non-blocking relation persistence
           }
+
+          // If the mention is a parent relationship (partOf), append this new child
+          // to the parent entity's living blocks (flusso evolutivo) so it appears in its vitrine!
+          if (mention.relationType == RelationType.partOf) {
+            try {
+              final parent = await _entityRepository.getEntityById(mention.entityId);
+              if (parent != null) {
+                final parentBlock = EntityBlock(
+                  id: _uuid.v4(),
+                  content: createdEntity.title,
+                  position: parent.blocks.length,
+                  createdAt: now,
+                );
+                final updatedParent = parent.copyWith(
+                  blocks: [...parent.blocks, parentBlock],
+                  updatedAt: now,
+                );
+                await _entityRepository.updateEntity(updatedParent);
+
+                // Reflect updated parent in cubit state lists if present
+                final pEntIdx = updatedActiveEntities.indexWhere((e) => e.id == parent.id);
+                if (pEntIdx != -1) {
+                  updatedActiveEntities = [...updatedActiveEntities];
+                  updatedActiveEntities[pEntIdx] = updatedParent;
+                }
+                final pSeedIdx = updatedSeeds.indexWhere((e) => e.id == parent.id);
+                if (pSeedIdx != -1) {
+                  updatedSeeds = [...updatedSeeds];
+                  updatedSeeds[pSeedIdx] = updatedParent;
+                }
+              }
+            } catch (_) {
+              // Non-blocking parent block update
+            }
+          }
         }
       }
 
-      final updatedSeeds = [createdEntity, ...state.seeds];
       emit(state.copyWith(
         isCapturing: false,
         seeds: updatedSeeds,
+        activeEntities: updatedActiveEntities,
         captureError: () => null,
         lastFailedCaptureTitle: () => null,
       ));

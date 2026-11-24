@@ -43,6 +43,9 @@ class _ChainedCaptureOverlayState extends State<ChainedCaptureOverlay> {
   final List<LifeEntity> _childSeeds = [];
   final Map<String, String> _parentMap = {}; // childId -> parentId
 
+  // Genealogy state: ancestor/parent entity if initialSeed was created as a child
+  LifeEntity? _parentEntity;
+
   // Nesting target state (null means adding directly under _rootSeed)
   String? _targetParentId;
   String? _targetParentTitle;
@@ -51,18 +54,67 @@ class _ChainedCaptureOverlayState extends State<ChainedCaptureOverlay> {
   String? _editingEntityId;
   final TextEditingController _editController = TextEditingController();
 
+  final ScrollController _scrollController = ScrollController();
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     _rootSeed = widget.initialSeed;
+    _loadGenealogy();
   }
 
   @override
   void dispose() {
     _editController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadGenealogy() async {
+    String? parentId;
+
+    // 1. Look for partOf mention in initialMentions
+    for (final m in widget.initialMentions) {
+      if (m.relationType == RelationType.partOf) {
+        parentId = m.entityId;
+        break;
+      }
+    }
+
+    // 2. If not found in mentions, query relations for source
+    if (parentId == null) {
+      try {
+        final rels = await widget.relationRepository.getRelationsForSource(widget.initialSeed.id);
+        for (final r in rels) {
+          if (r.relationType == RelationType.partOf) {
+            parentId = r.targetId;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Resolve parent LifeEntity
+    if (parentId != null) {
+      LifeEntity? parent;
+      for (final e in widget.availableEntities) {
+        if (e.id == parentId) {
+          parent = e;
+          break;
+        }
+      }
+      if (parent == null) {
+        try {
+          parent = await widget.entityRepository.getEntityById(parentId);
+        } catch (_) {}
+      }
+      if (mounted && parent != null) {
+        setState(() {
+          _parentEntity = parent;
+        });
+      }
+    }
   }
 
   void _startEditing(LifeEntity entity) {
@@ -122,95 +174,107 @@ class _ChainedCaptureOverlayState extends State<ChainedCaptureOverlay> {
   Future<void> _handleThoughtCapture(String text, List<SeedMention> mentions) async {
     final clean = text.trim();
     if (clean.isEmpty && mentions.isEmpty) return;
-    if (_isSaving) return;
 
-    setState(() => _isSaving = true);
-    HapticFeedback.mediumImpact();
+    final now = DateTime.now();
+    final activeTargetId = _targetParentId ?? _rootSeed.id;
+    final newChildId = _uuid.v4();
 
-    try {
-      final now = DateTime.now();
-      final activeTargetId = _targetParentId ?? _rootSeed.id;
-      final newChildId = _uuid.v4();
+    // 1. Create child entity object locally
+    final newChild = LifeEntity(
+      id: newChildId,
+      userId: _rootSeed.userId,
+      groupId: _rootSeed.groupId,
+      title: clean.isNotEmpty ? clean : 'Seme collegato',
+      semanticRole: SemanticRole.seed,
+      lifecycleState: LifecycleState.active,
+      currentMode: null,
+      createdAt: now,
+      updatedAt: now,
+    );
 
-      // 1. Create child entity document
-      final newChild = LifeEntity(
-        id: newChildId,
-        userId: _rootSeed.userId,
-        groupId: _rootSeed.groupId,
-        title: clean.isNotEmpty ? clean : 'Seme collegato',
-        semanticRole: SemanticRole.seed,
-        lifecycleState: LifecycleState.active,
-        currentMode: null,
-        createdAt: now,
-        updatedAt: now,
-      );
+    // 2. Create block for evolution stream
+    final newBlock = EntityBlock(
+      id: _uuid.v4(),
+      content: clean.isNotEmpty ? clean : 'Seme collegato',
+      position: _rootSeed.blocks.length,
+      createdAt: now,
+    );
 
-      final createdChild = await widget.entityRepository.createEntity(newChild);
+    final updatedRoot = activeTargetId == _rootSeed.id
+        ? _rootSeed.copyWith(
+            blocks: [..._rootSeed.blocks, newBlock],
+            updatedAt: now,
+          )
+        : _rootSeed;
 
-      // 2. Link as partOf active target parent (root by default, or nested)
-      final relation = EntityRelation(
-        id: _uuid.v4(),
-        userId: _rootSeed.userId ?? '',
-        sourceId: createdChild.id,
-        targetType: TargetType.entity,
-        targetId: activeTargetId,
-        relationType: RelationType.partOf,
-        metadata: {
-          'chain_root_id': _rootSeed.id,
-          'order_index': _childSeeds.length,
-        },
-        createdAt: now,
-      );
-      await widget.relationRepository.createRelation(relation);
+    // 3. OPTIMISTIC UPDATE: Instantaneous 0ms local update, UI reacts without latency
+    setState(() {
+      _rootSeed = updatedRoot;
+      _childSeeds.add(newChild);
+      _parentMap[newChild.id] = activeTargetId;
+      _targetParentId = null;
+      _targetParentTitle = null;
+    });
 
-      // 3. Persist any explicit mentions
-      for (final m in mentions) {
-        final mentionRel = EntityRelation(
+    HapticFeedback.lightImpact();
+    widget.onSeedUpdated?.call(updatedRoot);
+    widget.onSeedAdded?.call(newChild);
+
+    // 4. Background persistence: asynchronously persist to repositories without blocking UI
+    () async {
+      try {
+        await widget.entityRepository.createEntity(newChild);
+
+        final relation = EntityRelation(
           id: _uuid.v4(),
           userId: _rootSeed.userId ?? '',
-          sourceId: createdChild.id,
+          sourceId: newChild.id,
           targetType: TargetType.entity,
-          targetId: m.entityId,
-          relationType: m.relationType,
+          targetId: activeTargetId,
+          relationType: RelationType.partOf,
+          metadata: {
+            'chain_root_id': _rootSeed.id,
+            'order_index': _childSeeds.length,
+          },
           createdAt: now,
         );
-        await widget.relationRepository.createRelation(mentionRel);
-      }
+        await widget.relationRepository.createRelation(relation);
 
-      // 4. Also append to root seed's living blocks (flusso evolutivo) so it is 100% equivalent to vitrine additions!
-      final newBlock = EntityBlock(
-        id: _uuid.v4(),
-        content: clean,
-        position: _rootSeed.blocks.length,
-        createdAt: now,
-      );
-      final updatedRoot = _rootSeed.copyWith(
-        blocks: [..._rootSeed.blocks, newBlock],
-        updatedAt: now,
-      );
-      await widget.entityRepository.updateEntity(updatedRoot);
+        for (final m in mentions) {
+          final mentionRel = EntityRelation(
+            id: _uuid.v4(),
+            userId: _rootSeed.userId ?? '',
+            sourceId: newChild.id,
+            targetType: TargetType.entity,
+            targetId: m.entityId,
+            relationType: m.relationType,
+            createdAt: now,
+          );
+          await widget.relationRepository.createRelation(mentionRel);
+        }
 
-      if (mounted) {
-        setState(() {
-          _rootSeed = updatedRoot;
-          _childSeeds.add(createdChild);
-          _parentMap[createdChild.id] = activeTargetId;
-          _isSaving = false;
-        });
-        widget.onSeedUpdated?.call(updatedRoot);
-        widget.onSeedAdded?.call(createdChild);
+        if (activeTargetId == _rootSeed.id) {
+          await widget.entityRepository.updateEntity(updatedRoot);
+        } else {
+          LifeEntity? targetChild;
+          for (final s in _childSeeds) {
+            if (s.id == activeTargetId) {
+              targetChild = s;
+              break;
+            }
+          }
+          if (targetChild != null) {
+            final updatedChild = targetChild.copyWith(
+              blocks: [...targetChild.blocks, newBlock],
+              updatedAt: now,
+            );
+            await widget.entityRepository.updateEntity(updatedChild);
+          }
+        }
+      } catch (e) {
+        debugPrint('Errore durante il salvataggio in background del seme concatenato: $e');
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore durante il salvataggio: $e'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
-    }
+    }();
   }
 
   @override
@@ -277,45 +341,31 @@ class _ChainedCaptureOverlayState extends State<ChainedCaptureOverlay> {
                 ),
                 const SizedBox(height: 10),
 
-                // Main Seed Card - Fixed in Place at the Top
-                _buildMainSeedCard(),
-                const SizedBox(height: 12),
-
-                // Section Divider: Flusso Evolutivo
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.white.withOpacity(0.12), thickness: 1)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.hub_outlined, color: Color(0xFF8B5CF6), size: 14),
-                          const SizedBox(width: 6),
-                          Text(
-                            _childSeeds.isEmpty
-                                ? 'FLUSSO EVOLUTIVO'
-                                : 'FLUSSO EVOLUTIVO (${_childSeeds.length} aggiunti)',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.white.withOpacity(0.12), thickness: 1)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Scrollable List of Thoughts and Sub-thoughts
+                // Unified Scrollable Flow: Genealogy Ancestors (scroll UP) -> Main Seed -> Evolutionary Children
                 Expanded(
-                  child: _childSeeds.isEmpty
-                      ? Center(
+                  child: ListView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      // Upward Genealogy: Parent Entity card + vertical connecting thread
+                      if (_parentEntity != null) ...[
+                        _buildParentGenealogyCard(_parentEntity!),
+                        _buildGenealogyVerticalLine(),
+                      ],
+
+                      // Main Seed Card
+                      _buildMainSeedCard(),
+                      const SizedBox(height: 12),
+
+                      // Section Divider: Flusso Evolutivo
+                      _buildFlussoEvolutivoDivider(),
+                      const SizedBox(height: 8),
+
+                      // Scrollable List of Thoughts and Sub-thoughts
+                      if (_childSeeds.isEmpty)
+                        Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
                             child: Text(
                               'Aggiungi pensieri o idee collegate per arricchire questo seme.',
                               textAlign: TextAlign.center,
@@ -326,10 +376,10 @@ class _ChainedCaptureOverlayState extends State<ChainedCaptureOverlay> {
                             ),
                           ),
                         )
-                      : ListView(
-                          physics: const BouncingScrollPhysics(),
-                          children: _buildTreeItems(),
-                        ),
+                      else
+                        ..._buildTreeItems(),
+                    ],
+                  ),
                 ),
 
                 // Active Target Indicator (if nested inside a secondary item)
@@ -385,7 +435,167 @@ class _ChainedCaptureOverlayState extends State<ChainedCaptureOverlay> {
     );
   }
 
-  /// Builds the top fixed card for the main seed
+  /// Builds the parent ancestor card when this seed is a child of another entity
+  Widget _buildParentGenealogyCard(LifeEntity parent) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131318),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFF6366F1).withOpacity(0.45),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.account_tree_rounded,
+              color: Color(0xFF818CF8),
+              size: 15,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'GENEALOGIA · GENITORE',
+                      style: TextStyle(
+                        color: Color(0xFF818CF8),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        parent.semanticRole.name.toUpperCase(),
+                        style: const TextStyle(color: Colors.white70, fontSize: 8.5, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  parent.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.north_rounded,
+            color: Color(0xFF818CF8),
+            size: 15,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the upward vertical connector thread linking parent and current seed
+  Widget _buildGenealogyVerticalLine() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 2,
+            height: 10,
+            color: const Color(0xFF6366F1).withOpacity(0.55),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.35)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.arrow_downward_rounded, size: 10, color: Color(0xFF818CF8)),
+                SizedBox(width: 4),
+                Text(
+                  'Filo genealogico',
+                  style: TextStyle(color: Color(0xFF818CF8), fontSize: 9.5, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 2,
+            height: 10,
+            color: const Color(0xFF6366F1).withOpacity(0.55),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds section divider for evolutionary flow
+  Widget _buildFlussoEvolutivoDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.white.withOpacity(0.12), thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              const Icon(Icons.hub_outlined, color: Color(0xFF8B5CF6), size: 14),
+              const SizedBox(width: 6),
+              Text(
+                _childSeeds.isEmpty
+                    ? 'FLUSSO EVOLUTIVO'
+                    : 'FLUSSO EVOLUTIVO (${_childSeeds.length} aggiunti)',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: Divider(color: Colors.white.withOpacity(0.12), thickness: 1)),
+      ],
+    );
+  }
+
+  /// Builds the card for the main / current seed
   Widget _buildMainSeedCard() {
     final isEditing = _editingEntityId == _rootSeed.id;
 
@@ -419,14 +629,30 @@ class _ChainedCaptureOverlayState extends State<ChainedCaptureOverlay> {
                   color: const Color(0xFF8B5CF6).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'SEME PRINCIPALE',
-                  style: TextStyle(
-                    color: Color(0xFF8B5CF6),
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.6,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'SEME PRINCIPALE',
+                      style: TextStyle(
+                        color: Color(0xFF8B5CF6),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    if (_parentEntity != null) ...[
+                      const SizedBox(width: 5),
+                      Text(
+                        '· Figlio di @${_parentEntity!.title}',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const Spacer(),

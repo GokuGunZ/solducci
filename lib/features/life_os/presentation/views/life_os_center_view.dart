@@ -82,6 +82,11 @@ class _LifeOsCenterContentState extends State<_LifeOsCenterContent> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Esplora LifeOS',
+            icon: const Icon(Icons.explore_outlined, color: Colors.white70),
+            onPressed: () => context.push('/life_os/explore'),
+          ),
+          IconButton(
             tooltip: 'Personalizza Nature e Proprietà',
             icon: const Icon(Icons.tune_rounded, color: Colors.white70),
             onPressed: () => context.push('/life_os/customize'),

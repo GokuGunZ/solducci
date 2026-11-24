@@ -58,6 +58,20 @@ class RecentSeedsSection extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            if (seeds.isNotEmpty)
+              TextButton(
+                onPressed: () => context.push('/life_os/explore?role=seed'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF10B981),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Vedi tutti (${seeds.length})',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
             if (onRefresh != null)
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white38, size: 18),
@@ -159,6 +173,19 @@ class RecentSeedsSection extends StatelessWidget {
               );
             },
           ),
+        if (seeds.length > 5) ...[
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => context.push('/life_os/explore?role=seed'),
+              icon: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF10B981), size: 14),
+              label: Text(
+                'Esplora tutti i ${seeds.length} semi',
+                style: const TextStyle(color: Color(0xFF10B981), fontSize: 12.5, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -203,6 +203,50 @@ void main() {
       expect(find.text('Dettaglio innestato'), findsOneWidget);
     });
 
+    testWidgets('Displays parent genealogy card and connecting thread when initialSeed has a parent mention', (tester) async {
+      final parentEntity = LifeEntity(
+        id: 'parent-ciao-id',
+        title: 'ciao',
+        semanticRole: SemanticRole.project,
+        lifecycleState: LifecycleState.active,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      when(() => entityRepo.getEntityById('parent-ciao-id')).thenAnswer((_) async => parentEntity);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChainedCaptureOverlay(
+              initialSeed: initialSeed,
+              initialMentions: const [
+                SeedMention(
+                  entityId: 'parent-ciao-id',
+                  entityTitle: 'ciao',
+                  role: SemanticRole.project,
+                  relationType: RelationType.partOf,
+                  isLeadingTag: true,
+                ),
+              ],
+              availableEntities: [parentEntity],
+              entityRepository: entityRepo,
+              relationRepository: relationRepo,
+              onDismiss: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify genealogy parent card and thread are displayed
+      expect(find.text('GENEALOGIA · GENITORE'), findsOneWidget);
+      expect(find.text('ciao'), findsOneWidget);
+      expect(find.text('Filo genealogico'), findsOneWidget);
+      expect(find.text('· Figlio di @ciao'), findsOneWidget);
+    });
+
     testWidgets('Tapping Fatto triggers onDismiss callback', (tester) async {
       bool dismissed = false;
 

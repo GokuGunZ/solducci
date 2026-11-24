@@ -7,6 +7,7 @@ import 'package:solducci/features/life_os/presentation/controllers/life_os_cente
 import 'package:solducci/features/life_os/presentation/controllers/entity_vitrine_cubit.dart';
 import 'package:solducci/features/life_os/presentation/controllers/entity_vitrine_state.dart';
 import 'package:solducci/features/life_os/presentation/views/life_os_center_view.dart';
+import 'package:solducci/features/life_os/presentation/widgets/dynamic_capture_bar.dart';
 import 'package:solducci/features/life_os/presentation/widgets/universal_capture_bar.dart';
 import 'package:solducci/features/life_os/presentation/widgets/recent_seeds_section.dart';
 import 'package:solducci/features/life_os/presentation/widgets/how_life_os_works_section.dart';
@@ -221,7 +222,7 @@ void main() {
 
       expect(find.text('LifeOS Center'), findsOneWidget);
       expect(find.text('0 Semi in attesa · 0 Attive'), findsOneWidget);
-      expect(find.byType(UniversalCaptureBar), findsOneWidget);
+      expect(find.byType(DynamicCaptureBar), findsOneWidget);
       expect(find.byType(RecentSeedsSection), findsOneWidget);
       expect(find.byType(HowLifeOsWorksSection), findsOneWidget);
 

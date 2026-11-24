@@ -84,6 +84,17 @@ class ActiveEntitiesSection extends StatelessWidget {
                 style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => context.push('/life_os/explore'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Esplora tutto', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
         const SizedBox(height: 10),
