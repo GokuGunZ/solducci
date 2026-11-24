@@ -214,15 +214,17 @@ class _DynamicCaptureBarState extends State<DynamicCaptureBar> with SingleTicker
   void _openMentionSwitcher(int index) async {
     HapticFeedback.selectionClick();
     final current = _mentions[index];
-    final updated = await SeedRelationSwitcherSheet.show(context, mention: current);
+    final result = await SeedRelationSwitcherSheet.show(context, mention: current);
 
-    if (!mounted) return;
+    if (!mounted || result == null) {
+      // Dismissed or dragged down: Keep existing tag intact!
+      return;
+    }
     setState(() {
-      if (updated == null) {
-        // User chose to remove tag
+      if (result.remove) {
         _mentions.removeAt(index);
-      } else {
-        _mentions[index] = updated;
+      } else if (result.updatedMention != null) {
+        _mentions[index] = result.updatedMention!;
       }
     });
   }

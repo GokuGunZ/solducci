@@ -3,6 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:solducci/features/life_os/domain/models/models.dart';
 import 'package:solducci/theme/app_theme.dart';
 
+/// Result of the SeedRelationSwitcherSheet action.
+class SeedRelationSwitcherResult {
+  final bool remove;
+  final SeedMention? updatedMention;
+
+  const SeedRelationSwitcherResult.update(this.updatedMention) : remove = false;
+  const SeedRelationSwitcherResult.remove() : remove = true, updatedMention = null;
+}
+
 /// Modal bottom sheet / popover to view and toggle the relation type
 /// of a tagged entity between "Figlio di" (partOf) and "Semplice" (relatesTo).
 class SeedRelationSwitcherSheet extends StatefulWidget {
@@ -13,11 +22,11 @@ class SeedRelationSwitcherSheet extends StatefulWidget {
     required this.mention,
   });
 
-  static Future<SeedMention?> show(
+  static Future<SeedRelationSwitcherResult?> show(
     BuildContext context, {
     required SeedMention mention,
   }) {
-    return showModalBottomSheet<SeedMention?>(
+    return showModalBottomSheet<SeedRelationSwitcherResult?>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
@@ -112,7 +121,7 @@ class _SeedRelationSwitcherSheetState extends State<SeedRelationSwitcherSheet> {
               ),
               IconButton(
                 icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 20),
-                onPressed: () => Navigator.of(context).pop(widget.mention.copyWith(relationType: _currentType)),
+                onPressed: () => Navigator.of(context).pop(SeedRelationSwitcherResult.update(widget.mention.copyWith(relationType: _currentType))),
               ),
             ],
           ),
@@ -263,8 +272,7 @@ class _SeedRelationSwitcherSheetState extends State<SeedRelationSwitcherSheet> {
               TextButton.icon(
                 onPressed: () {
                   HapticFeedback.mediumImpact();
-                  // Passing null signals removal of the tag
-                  Navigator.of(context).pop(null);
+                  Navigator.of(context).pop(const SeedRelationSwitcherResult.remove());
                 },
                 icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.error, size: 16),
                 label: const Text(
@@ -276,7 +284,7 @@ class _SeedRelationSwitcherSheetState extends State<SeedRelationSwitcherSheet> {
               ElevatedButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  Navigator.of(context).pop(widget.mention.copyWith(relationType: _currentType));
+                  Navigator.of(context).pop(SeedRelationSwitcherResult.update(widget.mention.copyWith(relationType: _currentType)));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8B5CF6),

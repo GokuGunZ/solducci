@@ -206,5 +206,68 @@ void main() {
       // Should now be relatesTo
       expect(capturedMentions?[0].relationType, RelationType.relatesTo);
     });
+
+    testWidgets('Dismissing relation switcher sheet without confirming does NOT remove tag', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DynamicCaptureBar(
+              availableEntities: testEntities,
+            ),
+          ),
+        ),
+      );
+
+      final input = find.byType(TextField);
+      await tester.enterText(input, '@Sol');
+      await tester.pump();
+      await tester.tap(find.text('Solducci Redesign'));
+      await tester.pump();
+
+      expect(find.text('@Solducci Redesign'), findsOneWidget);
+
+      // Open sheet
+      await tester.tap(find.text('@Solducci Redesign'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SeedRelationSwitcherSheet), findsOneWidget);
+
+      // Dismiss by tapping the modal barrier (tapping outside / dragging down)
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      // Tag MUST STILL BE PRESENT!
+      expect(find.text('@Solducci Redesign'), findsOneWidget);
+    });
+
+    testWidgets('Tapping Rimuovi tag removes tag from bar', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DynamicCaptureBar(
+              availableEntities: testEntities,
+            ),
+          ),
+        ),
+      );
+
+      final input = find.byType(TextField);
+      await tester.enterText(input, '@Sol');
+      await tester.pump();
+      await tester.tap(find.text('Solducci Redesign'));
+      await tester.pump();
+
+      expect(find.text('@Solducci Redesign'), findsOneWidget);
+
+      // Open sheet
+      await tester.tap(find.text('@Solducci Redesign'));
+      await tester.pumpAndSettle();
+
+      // Tap Rimuovi tag
+      await tester.tap(find.text('Rimuovi tag'));
+      await tester.pumpAndSettle();
+
+      // Tag should now be removed
+      expect(find.text('@Solducci Redesign'), findsNothing);
+    });
   });
 }
