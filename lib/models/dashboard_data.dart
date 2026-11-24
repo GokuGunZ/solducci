@@ -183,8 +183,8 @@ class GroupedDebtBalance {
   bool get hasDebts => peopleYouOwe > 0;
   bool get hasCredits => peopleWhoOweYou > 0;
 
-  // Net balance: positive = you owe, negative = they owe you
-  double get netBalance => totalYouOwe - totalTheyOweYou;
+  // Net balance: positive = they owe you (credit), negative = you owe them (debt)
+  double get netBalance => totalTheyOweYou - totalYouOwe;
 
   String get totalYouOweLabel => totalYouOwe.toStringAsFixed(2);
   String get totalTheyOweYouLabel => totalTheyOweYou.toStringAsFixed(2);

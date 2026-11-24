@@ -14,6 +14,7 @@ import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/widgets/solducci_app_bar.dart';
 import 'package:solducci/widgets/economy/category_breakdown_deck.dart';
 import 'package:solducci/widgets/economy/group_debts_section.dart';
 import 'package:solducci/widgets/economy/real_cashflow_timeline_graph.dart';
@@ -161,11 +162,9 @@ class _EconomyHubViewState extends State<EconomyHubView> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
-      appBar: AppBar(
-        title: Text(
-          isGroupContext ? 'Economy Hub • ${_contextManager.contextDisplayName}' : 'Economy Hub',
-          style: const TextStyle(color: Color(0xFFE0E0E0), fontWeight: FontWeight.bold),
-        ),
+      appBar: SolducciAppBar(
+        showContextSwitcher: true,
+        title: const SizedBox.shrink(),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -397,22 +396,11 @@ class _EconomyHubViewState extends State<EconomyHubView> {
               ),
 
               // ==========================================
-              // HERO CARD PATRIMONIO
-              // (Personale: verde classico | Gruppo: risaltato viola con badge 'PERSONALE')
-              // ==========================================
-              KeyedSubtree(
-                key: _heroKey,
-                child: _NeonSectionWrapper(
-                  isHighlighted: _highlightedSection == 'hero',
-                  glowColor: const Color(0xFF10B981),
-                  child: CashflowHeroCard(isGroupContext: isGroupContext),
-                ),
-              ),
-
-              // ==========================================
-              // SEZIONE SPECIFICA PER GRUPPO / VISTA: Debiti & Crediti
+              // SEZIONI CONDIZIONALI: GRUPPO vs PERSONALE
               // ==========================================
               if (isGroupContext) ...[
+                // GRUPPI:
+                // 1. Saldo Debiti in cima
                 KeyedSubtree(
                   key: _debtsKey,
                   child: _NeonSectionWrapper(
@@ -421,13 +409,31 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                     child: const GroupDebtsSection(),
                   ),
                 ),
-                const SizedBox(height: 12),
-              ],
+                const SizedBox(height: 16),
 
-              // ==========================================
-              // SEZIONE PORTAFOGLI (Solo in Personale)
-              // ==========================================
-              if (!isGroupContext) ...[
+                // 2. Spese per Categoria (senza titolo di sezione)
+                KeyedSubtree(
+                  key: _categoriesKey,
+                  child: _NeonSectionWrapper(
+                    isHighlighted: _highlightedSection == 'categories',
+                    glowColor: const Color(0xFF8B5CF6),
+                    child: CategoryBreakdownDeck(expenses: expenses, showTitle: false),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ] else ...[
+                // PERSONALE:
+                // 1. Hero Card Patrimonio Netto
+                KeyedSubtree(
+                  key: _heroKey,
+                  child: _NeonSectionWrapper(
+                    isHighlighted: _highlightedSection == 'hero',
+                    glowColor: const Color(0xFF10B981),
+                    child: CashflowHeroCard(isGroupContext: isGroupContext),
+                  ),
+                ),
+
+                // 2. I miei Portafogli
                 KeyedSubtree(
                   key: _walletsKey,
                   child: _NeonSectionWrapper(
@@ -467,26 +473,19 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                   ),
                 ),
                 const SizedBox(height: 20),
-              ],
 
-              // ==========================================
-              // GRAFICO FLUSSO SPESE RECENTI
-              // (Posizionato sotto i portafogli in Personale, o dopo i debiti in Gruppo)
-              // ==========================================
-              KeyedSubtree(
-                key: _cashflowKey,
-                child: _NeonSectionWrapper(
-                  isHighlighted: _highlightedSection == 'cashflow',
-                  glowColor: const Color(0xFF10B981),
-                  child: RealCashflowTimelineGraph(expenses: expenses),
+                // 3. Grafico Flusso Spese Recenti
+                KeyedSubtree(
+                  key: _cashflowKey,
+                  child: _NeonSectionWrapper(
+                    isHighlighted: _highlightedSection == 'cashflow',
+                    glowColor: const Color(0xFF10B981),
+                    child: RealCashflowTimelineGraph(expenses: expenses),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // ==========================================
-              // I MIEI ASSET DI INVESTIMENTO (Solo in Personale)
-              // ==========================================
-              if (!isGroupContext) ...[
+                // 4. Asset di Investimento
                 KeyedSubtree(
                   key: _investmentsKey,
                   child: _NeonSectionWrapper(
@@ -496,20 +495,18 @@ class _EconomyHubViewState extends State<EconomyHubView> {
                   ),
                 ),
                 const SizedBox(height: 20),
-              ],
 
-              // ==========================================
-              // SPESE PER CATEGORIA (Deck esplorabile orizzontale)
-              // ==========================================
-              KeyedSubtree(
-                key: _categoriesKey,
-                child: _NeonSectionWrapper(
-                  isHighlighted: _highlightedSection == 'categories',
-                  glowColor: const Color(0xFF10B981),
-                  child: CategoryBreakdownDeck(expenses: expenses),
+                // 5. Spese per Categoria (con titolo)
+                KeyedSubtree(
+                  key: _categoriesKey,
+                  child: _NeonSectionWrapper(
+                    isHighlighted: _highlightedSection == 'categories',
+                    glowColor: const Color(0xFF10B981),
+                    child: CategoryBreakdownDeck(expenses: expenses, showTitle: true),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
 
               // ==========================================
               // SEZIONE TRANSAZIONI (Ultime 5 con "Visualizza tutte")

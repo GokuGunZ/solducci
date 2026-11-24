@@ -273,7 +273,7 @@ class ExpenseListItemOptimized extends StatelessWidget {
                       ),
                     )
                   : Text(
-                      '↙️ ${balance.toStringAsFixed(2)}€ devi',
+                      '↙️ ${balance.abs().toStringAsFixed(2)}€ devi',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,

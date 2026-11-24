@@ -9,6 +9,7 @@ import 'package:solducci/service/group_service_cached.dart';
 import 'package:solducci/service/wallet_service.dart';
 import 'package:solducci/models/wallet.dart';
 import 'package:solducci/utils/category_helpers.dart';
+import 'package:solducci/utils/currency_input_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExpenseDetailView extends StatefulWidget {
@@ -831,6 +832,13 @@ class _EditExpenseSheetState extends State<_EditExpenseSheet> {
   String? _selectedPayerId;
   bool _isSaving = false;
 
+  // Gestione Payer e Split per le spese di gruppo
+  List<GroupMember> _groupMembers = [];
+  bool _isLoadingMembers = false;
+  SplitType _splitType = SplitType.equal;
+  final Set<String> _includedMemberIds = {};
+  final Map<String, TextEditingController> _customSplitControllers = {};
+
   @override
   void initState() {
     super.initState();
@@ -838,13 +846,57 @@ class _EditExpenseSheetState extends State<_EditExpenseSheet> {
     _amountController = TextEditingController(text: widget.expense.amount.toStringAsFixed(2));
     _selectedCategory = widget.expense.type;
     _selectedDate = widget.expense.date;
-    _selectedPayerId = widget.expense.paidBy;
+    _selectedPayerId = widget.expense.paidBy ?? widget.expense.userId;
+
+    if (widget.expense.groupId != null) {
+      _loadGroupMembers();
+    }
+  }
+
+  Future<void> _loadGroupMembers() async {
+    setState(() => _isLoadingMembers = true);
+    try {
+      final members = await GroupServiceCached().getGroupMembers(widget.expense.groupId!);
+      if (mounted) {
+        setState(() {
+          _groupMembers = members;
+          _splitType = widget.expense.splitType ?? SplitType.equal;
+          _selectedPayerId = widget.expense.paidBy ?? widget.expense.userId;
+          if (_selectedPayerId == null && members.isNotEmpty) {
+            _selectedPayerId = members.first.userId;
+          }
+
+          if (widget.expense.splitData != null && widget.expense.splitData!.isNotEmpty) {
+            for (final m in members) {
+              final val = widget.expense.splitData![m.userId] ?? 0.0;
+              _customSplitControllers[m.userId] = TextEditingController(
+                text: val > 0 ? val.toStringAsFixed(2) : '',
+              );
+              if (val > 0) {
+                _includedMemberIds.add(m.userId);
+              }
+            }
+          } else {
+            for (final m in members) {
+              _includedMemberIds.add(m.userId);
+              _customSplitControllers[m.userId] = TextEditingController();
+            }
+          }
+          _isLoadingMembers = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingMembers = false);
+    }
   }
 
   @override
   void dispose() {
     _descController.dispose();
     _amountController.dispose();
+    for (final c in _customSplitControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -881,15 +933,55 @@ class _EditExpenseSheetState extends State<_EditExpenseSheet> {
   }
 
   Future<void> _save() async {
-    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
+    final amount = CurrencyInputHelper.parse(_amountController.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Inserisci un importo valido.'),
+          content: Text('Inserisci un importo valido maggiore di 0.'),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
+    }
+
+    Map<String, double>? splitData;
+    SplitType? effectiveSplitType;
+
+    if (widget.expense.groupId != null && _groupMembers.isNotEmpty) {
+      effectiveSplitType = _splitType;
+      if (_splitType == SplitType.custom) {
+        splitData = {};
+        double totalCustom = 0;
+        for (final m in _groupMembers) {
+          final val = CurrencyInputHelper.parse(_customSplitControllers[m.userId]?.text) ?? 0.0;
+          splitData[m.userId] = val;
+          totalCustom += val;
+        }
+        if ((totalCustom - amount).abs() > 0.05) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('La somma delle quote (€${totalCustom.toStringAsFixed(2)}) non corrisponde al totale (€${amount.toStringAsFixed(2)})'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+          return;
+        }
+      } else if (_splitType == SplitType.equal) {
+        if (_includedMemberIds.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Seleziona almeno un partecipante alla spesa'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+          return;
+        }
+        splitData = {};
+        final perPerson = double.parse((amount / _includedMemberIds.length).toStringAsFixed(2));
+        for (final m in _groupMembers) {
+          splitData[m.userId] = _includedMemberIds.contains(m.userId) ? perPerson : 0.0;
+        }
+      }
     }
 
     setState(() => _isSaving = true);
@@ -901,6 +993,8 @@ class _EditExpenseSheetState extends State<_EditExpenseSheet> {
         type: _selectedCategory,
         date: _selectedDate,
         paidBy: _selectedPayerId,
+        splitType: effectiveSplitType,
+        splitData: splitData,
       );
 
       final result = await ExpenseServiceCached().update(updated);
@@ -1081,6 +1175,178 @@ class _EditExpenseSheetState extends State<_EditExpenseSheet> {
                 },
               ),
             ),
+            // Group Payer and Split controls if group expense
+            if (widget.expense.groupId != null) ...[
+              if (_isLoadingMembers)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
+                    ),
+                  ),
+                )
+              else if (_groupMembers.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Divider(color: Colors.white10),
+                const SizedBox(height: 12),
+
+              // Chi ha pagato
+              const Text(
+                'Chi ha pagato',
+                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _groupMembers.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final member = _groupMembers[index];
+                    final isPayer = _selectedPayerId == member.userId;
+                    final name = member.nickname ?? member.email?.split('@').first ?? 'Membro';
+
+                    return ChoiceChip(
+                      label: Text(name),
+                      selected: isPayer,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _selectedPayerId = member.userId);
+                      },
+                      selectedColor: const Color(0xFF8B5CF6).withOpacity(0.3),
+                      backgroundColor: Colors.white.withOpacity(0.05),
+                      labelStyle: TextStyle(
+                        color: isPayer ? const Color(0xFFA78BFA) : Colors.white70,
+                        fontWeight: isPayer ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide(
+                        color: isPayer ? const Color(0xFF8B5CF6) : Colors.white10,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Divisione della spesa
+              const Text(
+                'Divisione della spesa (Per chi)',
+                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text('Equamente'),
+                    selected: _splitType == SplitType.equal,
+                    onSelected: (val) {
+                      if (val) setState(() => _splitType = SplitType.equal);
+                    },
+                    selectedColor: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    backgroundColor: Colors.white.withOpacity(0.05),
+                    labelStyle: TextStyle(
+                      color: _splitType == SplitType.equal ? const Color(0xFFA78BFA) : Colors.white70,
+                      fontWeight: _splitType == SplitType.equal ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    side: BorderSide(
+                      color: _splitType == SplitType.equal ? const Color(0xFF8B5CF6) : Colors.white10,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ChoiceChip(
+                    label: const Text('Personalizzata'),
+                    selected: _splitType == SplitType.custom,
+                    onSelected: (val) {
+                      if (val) setState(() => _splitType = SplitType.custom);
+                    },
+                    selectedColor: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    backgroundColor: Colors.white.withOpacity(0.05),
+                    labelStyle: TextStyle(
+                      color: _splitType == SplitType.custom ? const Color(0xFFA78BFA) : Colors.white70,
+                      fontWeight: _splitType == SplitType.custom ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    side: BorderSide(
+                      color: _splitType == SplitType.custom ? const Color(0xFF8B5CF6) : Colors.white10,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Partecipanti / Quote
+              if (_splitType == SplitType.equal) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _groupMembers.map((member) {
+                    final isIncluded = _includedMemberIds.contains(member.userId);
+                    final name = member.nickname ?? member.email?.split('@').first ?? 'Membro';
+                    return FilterChip(
+                      label: Text(name),
+                      selected: isIncluded,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _includedMemberIds.add(member.userId);
+                          } else {
+                            if (_includedMemberIds.length > 1) {
+                              _includedMemberIds.remove(member.userId);
+                            }
+                          }
+                        });
+                      },
+                      selectedColor: const Color(0xFF10B981).withOpacity(0.2),
+                      backgroundColor: Colors.white.withOpacity(0.05),
+                      labelStyle: TextStyle(
+                        color: isIncluded ? const Color(0xFF10B981) : Colors.white54,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide(
+                        color: isIncluded ? const Color(0xFF10B981) : Colors.white10,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ] else if (_splitType == SplitType.custom) ...[
+                ..._groupMembers.map((member) {
+                  final name = member.nickname ?? member.email?.split('@').first ?? 'Membro';
+                  final controller = _customSplitControllers[member.userId] ??= TextEditingController();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(name, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                        ),
+                        SizedBox(
+                          width: 100,
+                          height: 38,
+                          child: TextField(
+                            controller: controller,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                            decoration: InputDecoration(
+                              prefixText: '€ ',
+                              prefixStyle: const TextStyle(color: Colors.white54, fontSize: 12),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.05),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ],
+
             const SizedBox(height: 24),
 
             // Save Button

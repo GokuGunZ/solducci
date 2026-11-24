@@ -6,8 +6,13 @@ import 'package:solducci/views/category_expenses_page.dart';
 
 class CategoryBreakdownDeck extends StatelessWidget {
   final List<Expense> expenses;
+  final bool showTitle;
 
-  const CategoryBreakdownDeck({super.key, required this.expenses});
+  const CategoryBreakdownDeck({
+    super.key,
+    required this.expenses,
+    this.showTitle = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,21 +31,23 @@ class CategoryBreakdownDeck extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Intestazione
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Icon(Icons.pie_chart_rounded, size: 18, color: Color(0xFF10B981)),
-              SizedBox(width: 8),
-              Text(
-                'Spese per Categoria',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ],
+        // Intestazione opzionale
+        if (showTitle) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Icon(Icons.pie_chart_rounded, size: 18, color: Color(0xFF10B981)),
+                SizedBox(width: 8),
+                Text(
+                  'Spese per Categoria',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
+        ],
 
         // Deck orizzontale a chips / cards
         SizedBox(

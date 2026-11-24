@@ -1,0 +1,25 @@
+{
+  "run_id": "run_20261124_194300_audit_debt_credit_calculation_chain",
+  "corrections": [
+    {
+      "finding_id": "FINDING-01",
+      "status": "RESOLVED",
+      "action_taken": "Pianificato null-safety check prioritario in Milestone 2 con fallback su user_id."
+    },
+    {
+      "finding_id": "FINDING-02",
+      "status": "RESOLVED",
+      "action_taken": "Sincronizzato il generatore di split in ExpenseServiceCached per rispettare splitData in modalità equal."
+    },
+    {
+      "finding_id": "FINDING-03",
+      "status": "RESOLVED",
+      "action_taken": "Standardizzato il dominio su PairwiseDebtBalance (positivo = credito) e documentata la deprecazione del segno legacy."
+    },
+    {
+      "finding_id": "FINDING-04",
+      "status": "RESOLVED",
+      "action_taken": "Integrati guardrail UX nel modal unificato con preview live dell'impatto sul credito."
+    }
+  ]
+}

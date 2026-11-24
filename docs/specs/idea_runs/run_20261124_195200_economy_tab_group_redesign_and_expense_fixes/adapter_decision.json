@@ -1,0 +1,59 @@
+{
+  "decision": "Implement comprehensive overhaul of the Economy tab, Group view layout, observable debt timeline chart, stream sorting, multi-criteria expense filters, locale-aware amount parser, and database contract fixes.",
+  "proposed_actions": [
+    {
+      "action": "Fix locale-aware number parsing in CurrencyInputHelper and UnifiedTransactionModal",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    },
+    {
+      "action": "Set userId = auth.uid() in ExpenseServiceCached.insert() to prevent database key violation",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    },
+    {
+      "action": "Add in-modal error banners and bypass occluded ScaffoldMessenger SnackBars",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    },
+    {
+      "action": "Enforce date descending sort on _groupExpensesStream and _mergeStreams in ExpenseServiceCached",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    },
+    {
+      "action": "Adopt SolducciAppBar with ContextSwitcher in EconomyHubView and reorder Group layout",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    },
+    {
+      "action": "Create GroupDebtDetailView and zero-centered ObservableDebtTimelineChart",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    },
+    {
+      "action": "Implement ExpenseFilterCriteria engine and redesign ExpenseList UI",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    },
+    {
+      "action": "Add payer and split management controls to _EditExpenseSheet",
+      "permission": "ALLOW",
+      "target_worktree": "builder_economy_group_overhaul"
+    }
+  ],
+  "claims": [
+    "Replacing replaceAll('.', '') restores standard dot decimal inputs such as '31.4'.",
+    "Populating user_id with auth.uid() on group expense insertion satisfies the NOT NULL constraint.",
+    "Applying descending sort at stream ingress fixes oldest-first order without UI race conditions."
+  ],
+  "alternatives": [
+    "Fl_chart library for debt timeline (rejected due to zero-center calibration friction)",
+    "Ad-hoc title row for ContextSwitcher (rejected due to header button crowding)",
+    "Client-side sorting in EconomyHubView only (rejected in favor of service-layer stream sorting)"
+  ],
+  "limitations": [
+    "Sparse group expense history requires step-line interpolation to prevent misleading slopes.",
+    "Expenses paid by other members must never have a personal wallet assigned."
+  ]
+}

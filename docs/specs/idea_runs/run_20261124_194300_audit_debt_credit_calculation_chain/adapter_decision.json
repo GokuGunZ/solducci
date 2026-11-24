@@ -1,0 +1,29 @@
+{
+  "decision": "Armonizzazione architetturale e correzione difetti matematici/runtime della catena di calcolo debito/credito di Solducci: allineamento di _calculateSplits tra ExpenseService e ExpenseServiceCached, null-safety su paid_by in calculateGroupBalance, formalizzazione di PairwiseDebtBalance come modello canonico e guardrail visivi nel modal di inserimento.",
+  "proposed_actions": [
+    {
+      "action": "Esecuzione audit completo e stesura specifiche in modalità SPEC_ONLY per la catena debito/credito",
+      "permission": "ALLOW",
+      "target_worktree": "C:\\Users\\Aless\\Documents\\Projects\\Solducci"
+    },
+    {
+      "action": "Implementazione Milestone 1-5 nel ciclo di build approvato",
+      "permission": "REQUIRE_PERMISSION",
+      "target_worktree": "C:\\Users\\Aless\\Documents\\Projects\\Solducci"
+    }
+  ],
+  "claims": [
+    "ExpenseServiceCached._calculateSplits ignora splitData per SplitType.equal, dividendo per tutti i membri del gruppo invece del subset selezionato e diluendo il credito del pagatore.",
+    "calculateGroupBalance effettua un cast non-nullable 'as String' su paid_by che solleva TypeError su record con paid_by null, azzerando silenziosamente tutti i saldi del gruppo a 0.00€.",
+    "Esiste una divergenza di segno tra DebtBalance.netBalance (positivo = debito) e PeerDebtsWidget.netTotal (positivo = credito), fonte di potenziale errore interpretativo.",
+    "La selezione del pagatore nel modal unificato può indurre l'utente ad attribuire la spesa all'altro membro se scambiato per beneficiario, invertendo il segno del saldo."
+  ],
+  "alternatives": [
+    "Riscrivere la contabilità interamente in stored procedure PostgreSQL - scartato per complessità sproporzionata e incompatibilità con offline caching.",
+    "Patch superficiale solo su PeerDebtsWidget - scartato perché maschera i difetti di calcolo e non previene il crash da null."
+  ],
+  "limitations": [
+    "SPEC_ONLY mode: nessuna modifica al codice applicativo in questa fase.",
+    "L'audit è basato sullo stato del repository al commit 47c2544ab sul branch test."
+  ]
+}

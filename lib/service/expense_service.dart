@@ -46,7 +46,7 @@ class ExpenseService {
         final members = await GroupService().getGroupMembers(newExpense.groupId!);
 
         // Calculate splits based on type
-        final splits = _calculateSplits(
+        final splits = calculateSplits(
           expenseId: expenseId,
           expense: newExpense,
           members: members,
@@ -256,7 +256,7 @@ class ExpenseService {
           final members = await GroupService().getGroupMembers(updatedExpense.groupId!);
 
           // Calculate new splits based on type
-          final splits = _calculateSplits(
+          final splits = calculateSplits(
             expenseId: updatedExpense.id,
             expense: updatedExpense,
             members: members,
@@ -332,7 +332,7 @@ class ExpenseService {
   // ========================================
 
   /// Calculate splits based on expense split type
-  List<Map<String, dynamic>> _calculateSplits({
+  static List<Map<String, dynamic>> calculateSplits({
     required int expenseId,
     required Expense expense,
     required List<GroupMember> members,
@@ -520,7 +520,7 @@ class ExpenseService {
           .from('expense_splits')
           .select('''
             *,
-            expenses!inner(group_id, paid_by)
+            expenses!inner(group_id, paid_by, user_id)
           ''')
           .eq('expenses.group_id', groupId);
 
@@ -529,7 +529,8 @@ class ExpenseService {
       for (final splitData in response as List) {
         final split = ExpenseSplit.fromMap(splitData);
         final expense = splitData['expenses'] as Map<String, dynamic>;
-        final paidBy = expense['paid_by'] as String;
+        final paidBy = (expense['paid_by'] as String?) ?? (expense['user_id'] as String?);
+        if (paidBy == null) continue;
 
         // Skip if already paid
         if (split.isPaid) continue;

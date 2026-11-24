@@ -104,8 +104,9 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
 
   @override
   Future<Expense> insert(Expense item) async {
-    // Auto-set context fields
+    // Auto-set context fields and guarantee creator userId is always populated
     final context = _contextManager.currentContext;
+    item.userId ??= _supabase.auth.currentUser?.id;
 
     if (context.isGroup) {
       item.groupId = context.groupId;
@@ -252,7 +253,8 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
         .eq('user_id', userId)
         .map((data) {
           final filtered = data.where((row) => row['group_id'] == null).toList();
-          final expenses = _parseExpenses(filtered);
+          final expenses = _parseExpenses(filtered)
+            ..sort((a, b) => b.date.compareTo(a.date));
           putManyInCache(expenses);
           return expenses;
         });
@@ -261,7 +263,8 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
       supabaseStream,
       _cacheInvalidationController.stream.asyncMap((_) async {
         final data = await _supabase.from('expenses').select().eq('user_id', userId).isFilter('group_id', null);
-        final expenses = _parseExpenses(data);
+        final expenses = _parseExpenses(data)
+          ..sort((a, b) => b.date.compareTo(a.date));
         putManyInCache(expenses);
         return expenses;
       })
@@ -278,7 +281,8 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
         .stream(primaryKey: ['id'])
         .inFilter('group_id', groupIds)
         .map((data) {
-          final expenses = _parseExpenses(data);
+          final expenses = _parseExpenses(data)
+            ..sort((a, b) => b.date.compareTo(a.date));
 
           // Update cache with streamed data
           putManyInCache(expenses);
@@ -290,7 +294,8 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
       supabaseStream,
       _cacheInvalidationController.stream.asyncMap((_) async {
         final data = await _supabase.from('expenses').select().inFilter('group_id', groupIds);
-        final expenses = _parseExpenses(data);
+        final expenses = _parseExpenses(data)
+          ..sort((a, b) => b.date.compareTo(a.date));
         putManyInCache(expenses);
         return expenses;
       })
@@ -299,7 +304,9 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
 
   Stream<List<Expense>> _mergeStreams(List<Stream<List<Expense>>> streams) {
     if (streams.isEmpty) return Stream.value([]);
-    if (streams.length == 1) return streams.first;
+    if (streams.length == 1) {
+      return streams.first.map((list) => List<Expense>.from(list)..sort((a, b) => b.date.compareTo(a.date)));
+    }
 
     return StreamZip(streams).map((results) {
       final merged = <Expense>[];
@@ -548,7 +555,7 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
           .from('expense_splits')
           .select('''
             *,
-            expenses!inner(group_id, paid_by)
+            expenses!inner(group_id, paid_by, user_id)
           ''')
           .eq('expenses.group_id', groupId);
 
@@ -557,7 +564,8 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
       for (final splitData in response as List) {
         final split = ExpenseSplit.fromMap(splitData);
         final expense = splitData['expenses'] as Map<String, dynamic>;
-        final paidBy = expense['paid_by'] as String;
+        final paidBy = (expense['paid_by'] as String?) ?? (expense['user_id'] as String?);
+        if (paidBy == null) continue;
 
         if (split.isPaid) continue;
 
@@ -835,7 +843,7 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
 
   Future<void> _createExpenseSplits(int expenseId, Expense expense) async {
     final members = await GroupService().getGroupMembers(expense.groupId!);
-    final splits = _calculateSplits(
+    final splits = calculateSplits(
       expenseId: expenseId,
       expense: expense,
       members: members,
@@ -846,7 +854,7 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
     }
   }
 
-  List<Map<String, dynamic>> _calculateSplits({
+  static List<Map<String, dynamic>> calculateSplits({
     required int expenseId,
     required Expense expense,
     required List<GroupMember> members,
@@ -855,16 +863,34 @@ class ExpenseServiceCached extends PersistentCacheableService<Expense, int> {
 
     switch (expense.splitType) {
       case SplitType.equal:
-        final amountPerPerson = expense.amount / members.length;
-        final roundedAmount = double.parse(amountPerPerson.toStringAsFixed(2));
+        // Respect splitData if selective members were chosen, otherwise split equally among all members
+        if (expense.splitData != null && expense.splitData!.isNotEmpty) {
+          for (final entry in expense.splitData!.entries) {
+            final userId = entry.key;
+            final amount = entry.value;
 
-        for (final member in members) {
-          splits.add({
-            'expense_id': expenseId,
-            'user_id': member.userId,
-            'amount': roundedAmount,
-            'is_paid': member.userId == expense.paidBy,
-          });
+            // Only create split if amount > 0
+            if (amount > 0) {
+              splits.add({
+                'expense_id': expenseId,
+                'user_id': userId,
+                'amount': amount,
+                'is_paid': userId == expense.paidBy,
+              });
+            }
+          }
+        } else {
+          final amountPerPerson = expense.amount / members.length;
+          final roundedAmount = double.parse(amountPerPerson.toStringAsFixed(2));
+
+          for (final member in members) {
+            splits.add({
+              'expense_id': expenseId,
+              'user_id': member.userId,
+              'amount': roundedAmount,
+              'is_paid': member.userId == expense.paidBy,
+            });
+          }
         }
         break;
 

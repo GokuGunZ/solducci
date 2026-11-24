@@ -1,12 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:solducci/models/dashboard_data.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/expense_service_cached.dart';
 
 class GroupDebtsSection extends StatefulWidget {
   final String? groupId;
-  const GroupDebtsSection({super.key, this.groupId});
+  final bool isDetailMode;
+
+  const GroupDebtsSection({
+    super.key,
+    this.groupId,
+    this.isDetailMode = false,
+  });
 
   @override
   State<GroupDebtsSection> createState() => _GroupDebtsSectionState();
@@ -137,55 +144,71 @@ class _GroupDebtsSectionState extends State<GroupDebtsSection> {
 
     final hasData = _isViewMode ? _groupedBalances.isNotEmpty : _balances.isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141418),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B5CF6).withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.compare_arrows_rounded, size: 18, color: Color(0xFF8B5CF6)),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isViewMode ? 'Saldo Debiti per Gruppo' : 'Saldo Debiti & Crediti',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ],
-              ),
-              if (hasData)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _isViewMode
-                        ? '${_groupedBalances.length} ${_groupedBalances.length == 1 ? 'gruppo' : 'gruppi'}'
-                        : '${_balances.length} posizioni',
-                    style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
+    return InkWell(
+      onTap: widget.isDetailMode
+          ? null
+          : () {
+              context.push('/economy/debts');
+            },
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF141418),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8B5CF6).withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.compare_arrows_rounded, size: 18, color: Color(0xFF8B5CF6)),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isViewMode ? 'Saldo Debiti per Gruppo' : 'Saldo Debiti & Crediti',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
                 ),
-            ],
-          ),
-          const SizedBox(height: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hasData)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _isViewMode
+                              ? '${_groupedBalances.length} ${_groupedBalances.length == 1 ? 'gruppo' : 'gruppi'}'
+                              : '${_balances.length} posizioni',
+                          style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (!widget.isDetailMode) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF8B5CF6)),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
 
           if (!hasData)
             // Stato in pareggio

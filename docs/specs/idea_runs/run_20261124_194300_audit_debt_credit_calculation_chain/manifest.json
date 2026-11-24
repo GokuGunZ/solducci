@@ -1,0 +1,63 @@
+{
+  "run_id": "run_20261124_194300_audit_debt_credit_calculation_chain",
+  "created_at": "2026-11-24T19:43:00+01:00",
+  "completed_at": "2026-11-24T19:59:00+01:00",
+  "git_branch": "test",
+  "git_sha": "47c2544ab35105d6601cd29d5470719348b71d7a",
+  "mode": "SPEC_ONLY",
+  "verdict": "READY_FOR_BUILDER",
+  "artifacts": {
+    "01_ORIGINAL_INTENT.md": {
+      "sha256": "c8b9e5850d1e5cee6673d560b8e2032d07386219e76417663b33d536e537b70b",
+      "size_bytes": 2950
+    },
+    "02_REPOSITORY_REALITY.md": {
+      "sha256": "097377f95e3fa62a9bb05ead08aaa7bdaed05dbbb84f85ce2143cc399214f47e",
+      "size_bytes": 7127
+    },
+    "03_PRODUCT_BEHAVIOR_SPEC.md": {
+      "sha256": "28811d9069fa300046ff0a77aa45eedf2a5f4e4556d84535bdabc3047f2a718a",
+      "size_bytes": 3789
+    },
+    "04_DOMAIN_AND_DATA_MODEL.md": {
+      "sha256": "8949ce436e77b82903cf0371dd50f9d571faeef4e86da8d5f71189d0f9114c54",
+      "size_bytes": 2956
+    },
+    "05_ARCHITECTURE_DECISION.md": {
+      "sha256": "33d32038e86f532c3a05b4e082e5feb33ff46cf2bb175bb57109cf061b2b63c2",
+      "size_bytes": 3695
+    },
+    "06_UX_INTERACTION_SPEC.md": {
+      "sha256": "7d88053621feba71b6103576fd932aabece1eb8d3f9ae76f6526023a0e69ecf3",
+      "size_bytes": 2910
+    },
+    "07_IMPLEMENTATION_ROADMAP.md": {
+      "sha256": "33a5e09dca3c86fa6df118a7576460ebce13a3b2893d4f18a52b5833beacebd0",
+      "size_bytes": 3228
+    },
+    "08_INDEPENDENT_REVIEW.md": {
+      "sha256": "bfd7c3c93552930da78ba5168557934900c475c34b26938d54bca98ef722d865",
+      "size_bytes": 3806
+    },
+    "09_READINESS_ASSESSMENT.md": {
+      "sha256": "358c92eb579f119269658ca1cc912436520c2717cc8710d279a5dd43b47c05fd",
+      "size_bytes": 1764
+    },
+    "adapter_correction.json": {
+      "sha256": "44bb374e217af8f63b7d32d2422f15e6f618722be8dc96476b1d46871072427e",
+      "size_bytes": 884
+    },
+    "adapter_decision.json": {
+      "sha256": "d809d196f3a19cdb0b4535db718c8131fdab5adcf130e8afb570c23dd8b27223",
+      "size_bytes": 2104
+    },
+    "adapter_review.json": {
+      "sha256": "ec7e0ae8c90473a0087a1b7186f01d8c9ad01ea8e9291c681cdec8c728c371b3",
+      "size_bytes": 1677
+    },
+    "raw_input.txt": {
+      "sha256": "6aede69b4d07fc346e8416e87a91487217c04d6c6f8d212f6ab7ee6836e397bc",
+      "size_bytes": 408
+    }
+  }
+}

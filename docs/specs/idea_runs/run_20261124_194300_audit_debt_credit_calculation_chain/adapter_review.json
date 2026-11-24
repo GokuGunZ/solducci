@@ -1,0 +1,35 @@
+{
+  "run_id": "run_20261124_194300_audit_debt_credit_calculation_chain",
+  "verdict": "APPROVED",
+  "reviewer": "DevelopmentEngine.IndependentReviewer",
+  "findings": [
+    {
+      "id": "FINDING-01",
+      "severity": "CRITICAL",
+      "category": "RUNTIME_CRASH",
+      "description": "Unsafe cast 'as String' on paid_by in calculateGroupBalance throws TypeError when paid_by is null, causing silent reset of group balances to zero.",
+      "resolution": "Use defensive fallback: (expense['paid_by'] as String?) ?? (expense['user_id'] as String?)."
+    },
+    {
+      "id": "FINDING-02",
+      "severity": "HIGH",
+      "category": "ARITHMETIC_MISMATCH",
+      "description": "ExpenseServiceCached ignores splitData for SplitType.equal, causing incorrect division across all members instead of selected members.",
+      "resolution": "Align ExpenseServiceCached._calculateSplits with ExpenseService._calculateSplits."
+    },
+    {
+      "id": "FINDING-03",
+      "severity": "MEDIUM",
+      "category": "SIGN_CONVENTION",
+      "description": "DebtBalance.netBalance defines positive as debt while PairwiseDebtBalance and PeerDebtsWidget define positive as credit.",
+      "resolution": "Formalize PairwiseDebtBalance as canonical model; deprecate ambiguous netBalance in DebtBalance."
+    },
+    {
+      "id": "FINDING-04",
+      "severity": "MEDIUM",
+      "category": "UX_ACCIDENTAL_INVERSION",
+      "description": "Lack of explicit payer guidance in UnifiedTransactionModal risks users tapping peer avatar and inadvertently inverting the debt/credit relationship.",
+      "resolution": "Add explicit role headers and dynamic credit/debt impact preview text."
+    }
+  ]
+}

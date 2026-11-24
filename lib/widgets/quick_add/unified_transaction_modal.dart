@@ -22,6 +22,7 @@ import 'package:solducci/service/auth_service.dart';
 import 'package:solducci/service/context_manager.dart';
 import 'package:solducci/service/group_service.dart';
 import 'package:solducci/theme/app_theme.dart';
+import 'package:solducci/utils/currency_input_helper.dart';
 import 'package:solducci/widgets/common/view_group_picker_sheet.dart';
 import 'package:solducci/widgets/economy/recurring_form_sheet.dart';
 
@@ -110,6 +111,14 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   Tipologia _expenseCategory = Tipologia.cibo;
   IncomeCategory _incomeCategory = IncomeCategory.stipendio;
   bool _isLoading = false;
+  String? _errorMessage;
+
+  void _showError(String message) {
+    setState(() {
+      _errorMessage = message;
+      _isLoading = false;
+    });
+  }
 
   // Stato per Spese di Gruppo & Split
   final _contextManager = ContextManager();
@@ -232,12 +241,11 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   }
 
   void _addAllocationEntry() {
-    final cleanTotal = _amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
-    final totalAmount = double.tryParse(cleanTotal) ?? 0.0;
+    final totalAmount = CurrencyInputHelper.parse(_amountController.text) ?? 0.0;
 
     double alreadyAllocated = 0.0;
     for (final e in _allocationEntries) {
-      final amt = double.tryParse(e.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+      final amt = CurrencyInputHelper.parse(e.amountController.text) ?? 0.0;
       alreadyAllocated += amt;
     }
     final residual = totalAmount - alreadyAllocated;
@@ -293,21 +301,17 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   }
 
   Future<void> _submit() async {
-    final cleanAmt = _amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
-    final amount = double.tryParse(cleanAmt);
+    setState(() => _errorMessage = null);
+    final amount = CurrencyInputHelper.parse(_amountController.text);
 
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inserisci un importo valido maggiore di 0'), backgroundColor: AppTheme.error),
-      );
+      _showError('Inserisci un importo valido maggiore di 0');
       return;
     }
 
     final desc = _descController.text.trim();
     if (desc.isEmpty && _mode != TransactionMode.transfer) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inserisci una descrizione'), backgroundColor: AppTheme.error),
-      );
+      _showError('Inserisci una descrizione');
       return;
     }
 
@@ -327,27 +331,21 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
             splitData = {};
             double totalCustom = 0;
             for (final m in _groupMembers) {
-              final raw = _customSplitControllers[m.userId]?.text.replaceAll('.', '').replaceAll(',', '.').trim() ?? '';
-              final val = double.tryParse(raw) ?? 0.0;
+              final raw = _customSplitControllers[m.userId]?.text ?? '';
+              final val = CurrencyInputHelper.parse(raw) ?? 0.0;
               splitData[m.userId] = val;
               totalCustom += val;
             }
             if ((totalCustom - amount).abs() > 0.05) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('La somma delle quote (€${totalCustom.toStringAsFixed(2)}) non corrisponde al totale (€${amount.toStringAsFixed(2)})'),
-                  backgroundColor: AppTheme.error,
-                ),
-              );
-              setState(() => _isLoading = false);
+              _showError('La somma delle quote (€${totalCustom.toStringAsFixed(2)}) non corrisponde al totale (€${amount.toStringAsFixed(2)})');
               return;
             }
+          } else if (_splitType == SplitType.lend) {
+            // Payer advances 100% for other members - will be divided among all non-payers
+            splitData = null;
           } else if (_splitType == SplitType.equal) {
             if (_includedMemberIds.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Seleziona almeno un partecipante alla spesa'), backgroundColor: AppTheme.error),
-              );
-              setState(() => _isLoading = false);
+              _showError('Seleziona almeno un partecipante alla spesa');
               return;
             }
             if (_includedMemberIds.length != _groupMembers.length) {
@@ -366,6 +364,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
           amount: amount,
           date: _date,
           type: _expenseCategory,
+          userId: currentUserId,
           walletId: isPaidByMe ? _selectedWallet?.id : null,
           portfolioId: _expenseCategory == Tipologia.investimento ? _selectedPortfolio?.id : null,
           groupId: isGroup ? effectiveGroupId : null,
@@ -442,10 +441,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
         await IncomeService().createIncome(newInc);
       } else if (_mode == TransactionMode.transfer) {
         if (_selectedWallet == null || _toWallet == null || _selectedWallet?.id == _toWallet?.id) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Seleziona due portafogli diversi per il giroconto'), backgroundColor: AppTheme.error),
-          );
-          setState(() => _isLoading = false);
+          _showError('Seleziona due portafogli diversi per il giroconto');
           return;
         }
 
@@ -474,10 +470,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore: $e'), backgroundColor: AppTheme.error),
-        );
+        _showError('Errore durante il salvataggio: $e');
       }
     }
   }
@@ -525,6 +518,35 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                   ],
                 ),
               ),
+
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.error.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.error.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: AppTheme.error, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => setState(() => _errorMessage = null),
+                        child: const Icon(Icons.close_rounded, color: Colors.white60, size: 18),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 20),
 
@@ -1021,6 +1043,43 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
             }).toList(),
           ),
 
+          // Avviso chiaro sull'impatto del pagatore
+          if (_selectedPayerId != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: (_selectedPayerId == currentUserId ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: (_selectedPayerId == currentUserId ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _selectedPayerId == currentUserId ? Icons.north_east_rounded : Icons.south_west_rounded,
+                    size: 13,
+                    color: _selectedPayerId == currentUserId ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _selectedPayerId == currentUserId
+                          ? 'Hai anticipato tu: acquisirai un credito verso gli altri membri'
+                          : 'Pagato da altri: dovrai rimborsare la tua quota',
+                      style: TextStyle(
+                        color: _selectedPayerId == currentUserId ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 14),
           const Divider(color: Colors.white12, height: 1),
           const SizedBox(height: 14),
@@ -1036,8 +1095,10 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
               Row(
                 children: [
                   _buildSplitModeChip('⚖️ Equa', SplitType.equal),
-                  const SizedBox(width: 6),
-                  _buildSplitModeChip('✏️ Personalizzata', SplitType.custom),
+                  const SizedBox(width: 5),
+                  _buildSplitModeChip('💸 Anticipa', SplitType.lend),
+                  const SizedBox(width: 5),
+                  _buildSplitModeChip('✏️ Custom', SplitType.custom),
                 ],
               ),
             ],
@@ -1045,7 +1106,30 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
           const SizedBox(height: 12),
 
           // Dettaglio ripartizione
-          if (_splitType == SplitType.equal) ...[
+          if (_splitType == SplitType.lend) ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Color(0xFF10B981), size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _selectedPayerId == currentUserId
+                          ? 'Hai anticipato l\'intera spesa (€${totalAmount.toStringAsFixed(2)}) per gli altri membri. Ti spetta il 100% di rimborso.'
+                          : 'Un altro membro ha anticipato per tutti. Dovrai rimborsare la tua quota.',
+                      style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_splitType == SplitType.equal) ...[
             Text(
               'Partecipano alla spesa (${_includedMemberIds.length}/${_groupMembers.length}):',
               style: const TextStyle(color: Colors.white54, fontSize: 11),
@@ -1184,12 +1268,11 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
   }
 
   Widget _buildInvestmentAllocationSection() {
-    final cleanTotal = _amountController.text.replaceAll('.', '').replaceAll(',', '.').trim();
-    final totalAmount = double.tryParse(cleanTotal) ?? 0.0;
+    final totalAmount = CurrencyInputHelper.parse(_amountController.text) ?? 0.0;
 
     double allocatedSum = 0.0;
     for (final e in _allocationEntries) {
-      final amt = double.tryParse(e.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+      final amt = CurrencyInputHelper.parse(e.amountController.text) ?? 0.0;
       allocatedSum += amt;
     }
     final residual = totalAmount - allocatedSum;
@@ -1353,9 +1436,9 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
               ..._allocationEntries.asMap().entries.map((item) {
                 final idx = item.key;
                 final entry = item.value;
-                final entryAmt = double.tryParse(entry.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ??
+                final entryAmt = CurrencyInputHelper.parse(entry.amountController.text) ??
                     (_allocationEntries.length == 1 ? totalAmount : 0.0);
-                final entryQty = double.tryParse(entry.quantityController.text.replaceAll(',', '.').trim()) ?? 0.0;
+                final entryQty = CurrencyInputHelper.parse(entry.quantityController.text) ?? 0.0;
                 final estUnitPrice = entryQty > 0 ? (entryAmt / entryQty) : 0.0;
 
                 return Container(
@@ -1520,7 +1603,7 @@ class _UnifiedTransactionModalState extends State<UnifiedTransactionModal> {
                           onTap: () {
                             setState(() {
                               final lastEntry = _allocationEntries.last;
-                              final cur = double.tryParse(lastEntry.amountController.text.replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+                              final cur = CurrencyInputHelper.parse(lastEntry.amountController.text) ?? 0.0;
                               lastEntry.amountController.text = (cur + residual).toStringAsFixed(2);
                             });
                           },

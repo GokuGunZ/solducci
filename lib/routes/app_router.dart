@@ -14,6 +14,7 @@ import 'package:solducci/views/timeline_view.dart';
 import 'package:solducci/views/bento_dashboard_page.dart';
 import 'package:solducci/views/economy/recurring_hub_view.dart';
 import 'package:solducci/views/economy/expense_detail_view.dart';
+import 'package:solducci/views/economy/group_debt_detail_view.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/views/placeholders/personal_expenses_page.dart';
 import 'package:solducci/features/space/views/space_home_view.dart';
@@ -167,6 +168,13 @@ class AppRouter {
       GoRoute(
         path: '/economy/recurring',
         builder: (context, state) => const RecurringHubView(),
+      ),
+      GoRoute(
+        path: '/economy/debts',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return GroupDebtDetailView(groupId: extra?['groupId'] as String?);
+        },
       ),
       GoRoute(
         path: '/economy',

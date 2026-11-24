@@ -1,0 +1,9 @@
+Voglio modificare la tab "Economia":
+- Nell'header manca il pallino del contesto corrente (uguali a quello delle altre tab). Dato che è già Crowded, puoi togliere il titolo all'header.
+- Vorrei che la pagina per i gruppi fosse composta così: "togliere il patrimonio netto tolale"; mettere saldo debiti in cima, poi Spese per categoria (togliendo il titolo alla sezione), e poi a seguire la sezione Transazioni del gruppo. 
+- Cliccando su Saldo Debiti e Crediti, si va in una pagina nella quale si mostrano i dettagli relativi al debito/credito: In cima si ripropone la stesso widget da cui si è entrati, poi sotto segue un grafico osservabile (cliccando ad una data data si osserva qual era il debito a quel giorno) e navigabile dell'andamento del debito nel tempo. (quindi con lo zero centrato verticalmente e l'andamento che fa su e giu di debito in credito).
+- La lista della sezione "Transizioni Gruppo" è ordinata in ordine cronologico, quindi la più vecchia in cima,  dovrebe essere al contrario. 
+- All'interno della pagina "lista spese", deve esserci un modo per filtrare per tipologia (selezionando anche più tipologie), per data o finestra temporale, per chi ha pagato, per nome e per importo. Inoltre, quella pagina non ha lo stesso Design UI della tab economia, risolvi e unifica la UI. 
+- Quando aggiungo una spesa, non prende il punto, quindi "31.4 diventa 314". Inoltre, dato che è un modal, gli snackbar informativi (tipo quando non inserisco un campo) vengono nascosti e l'app sembra bloccarsi. 
+- Ho provato ad aggiungere una spesa in un gruppo per conto di un altra persona e mi da errore che qualche kiave del database viene violata, non dovrebbe succedere.
+- Il form di modifica della spesa non permette di cambiare chi ha pagato e per chi.
