@@ -238,8 +238,9 @@ class _GroupDebtsSectionState extends State<GroupDebtsSection> {
             ..._balances.map((b) => _buildPairwiseDebtRow(b)),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// Riga per singolo debito/credito tra persone
   Widget _buildPairwiseDebtRow(PairwiseDebtBalance b) {

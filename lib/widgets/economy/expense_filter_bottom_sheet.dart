@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solducci/models/expense.dart';
 import 'package:solducci/models/expense_filter_criteria.dart';
+import 'package:solducci/models/expense_form.dart';
 import 'package:solducci/models/group.dart';
 import 'package:solducci/utils/category_helpers.dart';
 import 'package:solducci/utils/currency_input_helper.dart';
